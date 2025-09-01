@@ -5,12 +5,16 @@ Copyright © 2025 Emiliano Spinella (eminwux)
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sbsh/pkg/llm"
+	controller "sbsh/pkg/sbsh"
+	"sbsh/pkg/session"
 	"sbsh/pkg/tty"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -41,16 +45,75 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if len(args) > 0 {
-			need := strings.Join(args, " ")
-			llm.Run(need)
-			return
-		}
-		tty.Start(currentMode)
-		// tty.ShowPrompt(currentMode, rl)
+		// if len(args) > 0 {
+		// 	need := strings.Join(args, " ")
+		// 	llm.Run(need)
+		// 	return
+		// }
+		// Here we call the main loop
+
+		runSupervisor()
+		//tty.Start(currentMode)
+
+		// tty.ShowPrompt(currentMode, rld)
 	},
 }
 
+func runSupervisor() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create a new Controller
+	ctrl := controller.NewController()
+
+	// Create error channel
+	errCh := make(chan error, 1)
+
+	// Run controller
+	go func() {
+		errCh <- ctrl.Run(ctx) // Run should return when ctx is canceled
+	}()
+
+	// block until controller is ready (or ctx cancels)
+	if err := ctrl.WaitReady(ctx); err != nil {
+		log.Printf("controller not ready: %s", err)
+		return
+	}
+
+	// Define a new Session
+	spec := session.SessionSpec{
+		ID:      session.SessionID("s0"),
+		Kind:    session.SessLocal,
+		Label:   "default",
+		Command: []string{"bash", "-i"},
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+	}
+
+	// Create the new Session
+	sess := session.NewSession(spec)
+
+	// Add the Session to the SessionManager
+	ctrl.AddSession(sess)
+
+	// Start new session
+	if err := ctrl.StartSession(sess.ID()); err != nil {
+		log.Fatalf("failed to start session: %v", err)
+	}
+
+	if err := ctrl.SetCurrentSession(sess.ID()); err != nil {
+		log.Fatalf("failed to set current session: %v", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		// graceful shutdown path
+	case err := <-errCh:
+		if err != nil && !errors.Is(err, context.Canceled) {
+			log.Printf("controller stopped with error: %v\r\n", err)
+		}
+	}
+}
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
