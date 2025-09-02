@@ -24,7 +24,6 @@ type SessionState int
 const (
 	SessBash SessionState = iota
 	SessSupervisor
-	SessTerminated
 )
 
 // What kind of session we spawn
@@ -451,10 +450,8 @@ func (m *SessionManager) ListLive() []SessionID {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	out := make([]SessionID, 0, len(m.sessions))
-	for id, s := range m.sessions {
-		if s.state != SessTerminated {
-			out = append(out, id)
-		}
+	for id, _ := range m.sessions {
+		out = append(out, id)
 	}
 	return out
 }
