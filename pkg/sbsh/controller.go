@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"sbsh/pkg/session"
@@ -58,7 +57,7 @@ func (c *Controller) WaitReady(ctx context.Context) error {
 func (c *Controller) Run(ctx context.Context) error {
 	c.ctx = ctx
 	c.exit = make(chan struct{})
-	log.Println("[ctrl] starting controller loop")
+	log.Println("[ctrl] Starting controller loop")
 	defer log.Printf("[ctrl] controller stopped\r\n")
 
 	close(c.ready)
@@ -301,7 +300,7 @@ func (c *Controller) StartSession(id session.SessionID) error {
 
 // NewController wires the manager and the shared event channel from sessions.
 func NewController() *Controller {
-	fmt.Printf("[ctrl] New controller is being created\r\n")
+	log.Printf("[ctrl] New controller is being created\r\n")
 
 	events := make(chan session.SessionEvent, 32) // buffered so PTY readers never block
 	// Create a SessionManager

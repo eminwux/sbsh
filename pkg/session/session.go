@@ -95,7 +95,6 @@ type Session struct {
 
 // NewSession creates the struct, not started yet (no PTY, no process).
 func NewSession(spec SessionSpec) *Session {
-	log.Printf("[session] New session is being created")
 	return &Session{
 		id:   spec.ID,
 		spec: spec,
