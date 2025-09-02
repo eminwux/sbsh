@@ -86,10 +86,9 @@ type Session struct {
 	evCh   chan<- SessionEvent // fan-out to controller (send-only from session)
 	stopCh chan struct{}       // internal shutdown
 
-	cancel context.CancelFunc
-	done   chan struct{} // closed when both goroutines exit
-	errs   chan error    // internal: size 2
-	ctx    context.Context
+	ctxCancel context.CancelFunc
+	done      chan struct{} // closed when both goroutines exit
+	errs      chan error    // internal: size 2
 }
 
 // NewSession creates the struct, not started yet (no PTY, no process).
@@ -235,8 +234,7 @@ func (s *Session) Start(ctx context.Context, evCh chan<- SessionEvent) error {
 
 	var once sync.Once
 	sessionCtx, cancel := context.WithCancel(ctx)
-	s.ctx = sessionCtx
-	s.cancel = cancel
+	s.ctxCancel = cancel
 	s.done = make(chan struct{})
 	s.errs = make(chan error, 2)
 
@@ -395,7 +393,7 @@ func (s *Session) Start(ctx context.Context, evCh chan<- SessionEvent) error {
 		// When one side finishes…
 		_ = <-s.errs
 		// …cancel the session context and close PTY to unblock the peer
-		s.cancel()
+		s.ctxCancel()
 		s.gates.OutputOn = false
 		s.gates.StdinOpen = false
 		_ = s.pty.Close()
