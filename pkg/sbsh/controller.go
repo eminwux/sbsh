@@ -218,14 +218,6 @@ func toRawMode() (*term.State, error) {
 	return state, nil
 }
 
-func toCookedMode() error {
-	err := term.Restore(int(os.Stdin.Fd()), nil)
-	if err != nil {
-		log.Fatalf("[ctrl] Restore terminal: %v", err)
-	}
-	return nil
-}
-
 // toBashUIMode: set terminal to RAW, update flags
 func (c *Controller) ToBashUIMode() error {
 	// TODO: restore raw mode on os.Stdin (your terminal manager)

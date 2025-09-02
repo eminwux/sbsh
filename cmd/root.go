@@ -14,13 +14,10 @@ import (
 	"sbsh/pkg/llm"
 	controller "sbsh/pkg/sbsh"
 	"sbsh/pkg/session"
-	"sbsh/pkg/tty"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
-
-var currentMode tty.Mode = tty.ModeSmart
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
