@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"sbsh/pkg/api"
 	"sync"
 	"syscall"
 	"time"
@@ -15,61 +16,15 @@ import (
 	"github.com/creack/pty"
 )
 
-// Identity & lifecycle
-type SessionID string
-
-type SessionState int
-
-const (
-	SessBash SessionState = iota
-	SessSupervisor
-)
-
-// What kind of session we spawn
-type SessionKind int
-
-const (
-	SessLocal SessionKind = iota // /bin/bash -i
-	SessSSH                      // ssh -tt user@host ...
-)
-
-// Inputs needed to spawn a session; serialize parts of this into sessions.json
-type SessionSpec struct {
-	ID      SessionID
-	Kind    SessionKind
-	Label   string            // user-friendly name
-	Command []string          // for local: ["bash","-i"]; for ssh: ["ssh","-tt","user@host"]
-	Env     []string          // TERM, COLORTERM, etc.
-	Context map[string]string // kubectl ns, cwd hint, etc.
-	LogDir  string
-}
-
-type SessionEventType int
-
-const (
-	EvData     SessionEventType = iota // optional metrics
-	EvSentinel                         // OSC sentinel detected
-	EvClosed                           // PTY closed / child exited
-	EvError                            // abnormal error
-)
-
-type SessionEvent struct {
-	ID    SessionID
-	Type  SessionEventType
-	Bytes int   // for EvData
-	Err   error // for EvClosed/EvError
-	When  time.Time
-}
-
 type Session struct {
 	// immutable
-	id   SessionID
-	spec SessionSpec
+	id   api.SessionID
+	spec api.SessionSpec
 
 	// runtime (owned by Session)
 	cmd   *exec.Cmd
 	pty   *os.File // master
-	state SessionState
+	state api.SessionState
 	fsm   *SentinelFSM
 	gates struct {
 		StdinOpen bool
@@ -81,24 +36,38 @@ type Session struct {
 	lastRead          time.Time
 
 	// signaling
-	evCh   chan<- SessionEvent // fan-out to controller (send-only from session)
-	stopCh chan struct{}       // internal shutdown
+	evCh   chan<- api.SessionEvent // fan-out to controller (send-only from session)
+	stopCh chan struct{}           // internal shutdown
 
 	ctxCancel context.CancelFunc
 	done      chan struct{} // closed when both goroutines exit
 	errs      chan error    // internal: size 2
 }
 
+type SessionManager struct {
+	mu       sync.RWMutex
+	sessions map[api.SessionID]Session
+	ctx      context.Context
+	current  api.SessionID
+}
+
+type SentinelFSM struct {
+	matched int // how many bytes of sentinel matched so far (across chunks)
+}
+
+// ESC]1337;sbshBEL  (no payload)
+var sentinel = []byte{0x1b, ']', '1', '3', '3', '7', ';', 's', 'b', 's', 'h', 0x07}
+
 // NewSession creates the struct, not started yet (no PTY, no process).
-func NewSession(spec SessionSpec) *Session {
+func NewSession(spec *api.SessionSpec) *Session {
 	return &Session{
 		id:   spec.ID,
-		spec: spec,
+		spec: *spec,
 
 		// runtime (initialized but inactive)
 		cmd:   nil,
 		pty:   nil,
-		state: SessBash, // default logical state before start
+		state: api.SessBash, // default logical state before start
 		fsm:   &SentinelFSM{},
 
 		gates: struct {
@@ -164,27 +133,27 @@ func (s *Session) SetOutput(policyOn bool) {
 }
 
 // // Accessors
-func (s *Session) ID() SessionID {
+func (s *Session) ID() api.SessionID {
 	return s.id
 }
-func (s *Session) State() SessionState {
+func (s *Session) State() api.SessionState {
 	return s.state
 }
-func (s *Session) Spec() SessionSpec {
+func (s *Session) Spec() api.SessionSpec {
 	return s.spec
 }
 
 // Start spawns the child under PTY, starts the PTY->stdout reader goroutine,
 // and begins emitting SessionEvent into evCh. Returns error if spawn fails.
 
-func (s *Session) Start(ctx context.Context, evCh chan<- SessionEvent) error {
+func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error {
 	if len(s.spec.Command) == 0 {
 		return errors.New("empty command in SessionSpec")
 	}
 	s.evCh = evCh
 	s.stopCh = make(chan struct{})
 	s.fsm = &SentinelFSM{}
-	s.state = SessBash
+	s.state = api.SessBash
 	s.gates.StdinOpen = true
 	s.gates.OutputOn = true
 
@@ -281,7 +250,7 @@ func (s *Session) Start(ctx context.Context, evCh chan<- SessionEvent) error {
 
 				if found {
 					// Non-blocking event send
-					trySendEvent(s.evCh, SessionEvent{ID: s.id, Type: EvSentinel, When: time.Now()})
+					trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvSentinel, When: time.Now()})
 				}
 
 				// Render if output is enabled; otherwise we just drain
@@ -312,9 +281,9 @@ func (s *Session) Start(ctx context.Context, evCh chan<- SessionEvent) error {
 				// fmt.Printf("[session] stdout closed\n\r")
 				// Linux PTYs often return EIO when slave side closes — treat as normal close
 				if errors.Is(err, io.EOF) || errors.Is(err, syscall.EIO) {
-					trySendEvent(s.evCh, SessionEvent{ID: s.id, Type: EvClosed, Err: err, When: time.Now()})
+					trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvClosed, Err: err, When: time.Now()})
 				} else {
-					trySendEvent(s.evCh, SessionEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
+					trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: err, When: time.Now()})
 				}
 
 				s.errs <- sessionCtx.Err()
@@ -350,7 +319,7 @@ func (s *Session) Start(ctx context.Context, evCh chan<- SessionEvent) error {
 					if s.gates.StdinOpen {
 
 						if _, werr := s.pty.Write(buf[:n]); werr != nil {
-							trySendEvent(s.evCh, SessionEvent{ID: s.id, Type: EvError, Err: werr, When: time.Now()})
+							trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: werr, When: time.Now()})
 							return
 						}
 					}
@@ -362,7 +331,7 @@ func (s *Session) Start(ctx context.Context, evCh chan<- SessionEvent) error {
 					// stdin closed or fatal
 					s.errs <- sessionCtx.Err()
 
-					trySendEvent(s.evCh, SessionEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
+					trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: err, When: time.Now()})
 					return
 				}
 
@@ -405,20 +374,9 @@ func (s *Session) Start(ctx context.Context, evCh chan<- SessionEvent) error {
 
 /////////////////////////////////////////////////
 
-/* Dependencies the manager relies on (minimal) */
-
-/* Manager */
-
-type SessionManager struct {
-	mu       sync.RWMutex
-	sessions map[SessionID]Session
-	ctx      context.Context
-	current  SessionID
-}
-
 func NewSessionManager() *SessionManager {
 	return &SessionManager{
-		sessions: make(map[SessionID]Session),
+		sessions: make(map[api.SessionID]Session),
 	}
 }
 
@@ -433,24 +391,24 @@ func (m *SessionManager) Add(s Session) {
 	}
 }
 
-func (m *SessionManager) Get(id SessionID) (Session, bool) {
+func (m *SessionManager) Get(id api.SessionID) (Session, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	s, ok := m.sessions[id]
 	return s, ok
 }
 
-func (m *SessionManager) ListLive() []SessionID {
+func (m *SessionManager) ListLive() []api.SessionID {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	out := make([]SessionID, 0, len(m.sessions))
-	for id, _ := range m.sessions {
+	out := make([]api.SessionID, 0, len(m.sessions))
+	for id := range m.sessions {
 		out = append(out, id)
 	}
 	return out
 }
 
-func (m *SessionManager) Remove(id SessionID) {
+func (m *SessionManager) Remove(id api.SessionID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.sessions, id)
@@ -459,13 +417,13 @@ func (m *SessionManager) Remove(id SessionID) {
 	}
 }
 
-func (m *SessionManager) Current() SessionID {
+func (m *SessionManager) Current() api.SessionID {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.current
 }
 
-func (m *SessionManager) SetCurrent(id SessionID) error {
+func (m *SessionManager) SetCurrent(id api.SessionID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, ok := m.sessions[id]; !ok {
@@ -475,7 +433,7 @@ func (m *SessionManager) SetCurrent(id SessionID) error {
 	return nil
 }
 
-func (m *SessionManager) StartSession(id SessionID, ctx context.Context, evCh chan<- SessionEvent) error {
+func (m *SessionManager) StartSession(id api.SessionID, ctx context.Context, evCh chan<- api.SessionEvent) error {
 	m.mu.Lock()
 	log.Printf("[session] SessionManager state locked")
 	defer func() {
@@ -495,7 +453,7 @@ func (m *SessionManager) StartSession(id SessionID, ctx context.Context, evCh ch
 	return nil
 }
 
-func (m *SessionManager) StopSession(id SessionID) error {
+func (m *SessionManager) StopSession(id api.SessionID) error {
 	m.mu.Lock()
 	sess, ok := m.sessions[id]
 	m.mu.Unlock()
@@ -515,7 +473,7 @@ func (m *SessionManager) StopSession(id SessionID) error {
 }
 
 // helper: non-blocking event send so the PTY reader never stalls
-func trySendEvent(ch chan<- SessionEvent, ev SessionEvent) {
+func trySendEvent(ch chan<- api.SessionEvent, ev api.SessionEvent) {
 	log.Printf("[session] send event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
 
 	select {
@@ -523,13 +481,6 @@ func trySendEvent(ch chan<- SessionEvent, ev SessionEvent) {
 	default:
 		// drop on the floor if controller is momentarily busy; channel should be buffered
 	}
-}
-
-// ESC]1337;sbshBEL  (no payload)
-var sentinel = []byte{0x1b, ']', '1', '3', '3', '7', ';', 's', 'b', 's', 'h', 0x07}
-
-type SentinelFSM struct {
-	matched int // how many bytes of sentinel matched so far (across chunks)
 }
 
 // Feed consumes a chunk and returns (found, cleanedOut).

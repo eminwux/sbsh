@@ -1,10 +1,11 @@
-package controller
+package daemon
 
 import (
 	"context"
 	"errors"
 	"log"
 	"os"
+	"sbsh/pkg/api"
 	"sbsh/pkg/session"
 	"syscall"
 	"time"
@@ -25,23 +26,31 @@ const (
 type Controller struct {
 	ready  chan struct{}
 	mgr    *session.SessionManager
-	events chan session.SessionEvent // fan-in from all sessions
+	events chan api.SessionEvent // fan-in from all sessions
 	// resizeSig chan os.Signal
 
 	uiMode  UIMode
-	boundID session.SessionID // session currently bound to supervisor UI
+	boundID api.SessionID // session currently bound to supervisor UI
 	// you can add more, e.g., quietOutput bool
 	ctx           context.Context
 	lastTermState *term.State
 	exit          chan struct{}
 }
 
-func (c *Controller) GetSessionEventChannel() chan<- session.SessionEvent {
-	return c.events
-}
+// type Controller interface {
+//     Run(ctx context.Context) error
+//     // high-level ops (daemon API):
+//     SessionsList(ctx) ([]SessionInfo, error)
+//     SessionsNew(ctx, spec SessionSpec) (SessionID, error)
+//     SessionsUse(ctx, id SessionID) error
+//     SessionsKill(ctx, id SessionID) error
+//     // stream (optional):
+//     Events(ctx context.Context) (<-chan SessionEvent, error)
+// }
+////////////////////////////////////////////////
 
-func (c *Controller) GetSessionManager() *session.SessionManager {
-	return c.mgr
+func (c *Controller) GetSessionEventChannel() chan<- api.SessionEvent {
+	return c.events
 }
 
 func (c *Controller) WaitReady(ctx context.Context) error {
@@ -88,27 +97,27 @@ func (c *Controller) Run(ctx context.Context) error {
 
 /* ---------- Event handlers ---------- */
 
-func (c *Controller) handleEvent(ev session.SessionEvent) {
+func (c *Controller) handleEvent(ev api.SessionEvent) {
 	// log.Printf("[ctrl] session %s event received %d\r\n", ev.ID, ev.Type)
 	switch ev.Type {
-	case session.EvSentinel:
+	case api.EvSentinel:
 		// log.Printf("[ctrl] session %s EvSentinel\r\n", ev.ID)
 		c.onSentinel(ev.ID)
 
-	case session.EvClosed:
+	case api.EvClosed:
 		log.Printf("[ctrl] session %s EvClosed error: %v\r\n", ev.ID, ev.Err)
 		c.onClosed(ev.ID, ev.Err)
 
-	case session.EvError:
+	case api.EvError:
 		// log.Printf("[ctrl] session %s EvError error: %v\r\n", ev.ID, ev.Err)
 
-	case session.EvData:
+	case api.EvData:
 		// optional metrics hook
 
 	}
 }
 
-func (c *Controller) onSentinel(id session.SessionID) {
+func (c *Controller) onSentinel(id api.SessionID) {
 	// Ignore if already in supervisor for this session
 	if c.uiMode == UISupervisor && c.boundID == id {
 		return
@@ -139,7 +148,7 @@ func (c *Controller) onSentinel(id session.SessionID) {
 	c.onExitSupervisor(sess.ID())
 }
 
-func (c *Controller) onExitSupervisor(id session.SessionID) {
+func (c *Controller) onExitSupervisor(id api.SessionID) {
 	sess, ok := c.mgr.Get(id)
 	if ok {
 		sess.ExitSupervisor()
@@ -156,7 +165,7 @@ func (c *Controller) onExitSupervisor(id session.SessionID) {
 	c.boundID = c.mgr.Current()
 }
 
-func (c *Controller) onClosed(id session.SessionID, err error) {
+func (c *Controller) onClosed(id api.SessionID, err error) {
 	// Treat EIO/EOF as normal close
 	if err != nil && !errors.Is(err, syscall.EIO) && !errors.Is(err, os.ErrClosed) {
 		log.Printf("[ctrl] session %s closed with error: %v\r\n", id, err)
@@ -269,11 +278,13 @@ func (c *Controller) runSupervisorREPL(sess session.Session) {
 	// - later: integrate planner/executor
 }
 
-func (c *Controller) AddSession(s *session.Session) {
-	c.mgr.Add(*s)
+func (c *Controller) AddSession(spec *api.SessionSpec) {
+	// Create the new Session
+	sess := session.NewSession(spec)
+	c.mgr.Add(*sess)
 }
 
-func (c *Controller) SetCurrentSession(id session.SessionID) error {
+func (c *Controller) SetCurrentSession(id api.SessionID) error {
 	if err := c.mgr.SetCurrent(id); err != nil {
 		log.Fatalf("failed to set current session: %v", err)
 		return err
@@ -288,7 +299,7 @@ func (c *Controller) SetCurrentSession(id session.SessionID) error {
 	return nil
 }
 
-func (c *Controller) StartSession(id session.SessionID) error {
+func (c *Controller) StartSession(id api.SessionID) error {
 
 	if err := c.mgr.StartSession(id, c.ctx, c.events); err != nil {
 		log.Fatalf("failed to start session: %v", err)
@@ -302,7 +313,7 @@ func (c *Controller) StartSession(id session.SessionID) error {
 func NewController() *Controller {
 	log.Printf("[ctrl] New controller is being created\r\n")
 
-	events := make(chan session.SessionEvent, 32) // buffered so PTY readers never block
+	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
 	// Create a SessionManager
 	mgr := session.NewSessionManager()
 
@@ -320,7 +331,7 @@ func NewController() *Controller {
 
 /* ---------- Helpers ---------- */
 
-func pickNext(m *session.SessionManager, closed session.SessionID) session.SessionID {
+func pickNext(m *session.SessionManager, closed api.SessionID) api.SessionID {
 	live := m.ListLive()
 	for _, id := range live {
 		if id != closed {
