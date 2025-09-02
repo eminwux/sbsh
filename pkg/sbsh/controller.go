@@ -129,7 +129,7 @@ func (c *Controller) onSentinel(id session.SessionID) {
 
 	// Bind UI to this session and switch terminal to cooked
 	c.boundID = id
-	if err := c.ToSupervisorUIMode(); err != nil {
+	if err := c.toSupervisorUIMode(); err != nil {
 		log.Printf("[ctrl] toSupervisorUIMode failed: %v", err)
 	}
 
@@ -149,7 +149,7 @@ func (c *Controller) onExitSupervisor(id session.SessionID) {
 	}
 
 	// Switch back to raw terminal and bash UI
-	if err := c.ToBashUIMode(); err != nil {
+	if err := c.toBashUIMode(); err != nil {
 		log.Printf("[ctrl] toBashUIMode failed: %v", err)
 	}
 
@@ -219,7 +219,7 @@ func toRawMode() (*term.State, error) {
 }
 
 // toBashUIMode: set terminal to RAW, update flags
-func (c *Controller) ToBashUIMode() error {
+func (c *Controller) toBashUIMode() error {
 	// TODO: restore raw mode on os.Stdin (your terminal manager)
 	// e.g., term.MakeRaw / term.Restore handled by a helper
 	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
@@ -236,7 +236,7 @@ func (c *Controller) ToBashUIMode() error {
 }
 
 // toSupervisorUIMode: set terminal to COOKED for your REPL
-func (c *Controller) ToSupervisorUIMode() error {
+func (c *Controller) toSupervisorUIMode() error {
 	// TODO: restore cooked mode on os.Stdin
 	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
 	err := term.Restore(int(os.Stdin.Fd()), nil)
@@ -283,7 +283,7 @@ func (c *Controller) SetCurrentSession(id session.SessionID) error {
 	c.boundID = id
 
 	// Initial terminal mode (bash passthrough)
-	if err := c.ToBashUIMode(); err != nil {
+	if err := c.toBashUIMode(); err != nil {
 		log.Printf("[ctrl] initial raw mode failed: %v", err)
 	}
 	return nil
