@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"golang.org/x/term"
 )
 
 // Identity & lifecycle
@@ -76,7 +75,6 @@ type Session struct {
 		StdinOpen bool
 		OutputOn  bool
 	}
-	oldState *term.State
 
 	// observability
 	bytesIn, bytesOut uint64
@@ -110,8 +108,6 @@ func NewSession(spec SessionSpec) *Session {
 			StdinOpen: true, // allow stdin by default once started
 			OutputOn:  true, // render PTY output by default
 		},
-
-		oldState: nil,
 
 		// observability (zeroed; will be updated when running)
 		bytesIn:  0,
