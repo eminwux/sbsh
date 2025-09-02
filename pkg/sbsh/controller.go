@@ -20,6 +20,7 @@ type UIMode int
 const (
 	UIBash UIMode = iota
 	UISupervisor
+	UIExitShell // Saved lastState restore
 )
 
 type Controller struct {
@@ -148,9 +149,10 @@ func (c *Controller) onExitSupervisor(id session.SessionID) {
 	}
 
 	// Switch back to raw terminal and bash UI
-	if _, err := c.ToBashUIMode(); err != nil {
+	if err := c.ToBashUIMode(); err != nil {
 		log.Printf("[ctrl] toBashUIMode failed: %v", err)
 	}
+
 	c.uiMode = UIBash
 	c.boundID = c.mgr.Current()
 }
@@ -174,6 +176,7 @@ func (c *Controller) onClosed(id session.SessionID, err error) {
 	// If the closed session was bound or current, pick another
 	if c.boundID == id {
 		c.boundID = ""
+		c.toExitShell()
 	}
 
 	if c.mgr.Current() == id {
@@ -205,20 +208,39 @@ func (c *Controller) Stop() {
 
 /* ---------- UI mode transitions (terminal modes) ---------- */
 
+func toRawMode() (*term.State, error) {
+	state, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		log.Fatalf("[ctrl] MakeRaw terminal: %v", err)
+
+	}
+
+	return state, nil
+}
+
+func toCookedMode() error {
+	err := term.Restore(int(os.Stdin.Fd()), nil)
+	if err != nil {
+		log.Fatalf("[ctrl] Restore terminal: %v", err)
+	}
+	return nil
+}
+
 // toBashUIMode: set terminal to RAW, update flags
-func (c *Controller) ToBashUIMode() (*term.State, error) {
+func (c *Controller) ToBashUIMode() error {
 	// TODO: restore raw mode on os.Stdin (your terminal manager)
 	// e.g., term.MakeRaw / term.Restore handled by a helper
 	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
 
-	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	lastTermState, err := toRawMode()
 	if err != nil {
 		log.Fatalf("MakeRaw: %v", err)
 	}
 	// defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
 
 	c.uiMode = UIBash
-	return oldState, nil
+	c.lastTermState = lastTermState
+	return nil
 }
 
 // toSupervisorUIMode: set terminal to COOKED for your REPL
@@ -231,6 +253,19 @@ func (c *Controller) ToSupervisorUIMode() error {
 	}
 
 	c.uiMode = UISupervisor
+	return nil
+}
+
+// toSupervisorUIMode: set terminal to COOKED for your REPL
+func (c *Controller) toExitShell() error {
+	// TODO: restore cooked mode on os.Stdin
+	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
+	err := term.Restore(int(os.Stdin.Fd()), c.lastTermState)
+	if err != nil {
+		log.Fatalf("MakeRaw: %v", err)
+	}
+
+	c.uiMode = UIExitShell
 	return nil
 }
 
@@ -252,11 +287,12 @@ func (c *Controller) SetCurrentSession(id session.SessionID) error {
 		log.Fatalf("failed to set current session: %v", err)
 		return err
 	}
+
+	c.boundID = id
+
 	// Initial terminal mode (bash passthrough)
-	if lastTermState, err := c.ToBashUIMode(); err != nil {
+	if err := c.ToBashUIMode(); err != nil {
 		log.Printf("[ctrl] initial raw mode failed: %v", err)
-	} else {
-		c.lastTermState = lastTermState
 	}
 	return nil
 }
