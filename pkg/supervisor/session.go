@@ -25,7 +25,6 @@ type Session struct {
 	cmd   *exec.Cmd
 	pty   *os.File // master
 	state api.SessionState
-	fsm   *SentinelFSM
 	gates struct {
 		StdinOpen bool
 		OutputOn  bool
@@ -51,13 +50,6 @@ type SessionManager struct {
 	current  api.SessionID
 }
 
-type SentinelFSM struct {
-	matched int // how many bytes of sentinel matched so far (across chunks)
-}
-
-// ESC]1337;sbshBEL  (no payload)
-var sentinel = []byte{0x1b, ']', '1', '3', '3', '7', ';', 's', 'b', 's', 'h', 0x07}
-
 // NewSession creates the struct, not started yet (no PTY, no process).
 func NewSession(spec *api.SessionSpec) *Session {
 	return &Session{
@@ -68,7 +60,6 @@ func NewSession(spec *api.SessionSpec) *Session {
 		cmd:   nil,
 		pty:   nil,
 		state: api.SessBash, // default logical state before start
-		fsm:   &SentinelFSM{},
 
 		gates: struct {
 			StdinOpen bool
@@ -152,7 +143,6 @@ func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error
 	}
 	s.evCh = evCh
 	s.stopCh = make(chan struct{})
-	s.fsm = &SentinelFSM{}
 	s.state = api.SessBash
 	s.gates.StdinOpen = true
 	s.gates.OutputOn = true
@@ -246,32 +236,14 @@ func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error
 				s.lastRead = time.Now()
 				s.bytesOut += uint64(n)
 
-				found, cleaned := s.fsm.Feed(buf[:n])
-
-				if found {
-					// Non-blocking event send
-					trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvSentinel, When: time.Now()})
-				}
-
 				// Render if output is enabled; otherwise we just drain
 				if s.gates.OutputOn {
 
 					// log.Println("[session] output gate is on")
-
-					if found && len(cleaned) > 0 {
-						log.Println("[session] sentinel found")
-						_, _ = os.Stdout.Write(cleaned)
-						if err != nil {
-							// log.Println("[session] error writing cleaned data")
-							return
-						}
-					} else {
-						// log.Printf("[session] data arrived %d\n", n)
-						_, err = os.Stdout.Write(buf[:n])
-						if err != nil {
-							// log.Println("[session] error writing raw data")
-							return
-						}
+					_, err = os.Stdout.Write(buf[:n])
+					if err != nil {
+						// log.Println("[session] error writing raw data")
+						return
 					}
 				}
 			}
@@ -341,8 +313,8 @@ func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error
 
 	s.pty.Write([]byte("echo 'Hello from Go!'\n"))
 	s.pty.Write([]byte(`export PS1="(sbsh) $PS1"` + "\n"))
-	s.pty.Write([]byte(`__sbsh_emit() { printf '\033]1337;sbsh\007'; }` + "\n"))
-	s.pty.Write([]byte(`smart()  { __sbsh_emit;  }` + "\n"))
+	// s.pty.Write([]byte(`__sbsh_emit() { printf '\033]1337;sbsh\007'; }` + "\n"))
+	// s.pty.Write([]byte(`smart()  { __sbsh_emit;  }` + "\n"))
 
 	// go func() {
 	// 	_ = s.cmd.Wait() // MUST be called exactly once
@@ -481,42 +453,4 @@ func trySendEvent(ch chan<- api.SessionEvent, ev api.SessionEvent) {
 	default:
 		// drop on the floor if controller is momentarily busy; channel should be buffered
 	}
-}
-
-// Feed consumes a chunk and returns (found, cleanedOut).
-// - found: true if a complete sentinel was detected in this chunk
-// - cleanedOut: the input with the sentinel bytes removed
-func (s *SentinelFSM) Feed(chunk []byte) (bool, []byte) {
-	found := false
-	out := make([]byte, 0, len(chunk))
-
-	for _, b := range chunk {
-		if s.matched > 0 {
-			// continue matching
-			if b == sentinel[s.matched] {
-				s.matched++
-				if s.matched == len(sentinel) {
-					// full sentinel matched: strip it and signal
-					found = true
-					s.matched = 0
-				}
-				continue // absorb matched byte; emit nothing
-			}
-			// mismatch: previously-matched bytes were normal output, emit them
-			out = append(out, sentinel[:s.matched]...)
-			s.matched = 0
-			// reprocess current byte in base state
-		}
-
-		// base state
-		if b == sentinel[0] {
-			s.matched = 1 // possible start
-			continue
-		}
-		out = append(out, b)
-	}
-
-	// If the chunk ended exactly on a full match, 'found' is already true.
-	// If it ended mid-match, we keep 'matched' to continue across the next chunk.
-	return found, out
 }
