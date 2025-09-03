@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"sbsh/pkg/api"
-	"sbsh/pkg/session"
 	"syscall"
 	"time"
 
@@ -29,7 +28,7 @@ const (
 
 type Controller struct {
 	ready  chan struct{}
-	mgr    *session.SessionManager
+	mgr    *SessionManager
 	events chan api.SessionEvent // fan-in from all sessions
 	// resizeSig chan os.Signal
 
@@ -289,7 +288,7 @@ func (c *Controller) toExitShell() error {
 
 /* ---------- Supervisor REPL (placeholder) ---------- */
 
-func (c *Controller) runSupervisorREPL(sess session.Session) {
+func (c *Controller) runSupervisorREPL(sess Session) {
 	// TODO: implement your minimal REPL loop (readline in cooked mode)
 	// - show "(sbsh) %"
 	// - accept 'exit' to return
@@ -298,7 +297,7 @@ func (c *Controller) runSupervisorREPL(sess session.Session) {
 
 func (c *Controller) AddSession(spec *api.SessionSpec) {
 	// Create the new Session
-	sess := session.NewSession(spec)
+	sess := NewSession(spec)
 	c.mgr.Add(*sess)
 }
 
@@ -333,7 +332,7 @@ func NewController() *Controller {
 
 	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
 	// Create a SessionManager
-	mgr := session.NewSessionManager()
+	mgr := NewSessionManager()
 
 	c := &Controller{
 		ready:  make(chan struct{}),
@@ -349,7 +348,7 @@ func NewController() *Controller {
 
 /* ---------- Helpers ---------- */
 
-func pickNext(m *session.SessionManager, closed api.SessionID) api.SessionID {
+func pickNext(m *SessionManager, closed api.SessionID) api.SessionID {
 	live := m.ListLive()
 	for _, id := range live {
 		if id != closed {
