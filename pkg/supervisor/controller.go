@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sbsh/pkg/api"
+	"sbsh/pkg/session"
 	"syscall"
 	"time"
 
@@ -28,7 +29,7 @@ const (
 
 type Controller struct {
 	ready  chan struct{}
-	mgr    *SessionManager
+	mgr    *session.SessionManager
 	events chan api.SessionEvent // fan-in from all sessions
 	// resizeSig chan os.Signal
 
@@ -132,10 +133,6 @@ func (c *Controller) Run(ctx context.Context) error {
 func (c *Controller) handleEvent(ev api.SessionEvent) {
 	// log.Printf("[ctrl] session %s event received %d\r\n", ev.ID, ev.Type)
 	switch ev.Type {
-	case api.EvSentinel:
-		// log.Printf("[ctrl] session %s EvSentinel\r\n", ev.ID)
-		c.onSentinel(ev.ID)
-
 	case api.EvClosed:
 		log.Printf("[ctrl] session %s EvClosed error: %v\r\n", ev.ID, ev.Err)
 		c.onClosed(ev.ID, ev.Err)
@@ -147,54 +144,6 @@ func (c *Controller) handleEvent(ev api.SessionEvent) {
 		// optional metrics hook
 
 	}
-}
-
-func (c *Controller) onSentinel(id api.SessionID) {
-	// Ignore if already in supervisor for this session
-	if c.uiMode == UISupervisor && c.boundID == id {
-		return
-	}
-
-	sess, ok := c.mgr.Get(id)
-	if !ok {
-		log.Printf("[ctrl] EvSentinel from unknown session %s", id)
-		return
-	}
-
-	// Flip per-session gates/state
-	sess.EnterSupervisor()
-	sess.CloseStdinGate() // keystrokes stop going to PTY
-	// Decide output policy during supervisor (stream or pause)
-	sess.SetOutput(true)
-
-	// Bind UI to this session and switch terminal to cooked
-	c.boundID = id
-	if err := c.toSupervisorUIMode(); err != nil {
-		log.Printf("[ctrl] toSupervisorUIMode failed: %v", err)
-	}
-
-	// Start REPL bound to this session (blocking until user exits)
-	c.runSupervisorREPL(sess)
-
-	// When REPL exits, go back to bash UI for the same (or current) session
-	c.onExitSupervisor(sess.ID())
-}
-
-func (c *Controller) onExitSupervisor(id api.SessionID) {
-	sess, ok := c.mgr.Get(id)
-	if ok {
-		sess.ExitSupervisor()
-		sess.OpenStdinGate()
-		sess.SetOutput(true) // keep streaming in bash
-	}
-
-	// Switch back to raw terminal and bash UI
-	if err := c.toBashUIMode(); err != nil {
-		log.Printf("[ctrl] toBashUIMode failed: %v", err)
-	}
-
-	c.uiMode = UIBash
-	c.boundID = c.mgr.Current()
 }
 
 func (c *Controller) onClosed(id api.SessionID, err error) {
@@ -288,16 +237,9 @@ func (c *Controller) toExitShell() error {
 
 /* ---------- Supervisor REPL (placeholder) ---------- */
 
-func (c *Controller) runSupervisorREPL(sess Session) {
-	// TODO: implement your minimal REPL loop (readline in cooked mode)
-	// - show "(sbsh) %"
-	// - accept 'exit' to return
-	// - later: integrate planner/executor
-}
-
 func (c *Controller) AddSession(spec *api.SessionSpec) {
 	// Create the new Session
-	sess := NewSession(spec)
+	sess := session.NewSession(spec)
 	c.mgr.Add(*sess)
 }
 
@@ -331,8 +273,8 @@ func NewController() *Controller {
 	log.Printf("[ctrl] New controller is being created\r\n")
 
 	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
-	// Create a SessionManager
-	mgr := NewSessionManager()
+	// Create a session.SessionManager
+	mgr := session.NewSessionManager()
 
 	c := &Controller{
 		ready:  make(chan struct{}),
@@ -348,7 +290,7 @@ func NewController() *Controller {
 
 /* ---------- Helpers ---------- */
 
-func pickNext(m *SessionManager, closed api.SessionID) api.SessionID {
+func pickNext(m *session.SessionManager, closed api.SessionID) api.SessionID {
 	live := m.ListLive()
 	for _, id := range live {
 		if id != closed {

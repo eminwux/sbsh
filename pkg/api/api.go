@@ -47,10 +47,9 @@ type SessionSpec struct {
 type SessionEventType int
 
 const (
-	EvData     SessionEventType = iota // optional metrics
-	EvSentinel                         // OSC sentinel detected
-	EvClosed                           // PTY closed / child exited
-	EvError                            // abnormal error
+	EvData   SessionEventType = iota // optional metrics
+	EvClosed                         // PTY closed / child exited
+	EvError                          // abnormal error
 )
 
 type SessionEvent struct {

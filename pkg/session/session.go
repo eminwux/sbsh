@@ -1,13 +1,18 @@
-package supervisor
+package session
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
+	"net"
+	"net/rpc"
+	"net/rpc/jsonrpc"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"sbsh/pkg/api"
 	"sync"
 	"syscall"
@@ -41,6 +46,9 @@ type Session struct {
 	ctxCancel context.CancelFunc
 	done      chan struct{} // closed when both goroutines exit
 	errs      chan error    // internal: size 2
+
+	ctrlLn net.Listener
+	ioLn   net.Listener
 }
 
 type SessionManager struct {
@@ -98,17 +106,6 @@ func (s *Session) Resize(from *os.File) error { // typically os.Stdin
 // // Write writes bytes to the session PTY (used by controller or Smart executor).
 // func (s *Session) Write(p []byte) (int, error)
 
-// EnterSupervisor flips internal state; does NOT touch global terminal modes.
-// Controller calls this upon EvSentinel.
-func (s *Session) EnterSupervisor() {
-
-}
-
-// ExitSupervisor flips back to bash mode; controller calls when REPL exits.
-func (s *Session) ExitSupervisor() {
-
-}
-
 // Open/Close the stdin forwarding gate (stdin->PTY). Reader goroutine
 // will check this flag before writing to PTY.
 func (s *Session) OpenStdinGate() {
@@ -141,11 +138,72 @@ func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error
 	if len(s.spec.Command) == 0 {
 		return errors.New("empty command in SessionSpec")
 	}
+
+	// Set up session
 	s.evCh = evCh
 	s.stopCh = make(chan struct{})
 	s.state = api.SessBash
 	s.gates.StdinOpen = true
 	s.gates.OutputOn = true
+
+	// Bring up sockets
+	base, err := runtimeBase()
+	if err != nil {
+		return err
+	}
+
+	sessDir := filepath.Join(base, "sessions", string(s.id))
+	if err := os.MkdirAll(sessDir, 0o700); err != nil {
+		return fmt.Errorf("mkdir session dir: %w", err)
+	}
+
+	ctrlPath := filepath.Join(sessDir, "ctrl.sock")
+	ioPath := filepath.Join(sessDir, "io.sock")
+
+	// Remove sockets if they already exist
+	_ = os.Remove(ctrlPath) // unlink stale
+	_ = os.Remove(ioPath)
+
+	ctrlLn, err := net.Listen("unix", ctrlPath)
+	if err != nil {
+		return fmt.Errorf("listen ctrl: %w", err)
+	}
+	if err := os.Chmod(ctrlPath, 0o600); err != nil {
+		ctrlLn.Close()
+		return err
+	}
+
+	ioLn, err := net.Listen("unix", ioPath)
+	if err != nil {
+		ctrlLn.Close()
+		return fmt.Errorf("listen io: %w", err)
+	}
+	if err := os.Chmod(ioPath, 0o600); err != nil {
+		ctrlLn.Close()
+		ioLn.Close()
+		return err
+	}
+
+	// keep references for Close()
+	s.ctrlLn = ctrlLn
+	s.ioLn = ioLn
+
+	// Start the Session Socker Loop
+	go func() {
+		srv := rpc.NewServer()
+		_ = srv.RegisterName("Session", &sessionRPC{S: s})
+		for {
+			conn, err := ctrlLn.Accept()
+			if err != nil {
+				// listener closed -> exit loop
+				if _, ok := err.(net.Error); ok {
+					continue
+				}
+				return
+			}
+			go srv.ServeCodec(jsonrpc.NewServerCodec(conn))
+		}
+	}()
 
 	// Build the child command with context (so ctx cancel can kill it)
 	cmd := exec.CommandContext(ctx, s.spec.Command[0], s.spec.Command[1:]...)
@@ -333,6 +391,14 @@ func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error
 	}()
 
 	return nil
+}
+
+func runtimeBase() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".sbsh", "run"), nil
 }
 
 /////////////////////////////////////////////////
