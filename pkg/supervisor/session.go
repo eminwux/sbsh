@@ -316,15 +316,6 @@ func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error
 	// s.pty.Write([]byte(`__sbsh_emit() { printf '\033]1337;sbsh\007'; }` + "\n"))
 	// s.pty.Write([]byte(`smart()  { __sbsh_emit;  }` + "\n"))
 
-	// go func() {
-	// 	_ = s.cmd.Wait() // MUST be called exactly once
-	// 	// Child has exited → notify & cleanup
-	// 	// WRITER
-	// 	// SEND MESSAGE when process finishes
-	// 	// trySendEvent(s.evCh, SessionEvent{ID: s.id, Type: EvClosed, Err: err, When: time.Now()})
-	// 	s.errs <- sessionCtx.Err()
-	// }()
-
 	// Supervisor: don’t block Start()
 	go func() {
 		// When one side finishes…
