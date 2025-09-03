@@ -12,8 +12,9 @@ import (
 	"os"
 	"path/filepath"
 	"sbsh/pkg/api"
-	"sbsh/pkg/daemon"
+	"sbsh/pkg/client"
 	"sbsh/pkg/llm"
+	"sbsh/pkg/supervisor"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -48,12 +49,57 @@ var rootCmd = &cobra.Command{
 		// 	return
 		// }
 		// Here we call the main loop
-
+		// run()
 		runSupervisor()
 		//tty.Start(currentMode)
 
 		// tty.ShowPrompt(currentMode, rld)
 	},
+}
+
+func run() {
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create a new Controller
+	var ctrl api.Controller
+
+	ctrl, err := client.NewController("/home/inwx/.sbsh/socket")
+	if err != nil {
+		log.Printf("[client] Daemon not running: %v ", err)
+		runSupervisor()
+	}
+
+	ctrl, err = client.NewController("/home/inwx/.sbsh/socket")
+	if err != nil {
+		log.Printf("[client] Can't create controller: %v ", err)
+		return
+	}
+
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:      api.SessionID("s0"),
+		Kind:    api.SessLocal,
+		Label:   "default",
+		Command: []string{"bash", "-i"},
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+	}
+
+	// Add the Session to the SessionManager
+	ctrl.AddSession(&spec)
+
+	// Start new session
+	if err := ctrl.StartSession(spec.ID); err != nil {
+		log.Fatalf("failed to start session: %v", err)
+	}
+
+	if err := ctrl.SetCurrentSession(spec.ID); err != nil {
+		log.Fatalf("failed to set current session: %v", err)
+	}
+
+	///////////////////////////////////////////////
+
 }
 
 func runSupervisor() {
@@ -63,7 +109,7 @@ func runSupervisor() {
 	// Create a new Controller
 	var ctrl api.Controller
 
-	ctrl = daemon.NewController()
+	ctrl = supervisor.NewController()
 
 	// Create error channel
 	errCh := make(chan error, 1)
@@ -110,6 +156,7 @@ func runSupervisor() {
 		}
 	}
 }
+
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {

@@ -1,10 +1,14 @@
-package daemon
+package supervisor
 
 import (
 	"context"
 	"errors"
 	"log"
+	"net"
+	"net/rpc"
+	"net/rpc/jsonrpc"
 	"os"
+	"path/filepath"
 	"sbsh/pkg/api"
 	"sbsh/pkg/session"
 	"syscall"
@@ -49,10 +53,6 @@ type Controller struct {
 // }
 ////////////////////////////////////////////////
 
-func (c *Controller) GetSessionEventChannel() chan<- api.SessionEvent {
-	return c.events
-}
-
 func (c *Controller) WaitReady(ctx context.Context) error {
 	select {
 	case <-c.ready:
@@ -68,6 +68,39 @@ func (c *Controller) Run(ctx context.Context) error {
 	c.exit = make(chan struct{})
 	log.Println("[ctrl] Starting controller loop")
 	defer log.Printf("[ctrl] controller stopped\r\n")
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	sockPath := filepath.Join(home, ".sbsh", "socket")
+
+	// ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(sockPath), 0700); err != nil {
+		log.Fatal(err)
+	}
+
+	// remove stale socket if it exists
+	if _, err := os.Stat(sockPath); err == nil {
+		_ = os.Remove(sockPath)
+	}
+	ln, err := net.Listen("unix", sockPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	srv := &RPCController{Core: *c} // your real impl
+	rpc.RegisterName("Controller", srv)
+
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				continue
+			}
+			go rpc.ServeCodec(jsonrpc.NewServerCodec(conn))
+		}
+	}()
 
 	close(c.ready)
 
@@ -198,21 +231,6 @@ func (c *Controller) onClosed(id api.SessionID, err error) {
 		close(c.exit)
 	}
 }
-
-func (c *Controller) Stop() {
-
-}
-
-// func (c *Controller) handleResize() {
-// 	// Forward current terminal size to the *current* session
-// 	curID := c.mgr.Current()
-// 	if curID == "" {
-// 		return
-// 	}
-// 	if sess, ok := c.mgr.Get(curID); ok {
-// 		_ = sess.Resize(os.Stdin)
-// 	}
-// }
 
 /* ---------- UI mode transitions (terminal modes) ---------- */
 

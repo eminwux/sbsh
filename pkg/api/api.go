@@ -7,9 +7,7 @@ import (
 
 type Controller interface {
 	Run(ctx context.Context) error
-	GetSessionEventChannel() chan<- SessionEvent
 	WaitReady(ctx context.Context) error
-	Stop()
 	AddSession(s *SessionSpec)
 	SetCurrentSession(id SessionID) error
 	StartSession(id SessionID) error
@@ -61,4 +59,15 @@ type SessionEvent struct {
 	Bytes int   // for EvData
 	Err   error // for EvClosed/EvError
 	When  time.Time
+}
+
+// ////////////////// FOR RPC
+type Empty struct{}
+
+type SessionIDArg struct {
+	ID SessionID
+}
+
+type AddSessionArgs struct {
+	Spec SessionSpec
 }
