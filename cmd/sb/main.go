@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sbsh/pkg/api"
 	"sbsh/pkg/client"
 
 	"github.com/spf13/cobra"
@@ -43,35 +42,17 @@ func run() {
 	defer cancel()
 
 	// Create a new Controller
-	var ctrl api.Controller
+	// var ctrl api.Controller
 
-	ctrl, err := client.NewController("/home/inwx/.sbsh/socket")
+	_, err := client.NewController("/home/inwx/.sbsh/socket")
 	if err != nil {
-		log.Printf("[client] Daemon not running: %v ", err)
+		log.Printf("[client] Supervisor not running: %v ", err)
 		return
+	} else {
+		log.Printf("[client] Supervisor is running: %v ", err)
+
 	}
 
-	// Define a new Session
-	spec := api.SessionSpec{
-		ID:      api.SessionID("s0"),
-		Kind:    api.SessLocal,
-		Label:   "default",
-		Command: []string{"bash", "-i"},
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-	}
-
-	// Add the Session to the SessionManager
-	ctrl.AddSession(&spec)
-
-	// Start new session
-	if err := ctrl.StartSession(spec.ID); err != nil {
-		log.Fatalf("failed to start session: %v", err)
-	}
-
-	if err := ctrl.SetCurrentSession(spec.ID); err != nil {
-		log.Fatalf("failed to set current session: %v", err)
-	}
 }
 
 ///////////////////////////////////////////////
