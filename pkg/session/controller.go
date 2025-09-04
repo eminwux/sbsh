@@ -1,4 +1,4 @@
-package supervisor
+package session
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"sbsh/pkg/api"
-	"sbsh/pkg/session"
 	"syscall"
 	"time"
 
@@ -27,9 +26,9 @@ const (
 	UIExitShell // Saved lastState restore
 )
 
-type SupervisorController struct {
+type SessionController struct {
 	ready  chan struct{}
-	mgr    *session.SessionManager
+	mgr    *SessionManager
 	events chan api.SessionEvent // fan-in from all sessions
 	// resizeSig chan os.Signal
 
@@ -53,7 +52,7 @@ type SupervisorController struct {
 // }
 ////////////////////////////////////////////////
 
-func (c *SupervisorController) WaitReady(ctx context.Context) error {
+func (c *SessionController) WaitReady(ctx context.Context) error {
 	select {
 	case <-c.ready:
 		return nil
@@ -63,7 +62,7 @@ func (c *SupervisorController) WaitReady(ctx context.Context) error {
 }
 
 // Run is the main orchestration loop. It owns all mode transitions.
-func (c *SupervisorController) Run(ctx context.Context) error {
+func (c *SessionController) Run(ctx context.Context) error {
 	c.ctx = ctx
 	c.exit = make(chan struct{})
 	log.Println("[ctrl] Starting controller loop")
@@ -89,7 +88,7 @@ func (c *SupervisorController) Run(ctx context.Context) error {
 		log.Fatal(err)
 	}
 
-	srv := &RPCController{Core: *c} // your real impl
+	srv := &sessionRPC{Core: *c} // your real impl
 	rpc.RegisterName("Controller", srv)
 
 	go func() {
@@ -130,7 +129,7 @@ func (c *SupervisorController) Run(ctx context.Context) error {
 
 /* ---------- Event handlers ---------- */
 
-func (c *SupervisorController) handleEvent(ev api.SessionEvent) {
+func (c *SessionController) handleEvent(ev api.SessionEvent) {
 	// log.Printf("[ctrl] session %s event received %d\r\n", ev.ID, ev.Type)
 	switch ev.Type {
 	case api.EvClosed:
@@ -146,7 +145,7 @@ func (c *SupervisorController) handleEvent(ev api.SessionEvent) {
 	}
 }
 
-func (c *SupervisorController) onClosed(id api.SessionID, err error) {
+func (c *SessionController) onClosed(id api.SessionID, err error) {
 	// Treat EIO/EOF as normal close
 	if err != nil && !errors.Is(err, syscall.EIO) && !errors.Is(err, os.ErrClosed) {
 		log.Printf("[ctrl] session %s closed with error: %v\r\n", id, err)
@@ -160,94 +159,13 @@ func (c *SupervisorController) onClosed(id api.SessionID, err error) {
 
 	}
 
-	// Session is Closed now
-
-	// If the closed session was bound or current, pick another
-	if c.boundID == id {
-		c.boundID = ""
-		c.toExitShell()
-	}
-
-	if c.mgr.Current() == id {
-		next := pickNext(c.mgr, id)
-
-		c.mgr.SetCurrent(next)
-	}
-
-	// If no sessions remain and we’re in supervisor, drop back to bash UI
-	if len(c.mgr.ListLive()) == 0 {
-		close(c.exit)
-	}
 }
 
-/* ---------- UI mode transitions (terminal modes) ---------- */
-
-func toRawMode() (*term.State, error) {
-	state, err := term.MakeRaw(int(os.Stdin.Fd()))
-	if err != nil {
-		log.Fatalf("[ctrl] MakeRaw terminal: %v", err)
-
-	}
-
-	return state, nil
-}
-
-// toBashUIMode: set terminal to RAW, update flags
-func (c *SupervisorController) toBashUIMode() error {
-	// TODO: restore raw mode on os.Stdin (your terminal manager)
-	// e.g., term.MakeRaw / term.Restore handled by a helper
-	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
-
-	lastTermState, err := toRawMode()
-	if err != nil {
-		log.Fatalf("MakeRaw: %v", err)
-	}
-	// defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
-
-	c.uiMode = UIBash
-	c.lastTermState = lastTermState
-	return nil
-}
-
-// toSupervisorUIMode: set terminal to COOKED for your REPL
-func (c *SupervisorController) toExitShell() error {
-	// TODO: restore cooked mode on os.Stdin
-	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
-	err := term.Restore(int(os.Stdin.Fd()), c.lastTermState)
-	if err != nil {
-		log.Fatalf("MakeRaw: %v", err)
-	}
-
-	c.uiMode = UIExitShell
-	return nil
-}
-
-/* ---------- Supervisor REPL (placeholder) ---------- */
-
-func (c *SupervisorController) AddSession(spec *api.SessionSpec) {
-	// Create the new Session
-	sess := session.NewSession(spec)
+func (c *SessionController) StartSession(spec *api.SessionSpec) error {
+	sess := NewSession(spec)
 	c.mgr.Add(*sess)
-}
 
-func (c *SupervisorController) SetCurrentSession(id api.SessionID) error {
-	if err := c.mgr.SetCurrent(id); err != nil {
-		log.Fatalf("failed to set current session: %v", err)
-		return err
-	}
-
-	c.boundID = id
-
-	// Initial terminal mode (bash passthrough)
-	if err := c.toBashUIMode(); err != nil {
-		log.Printf("[ctrl] initial raw mode failed: %v", err)
-	}
-	return nil
-}
-
-func (c *SupervisorController) StartSession(id api.SessionID) error {
-
-	if err := c.mgr.StartSession(id, c.ctx, c.events); err != nil {
+	if err := c.mgr.StartSession(spec.ID, c.ctx, c.events); err != nil {
 		log.Fatalf("failed to start session: %v", err)
 		return err
 	}
@@ -256,14 +174,14 @@ func (c *SupervisorController) StartSession(id api.SessionID) error {
 }
 
 // NewController wires the manager and the shared event channel from sessions.
-func NewController() *SupervisorController {
+func NewController() *SessionController {
 	log.Printf("[ctrl] New controller is being created\r\n")
 
 	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
 	// Create a session.SessionManager
-	mgr := session.NewSessionManager()
+	mgr := NewSessionManager()
 
-	c := &SupervisorController{
+	c := &SessionController{
 		ready:  make(chan struct{}),
 		mgr:    mgr,
 		events: events,
@@ -273,16 +191,4 @@ func NewController() *SupervisorController {
 	}
 	// signal.Notify(c.resizeSig, syscall.SIGWINCH)
 	return c
-}
-
-/* ---------- Helpers ---------- */
-
-func pickNext(m *session.SessionManager, closed api.SessionID) api.SessionID {
-	live := m.ListLive()
-	for _, id := range live {
-		if id != closed {
-			return id
-		}
-	}
-	return ""
 }

@@ -1,6 +1,6 @@
 package session
 
-type sessionRPC struct{ S *Session }
+type sessionRPC struct{ Core SessionController }
 
 // func (r *sessionRPC) Info(_ struct{}, out *api.SessionInfo) error {
 // 	*out = r.S.Info()

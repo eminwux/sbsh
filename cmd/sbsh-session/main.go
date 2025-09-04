@@ -12,7 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sbsh/pkg/api"
-	"sbsh/pkg/supervisor"
+	"sbsh/pkg/session"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -24,7 +24,7 @@ func main() {
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "sbsh",
+	Use:   "sbsh-session",
 	Short: "A brief description of your application",
 	Long:  `A longer description ...`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -34,19 +34,19 @@ var rootCmd = &cobra.Command{
 			fmt.Fprintln(os.Stderr, "Config error:", err)
 			os.Exit(1)
 		}
-		runSupervisor()
+		runSession()
 
 	},
 }
 
-func runSupervisor() {
+func runSession() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Create a new Controller
-	var ctrl api.SupervisorController
+	var ctrl api.SessionController
 
-	ctrl = supervisor.NewController()
+	ctrl = session.NewController()
 
 	// Create error channel
 	errCh := make(chan error, 1)
@@ -74,16 +74,9 @@ func runSupervisor() {
 		LogDir:  "/tmp/sbsh-logs/s0",
 	}
 
-	// Add the Session to the SessionManager
-	ctrl.AddSession(&spec)
-
 	// Start new session
-	if err := ctrl.StartSession(spec.ID); err != nil {
+	if err := ctrl.StartSession(&spec); err != nil {
 		log.Fatalf("failed to start session: %v", err)
-	}
-
-	if err := ctrl.SetCurrentSession(spec.ID); err != nil {
-		log.Fatalf("failed to set current session: %v", err)
 	}
 
 	select {

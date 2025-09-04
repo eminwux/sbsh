@@ -7,8 +7,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"net/rpc"
-	"net/rpc/jsonrpc"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -49,6 +47,10 @@ type Session struct {
 
 	ctrlLn net.Listener
 	ioLn   net.Listener
+
+	sessionDir string
+	socketIO   string
+	socketCTRL string
 }
 
 type SessionManager struct {
@@ -89,11 +91,40 @@ func NewSession(spec *api.SessionSpec) *Session {
 
 // Close requests graceful shutdown (closes PTY, stops goroutines, reaps child).
 func (s *Session) Close() error {
-	// Here we need to implement the case
-	// when the user commands to close the session
-	// using the CLI
+	// stop accepting
+	if s.ioLn != nil {
+		_ = s.ioLn.Close()
+	}
+	if s.ctrlLn != nil {
+		_ = s.ctrlLn.Close()
+	}
 
-	//c.ctx CANCEL!
+	// // close clients
+	// s.clientsMu.Lock()
+	// for _, c := range s.clients {
+	// 	_ = c.conn.Close()
+	// 	close(c.wch)
+	// }
+	// s.clients = nil
+	// s.clientsMu.Unlock()
+
+	// kill PTY child and close PTY master as needed
+	if s.cmd != nil && s.cmd.Process != nil {
+		_ = s.cmd.Process.Kill()
+	}
+	if s.pty != nil {
+		_ = s.pty.Close()
+	}
+
+	// remove sockets and dir
+	if err := os.Remove(s.socketIO); err != nil {
+		log.Printf("[session] couldn't remove IO socket: %s\r\n", s.socketIO)
+	}
+	if err := os.Remove(s.socketCTRL); err != nil {
+		log.Printf("[session] couldn't remove CTRL socket: %s\r\n", s.socketCTRL)
+	}
+	_ = os.RemoveAll(s.sessionDir) // or leave meta/logs if you prefer
+
 	return nil
 
 }
@@ -146,39 +177,48 @@ func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error
 	s.gates.StdinOpen = true
 	s.gates.OutputOn = true
 
-	// Bring up sockets
+	// Set up sockets
 	base, err := runtimeBase()
 	if err != nil {
 		return err
 	}
 
-	sessDir := filepath.Join(base, "sessions", string(s.id))
-	if err := os.MkdirAll(sessDir, 0o700); err != nil {
+	s.sessionDir = filepath.Join(base, "sessions", string(s.id))
+	if err := os.MkdirAll(s.sessionDir, 0o700); err != nil {
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
-	ctrlPath := filepath.Join(sessDir, "ctrl.sock")
-	ioPath := filepath.Join(sessDir, "io.sock")
+	s.socketCTRL = filepath.Join(s.sessionDir, "ctrl.sock")
+	log.Printf("[session] CTRL socket: %s", s.socketCTRL)
+	s.socketIO = filepath.Join(s.sessionDir, "io.sock")
+	log.Printf("[session] IO socket: %s", s.socketIO)
 
 	// Remove sockets if they already exist
-	_ = os.Remove(ctrlPath) // unlink stale
-	_ = os.Remove(ioPath)
+	// remove sockets and dir
+	if err := os.Remove(s.socketIO); err != nil {
+		log.Printf("[session] couldn't remove stale IO socket: %s\r\n", s.socketIO)
+	}
+	if err := os.Remove(s.socketCTRL); err != nil {
+		log.Printf("[session] couldn't remove stale CTRL socket: %s\r\n", s.socketCTRL)
+	}
 
-	ctrlLn, err := net.Listen("unix", ctrlPath)
+	// Listen to CONTROL SOCKET
+	ctrlLn, err := net.Listen("unix", s.socketCTRL)
 	if err != nil {
 		return fmt.Errorf("listen ctrl: %w", err)
 	}
-	if err := os.Chmod(ctrlPath, 0o600); err != nil {
+	if err := os.Chmod(s.socketCTRL, 0o600); err != nil {
 		ctrlLn.Close()
 		return err
 	}
 
-	ioLn, err := net.Listen("unix", ioPath)
+	// Listen to IO SOCKET
+	ioLn, err := net.Listen("unix", s.socketIO)
 	if err != nil {
 		ctrlLn.Close()
 		return fmt.Errorf("listen io: %w", err)
 	}
-	if err := os.Chmod(ioPath, 0o600); err != nil {
+	if err := os.Chmod(s.socketIO, 0o600); err != nil {
 		ctrlLn.Close()
 		ioLn.Close()
 		return err
@@ -188,22 +228,22 @@ func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error
 	s.ctrlLn = ctrlLn
 	s.ioLn = ioLn
 
-	// Start the Session Socker Loop
-	go func() {
-		srv := rpc.NewServer()
-		_ = srv.RegisterName("Session", &sessionRPC{S: s})
-		for {
-			conn, err := ctrlLn.Accept()
-			if err != nil {
-				// listener closed -> exit loop
-				if _, ok := err.(net.Error); ok {
-					continue
-				}
-				return
-			}
-			go srv.ServeCodec(jsonrpc.NewServerCodec(conn))
-		}
-	}()
+	// Start the Session Socket CTRL Loop
+	// go func() {
+	// 	srv := rpc.NewServer()
+	// 	_ = srv.RegisterName("Session", &sessionRPC{Core: c})
+	// 	for {
+	// 		conn, err := ctrlLn.Accept()
+	// 		if err != nil {
+	// 			// listener closed -> exit loop
+	// 			if _, ok := err.(net.Error); ok {
+	// 				continue
+	// 			}
+	// 			return
+	// 		}
+	// 		go srv.ServeCodec(jsonrpc.NewServerCodec(conn))
+	// 	}
+	// }()
 
 	// Build the child command with context (so ctx cancel can kill it)
 	cmd := exec.CommandContext(ctx, s.spec.Command[0], s.spec.Command[1:]...)

@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type Controller interface {
+type SupervisorController interface {
 	Run(ctx context.Context) error
 	WaitReady(ctx context.Context) error
 	AddSession(s *SessionSpec)
@@ -14,6 +14,12 @@ type Controller interface {
 }
 
 /////////////// SESSION
+
+type SessionController interface {
+	Run(ctx context.Context) error
+	WaitReady(ctx context.Context) error
+	StartSession(spec *SessionSpec) error
+}
 
 // Identity & lifecycle
 type SessionID string

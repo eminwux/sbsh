@@ -6,7 +6,7 @@ import (
 )
 
 type RPCController struct {
-	Core Controller // the real server-side controller
+	Core SupervisorController // the real server-side controller
 }
 
 // Optional: usually you don’t expose Run over RPC because it blocks.

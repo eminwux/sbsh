@@ -1,4 +1,4 @@
-BINS = sbsh sb
+BINS = sbsh sb sbsh-session
 
 all: $(BINS)
 
@@ -8,5 +8,8 @@ sbsh:
 sb:
 	go build -o sb ./cmd/sb
 
+sbsh-session:
+	go build -o sbsh-session ./cmd/sbsh-session
+
 clean:
-	rm -rf sbsh sb
+	rm -rf sbsh sb sbsh-session
