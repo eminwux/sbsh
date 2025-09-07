@@ -25,5 +25,5 @@ func (s *SupervisorControllerRPC) SetCurrentSession(args *api.SessionIDArg, _ *a
 }
 
 func (s *SupervisorControllerRPC) StartSession(args *api.SessionIDArg, _ *api.Empty) error {
-	return s.Core.StartSession(args.ID)
+	return s.Core.Start()
 }

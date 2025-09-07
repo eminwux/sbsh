@@ -128,8 +128,12 @@ func (s *Session) Close() error {
 }
 
 // Resize forwards the current terminal size to the PTY (SIGWINCH handling).
-func (s *Session) Resize(from *os.File) error { // typically os.Stdin
-	return nil
+
+func (s *Session) Resize(args api.ResizeArgs) {
+	pty.Setsize(s.pty, &pty.Winsize{
+		Cols: uint16(args.Cols),
+		Rows: uint16(args.Rows),
+	})
 }
 
 // // Write writes bytes to the session PTY (used by controller or Smart executor).
@@ -240,25 +244,6 @@ func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent
 	s.ctxCancel = cancel
 	s.done = make(chan struct{})
 	s.errs = make(chan error, 2)
-
-	/*
-	* Resize Window
-	 */
-	// Watch for window changes
-	// ch := make(chan os.Signal, 1)
-	// signal.Notify(ch, syscall.SIGWINCH)
-	// go func(p *os.File) {
-	// 	defer signal.Stop(ch) // stop delivering to ch when we exit
-	// 	for {
-	// 		select {
-	// 		case <-sessionCtx.Done():
-	// 			return
-	// 		case <-ch:
-	// 			_ = pty.InheritSize(os.Stdin, p)
-	// 			log.Printf("[ctrl] Resize event has been received\r\n")
-	// 		}
-	// 	}
-	// }(s.pty)
 
 	go func() {
 		cid := 0

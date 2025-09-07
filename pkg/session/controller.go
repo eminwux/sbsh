@@ -214,3 +214,20 @@ func runtimeBaseSessions() (string, error) {
 	}
 	return filepath.Join(home, ".sbsh", "run", "sessions"), nil
 }
+
+func (s *SessionController) GetSession(id api.SessionID) *Session {
+
+	if sess, ok := s.mgr.Get(id); ok {
+		return sess
+	}
+
+	return nil
+
+}
+func (s *SessionController) Resize(args api.ResizeArgs) {
+
+	session := s.GetSession(s.mgr.current)
+
+	session.Resize(args)
+
+}

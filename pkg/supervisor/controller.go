@@ -3,17 +3,22 @@ package supervisor
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
 	"os"
+	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"sbsh/pkg/api"
 	"sbsh/pkg/session"
 	"syscall"
 	"time"
 
+	"github.com/creack/pty"
 	"golang.org/x/term"
 )
 
@@ -39,6 +44,8 @@ type SupervisorController struct {
 	ctx           context.Context
 	lastTermState *term.State
 	exit          chan struct{}
+
+	sessionClientRPC *rpc.Client
 }
 
 // type Controller interface {
@@ -245,13 +252,191 @@ func (c *SupervisorController) SetCurrentSession(id api.SessionID) error {
 	return nil
 }
 
-func (c *SupervisorController) StartSession(id api.SessionID) error {
+func (c *SupervisorController) Start() error {
 
-	if err := c.mgr.StartSession(id, c.ctx, c.events); err != nil {
-		log.Fatalf("failed to start session: %v", err)
-		return err
+	socketCTRL := "/home/inwx/.sbsh/run/sessions/s0/ctrl.sock"
+	socketIO := "/home/inwx/.sbsh/run/sessions/s0/io.sock"
+
+	exe := "/home/inwx/projects/sbsh/sbsh-session"
+	args := []string{}
+
+	// point stdio away from your TTY
+	devNull, _ := os.OpenFile("/dev/null", os.O_RDWR, 0)
+	cmd := exec.Command(exe, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // detach from your pg/ctty
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = devNull, devNull, devNull
+	cmd.Env = os.Environ()
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("spawn session: %w", err)
 	}
 
+	// IMPORTANT: reap it in the background so it never zombifies
+	go func() { _ = cmd.Wait() }()
+
+	// you can return cmd.Process.Pid to record in meta.json
+	_ = cmd.Process.Pid
+
+	c.sessionClientRPC = dialSessionCtrlSocket(socketCTRL)
+	attachAndForwardResize(c.ctx, c.sessionClientRPC)
+	attachIOSocket(c.ctx, socketIO)
+
+	return nil
+}
+
+func dialSessionCtrlSocket(ctrlSock string) *rpc.Client {
+
+	var conn net.Conn
+	var err error
+
+	// Dial the Unix domain socket
+	for range 3 {
+		conn, err = net.Dial("unix", ctrlSock)
+		if err == nil {
+			break // success
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	if err != nil {
+		log.Fatalf("failed to connect to ctrl.sock after 3 retries: %v", err)
+	}
+
+	// defer conn.Close()
+
+	// Wrap the connection in a JSON-RPC client
+	client := rpc.NewClientWithCodec(jsonrpc.NewClientCodec(conn))
+
+	// Example: call SessionController.Status (no args, returns SessionStatus)
+	var info api.SessionStatus
+
+	err = client.Call("SessionController.Status", struct{}{}, &info)
+	if err != nil {
+		log.Fatalf("RPC call failed: %v", err)
+	}
+
+	log.Printf("Session info: %+v\r\n", info)
+
+	// Example: resize call
+	// resizeArgs := api.ResizeArgs{Cols: 120, Rows: 40}
+	// var reply api.Empty
+	// err = client.Call("Session.Resize", resizeArgs, &reply)
+	// if err != nil {
+	// 	log.Fatalf("Resize failed: %v", err)
+	// }
+	// fmt.Println("Resize OK")
+	return client
+
+}
+
+func attachIOSocket(ctx context.Context, ioSockPath string) error {
+
+	var conn net.Conn
+	var err error
+
+	// Dial the Unix domain socket
+	for range 3 {
+		conn, err = net.Dial("unix", ioSockPath)
+		if err == nil {
+			break // success
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	if err != nil {
+		log.Fatalf("failed to connect to io.sock after 3 retries: %v", err)
+	}
+
+	// Ensure we close on any exit path
+	defer conn.Close()
+
+	// We want half-closes; UnixConn exposes CloseRead/CloseWrite
+	uc, _ := conn.(*net.UnixConn)
+
+	// Put our terminal in raw mode so keystrokes pass through unchanged
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
+
+	errCh := make(chan error, 2)
+
+	// stdin -> socket
+	go func() {
+		_, e := io.Copy(conn, os.Stdin)
+		// tell peer we're done sending (but still willing to read)
+		if uc != nil {
+			_ = uc.CloseWrite()
+		}
+		errCh <- e
+	}()
+
+	// socket -> stdout
+	go func() {
+		_, e := io.Copy(os.Stdout, conn)
+		// we won't read further; let the other goroutine finish
+		if uc != nil {
+			_ = uc.CloseRead()
+		}
+		errCh <- e
+	}()
+
+	// Force resize
+	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
+
+	// Wait for either context cancel or one side finishing
+	select {
+	case <-ctx.Done():
+		_ = conn.Close() // unblock goroutines
+		<-errCh
+		<-errCh
+		return ctx.Err()
+	case e := <-errCh:
+		// one direction ended; close and wait for the other
+		_ = conn.Close()
+		<-errCh
+		// treat EOF as normal detach
+		if e == io.EOF || e == nil {
+			return nil
+		}
+		return e
+	}
+}
+
+func attachAndForwardResize(ctx context.Context, client *rpc.Client) error {
+	// Send initial size once (use the supervisor's TTY: os.Stdin)
+	if rows, cols, err := pty.Getsize(os.Stdin); err == nil {
+		_ = client.Call("Session.Resize",
+			api.ResizeArgs{Cols: int(cols), Rows: int(rows)}, &api.Empty{})
+	}
+
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGWINCH)
+
+	go func() {
+		defer signal.Stop(ch)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ch:
+				log.Printf("[supervisor] window change\r\n")
+				// Query current terminal size again on every WINCH
+				rows, cols, err := pty.Getsize(os.Stdin)
+				if err != nil {
+					// harmless: keep going; terminal may be detached briefly
+					continue
+				}
+				var reply api.Empty
+				if err := client.Call("SessionController.Resize",
+					api.ResizeArgs{Cols: int(cols), Rows: int(rows)}, &reply); err != nil {
+					// Don't kill the process on resize failure; just log
+					log.Printf("resize RPC failed: %v\r\n", err)
+				}
+			}
+		}
+	}()
 	return nil
 }
 

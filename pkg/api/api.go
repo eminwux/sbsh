@@ -10,7 +10,7 @@ type SupervisorController interface {
 	WaitReady(ctx context.Context) error
 	AddSession(s *SessionSpec)
 	SetCurrentSession(id SessionID) error
-	StartSession(id SessionID) error
+	Start() error
 }
 
 /////////////// SESSION
@@ -75,4 +75,13 @@ type SessionIDArg struct {
 
 type AddSessionArgs struct {
 	Spec SessionSpec
+}
+
+type SessionStatus struct {
+	Message string
+}
+
+type ResizeArgs struct {
+	Cols int
+	Rows int
 }

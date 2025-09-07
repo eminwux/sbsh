@@ -1,6 +1,6 @@
 BINS = sbsh sb sbsh-session
 
-all: $(BINS)
+all: clean kill $(BINS)
 
 sbsh:
 	go build -o sbsh ./cmd/sbsh
@@ -13,3 +13,6 @@ sbsh-session:
 
 clean:
 	rm -rf sbsh sb sbsh-session
+
+kill:
+	(killall sbsh || true ); (killall sbsh-session || true)

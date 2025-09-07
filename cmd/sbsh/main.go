@@ -62,29 +62,29 @@ func runSupervisor() {
 		return
 	}
 
-	//////////////////
+	// //////////////////
 
-	// Define a new Session
-	spec := api.SessionSpec{
-		ID:      api.SessionID("s0"),
-		Kind:    api.SessLocal,
-		Label:   "default",
-		Command: []string{"bash", "-i"},
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-	}
+	// // Define a new Session
+	// spec := api.SessionSpec{
+	// 	ID:      api.SessionID("s0"),
+	// 	Kind:    api.SessLocal,
+	// 	Label:   "default",
+	// 	Command: []string{"bash", "-i"},
+	// 	Env:     os.Environ(),
+	// 	LogDir:  "/tmp/sbsh-logs/s0",
+	// }
 
-	// Add the Session to the SessionManager
-	ctrl.AddSession(&spec)
+	// // Add the Session to the SessionManager
+	// ctrl.AddSession(&spec)
 
 	// Start new session
-	if err := ctrl.StartSession(spec.ID); err != nil {
+	if err := ctrl.Start(); err != nil {
 		log.Fatalf("failed to start session: %v", err)
 	}
 
-	if err := ctrl.SetCurrentSession(spec.ID); err != nil {
-		log.Fatalf("failed to set current session: %v", err)
-	}
+	// if err := ctrl.SetCurrentSession(spec.ID); err != nil {
+	// 	log.Fatalf("failed to set current session: %v", err)
+	// }
 
 	select {
 	case <-ctx.Done():
