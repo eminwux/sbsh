@@ -48,17 +48,25 @@ type SupervisorController struct {
 	sessionClientRPC *rpc.Client
 }
 
-// type Controller interface {
-//     Run(ctx context.Context) error
-//     // high-level ops (daemon API):
-//     SessionsList(ctx) ([]SessionInfo, error)
-//     SessionsNew(ctx, spec SessionSpec) (SessionID, error)
-//     SessionsUse(ctx, id SessionID) error
-//     SessionsKill(ctx, id SessionID) error
-//     // stream (optional):
-//     Events(ctx context.Context) (<-chan SessionEvent, error)
-// }
-////////////////////////////////////////////////
+// NewController wires the manager and the shared event channel from sessions.
+func NewController() *SupervisorController {
+	log.Printf("[supervisor] New controller is being created\r\n")
+
+	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
+	// Create a session.SessionManager
+	mgr := session.NewSessionManager()
+
+	c := &SupervisorController{
+		ready:  make(chan struct{}),
+		mgr:    mgr,
+		events: events,
+		// resizeSig: make(chan os.Signal, 1),
+		uiMode:  UIBash,
+		boundID: mgr.Current(),
+	}
+	// signal.Notify(c.resizeSig, syscall.SIGWINCH)
+	return c
+}
 
 func (c *SupervisorController) WaitReady(ctx context.Context) error {
 	select {
@@ -187,48 +195,6 @@ func (c *SupervisorController) onClosed(id api.SessionID, err error) {
 	}
 }
 
-/* ---------- UI mode transitions (terminal modes) ---------- */
-
-func toRawMode() (*term.State, error) {
-	state, err := term.MakeRaw(int(os.Stdin.Fd()))
-	if err != nil {
-		log.Fatalf("[supervisor] MakeRaw terminal: %v", err)
-
-	}
-
-	return state, nil
-}
-
-// toBashUIMode: set terminal to RAW, update flags
-func (c *SupervisorController) toBashUIMode() error {
-	// TODO: restore raw mode on os.Stdin (your terminal manager)
-	// e.g., term.MakeRaw / term.Restore handled by a helper
-	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
-
-	lastTermState, err := toRawMode()
-	if err != nil {
-		log.Fatalf("MakeRaw: %v", err)
-	}
-	// defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
-
-	c.uiMode = UIBash
-	c.lastTermState = lastTermState
-	return nil
-}
-
-// toSupervisorUIMode: set terminal to COOKED for your REPL
-func (c *SupervisorController) toExitShell() error {
-	// TODO: restore cooked mode on os.Stdin
-	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
-	err := term.Restore(int(os.Stdin.Fd()), c.lastTermState)
-	if err != nil {
-		log.Fatalf("MakeRaw: %v", err)
-	}
-
-	c.uiMode = UIExitShell
-	return nil
-}
-
 /* ---------- Supervisor REPL (placeholder) ---------- */
 
 func (c *SupervisorController) AddSession(spec *api.SessionSpec) {
@@ -284,6 +250,36 @@ func (c *SupervisorController) Start() error {
 	return nil
 }
 
+// toBashUIMode: set terminal to RAW, update flags
+func (c *SupervisorController) toBashUIMode() error {
+	// TODO: restore raw mode on os.Stdin (your terminal manager)
+	// e.g., term.MakeRaw / term.Restore handled by a helper
+	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
+
+	lastTermState, err := toRawMode()
+	if err != nil {
+		log.Fatalf("MakeRaw: %v", err)
+	}
+	// defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
+
+	c.uiMode = UIBash
+	c.lastTermState = lastTermState
+	return nil
+}
+
+// toSupervisorUIMode: set terminal to COOKED for your REPL
+func (c *SupervisorController) toExitShell() error {
+	// TODO: restore cooked mode on os.Stdin
+	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
+	err := term.Restore(int(os.Stdin.Fd()), c.lastTermState)
+	if err != nil {
+		log.Fatalf("MakeRaw: %v", err)
+	}
+
+	c.uiMode = UIExitShell
+	return nil
+}
+
 func dialSessionCtrlSocket(ctrlSock string) *rpc.Client {
 
 	var conn net.Conn
@@ -315,16 +311,8 @@ func dialSessionCtrlSocket(ctrlSock string) *rpc.Client {
 		log.Fatalf("RPC call failed: %v", err)
 	}
 
-	log.Printf("Session info: %+v\r\n", info)
+	log.Printf("[supervisor] rpc->session (Status): %+v\r\n", info)
 
-	// Example: resize call
-	// resizeArgs := api.ResizeArgs{Cols: 120, Rows: 40}
-	// var reply api.Empty
-	// err = client.Call("Session.Resize", resizeArgs, &reply)
-	// if err != nil {
-	// 	log.Fatalf("Resize failed: %v", err)
-	// }
-	// fmt.Println("Resize OK")
 	return client
 
 }
@@ -421,7 +409,7 @@ func attachAndForwardResize(ctx context.Context, client *rpc.Client) error {
 			case <-ctx.Done():
 				return
 			case <-ch:
-				log.Printf("[supervisor] window change\r\n")
+				// log.Printf("[supervisor] window change\r\n")
 				// Query current terminal size again on every WINCH
 				rows, cols, err := pty.Getsize(os.Stdin)
 				if err != nil {
@@ -440,28 +428,6 @@ func attachAndForwardResize(ctx context.Context, client *rpc.Client) error {
 	return nil
 }
 
-// NewController wires the manager and the shared event channel from sessions.
-func NewController() *SupervisorController {
-	log.Printf("[supervisor] New controller is being created\r\n")
-
-	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
-	// Create a session.SessionManager
-	mgr := session.NewSessionManager()
-
-	c := &SupervisorController{
-		ready:  make(chan struct{}),
-		mgr:    mgr,
-		events: events,
-		// resizeSig: make(chan os.Signal, 1),
-		uiMode:  UIBash,
-		boundID: mgr.Current(),
-	}
-	// signal.Notify(c.resizeSig, syscall.SIGWINCH)
-	return c
-}
-
-/* ---------- Helpers ---------- */
-
 func pickNext(m *session.SessionManager, closed api.SessionID) api.SessionID {
 	live := m.ListLive()
 	for _, id := range live {
@@ -470,4 +436,14 @@ func pickNext(m *session.SessionManager, closed api.SessionID) api.SessionID {
 		}
 	}
 	return ""
+}
+
+func toRawMode() (*term.State, error) {
+	state, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		log.Fatalf("[supervisor] MakeRaw terminal: %v", err)
+
+	}
+
+	return state, nil
 }

@@ -51,16 +51,3 @@ func (cc *ClientControllerRPC) Close() error {
 	_ = cc.c.Close()
 	return cc.conn.Close()
 }
-
-////////////////////// INTERNAL
-
-// func withDeadline(ctx context.Context, conn net.Conn) func() {
-// 	if deadline, ok := ctx.Deadline(); ok {
-// 		_ = conn.SetDeadline(deadline)
-// 		return func() { _ = conn.SetDeadline(time.Time{}) }
-// 	}
-// 	// cancel on ctx.Done by closing the conn (brutal but effective)
-// 	done := make(chan struct{})
-// 	go func() { <-ctx.Done(); _ = conn.Close(); close(done) }()
-// 	return func() { <-done } // wait goroutine to finish before reuse
-// }

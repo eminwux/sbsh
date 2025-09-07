@@ -15,16 +15,6 @@ import (
 	"time"
 )
 
-/* ---------- Controller ---------- */
-
-type UIMode int
-
-const (
-	UIBash UIMode = iota
-	UISupervisor
-	UIExitShell // Saved lastState restore
-)
-
 type SessionController struct {
 	ready  chan struct{}
 	mgr    *SessionManager
@@ -39,11 +29,27 @@ type SessionController struct {
 
 var sessionsDir string
 
-////////////////////////////////////////////////
+// NewSessionController wires the manager and the shared event channel from sessions.
+func NewSessionController() *SessionController {
+	log.Printf("[sessionCtrl] New controller is being created\r\n")
+
+	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
+
+	mgr := NewSessionManager()
+
+	c := &SessionController{
+		ready:  make(chan struct{}),
+		mgr:    mgr,
+		events: events,
+	}
+	// signal.Notify(c.resizeSig, syscall.SIGWINCH)
+	return c
+}
 
 func (c *SessionController) Status() string {
 	return "RUNNING"
 }
+
 func (c *SessionController) WaitReady(ctx context.Context) error {
 	select {
 	case <-c.ready:
@@ -76,11 +82,7 @@ func (c *SessionController) Run(ctx context.Context) error {
 		case <-c.exit:
 			log.Printf("[sessionCtrl] received exit event\r\n")
 			return nil
-			// case <-c.resizeSig:
-			// 	log.Printf("[sessionCtrl] Resize event has been received\r\n")
-			// 	c.handleResize()
 
-			// (optional) add tickers/timeouts here
 		}
 	}
 }
@@ -190,31 +192,6 @@ func (c *SessionController) StartSession(spec *api.SessionSpec) error {
 	return nil
 }
 
-// NewSessionController wires the manager and the shared event channel from sessions.
-func NewSessionController() *SessionController {
-	log.Printf("[sessionCtrl] New controller is being created\r\n")
-
-	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
-
-	mgr := NewSessionManager()
-
-	c := &SessionController{
-		ready:  make(chan struct{}),
-		mgr:    mgr,
-		events: events,
-	}
-	// signal.Notify(c.resizeSig, syscall.SIGWINCH)
-	return c
-}
-
-func runtimeBaseSessions() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".sbsh", "run", "sessions"), nil
-}
-
 func (s *SessionController) GetSession(id api.SessionID) *Session {
 
 	if sess, ok := s.mgr.Get(id); ok {
@@ -230,4 +207,12 @@ func (s *SessionController) Resize(args api.ResizeArgs) {
 
 	session.Resize(args)
 
+}
+
+func runtimeBaseSessions() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".sbsh", "run", "sessions"), nil
 }

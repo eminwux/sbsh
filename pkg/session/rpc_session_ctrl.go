@@ -8,7 +8,7 @@ type SessionControllerRPC struct {
 	Core SessionController
 }
 
-func (r *SessionControllerRPC) Status(_ struct{}, out *api.SessionStatus) error {
+func (r *SessionControllerRPC) Status(_ *api.Empty, out *api.SessionStatus) error {
 	*out = api.SessionStatus{Message: r.Core.Status()}
 	return nil
 }

@@ -85,9 +85,7 @@ func LoadConfig() error {
 	if err := viper.ReadInConfig(); err != nil {
 		// File not found is OK if ENV is set
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			if viper.GetString("openai_api_key") == "" {
-				return fmt.Errorf("No config file found and OPENAI_API_KEY is not set")
-			}
+
 		} else {
 			return err // Config file was found but another error was produced
 		}
