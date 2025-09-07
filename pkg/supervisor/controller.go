@@ -66,8 +66,8 @@ func (c *SupervisorController) WaitReady(ctx context.Context) error {
 func (c *SupervisorController) Run(ctx context.Context) error {
 	c.ctx = ctx
 	c.exit = make(chan struct{})
-	log.Println("[ctrl] Starting controller loop")
-	defer log.Printf("[ctrl] controller stopped\r\n")
+	log.Println("[supervisor] Starting controller loop")
+	defer log.Printf("[supervisor] controller stopped\r\n")
 
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -89,7 +89,7 @@ func (c *SupervisorController) Run(ctx context.Context) error {
 		log.Fatal(err)
 	}
 
-	srv := &RPCController{Core: *c} // your real impl
+	srv := &SupervisorControllerRPC{Core: *c} // your real impl
 	rpc.RegisterName("Controller", srv)
 
 	go func() {
@@ -107,20 +107,20 @@ func (c *SupervisorController) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Printf("[ctrl] Context channel has been closed\r\n")
+			log.Printf("[supervisor] Context channel has been closed\r\n")
 			_ = term.Restore(int(os.Stdin.Fd()), c.lastTermState)
 			return ctx.Err()
 
 		case ev := <-c.events:
-			// log.Printf("[ctrl] SessionEvent has been received\r\n")
-			log.Printf("[ctrl] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
+			// log.Printf("[supervisor] SessionEvent has been received\r\n")
+			log.Printf("[supervisor] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
 			c.handleEvent(ev)
 
 		case <-c.exit:
-			log.Printf("[ctrl] received exit event\r\n")
+			log.Printf("[supervisor] received exit event\r\n")
 			return nil
 			// case <-c.resizeSig:
-			// 	log.Printf("[ctrl] Resize event has been received\r\n")
+			// 	log.Printf("[supervisor] Resize event has been received\r\n")
 			// 	c.handleResize()
 
 			// (optional) add tickers/timeouts here
@@ -131,14 +131,14 @@ func (c *SupervisorController) Run(ctx context.Context) error {
 /* ---------- Event handlers ---------- */
 
 func (c *SupervisorController) handleEvent(ev api.SessionEvent) {
-	// log.Printf("[ctrl] session %s event received %d\r\n", ev.ID, ev.Type)
+	// log.Printf("[supervisor] session %s event received %d\r\n", ev.ID, ev.Type)
 	switch ev.Type {
 	case api.EvClosed:
-		log.Printf("[ctrl] session %s EvClosed error: %v\r\n", ev.ID, ev.Err)
+		log.Printf("[supervisor] session %s EvClosed error: %v\r\n", ev.ID, ev.Err)
 		c.onClosed(ev.ID, ev.Err)
 
 	case api.EvError:
-		// log.Printf("[ctrl] session %s EvError error: %v\r\n", ev.ID, ev.Err)
+		// log.Printf("[supervisor] session %s EvError error: %v\r\n", ev.ID, ev.Err)
 
 	case api.EvData:
 		// optional metrics hook
@@ -149,12 +149,12 @@ func (c *SupervisorController) handleEvent(ev api.SessionEvent) {
 func (c *SupervisorController) onClosed(id api.SessionID, err error) {
 	// Treat EIO/EOF as normal close
 	if err != nil && !errors.Is(err, syscall.EIO) && !errors.Is(err, os.ErrClosed) {
-		log.Printf("[ctrl] session %s closed with error: %v\r\n", id, err)
+		log.Printf("[supervisor] session %s closed with error: %v\r\n", id, err)
 	}
 
 	if sess, ok := c.mgr.Get(id); ok {
 		if err = c.mgr.StopSession(sess.ID()); err != nil {
-			log.Println("[ctrl] error closing the session:", err)
+			log.Println("[supervisor] error closing the session:", err)
 			return
 		}
 
@@ -185,7 +185,7 @@ func (c *SupervisorController) onClosed(id api.SessionID, err error) {
 func toRawMode() (*term.State, error) {
 	state, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
-		log.Fatalf("[ctrl] MakeRaw terminal: %v", err)
+		log.Fatalf("[supervisor] MakeRaw terminal: %v", err)
 
 	}
 
@@ -227,7 +227,7 @@ func (c *SupervisorController) toExitShell() error {
 func (c *SupervisorController) AddSession(spec *api.SessionSpec) {
 	// Create the new Session
 	sess := session.NewSession(spec)
-	c.mgr.Add(*sess)
+	c.mgr.Add(sess)
 }
 
 func (c *SupervisorController) SetCurrentSession(id api.SessionID) error {
@@ -240,7 +240,7 @@ func (c *SupervisorController) SetCurrentSession(id api.SessionID) error {
 
 	// Initial terminal mode (bash passthrough)
 	if err := c.toBashUIMode(); err != nil {
-		log.Printf("[ctrl] initial raw mode failed: %v", err)
+		log.Printf("[supervisor] initial raw mode failed: %v", err)
 	}
 	return nil
 }
@@ -257,7 +257,7 @@ func (c *SupervisorController) StartSession(id api.SessionID) error {
 
 // NewController wires the manager and the shared event channel from sessions.
 func NewController() *SupervisorController {
-	log.Printf("[ctrl] New controller is being created\r\n")
+	log.Printf("[supervisor] New controller is being created\r\n")
 
 	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
 	// Create a session.SessionManager

@@ -43,27 +43,6 @@ func runSession() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Create a new Controller
-	var ctrl api.SessionController
-
-	ctrl = session.NewController()
-
-	// Create error channel
-	errCh := make(chan error, 1)
-
-	// Run controller
-	go func() {
-		errCh <- ctrl.Run(ctx) // Run should return when ctx is canceled
-	}()
-
-	// block until controller is ready (or ctx cancels)
-	if err := ctrl.WaitReady(ctx); err != nil {
-		log.Printf("controller not ready: %s", err)
-		return
-	}
-
-	//////////////////
-
 	// Define a new Session
 	spec := api.SessionSpec{
 		ID:      api.SessionID("s0"),
@@ -74,8 +53,27 @@ func runSession() {
 		LogDir:  "/tmp/sbsh-logs/s0",
 	}
 
+	// Create a new Controller
+	var sessionCtrl api.SessionController
+
+	sessionCtrl = session.NewSessionController()
+
+	// Create error channel
+	errCh := make(chan error, 1)
+
+	// Run controller
+	go func() {
+		errCh <- sessionCtrl.Run(ctx) // Run should return when ctx is canceled
+	}()
+
+	// block until controller is ready (or ctx cancels)
+	if err := sessionCtrl.WaitReady(ctx); err != nil {
+		log.Printf("controller not ready: %s", err)
+		return
+	}
+
 	// Start new session
-	if err := ctrl.StartSession(&spec); err != nil {
+	if err := sessionCtrl.StartSession(&spec); err != nil {
 		log.Fatalf("failed to start session: %v", err)
 	}
 
