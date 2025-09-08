@@ -44,10 +44,6 @@ type SupervisorController struct {
 	exit          chan struct{}
 
 	supervisorSockerCtrl string
-
-	// sessionClientRPC        *rpc.Client
-	// activeSessionSocketCTRL string
-	// activeSessionSocketIO   string
 }
 
 // NewSupervisorController wires the manager and the shared event channel from sessions.
@@ -154,7 +150,8 @@ func (c *SupervisorController) handleEvent(ev api.SessionEvent) {
 		c.onClosed(ev.ID, ev.Err)
 
 	case api.EvError:
-		// log.Printf("[supervisor] session %s EvError error: %v\r\n", ev.ID, ev.Err)
+		log.Printf("[supervisor] session %s EvError error: %v\r\n", ev.ID, ev.Err)
+		c.onClosed(ev.ID, ev.Err)
 
 	case api.EvData:
 		// optional metrics hook
@@ -168,34 +165,21 @@ func (c *SupervisorController) onClosed(id api.SessionID, err error) {
 		log.Printf("[supervisor] session %s closed with error: %v\r\n", id, err)
 	}
 
-	if _, ok := c.mgr.Get(id); ok {
-		if err = c.mgr.StopSession(id); err != nil {
-			log.Println("[supervisor] error closing the session:", err)
-			return
-		}
-
-	}
-
-	// Session is Closed now
+	// if _, ok := c.mgr.Get(id); ok {
+	// }
 
 	// If the closed session was bound or current, pick another
 	if c.mgr.Current() == id {
 		c.mgr.SetCurrent(api.SessionID(""))
+		c.mgr.Remove(id)
 		c.toExitShell()
-	}
-
-	if c.mgr.Current() == id {
-		next := pickNext(c.mgr, id)
-
-		c.mgr.SetCurrent(next)
 	}
 
 	// If no sessions remain and we’re in supervisor, drop back to bash UI
 	if len(c.mgr.ListLive()) == 0 {
+		// term.Restore(int(os.Stdin.Fd()), c.lastTermState)
 		close(c.exit)
 	}
-
-	term.Restore(int(os.Stdin.Fd()), c.lastTermState)
 
 }
 
@@ -253,48 +237,19 @@ func (c *SupervisorController) Start() error {
 		return fmt.Errorf("spawn session: %w", err)
 	}
 
-	// IMPORTANT: reap it in the background so it never zombifies
-	go func() { _ = cmd.Wait() }()
-
 	// you can return cmd.Process.Pid to record in meta.json
-	_ = cmd.Process.Pid
+	session.pid = cmd.Process.Pid
+
+	// IMPORTANT: reap it in the background so it never zombifies
+	go func() {
+		_ = cmd.Wait()
+		log.Printf("[supervisor] session process has exited\r\n")
+	}()
 
 	c.dialSessionCtrlSocket()
 	c.attachAndForwardResize()
 	c.attachIOSocket()
 
-	return nil
-}
-
-// toBashUIMode: set terminal to RAW, update flags
-func (c *SupervisorController) toBashUIMode() error {
-	// TODO: restore raw mode on os.Stdin (your terminal manager)
-	// e.g., term.MakeRaw / term.Restore handled by a helper
-	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
-
-	lastTermState, err := toRawMode()
-	if err != nil {
-		log.Fatalf("MakeRaw: %v", err)
-		return err
-	}
-	// defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
-
-	c.uiMode = UIBash
-	c.lastTermState = lastTermState
-	return nil
-}
-
-// toSupervisorUIMode: set terminal to COOKED for your REPL
-func (c *SupervisorController) toExitShell() error {
-	// TODO: restore cooked mode on os.Stdin
-	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
-	err := term.Restore(int(os.Stdin.Fd()), c.lastTermState)
-	if err != nil {
-		log.Fatalf("MakeRaw: %v", err)
-		return err
-	}
-
-	c.uiMode = UIExitShell
 	return nil
 }
 
@@ -381,10 +336,10 @@ func (c *SupervisorController) attachIOSocket() error {
 		// send event (EOF or error while copying stdin -> socket)
 		if e == io.EOF {
 			log.Printf("[supervisor] stdin reached EOF\r\n")
-			trySendEvent(c.events, api.SessionEvent{ID: "s0", Type: api.EvClosed, Err: err, When: time.Now()})
+			trySendEvent(c.events, api.SessionEvent{ID: session.id, Type: api.EvClosed, Err: err, When: time.Now()})
 		} else if e != nil {
 			log.Printf("[supervisor] stdin->socket error: %v\r\n", e)
-			trySendEvent(c.events, api.SessionEvent{ID: "s0", Type: api.EvError, Err: err, When: time.Now()})
+			trySendEvent(c.events, api.SessionEvent{ID: session.id, Type: api.EvError, Err: err, When: time.Now()})
 		}
 
 		errCh <- e
@@ -400,10 +355,10 @@ func (c *SupervisorController) attachIOSocket() error {
 		// send event (EOF or error while copying socket -> stdout)
 		if e == io.EOF {
 			log.Printf("[supervisor] socket closed (EOF)\r\n")
-			trySendEvent(c.events, api.SessionEvent{ID: "s0", Type: api.EvClosed, Err: err, When: time.Now()})
+			trySendEvent(c.events, api.SessionEvent{ID: session.id, Type: api.EvClosed, Err: err, When: time.Now()})
 		} else if e != nil {
 			log.Printf("[supervisor] socket->stdout error: %v\r\n", e)
-			trySendEvent(c.events, api.SessionEvent{ID: "s0", Type: api.EvError, Err: err, When: time.Now()})
+			trySendEvent(c.events, api.SessionEvent{ID: session.id, Type: api.EvError, Err: err, When: time.Now()})
 		}
 
 		errCh <- e
@@ -477,14 +432,36 @@ func (c *SupervisorController) attachAndForwardResize() error {
 	return nil
 }
 
-func pickNext(m *SessionManager, closed api.SessionID) api.SessionID {
-	live := m.ListLive()
-	for _, id := range live {
-		if id != closed {
-			return id
-		}
+// toBashUIMode: set terminal to RAW, update flags
+func (c *SupervisorController) toBashUIMode() error {
+	// TODO: restore raw mode on os.Stdin (your terminal manager)
+	// e.g., term.MakeRaw / term.Restore handled by a helper
+	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
+
+	lastTermState, err := toRawMode()
+	if err != nil {
+		log.Fatalf("MakeRaw: %v", err)
+		return err
 	}
-	return ""
+	// defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
+
+	c.uiMode = UIBash
+	c.lastTermState = lastTermState
+	return nil
+}
+
+// toSupervisorUIMode: set terminal to COOKED for your REPL
+func (c *SupervisorController) toExitShell() error {
+	// TODO: restore cooked mode on os.Stdin
+	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
+	err := term.Restore(int(os.Stdin.Fd()), c.lastTermState)
+	if err != nil {
+		log.Fatalf("MakeRaw: %v", err)
+		return err
+	}
+
+	c.uiMode = UIExitShell
+	return nil
 }
 
 func toRawMode() (*term.State, error) {

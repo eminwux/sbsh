@@ -1,9 +1,7 @@
 package supervisor
 
 import (
-	"context"
 	"errors"
-	"log"
 	"net/rpc"
 	"sbsh/pkg/api"
 	"sync"
@@ -99,28 +97,6 @@ func (m *SessionManager) SetCurrent(id api.SessionID) error {
 	if _, ok := m.sessions[id]; !ok {
 		return errors.New("unknown session id")
 	}
-	m.current = id
-	return nil
-}
-
-func (m *SessionManager) StartSession(id api.SessionID, ctx context.Context, evCh chan<- api.SessionEvent) error {
-	m.mu.Lock()
-	log.Printf("[session] SessionManager state locked")
-
-	_, ok := m.sessions[id]
-
-	if !ok {
-		return errors.New("[session] unknown session id")
-	}
-	m.mu.Unlock()
-
-	log.Printf("[session] SessionManager state unlocked")
-
-	// if err := sess.StartSession(ctx, evCh); err != nil {
-	// 	log.Fatalf("[session] failed to start session: %v", err)
-	// 	return err
-	// }
-
 	m.current = id
 	return nil
 }
