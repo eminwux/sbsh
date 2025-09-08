@@ -240,7 +240,7 @@ func (c *SupervisorController) Start() error {
 
 	session := NewSupervisedSession(sessionSpec)
 	c.mgr.Add(session)
-	c.mgr.SetCurrent(api.SessionID(sessionID))
+	c.SetCurrentSession(api.SessionID(sessionID))
 
 	// Begins start procedure
 	devNull, _ := os.OpenFile("/dev/null", os.O_RDWR, 0)
@@ -365,20 +365,8 @@ func (c *SupervisorController) attachIOSocket() error {
 		return err
 	}
 
-	// Ensure we close on any exit path
-	// defer conn.Close()
-
 	// We want half-closes; UnixConn exposes CloseRead/CloseWrite
 	uc, _ := conn.(*net.UnixConn)
-
-	// Put our terminal in raw mode so keystrokes pass through unchanged
-	_, err = term.MakeRaw(int(os.Stdin.Fd()))
-	if err != nil {
-		return err
-	}
-
-	// Defer terminal restore
-	// defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
 
 	errCh := make(chan error, 2)
 
