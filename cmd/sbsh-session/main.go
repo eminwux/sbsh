@@ -6,16 +6,24 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"sbsh/pkg/api"
+	"sbsh/pkg/common"
 	"sbsh/pkg/session"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+)
+
+var (
+	sessionID  string
+	sessionCmd string
 )
 
 func main() {
@@ -34,21 +42,35 @@ var rootCmd = &cobra.Command{
 			fmt.Fprintln(os.Stderr, "Config error:", err)
 			os.Exit(1)
 		}
-		runSession()
+
+		if sessionID == "" {
+			sessionID = common.RandomID()
+		}
+		if sessionCmd == "" {
+			sessionCmd = "/bin/bash"
+		}
+
+		// Split into args for exec
+		cmdArgs := strings.Split(sessionCmd, " ")
+
+		runSession(sessionID, cmdArgs)
 
 	},
 }
 
-func runSession() {
+func runSession(sessionID string, cmdArgs []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	b := make([]byte, 4) // 4 bytes = 8 hex chars
+	_, _ = rand.Read(b)
+
 	// Define a new Session
 	spec := api.SessionSpec{
-		ID:      api.SessionID("s0"),
+		ID:      api.SessionID(sessionID),
 		Kind:    api.SessLocal,
 		Label:   "default",
-		Command: []string{"bash", "-i"},
+		Command: cmdArgs,
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 	}
@@ -95,7 +117,9 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().StringVar(&sessionID, "id", "", "Optional session ID (random if omitted)")
+	rootCmd.Flags().StringVar(&sessionCmd, "command", "", "Optional command (default: bash -i)")
+
 }
 
 // LoadConfig loads config.yaml from the given path or HOME/.sbsh

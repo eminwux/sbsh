@@ -14,7 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sbsh/pkg/api"
-	"sbsh/pkg/session"
+	"sbsh/pkg/common"
 	"syscall"
 	"time"
 
@@ -34,18 +34,21 @@ const (
 
 type SupervisorController struct {
 	ready  chan struct{}
-	mgr    *session.SessionManager
-	events chan api.SessionEvent // fan-in from all sessions
-	// resizeSig chan os.Signal
+	mgr    *SessionManager
+	events chan api.SessionEvent
 
 	uiMode  UIMode
-	boundID api.SessionID // session currently bound to supervisor UI
-	// you can add more, e.g., quietOutput bool
+	boundID api.SessionID
+
 	ctx           context.Context
 	lastTermState *term.State
 	exit          chan struct{}
 
 	sessionClientRPC *rpc.Client
+	socketCTRL       string
+
+	activeSessionSocketCTRL string
+	activeSessionSocketIO   string
 }
 
 // NewController wires the manager and the shared event channel from sessions.
@@ -54,7 +57,7 @@ func NewController() *SupervisorController {
 
 	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
 	// Create a session.SessionManager
-	mgr := session.NewSessionManager()
+	mgr := NewSessionManager()
 
 	c := &SupervisorController{
 		ready:  make(chan struct{}),
@@ -84,22 +87,27 @@ func (c *SupervisorController) Run(ctx context.Context) error {
 	log.Println("[supervisor] Starting controller loop")
 	defer log.Printf("[supervisor] controller stopped\r\n")
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal(err)
-	}
-	sockPath := filepath.Join(home, ".sbsh", "socket")
+	supervisorID := common.RandomID()
 
-	// ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(sockPath), 0700); err != nil {
-		log.Fatal(err)
+	// Set up sockets
+	base, err := common.RuntimeBaseSupervisor()
+	if err != nil {
+		return err
 	}
+
+	supervisorsDir := filepath.Join(base, string(supervisorID))
+	if err := os.MkdirAll(supervisorsDir, 0o700); err != nil {
+		return fmt.Errorf("mkdir session dir: %w", err)
+	}
+
+	c.socketCTRL = filepath.Join(supervisorsDir, "ctrl.sock")
+	log.Printf("[supervisor] CTRL socket: %s", c.socketCTRL)
 
 	// remove stale socket if it exists
-	if _, err := os.Stat(sockPath); err == nil {
-		_ = os.Remove(sockPath)
+	if _, err := os.Stat(c.socketCTRL); err == nil {
+		_ = os.Remove(c.socketCTRL)
 	}
-	ln, err := net.Listen("unix", sockPath)
+	ln, err := net.Listen("unix", c.socketCTRL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -127,18 +135,13 @@ func (c *SupervisorController) Run(ctx context.Context) error {
 			return ctx.Err()
 
 		case ev := <-c.events:
-			// log.Printf("[supervisor] SessionEvent has been received\r\n")
 			log.Printf("[supervisor] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
 			c.handleEvent(ev)
 
 		case <-c.exit:
 			log.Printf("[supervisor] received exit event\r\n")
 			return nil
-			// case <-c.resizeSig:
-			// 	log.Printf("[supervisor] Resize event has been received\r\n")
-			// 	c.handleResize()
 
-			// (optional) add tickers/timeouts here
 		}
 	}
 }
@@ -167,8 +170,8 @@ func (c *SupervisorController) onClosed(id api.SessionID, err error) {
 		log.Printf("[supervisor] session %s closed with error: %v\r\n", id, err)
 	}
 
-	if sess, ok := c.mgr.Get(id); ok {
-		if err = c.mgr.StopSession(sess.ID()); err != nil {
+	if _, ok := c.mgr.Get(id); ok {
+		if err = c.mgr.StopSession(id); err != nil {
 			log.Println("[supervisor] error closing the session:", err)
 			return
 		}
@@ -193,13 +196,16 @@ func (c *SupervisorController) onClosed(id api.SessionID, err error) {
 	if len(c.mgr.ListLive()) == 0 {
 		close(c.exit)
 	}
+
+	term.Restore(int(os.Stdin.Fd()), c.lastTermState)
+
 }
 
 /* ---------- Supervisor REPL (placeholder) ---------- */
 
 func (c *SupervisorController) AddSession(spec *api.SessionSpec) {
 	// Create the new Session
-	sess := session.NewSession(spec)
+	sess := NewSupervisedSession(spec)
 	c.mgr.Add(sess)
 }
 
@@ -220,11 +226,12 @@ func (c *SupervisorController) SetCurrentSession(id api.SessionID) error {
 
 func (c *SupervisorController) Start() error {
 
-	socketCTRL := "/home/inwx/.sbsh/run/sessions/s0/ctrl.sock"
-	socketIO := "/home/inwx/.sbsh/run/sessions/s0/io.sock"
+	sessionID := common.RandomID()
+	c.activeSessionSocketCTRL = "/home/inwx/.sbsh/run/sessions/" + sessionID + "/ctrl.sock"
+	c.activeSessionSocketIO = "/home/inwx/.sbsh/run/sessions/" + sessionID + "/io.sock"
 
 	exe := "/home/inwx/projects/sbsh/sbsh-session"
-	args := []string{}
+	args := []string{"--id", sessionID}
 
 	// point stdio away from your TTY
 	devNull, _ := os.OpenFile("/dev/null", os.O_RDWR, 0)
@@ -243,9 +250,9 @@ func (c *SupervisorController) Start() error {
 	// you can return cmd.Process.Pid to record in meta.json
 	_ = cmd.Process.Pid
 
-	c.sessionClientRPC = dialSessionCtrlSocket(socketCTRL)
-	attachAndForwardResize(c.ctx, c.sessionClientRPC)
-	attachIOSocket(c.ctx, socketIO)
+	c.dialSessionCtrlSocket()
+	c.attachAndForwardResize()
+	c.attachIOSocket()
 
 	return nil
 }
@@ -259,6 +266,7 @@ func (c *SupervisorController) toBashUIMode() error {
 	lastTermState, err := toRawMode()
 	if err != nil {
 		log.Fatalf("MakeRaw: %v", err)
+		return err
 	}
 	// defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
 
@@ -274,20 +282,21 @@ func (c *SupervisorController) toExitShell() error {
 	err := term.Restore(int(os.Stdin.Fd()), c.lastTermState)
 	if err != nil {
 		log.Fatalf("MakeRaw: %v", err)
+		return err
 	}
 
 	c.uiMode = UIExitShell
 	return nil
 }
 
-func dialSessionCtrlSocket(ctrlSock string) *rpc.Client {
+func (c *SupervisorController) dialSessionCtrlSocket() error {
 
 	var conn net.Conn
 	var err error
 
 	// Dial the Unix domain socket
 	for range 3 {
-		conn, err = net.Dial("unix", ctrlSock)
+		conn, err = net.Dial("unix", c.activeSessionSocketCTRL)
 		if err == nil {
 			break // success
 		}
@@ -301,30 +310,31 @@ func dialSessionCtrlSocket(ctrlSock string) *rpc.Client {
 	// defer conn.Close()
 
 	// Wrap the connection in a JSON-RPC client
-	client := rpc.NewClientWithCodec(jsonrpc.NewClientCodec(conn))
+	c.sessionClientRPC = rpc.NewClientWithCodec(jsonrpc.NewClientCodec(conn))
 
 	// Example: call SessionController.Status (no args, returns SessionStatus)
 	var info api.SessionStatus
 
-	err = client.Call("SessionController.Status", struct{}{}, &info)
+	err = c.sessionClientRPC.Call("SessionController.Status", struct{}{}, &info)
 	if err != nil {
 		log.Fatalf("RPC call failed: %v", err)
+		return err
 	}
 
 	log.Printf("[supervisor] rpc->session (Status): %+v\r\n", info)
 
-	return client
+	return nil
 
 }
 
-func attachIOSocket(ctx context.Context, ioSockPath string) error {
+func (c *SupervisorController) attachIOSocket() error {
 
 	var conn net.Conn
 	var err error
 
 	// Dial the Unix domain socket
 	for range 3 {
-		conn, err = net.Dial("unix", ioSockPath)
+		conn, err = net.Dial("unix", c.activeSessionSocketIO)
 		if err == nil {
 			break // success
 		}
@@ -333,69 +343,95 @@ func attachIOSocket(ctx context.Context, ioSockPath string) error {
 
 	if err != nil {
 		log.Fatalf("failed to connect to io.sock after 3 retries: %v", err)
+		return err
 	}
 
 	// Ensure we close on any exit path
-	defer conn.Close()
+	// defer conn.Close()
 
 	// We want half-closes; UnixConn exposes CloseRead/CloseWrite
 	uc, _ := conn.(*net.UnixConn)
 
 	// Put our terminal in raw mode so keystrokes pass through unchanged
-	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	_, err = term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
 		return err
 	}
-	defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
+
+	// Defer terminal restore
+	// defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
 
 	errCh := make(chan error, 2)
 
-	// stdin -> socket
+	// WRITER stdin -> socket
 	go func() {
 		_, e := io.Copy(conn, os.Stdin)
 		// tell peer we're done sending (but still willing to read)
 		if uc != nil {
 			_ = uc.CloseWrite()
+
 		}
+		// send event (EOF or error while copying stdin -> socket)
+		if e == io.EOF {
+			log.Printf("[supervisor] stdin reached EOF\r\n")
+			trySendEvent(c.events, api.SessionEvent{ID: "s0", Type: api.EvClosed, Err: err, When: time.Now()})
+		} else if e != nil {
+			log.Printf("[supervisor] stdin->socket error: %v\r\n", e)
+			trySendEvent(c.events, api.SessionEvent{ID: "s0", Type: api.EvError, Err: err, When: time.Now()})
+		}
+
 		errCh <- e
 	}()
 
-	// socket -> stdout
+	// READER socket -> stdout
 	go func() {
 		_, e := io.Copy(os.Stdout, conn)
 		// we won't read further; let the other goroutine finish
 		if uc != nil {
 			_ = uc.CloseRead()
 		}
+		// send event (EOF or error while copying socket -> stdout)
+		if e == io.EOF {
+			log.Printf("[supervisor] socket closed (EOF)\r\n")
+			trySendEvent(c.events, api.SessionEvent{ID: "s0", Type: api.EvClosed, Err: err, When: time.Now()})
+		} else if e != nil {
+			log.Printf("[supervisor] socket->stdout error: %v\r\n", e)
+			trySendEvent(c.events, api.SessionEvent{ID: "s0", Type: api.EvError, Err: err, When: time.Now()})
+		}
+
 		errCh <- e
 	}()
 
 	// Force resize
 	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
 
-	// Wait for either context cancel or one side finishing
-	select {
-	case <-ctx.Done():
-		_ = conn.Close() // unblock goroutines
-		<-errCh
-		<-errCh
-		return ctx.Err()
-	case e := <-errCh:
-		// one direction ended; close and wait for the other
-		_ = conn.Close()
-		<-errCh
-		// treat EOF as normal detach
-		if e == io.EOF || e == nil {
-			return nil
+	go func() error {
+		// Wait for either context cancel or one side finishing
+		select {
+		case <-c.ctx.Done():
+			_ = conn.Close() // unblock goroutines
+			<-errCh
+			<-errCh
+			return c.ctx.Err()
+		case e := <-errCh:
+			// one direction ended; close and wait for the other
+			_ = conn.Close()
+			<-errCh
+			// treat EOF as normal detach
+			if e == io.EOF || e == nil {
+				return nil
+			}
+			return e
 		}
-		return e
-	}
+	}()
+
+	return nil
 }
 
-func attachAndForwardResize(ctx context.Context, client *rpc.Client) error {
+func (c *SupervisorController) attachAndForwardResize() error {
 	// Send initial size once (use the supervisor's TTY: os.Stdin)
 	if rows, cols, err := pty.Getsize(os.Stdin); err == nil {
-		_ = client.Call("Session.Resize",
+		_ = c.sessionClientRPC.Call("Session.Resize",
 			api.ResizeArgs{Cols: int(cols), Rows: int(rows)}, &api.Empty{})
 	}
 
@@ -406,7 +442,7 @@ func attachAndForwardResize(ctx context.Context, client *rpc.Client) error {
 		defer signal.Stop(ch)
 		for {
 			select {
-			case <-ctx.Done():
+			case <-c.ctx.Done():
 				return
 			case <-ch:
 				// log.Printf("[supervisor] window change\r\n")
@@ -417,7 +453,7 @@ func attachAndForwardResize(ctx context.Context, client *rpc.Client) error {
 					continue
 				}
 				var reply api.Empty
-				if err := client.Call("SessionController.Resize",
+				if err := c.sessionClientRPC.Call("SessionController.Resize",
 					api.ResizeArgs{Cols: int(cols), Rows: int(rows)}, &reply); err != nil {
 					// Don't kill the process on resize failure; just log
 					log.Printf("resize RPC failed: %v\r\n", err)
@@ -428,7 +464,7 @@ func attachAndForwardResize(ctx context.Context, client *rpc.Client) error {
 	return nil
 }
 
-func pickNext(m *session.SessionManager, closed api.SessionID) api.SessionID {
+func pickNext(m *SessionManager, closed api.SessionID) api.SessionID {
 	live := m.ListLive()
 	for _, id := range live {
 		if id != closed {
@@ -446,4 +482,15 @@ func toRawMode() (*term.State, error) {
 	}
 
 	return state, nil
+}
+
+// helper: non-blocking event send so the PTY reader never stalls
+func trySendEvent(ch chan<- api.SessionEvent, ev api.SessionEvent) {
+	log.Printf("[session] send event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
+
+	select {
+	case ch <- ev:
+	default:
+		// drop on the floor if controller is momentarily busy; channel should be buffered
+	}
 }

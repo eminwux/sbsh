@@ -11,23 +11,24 @@ import (
 	"os"
 	"path/filepath"
 	"sbsh/pkg/api"
+	"sbsh/pkg/common"
 	"syscall"
 	"time"
 )
 
 type SessionController struct {
 	ready  chan struct{}
-	mgr    *SessionManager
 	events chan api.SessionEvent // fan-in from all sessions
 	ctx    context.Context
 	exit   chan struct{}
 
 	socketCTRL string
 
-	ctrlLn net.Listener
+	ctrlLn  net.Listener
+	session *Session
 }
 
-var sessionsDir string
+var sessionDir string
 
 // NewSessionController wires the manager and the shared event channel from sessions.
 func NewSessionController() *SessionController {
@@ -35,11 +36,11 @@ func NewSessionController() *SessionController {
 
 	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
 
-	mgr := NewSessionManager()
+	// mgr := NewSessionManager()
 
 	c := &SessionController{
-		ready:  make(chan struct{}),
-		mgr:    mgr,
+		ready: make(chan struct{}),
+		// mgr:    mgr,
 		events: events,
 	}
 	// signal.Notify(c.resizeSig, syscall.SIGWINCH)
@@ -111,12 +112,9 @@ func (c *SessionController) onClosed(id api.SessionID, err error) {
 		log.Printf("[sessionCtrl] session %s closed with error: %v\r\n", id, err)
 	}
 
-	if sess, ok := c.mgr.Get(id); ok {
-		if err = c.mgr.StopSession(sess.ID()); err != nil {
-			log.Println("[sessionCtrl] error closing the session:", err)
-			return
-		}
-
+	if err = c.session.Close(); err != nil {
+		log.Println("[sessionCtrl] error closing the session:", err)
+		return
 	}
 
 	if c.ctrlLn != nil {
@@ -131,21 +129,21 @@ func (c *SessionController) StartSession(spec *api.SessionSpec) error {
 		return errors.New("empty command in SessionSpec")
 	}
 
-	s := NewSession(spec)
-	c.mgr.Add(s)
+	c.session = NewSession(spec)
+	// c.mgr.Add(s)
 
 	// Set up sockets
-	base, err := runtimeBaseSessions()
+	base, err := common.RuntimeBaseSessions()
 	if err != nil {
 		return err
 	}
 
-	sessionsDir = filepath.Join(base, string(spec.ID))
-	if err := os.MkdirAll(sessionsDir, 0o700); err != nil {
+	sessionDir = filepath.Join(base, string(spec.ID))
+	if err := os.MkdirAll(sessionDir, 0o700); err != nil {
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
-	c.socketCTRL = filepath.Join(sessionsDir, "ctrl.sock")
+	c.socketCTRL = filepath.Join(sessionDir, "ctrl.sock")
 	log.Printf("[sessionCtrl] CTRL socket: %s", c.socketCTRL)
 
 	// Remove sockets if they already exist
@@ -184,7 +182,7 @@ func (c *SessionController) StartSession(spec *api.SessionSpec) error {
 		}
 	}()
 
-	if err := c.mgr.StartSession(spec.ID, c.ctx, c.events); err != nil {
+	if err := c.session.StartSession(c.ctx, c.events); err != nil {
 		log.Fatalf("failed to start session: %v", err)
 		return err
 	}
@@ -192,27 +190,8 @@ func (c *SessionController) StartSession(spec *api.SessionSpec) error {
 	return nil
 }
 
-func (s *SessionController) GetSession(id api.SessionID) *Session {
+func (c *SessionController) Resize(args api.ResizeArgs) {
 
-	if sess, ok := s.mgr.Get(id); ok {
-		return sess
-	}
+	c.session.Resize(args)
 
-	return nil
-
-}
-func (s *SessionController) Resize(args api.ResizeArgs) {
-
-	session := s.GetSession(s.mgr.current)
-
-	session.Resize(args)
-
-}
-
-func runtimeBaseSessions() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".sbsh", "run", "sessions"), nil
 }

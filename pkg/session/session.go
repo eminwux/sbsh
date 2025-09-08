@@ -117,12 +117,12 @@ func (s *Session) Close() error {
 	}
 
 	// remove sockets and dir
-	if err := os.Remove(s.socketIO); err != nil {
-		log.Printf("[session] couldn't remove IO socket: %s\r\n", s.socketIO)
-	}
-
-	_ = os.RemoveAll(sessionsDir + "/" + string(s.ID())) // or leave meta/logs if you prefer
-
+	// if err := os.Remove(s.socketIO); err != nil {
+	// 	log.Printf("[session] couldn't remove IO socket: %s\r\n", s.socketIO)
+	// }
+	// if err := os.RemoveAll(sessionDir); err != nil {
+	// 	log.Printf("[session] couldn't remove IO socket: %s\r\n", s.socketIO)
+	// }
 	return nil
 
 }
@@ -136,8 +136,10 @@ func (s *Session) Resize(args api.ResizeArgs) {
 	})
 }
 
-// // Write writes bytes to the session PTY (used by controller or Smart executor).
-// func (s *Session) Write(p []byte) (int, error)
+// Write writes bytes to the session PTY (used by controller or Smart executor).
+func (s *Session) Write(p []byte) (int, error) {
+	return s.pty.Write(p)
+}
 
 // Open/Close the stdin forwarding gate (stdin->PTY). Reader goroutine
 // will check this flag before writing to PTY.
@@ -173,7 +175,7 @@ func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent
 	s.gates.StdinOpen = true
 	s.gates.OutputOn = true
 
-	s.socketIO = filepath.Join(sessionsDir, "io.sock")
+	s.socketIO = filepath.Join(sessionDir, "io.sock")
 	log.Printf("[session] IO socket: %s", s.socketIO)
 
 	// Remove sockets if they already exist
@@ -350,8 +352,9 @@ func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent
 				}
 			}(s, cl)
 
-			s.pty.Write([]byte("echo 'Hello from Go!'\n"))
-			s.pty.Write([]byte(`export PS1="(sbsh) $PS1"` + "\n"))
+			s.Write([]byte(`export PS1="(sbsh-` + s.id + `) $PS1"` + "\n"))
+			// s.pty.Write([]byte("echo 'Hello from Go!'\n"))
+			// s.pty.Write([]byte(`export PS1="(sbsh) $PS1"` + "\n"))
 			// s.pty.Write([]byte(`__sbsh_emit() { printf '\033]1337;sbsh\007'; }` + "\n"))
 			// s.pty.Write([]byte(`smart()  { __sbsh_emit;  }` + "\n"))
 
@@ -390,105 +393,105 @@ func (s *Session) removeClient(c *ioClient) {
 
 /////////////////////////////////////////////////
 
-func NewSessionManager() *SessionManager {
-	return &SessionManager{
-		sessions: make(map[api.SessionID]*Session),
-	}
-}
+// func NewSessionManager() *SessionManager {
+// 	return &SessionManager{
+// 		sessions: make(map[api.SessionID]*Session),
+// 	}
+// }
 
-/* Basic ops */
+// /* Basic ops */
 
-func (m *SessionManager) Add(s *Session) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.sessions[s.id] = s
-	if m.current == "" {
-		m.current = s.id
-	}
-}
+// func (m *SessionManager) Add(s *Session) {
+// 	m.mu.Lock()
+// 	defer m.mu.Unlock()
+// 	m.sessions[s.id] = s
+// 	if m.current == "" {
+// 		m.current = s.id
+// 	}
+// }
 
-func (m *SessionManager) Get(id api.SessionID) (*Session, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	s, ok := m.sessions[id]
-	return s, ok
-}
+// func (m *SessionManager) Get(id api.SessionID) (*Session, bool) {
+// 	m.mu.RLock()
+// 	defer m.mu.RUnlock()
+// 	s, ok := m.sessions[id]
+// 	return s, ok
+// }
 
-func (m *SessionManager) ListLive() []api.SessionID {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	out := make([]api.SessionID, 0, len(m.sessions))
-	for id := range m.sessions {
-		out = append(out, id)
-	}
-	return out
-}
+// func (m *SessionManager) ListLive() []api.SessionID {
+// 	m.mu.RLock()
+// 	defer m.mu.RUnlock()
+// 	out := make([]api.SessionID, 0, len(m.sessions))
+// 	for id := range m.sessions {
+// 		out = append(out, id)
+// 	}
+// 	return out
+// }
 
-func (m *SessionManager) Remove(id api.SessionID) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.sessions, id)
-	if m.current == id {
-		m.current = "" // caller can SetCurrent to another live session
-	}
-}
+// func (m *SessionManager) Remove(id api.SessionID) {
+// 	m.mu.Lock()
+// 	defer m.mu.Unlock()
+// 	delete(m.sessions, id)
+// 	if m.current == id {
+// 		m.current = "" // caller can SetCurrent to another live session
+// 	}
+// }
 
-func (m *SessionManager) Current() api.SessionID {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.current
-}
+// func (m *SessionManager) Current() api.SessionID {
+// 	m.mu.RLock()
+// 	defer m.mu.RUnlock()
+// 	return m.current
+// }
 
-func (m *SessionManager) SetCurrent(id api.SessionID) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if _, ok := m.sessions[id]; !ok {
-		return errors.New("unknown session id")
-	}
-	m.current = id
-	return nil
-}
+// func (m *SessionManager) SetCurrent(id api.SessionID) error {
+// 	m.mu.Lock()
+// 	defer m.mu.Unlock()
+// 	if _, ok := m.sessions[id]; !ok {
+// 		return errors.New("unknown session id")
+// 	}
+// 	m.current = id
+// 	return nil
+// }
 
-func (m *SessionManager) StartSession(id api.SessionID, ctx context.Context, evCh chan<- api.SessionEvent) error {
-	m.mu.Lock()
-	log.Printf("[session] SessionManager state locked")
+// func (m *SessionManager) StartSession(id api.SessionID, ctx context.Context, evCh chan<- api.SessionEvent) error {
+// 	m.mu.Lock()
+// 	log.Printf("[session] SessionManager state locked")
 
-	sess, ok := m.sessions[id]
+// 	sess, ok := m.sessions[id]
 
-	if !ok {
-		return errors.New("[session] unknown session id")
-	}
-	m.mu.Unlock()
+// 	if !ok {
+// 		return errors.New("[session] unknown session id")
+// 	}
+// 	m.mu.Unlock()
 
-	log.Printf("[session] SessionManager state unlocked")
+// 	log.Printf("[session] SessionManager state unlocked")
 
-	if err := sess.StartSession(ctx, evCh); err != nil {
-		log.Fatalf("[session] failed to start session: %v", err)
-		return err
-	}
+// 	if err := sess.StartSession(ctx, evCh); err != nil {
+// 		log.Fatalf("[session] failed to start session: %v", err)
+// 		return err
+// 	}
 
-	m.current = id
-	return nil
-}
+// 	m.current = id
+// 	return nil
+// }
 
-func (m *SessionManager) StopSession(id api.SessionID) error {
-	m.mu.Lock()
-	sess, ok := m.sessions[id]
-	m.mu.Unlock()
-	if !ok {
-		return errors.New("unknown session id")
-	} else {
+// func (m *SessionManager) StopSession(id api.SessionID) error {
+// 	m.mu.Lock()
+// 	sess, ok := m.sessions[id]
+// 	m.mu.Unlock()
+// 	if !ok {
+// 		return errors.New("unknown session id")
+// 	} else {
 
-		if err := sess.Close(); err != nil {
-			log.Fatalf("failed to stop session: %v", err)
-			return err
-		}
+// 		if err := sess.Close(); err != nil {
+// 			log.Fatalf("failed to stop session: %v", err)
+// 			return err
+// 		}
 
-		m.Remove(id)
+// 		m.Remove(id)
 
-	}
-	return nil
-}
+// 	}
+// 	return nil
+// }
 
 // helper: non-blocking event send so the PTY reader never stalls
 func trySendEvent(ch chan<- api.SessionEvent, ev api.SessionEvent) {
