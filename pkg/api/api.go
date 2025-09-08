@@ -76,10 +76,6 @@ type SessionIDArg struct {
 	ID SessionID
 }
 
-type AddSessionArgs struct {
-	Spec SessionSpec
-}
-
 type SessionStatus struct {
 	Message string
 }

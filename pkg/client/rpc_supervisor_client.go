@@ -32,10 +32,6 @@ func (cc *ClientControllerRPC) WaitReady(ctx context.Context) error {
 	return cc.c.Call("Controller.WaitReady", &api.Empty{}, &reply)
 }
 
-func (cc *ClientControllerRPC) AddSession(spec *api.SessionSpec) {
-	_ = cc.c.Call("Controller.AddSession", &api.AddSessionArgs{Spec: *spec}, &api.Empty{})
-}
-
 func (cc *ClientControllerRPC) SetCurrentSession(id api.SessionID) error {
 	var reply api.Empty
 	return cc.c.Call("Controller.SetCurrentSession", &api.SessionIDArg{ID: id}, &reply)
