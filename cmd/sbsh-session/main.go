@@ -15,7 +15,6 @@ import (
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
 	"sbsh/pkg/session"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -51,14 +50,14 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Split into args for exec
-		cmdArgs := strings.Split(sessionCmd, " ")
+		cmdArgs := []string{}
 
-		runSession(sessionID, cmdArgs)
+		runSession(sessionID, sessionCmd, cmdArgs)
 
 	},
 }
 
-func runSession(sessionID string, cmdArgs []string) {
+func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -67,12 +66,13 @@ func runSession(sessionID string, cmdArgs []string) {
 
 	// Define a new Session
 	spec := api.SessionSpec{
-		ID:      api.SessionID(sessionID),
-		Kind:    api.SessLocal,
-		Label:   "default",
-		Command: cmdArgs,
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
+		ID:          api.SessionID(sessionID),
+		Kind:        api.SessLocal,
+		Label:       "default",
+		Command:     sessionCmd,
+		CommandArgs: cmdArgs,
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
 	// Create a new Controller

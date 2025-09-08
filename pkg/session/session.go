@@ -202,7 +202,7 @@ func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent
 	s.ioLn = ioLn
 
 	// Build the child command with context (so ctx cancel can kill it)
-	cmd := exec.CommandContext(ctx, s.spec.Command[0], s.spec.Command[1:]...)
+	cmd := exec.CommandContext(ctx, s.spec.Command, s.spec.CommandArgs...)
 	// Environment: use provided or inherit
 	if len(s.spec.Env) > 0 {
 		cmd.Env = s.spec.Env
@@ -390,108 +390,6 @@ func (s *Session) removeClient(c *ioClient) {
 	close(c.wch)
 	s.clientsMu.Unlock()
 }
-
-/////////////////////////////////////////////////
-
-// func NewSessionManager() *SessionManager {
-// 	return &SessionManager{
-// 		sessions: make(map[api.SessionID]*Session),
-// 	}
-// }
-
-// /* Basic ops */
-
-// func (m *SessionManager) Add(s *Session) {
-// 	m.mu.Lock()
-// 	defer m.mu.Unlock()
-// 	m.sessions[s.id] = s
-// 	if m.current == "" {
-// 		m.current = s.id
-// 	}
-// }
-
-// func (m *SessionManager) Get(id api.SessionID) (*Session, bool) {
-// 	m.mu.RLock()
-// 	defer m.mu.RUnlock()
-// 	s, ok := m.sessions[id]
-// 	return s, ok
-// }
-
-// func (m *SessionManager) ListLive() []api.SessionID {
-// 	m.mu.RLock()
-// 	defer m.mu.RUnlock()
-// 	out := make([]api.SessionID, 0, len(m.sessions))
-// 	for id := range m.sessions {
-// 		out = append(out, id)
-// 	}
-// 	return out
-// }
-
-// func (m *SessionManager) Remove(id api.SessionID) {
-// 	m.mu.Lock()
-// 	defer m.mu.Unlock()
-// 	delete(m.sessions, id)
-// 	if m.current == id {
-// 		m.current = "" // caller can SetCurrent to another live session
-// 	}
-// }
-
-// func (m *SessionManager) Current() api.SessionID {
-// 	m.mu.RLock()
-// 	defer m.mu.RUnlock()
-// 	return m.current
-// }
-
-// func (m *SessionManager) SetCurrent(id api.SessionID) error {
-// 	m.mu.Lock()
-// 	defer m.mu.Unlock()
-// 	if _, ok := m.sessions[id]; !ok {
-// 		return errors.New("unknown session id")
-// 	}
-// 	m.current = id
-// 	return nil
-// }
-
-// func (m *SessionManager) StartSession(id api.SessionID, ctx context.Context, evCh chan<- api.SessionEvent) error {
-// 	m.mu.Lock()
-// 	log.Printf("[session] SessionManager state locked")
-
-// 	sess, ok := m.sessions[id]
-
-// 	if !ok {
-// 		return errors.New("[session] unknown session id")
-// 	}
-// 	m.mu.Unlock()
-
-// 	log.Printf("[session] SessionManager state unlocked")
-
-// 	if err := sess.StartSession(ctx, evCh); err != nil {
-// 		log.Fatalf("[session] failed to start session: %v", err)
-// 		return err
-// 	}
-
-// 	m.current = id
-// 	return nil
-// }
-
-// func (m *SessionManager) StopSession(id api.SessionID) error {
-// 	m.mu.Lock()
-// 	sess, ok := m.sessions[id]
-// 	m.mu.Unlock()
-// 	if !ok {
-// 		return errors.New("unknown session id")
-// 	} else {
-
-// 		if err := sess.Close(); err != nil {
-// 			log.Fatalf("failed to stop session: %v", err)
-// 			return err
-// 		}
-
-// 		m.Remove(id)
-
-// 	}
-// 	return nil
-// }
 
 // helper: non-blocking event send so the PTY reader never stalls
 func trySendEvent(ch chan<- api.SessionEvent, ev api.SessionEvent) {

@@ -46,7 +46,7 @@ func runSupervisor() {
 	// Create a new Controller
 	var ctrl api.SupervisorController
 
-	ctrl = supervisor.NewController()
+	ctrl = supervisor.NewSupervisorController()
 
 	// Create error channel
 	errCh := make(chan error, 1)

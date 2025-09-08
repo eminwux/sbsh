@@ -37,22 +37,21 @@ type SupervisorController struct {
 	mgr    *SessionManager
 	events chan api.SessionEvent
 
-	uiMode  UIMode
-	boundID api.SessionID
+	uiMode UIMode
 
 	ctx           context.Context
 	lastTermState *term.State
 	exit          chan struct{}
 
-	sessionClientRPC *rpc.Client
-	socketCTRL       string
+	supervisorSockerCtrl string
 
-	activeSessionSocketCTRL string
-	activeSessionSocketIO   string
+	// sessionClientRPC        *rpc.Client
+	// activeSessionSocketCTRL string
+	// activeSessionSocketIO   string
 }
 
-// NewController wires the manager and the shared event channel from sessions.
-func NewController() *SupervisorController {
+// NewSupervisorController wires the manager and the shared event channel from sessions.
+func NewSupervisorController() *SupervisorController {
 	log.Printf("[supervisor] New controller is being created\r\n")
 
 	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
@@ -64,8 +63,7 @@ func NewController() *SupervisorController {
 		mgr:    mgr,
 		events: events,
 		// resizeSig: make(chan os.Signal, 1),
-		uiMode:  UIBash,
-		boundID: mgr.Current(),
+		uiMode: UIBash,
 	}
 	// signal.Notify(c.resizeSig, syscall.SIGWINCH)
 	return c
@@ -100,14 +98,14 @@ func (c *SupervisorController) Run(ctx context.Context) error {
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
-	c.socketCTRL = filepath.Join(supervisorsDir, "ctrl.sock")
-	log.Printf("[supervisor] CTRL socket: %s", c.socketCTRL)
+	c.supervisorSockerCtrl = filepath.Join(supervisorsDir, "ctrl.sock")
+	log.Printf("[supervisor] CTRL socket: %s", c.supervisorSockerCtrl)
 
 	// remove stale socket if it exists
-	if _, err := os.Stat(c.socketCTRL); err == nil {
-		_ = os.Remove(c.socketCTRL)
+	if _, err := os.Stat(c.supervisorSockerCtrl); err == nil {
+		_ = os.Remove(c.supervisorSockerCtrl)
 	}
-	ln, err := net.Listen("unix", c.socketCTRL)
+	ln, err := net.Listen("unix", c.supervisorSockerCtrl)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -181,8 +179,8 @@ func (c *SupervisorController) onClosed(id api.SessionID, err error) {
 	// Session is Closed now
 
 	// If the closed session was bound or current, pick another
-	if c.boundID == id {
-		c.boundID = ""
+	if c.mgr.Current() == id {
+		c.mgr.SetCurrent(api.SessionID(""))
 		c.toExitShell()
 	}
 
@@ -201,21 +199,18 @@ func (c *SupervisorController) onClosed(id api.SessionID, err error) {
 
 }
 
-/* ---------- Supervisor REPL (placeholder) ---------- */
-
-func (c *SupervisorController) AddSession(spec *api.SessionSpec) {
-	// Create the new Session
-	sess := NewSupervisedSession(spec)
-	c.mgr.Add(sess)
-}
+// func (c *SupervisorController) AddSession(spec *api.SessionSpec) error {
+// 	// Create the new Session
+// 	sess := NewSupervisedSession(spec)
+// 	c.mgr.Add(sess)
+// 	return nil
+// }
 
 func (c *SupervisorController) SetCurrentSession(id api.SessionID) error {
 	if err := c.mgr.SetCurrent(id); err != nil {
 		log.Fatalf("failed to set current session: %v", err)
 		return err
 	}
-
-	c.boundID = id
 
 	// Initial terminal mode (bash passthrough)
 	if err := c.toBashUIMode(); err != nil {
@@ -227,15 +222,29 @@ func (c *SupervisorController) SetCurrentSession(id api.SessionID) error {
 func (c *SupervisorController) Start() error {
 
 	sessionID := common.RandomID()
-	c.activeSessionSocketCTRL = "/home/inwx/.sbsh/run/sessions/" + sessionID + "/ctrl.sock"
-	c.activeSessionSocketIO = "/home/inwx/.sbsh/run/sessions/" + sessionID + "/io.sock"
 
 	exe := "/home/inwx/projects/sbsh/sbsh-session"
 	args := []string{"--id", sessionID}
 
-	// point stdio away from your TTY
+	sessionSpec := &api.SessionSpec{
+		ID:          api.SessionID(sessionID),
+		Kind:        api.SessLocal,
+		Label:       "default",
+		Command:     exe,
+		CommandArgs: args,
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		SockerCtrl:  "/home/inwx/.sbsh/run/sessions/" + sessionID + "/ctrl.sock",
+		SocketIO:    "/home/inwx/.sbsh/run/sessions/" + sessionID + "/io.sock",
+	}
+
+	session := NewSupervisedSession(sessionSpec)
+	c.mgr.Add(session)
+	c.mgr.SetCurrent(api.SessionID(sessionID))
+
+	// Begins start procedure
 	devNull, _ := os.OpenFile("/dev/null", os.O_RDWR, 0)
-	cmd := exec.Command(exe, args...)
+	cmd := exec.Command(session.command, session.commandArgs...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // detach from your pg/ctty
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = devNull, devNull, devNull
 	cmd.Env = os.Environ()
@@ -294,9 +303,14 @@ func (c *SupervisorController) dialSessionCtrlSocket() error {
 	var conn net.Conn
 	var err error
 
+	session, ok := c.mgr.Get(api.SessionID(c.mgr.Current()))
+	if !ok {
+		return errors.New("could not get bound session")
+	}
+
 	// Dial the Unix domain socket
 	for range 3 {
-		conn, err = net.Dial("unix", c.activeSessionSocketCTRL)
+		conn, err = net.Dial("unix", session.sockerCtrl)
 		if err == nil {
 			break // success
 		}
@@ -310,12 +324,12 @@ func (c *SupervisorController) dialSessionCtrlSocket() error {
 	// defer conn.Close()
 
 	// Wrap the connection in a JSON-RPC client
-	c.sessionClientRPC = rpc.NewClientWithCodec(jsonrpc.NewClientCodec(conn))
+	session.sessionClientRPC = rpc.NewClientWithCodec(jsonrpc.NewClientCodec(conn))
 
 	// Example: call SessionController.Status (no args, returns SessionStatus)
 	var info api.SessionStatus
 
-	err = c.sessionClientRPC.Call("SessionController.Status", struct{}{}, &info)
+	err = session.sessionClientRPC.Call("SessionController.Status", struct{}{}, &info)
 	if err != nil {
 		log.Fatalf("RPC call failed: %v", err)
 		return err
@@ -332,9 +346,14 @@ func (c *SupervisorController) attachIOSocket() error {
 	var conn net.Conn
 	var err error
 
+	session, ok := c.mgr.Get(api.SessionID(c.mgr.Current()))
+	if !ok {
+		return errors.New("could not get bound session")
+	}
+
 	// Dial the Unix domain socket
 	for range 3 {
-		conn, err = net.Dial("unix", c.activeSessionSocketIO)
+		conn, err = net.Dial("unix", session.socketIO)
 		if err == nil {
 			break // success
 		}
@@ -429,9 +448,15 @@ func (c *SupervisorController) attachIOSocket() error {
 }
 
 func (c *SupervisorController) attachAndForwardResize() error {
+
+	session, ok := c.mgr.Get(api.SessionID(c.mgr.Current()))
+	if !ok {
+		return errors.New("could not get bound session")
+	}
+
 	// Send initial size once (use the supervisor's TTY: os.Stdin)
 	if rows, cols, err := pty.Getsize(os.Stdin); err == nil {
-		_ = c.sessionClientRPC.Call("Session.Resize",
+		_ = session.sessionClientRPC.Call("Session.Resize",
 			api.ResizeArgs{Cols: int(cols), Rows: int(rows)}, &api.Empty{})
 	}
 
@@ -453,7 +478,7 @@ func (c *SupervisorController) attachAndForwardResize() error {
 					continue
 				}
 				var reply api.Empty
-				if err := c.sessionClientRPC.Call("SessionController.Resize",
+				if err := session.sessionClientRPC.Call("SessionController.Resize",
 					api.ResizeArgs{Cols: int(cols), Rows: int(rows)}, &reply); err != nil {
 					// Don't kill the process on resize failure; just log
 					log.Printf("resize RPC failed: %v\r\n", err)

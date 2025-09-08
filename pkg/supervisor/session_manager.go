@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net/rpc"
 	"sbsh/pkg/api"
 	"sync"
 )
@@ -11,12 +12,22 @@ import (
 type SessionManager struct {
 	mu       sync.RWMutex
 	sessions map[api.SessionID]*SupervisedSession
-	ctx      context.Context
 	current  api.SessionID
 }
 
 type SupervisedSession struct {
-	id api.SessionID
+	id               api.SessionID
+	kind             api.SessionKind
+	label            string // user-friendly name
+	command          string
+	commandArgs      []string          // for local: ["bash","-i"]; for ssh: ["ssh","-tt","user@host"]
+	env              []string          // TERM, COLORTERM, etc.
+	context          map[string]string // kubectl ns, cwd hint, etc.
+	logDir           string
+	sockerCtrl       string
+	socketIO         string
+	pid              int
+	sessionClientRPC *rpc.Client
 }
 
 func NewSessionManager() *SessionManager {
@@ -27,7 +38,15 @@ func NewSessionManager() *SessionManager {
 
 func NewSupervisedSession(spec *api.SessionSpec) *SupervisedSession {
 	return &SupervisedSession{
-		id: spec.ID,
+		id:          spec.ID,
+		kind:        spec.Kind,
+		label:       spec.Label,
+		command:     spec.Command,
+		commandArgs: spec.CommandArgs,
+		env:         spec.Env,
+		logDir:      spec.LogDir,
+		sockerCtrl:  spec.SockerCtrl,
+		socketIO:    spec.SocketIO,
 	}
 }
 
