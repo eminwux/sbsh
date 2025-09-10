@@ -11,10 +11,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
 	"sbsh/pkg/session"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -58,7 +60,11 @@ var rootCmd = &cobra.Command{
 }
 
 func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
-	ctx, cancel := context.WithCancel(context.Background())
+	// ctx, cancel := context.WithCancel(context.Background())
+	// defer cancel()
+
+	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	b := make([]byte, 4) // 4 bytes = 8 hex chars
@@ -97,15 +103,19 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
 	// Start new session
 	if err := sessionCtrl.StartSession(&spec); err != nil {
 		log.Fatalf("failed to start session: %v", err)
+		return
 	}
 
 	select {
 	case <-ctx.Done():
+		log.Printf("[sbsh-session] context done\r\n")
+		return
 		// graceful shutdown path
 	case err := <-errCh:
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Printf("controller stopped with error: %v\r\n", err)
 		}
+		return
 	}
 }
 

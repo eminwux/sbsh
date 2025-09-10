@@ -103,6 +103,9 @@ func (c *SessionController) handleEvent(ev api.SessionEvent) {
 	case api.EvData:
 		// optional metrics hook
 
+	case api.EvSessionExited:
+		log.Printf("[sessionCtrl] session %s EvSessionExited error: %v\r\n", ev.ID, ev.Err)
+		close(c.exit)
 	}
 }
 
@@ -182,7 +185,7 @@ func (c *SessionController) StartSession(spec *api.SessionSpec) error {
 		}
 	}()
 
-	if err := c.session.StartSession(c.ctx, c.events); err != nil {
+	if err := c.session.Start(c.ctx, c.events); err != nil {
 		log.Fatalf("failed to start session: %v", err)
 		return err
 	}

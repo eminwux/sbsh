@@ -40,8 +40,7 @@ type Session struct {
 	evCh chan<- api.SessionEvent // fan-out to controller (send-only from session)
 
 	ctxCancel context.CancelFunc
-	done      chan struct{} // closed when both goroutines exit
-	errs      chan error    // internal: size 2
+	mutualErr chan error // internal: size 2
 
 	ioLn net.Listener
 
@@ -167,7 +166,7 @@ func (s *Session) Spec() api.SessionSpec {
 }
 
 // Function to be called by sbsh-session
-func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent) error {
+func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error {
 
 	// Set up session
 	s.evCh = evCh
@@ -244,17 +243,22 @@ func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent
 	var once sync.Once
 	sessionCtx, cancel := context.WithCancel(ctx)
 	s.ctxCancel = cancel
-	s.done = make(chan struct{})
-	s.errs = make(chan error, 2)
+	// Intra-routine error channel
+	s.mutualErr = make(chan error, 2)
 
+	// Go func to handle new connections to the socket
 	go func() {
 		cid := 0
 		for {
+			// New client connects
 			conn, err := s.ioLn.Accept()
 			if err != nil {
 				if ne, ok := err.(net.Error); ok && ne.Temporary() {
+					log.Printf("[session] socket error, continuing\r\n")
 					continue
 				}
+				log.Printf("[session] closing client routine\r\n")
+
 				return // listener closed
 			}
 			cid++
@@ -262,19 +266,24 @@ func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent
 			s.addClient(cl)
 
 			/*
-			* PTY READER goroutine — single reader rule!
+			 * PTY READER goroutine
 			 */
 			go func(s *Session, c *ioClient) {
+				// If routine returns, close connection
 				defer c.conn.Close()
-				defer once.Do(cancel)
+				// If routine returns, cancel the context
+				defer once.Do(s.ctxCancel)
 
 				buf := make([]byte, 8192)
 				for {
-
+					// Loop between (a) check if context is done; and (b) new reads from buffer
 					select {
+					// If sessionCtx is done, tell partner routine
 					case <-sessionCtx.Done():
-						s.errs <- sessionCtx.Err()
-						return
+						log.Printf("[session] closing reader\r\n")
+						s.mutualErr <- sessionCtx.Err()
+						log.Printf("[session] reader closed, finished routine\r\n")
+
 					default:
 					}
 
@@ -289,7 +298,8 @@ func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent
 							_, err := c.conn.Write(buf[:n])
 							if err != nil {
 								log.Println("[session] error writing raw data to client")
-								return
+								once.Do(s.ctxCancel)
+								// return
 							}
 						}
 					}
@@ -303,10 +313,11 @@ func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent
 						} else {
 							trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: err, When: time.Now()})
 						}
+						// Now that context is done, tell partner routine
+						once.Do(s.ctxCancel)
+						// s.mutualErr <- sessionCtx.Err()
 
-						s.errs <- sessionCtx.Err()
-
-						return
+						// return
 					}
 				}
 			}(s, cl)
@@ -315,15 +326,22 @@ func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent
 			* PTY WRITER  routine
 			 */
 			go func(s *Session, c *ioClient) {
+				// If routine returns, close connection
 				defer c.conn.Close()
-				defer once.Do(cancel)
+				// If routine returns, cancel the context
+				// defer once.Do(s.ctxCancel)
+				// If routine returns, remove the client
 				defer func() { s.removeClient(c) }()
+
 				buf := make([]byte, 4096)
 				for {
-
+					// Loop between (a) check if context is done; and (b) new reads from buffer
 					select {
 					case <-sessionCtx.Done():
-						s.errs <- sessionCtx.Err()
+						log.Printf("[session] closing writer\r\n")
+						s.mutualErr <- sessionCtx.Err()
+						log.Printf("[session] writer closed, finished routine\r\n")
+
 						return
 					default:
 
@@ -333,7 +351,8 @@ func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent
 
 								if _, werr := s.pty.Write(buf[:n]); werr != nil {
 									trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: werr, When: time.Now()})
-									return
+									once.Do(s.ctxCancel)
+									// return
 								}
 							}
 							// else: gate closed, drop input
@@ -342,10 +361,13 @@ func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent
 						if err != nil {
 							log.Printf("[session] stdin error: %v\r\n", err)
 							// stdin closed or fatal
-							s.errs <- sessionCtx.Err()
 
 							trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: err, When: time.Now()})
-							return
+							once.Do(s.ctxCancel)
+							// Now that context is done, tell partner routine
+							// s.mutualErr <- sessionCtx.Err()
+
+							// return
 						}
 
 					}
@@ -359,23 +381,41 @@ func (s *Session) StartSession(ctx context.Context, evCh chan<- api.SessionEvent
 			// s.pty.Write([]byte(`smart()  { __sbsh_emit;  }` + "\n"))
 
 			// Supervisor: don’t block Start()
+			// This function is used when connection with a client is established
 			go func() {
 				// When one side finishes…
-				<-s.errs
+				<-s.mutualErr
+				log.Printf("[session] mutual control, first exit\r\n")
+				log.Printf("[session] closing socket\r\n")
+				_ = s.ioLn.Close()
 				// …cancel the session context and close PTY to unblock the peer
-				s.ctxCancel()
+				log.Printf("[session] cancelling context\r\n")
+				once.Do(s.ctxCancel)
 				s.gates.OutputOn = false
 				s.gates.StdinOpen = false
+				log.Printf("[session] closing pty\r\n")
 				_ = s.pty.Close()
 				// Wait for the second goroutine to report then signal “done”
-				<-s.errs
-				close(s.done)
+				<-s.mutualErr
+				log.Printf("[session] mutual control, second exit\r\n")
 				// Also reap child:
-				_ = s.cmd.Wait()
+				// _ = s.cmd.Wait()
 			}()
 
 		}
 	}()
+
+	go func() {
+		log.Printf("[session] pid=%d, waiting on bash pid=%d\r\n", os.Getpid(), s.cmd.Process.Pid)
+		_ = s.cmd.Wait()
+		log.Printf("[session] pid=%d, bash with pid=%d has exited\r\n", os.Getpid(), s.cmd.Process.Pid)
+		_ = s.ioLn.Close()
+		log.Printf("[session] cancelling context\r\n")
+		s.ctxCancel()
+		log.Printf("[session] sending EvSessionExited event\r\n")
+		trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvSessionExited, Err: err, When: time.Now()})
+	}()
+
 	return nil
 }
 

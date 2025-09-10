@@ -59,6 +59,7 @@ const (
 	EvData   SessionEventType = iota // optional metrics
 	EvClosed                         // PTY closed / child exited
 	EvError                          // abnormal error
+	EvSessionExited
 )
 
 type SessionEvent struct {
