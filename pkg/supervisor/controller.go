@@ -156,6 +156,11 @@ func (c *SupervisorController) handleEvent(ev api.SessionEvent) {
 	case api.EvData:
 		// optional metrics hook
 
+	case api.EvSessionExited:
+		log.Printf("[sessionCtrl] session %s EvSessionExited error: %v\r\n", ev.ID, ev.Err)
+		c.toExitShell()
+		close(c.exit)
+
 	}
 }
 
@@ -243,12 +248,22 @@ func (c *SupervisorController) Start() error {
 	// IMPORTANT: reap it in the background so it never zombifies
 	go func() {
 		_ = cmd.Wait()
-		log.Printf("[supervisor] session process has exited\r\n")
+		log.Printf("[supervisor] session %s process has exited\r\n", sessionID)
+		err := fmt.Errorf("session %s process has exited", sessionID)
+		trySendEvent(c.events, api.SessionEvent{ID: api.SessionID(sessionID), Type: api.EvSessionExited, Err: err, When: time.Now()})
 	}()
 
-	c.dialSessionCtrlSocket()
-	c.attachAndForwardResize()
-	c.attachIOSocket()
+	if err := c.dialSessionCtrlSocket(); err != nil {
+		return err
+	}
+
+	if err := c.attachAndForwardResize(); err != nil {
+		return err
+	}
+
+	if err := c.attachIOSocket(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -275,8 +290,6 @@ func (c *SupervisorController) dialSessionCtrlSocket() error {
 	if err != nil {
 		log.Fatalf("failed to connect to ctrl.sock after 3 retries: %v", err)
 	}
-
-	// defer conn.Close()
 
 	// Wrap the connection in a JSON-RPC client
 	session.sessionClientRPC = rpc.NewClientWithCodec(jsonrpc.NewClientCodec(conn))
@@ -476,7 +489,7 @@ func toRawMode() (*term.State, error) {
 
 // helper: non-blocking event send so the PTY reader never stalls
 func trySendEvent(ch chan<- api.SessionEvent, ev api.SessionEvent) {
-	log.Printf("[session] send event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
+	log.Printf("[supervisor] send event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
 
 	select {
 	case ch <- ev:
