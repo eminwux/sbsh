@@ -232,33 +232,38 @@ func (s *Session) runSessionCommand() error {
 	return nil
 }
 
-func handleClient(conn net.Conn, pipeInW *os.File, pipeOutR *os.File) error {
+func handleClient(conn net.Conn, pipeInW *os.File, pipeOutR *os.File) {
 	defer conn.Close()
 	errCh := make(chan error)
 
 	// READ FROM CONN, WRITE TO PTY STDIN
 	go func(chan error) {
 		// conn writes to pipeInW
-		_, err := io.Copy(pipeInW, conn)
+		w, err := io.Copy(pipeInW, conn)
 		if err != nil {
 			errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", err)
+		}
+		if w == 0 {
+			errCh <- fmt.Errorf("EOF in conn->pty copy pipe: %w", err)
 		}
 	}(errCh)
 
 	// READ FROM PTY STDOUT, WRITE TO CONN
 	go func(chan error) {
 		// conn reads from pipeOutR
-		_, err := io.Copy(conn, pipeOutR)
+		w, err := io.Copy(conn, pipeOutR)
 		if err != nil {
 			errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", err)
+		}
+		if w == 0 {
+			errCh <- fmt.Errorf("EOF in pty->conn copy pipe: %w", err)
 		}
 	}(errCh)
 
 	err := <-errCh
 	if err != nil {
-		return fmt.Errorf("error in copy pipes: %w", err)
+		log.Printf("error in copy pipes: %v\r\n", err)
 	}
-	return nil
 
 }
 
@@ -278,11 +283,12 @@ func (s *Session) handleConnections(pipeInW *os.File, pipeOutR *os.File) error {
 		cl := &ioClient{id: cid, conn: conn, wch: make(chan []byte, 64)}
 
 		s.addClient(cl)
-		err = handleClient(conn, pipeInW, pipeOutR)
-		if err != nil {
-			log.Printf("[session] handle client failed: %v\r\n", err)
-			return err
-		}
+		go handleClient(conn, pipeInW, pipeOutR)
+		// err = handleClient(conn, pipeInW, pipeOutR)
+		// if err != nil {
+		// 	log.Printf("[session] handle client failed: %v\r\n", err)
+		// 	return err
+		// }
 	}
 }
 
