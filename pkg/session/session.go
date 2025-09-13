@@ -40,8 +40,9 @@ type Session struct {
 	// signaling
 	evCh chan<- api.SessionEvent // fan-out to controller (send-only from session)
 
-	ctxCancel context.CancelFunc
-	mutualErr chan error // internal: size 2
+	ctxCancel  context.CancelFunc
+	sessionCtx context.Context
+	mutualErr  chan error // internal: size 2
 
 	ioLn net.Listener
 
@@ -49,6 +50,8 @@ type Session struct {
 
 	clientsMu sync.RWMutex
 	clients   map[int]*ioClient
+
+	terminalOnce sync.Once
 }
 
 type SessionManager struct {
@@ -229,6 +232,220 @@ func (s *Session) runSessionCommand() error {
 	return nil
 }
 
+func handleClient(conn net.Conn, pipeInW *os.File, pipeOutR *os.File) error {
+	defer conn.Close()
+	errCh := make(chan error)
+
+	// READ FROM CONN, WRITE TO PTY STDIN
+	go func(chan error) {
+		// conn writes to pipeInW
+		_, err := io.Copy(pipeInW, conn)
+		if err != nil {
+			errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", err)
+		}
+	}(errCh)
+
+	// READ FROM PTY STDOUT, WRITE TO CONN
+	go func(chan error) {
+		// conn reads from pipeOutR
+		_, err := io.Copy(conn, pipeOutR)
+		if err != nil {
+			errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", err)
+		}
+	}(errCh)
+
+	err := <-errCh
+	if err != nil {
+		return fmt.Errorf("error in copy pipes: %w", err)
+	}
+	return nil
+
+}
+
+func (s *Session) handleConnections(pipeInW *os.File, pipeOutR *os.File) error {
+
+	cid := 0
+	for {
+		// New client connects
+		log.Printf("[session] waiting for new connection...\r\n")
+		conn, err := s.ioLn.Accept()
+		log.Printf("[session] client connected!\r\n")
+		if err != nil {
+			log.Printf("[session] closing client routine\r\n")
+			return err
+		}
+		cid++
+		cl := &ioClient{id: cid, conn: conn, wch: make(chan []byte, 64)}
+
+		s.addClient(cl)
+		err = handleClient(conn, pipeInW, pipeOutR)
+		if err != nil {
+			log.Printf("[session] handle client failed: %v\r\n", err)
+			return err
+		}
+	}
+}
+
+func (s *Session) terminalManagerReader(pipeOutW *os.File) {
+	// If routine returns, cancel the context
+	defer s.terminalOnce.Do(s.ctxCancel)
+
+	buf := make([]byte, 8192)
+	for {
+		// Loop between (a) check if context is done; and (b) new reads from buffer
+		select {
+		// If sessionCtx is done, tell partner routine
+		case <-s.sessionCtx.Done():
+			log.Printf("[session] closing reader\r\n")
+			s.mutualErr <- s.sessionCtx.Err()
+			log.Printf("[session] reader closed, finished routine\r\n")
+			return
+		default:
+		}
+
+		// READ FROM PTY - WRITE TO PIPE
+		n, err := s.pty.Read(buf)
+		// drain/emit data
+		if n > 0 {
+			s.lastRead = time.Now()
+			s.bytesOut += uint64(n)
+
+			// Render if output is enabled; otherwise we just drain
+			if s.gates.OutputOn {
+				// _, err := c.conn.Write(buf[:n])
+				//  WRITE TO PIPE
+				// PTY writes to pipeOutW
+				log.Printf("read from pty %q", buf[:n]) // quoted, escapes control chars
+				log.Println("[session] writing to pipeOutW")
+				_, err := pipeOutW.Write(buf[:n])
+				if err != nil {
+					log.Println("[session] error writing raw data to client")
+					s.terminalOnce.Do(s.ctxCancel)
+					// return
+				}
+			}
+		}
+
+		// Handle read end/error
+		if err != nil {
+			log.Printf("[session] stdout closed %v:\r\n", err)
+			// Linux PTYs often return EIO when slave side closes — treat as normal close
+			if errors.Is(err, io.EOF) || errors.Is(err, syscall.EIO) {
+				trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvClosed, Err: err, When: time.Now()})
+			} else {
+				trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: err, When: time.Now()})
+			}
+			// Now that context is done, tell partner routine
+			s.terminalOnce.Do(s.ctxCancel)
+			// s.mutualErr <- sessionCtx.Err()
+
+			// return
+		}
+	}
+}
+
+func (s *Session) terminalManagerWriter(pipeInR *os.File) {
+	// If routine returns, close connection
+	// defer c.conn.Close()
+	// If routine returns, cancel the context
+	// defer once.Do(s.ctxCancel)
+	// If routine returns, remove the client
+	// defer func() { s.removeClient(c) }()
+
+	buf := make([]byte, 4096)
+	i := 0
+	for {
+		// Loop between (a) check if context is done; and (b) new reads from buffer
+		select {
+		case <-s.sessionCtx.Done():
+			log.Printf("[session] closing writer\r\n")
+			s.mutualErr <- s.sessionCtx.Err()
+			log.Printf("[session] writer closed, finished routine\r\n")
+			return
+
+		default:
+
+			// READ FROM PIPE - WRITE TO PTY
+			// PTY reads from pipeInR
+			log.Printf("reading from pipeInR %d\r\n", i) // quoted, escapes control chars
+			i++
+			n, err := pipeInR.Read(buf)
+			log.Printf("read from pipeInR %q", buf[:n]) // quoted, escapes control chars
+			if n > 0 {
+				if s.gates.StdinOpen {
+					log.Println("[session] reading from pipeInR")
+					// if _, werr := s.pty.Write(buf[:n]); werr != nil {
+					// WRITE TO PIPE
+					if _, werr := s.pty.Write(buf[:n]); werr != nil {
+						trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: werr, When: time.Now()})
+						s.terminalOnce.Do(s.ctxCancel)
+						// return
+					}
+				}
+				// else: gate closed, drop input
+			}
+
+			if err != nil {
+				log.Printf("[session] stdin error: %v\r\n", err)
+				// stdin closed or fatal
+
+				trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: err, When: time.Now()})
+				s.terminalOnce.Do(s.ctxCancel)
+				// Now that context is done, tell partner routine
+				// s.mutualErr <- sessionCtx.Err()
+
+				// return
+			}
+
+		}
+	}
+}
+
+func (s *Session) terminalManager(pipeInR *os.File, pipeOutW *os.File) error {
+
+	sessionCtx, cancel := context.WithCancel(s.ctx)
+	s.ctxCancel = cancel
+	s.sessionCtx = sessionCtx
+
+	/*
+	 * PTY READER goroutine
+	 */
+	go s.terminalManagerReader(pipeOutW)
+
+	/*
+	* PTY WRITER  routine
+	 */
+	go s.terminalManagerWriter(pipeInR)
+
+	s.Write([]byte(`export PS1="(sbsh-` + s.id + `) $PS1"` + "\n"))
+	// s.pty.Write([]byte("echo 'Hello from Go!'\n"))
+	// s.pty.Write([]byte(`export PS1="(sbsh) $PS1"` + "\n"))
+	// s.pty.Write([]byte(`__sbsh_emit() { printf '\033]1337;sbsh\007'; }` + "\n"))
+	// s.pty.Write([]byte(`smart()  { __sbsh_emit;  }` + "\n"))
+
+	// Supervisor: don’t block Start()
+	// This function is used when connection with a client is established
+	go func() {
+		// When one side finishes…
+		<-s.mutualErr
+		log.Printf("[session] mutual control, first exit\r\n")
+		log.Printf("[session] closing socket\r\n")
+		_ = s.ioLn.Close()
+		// …cancel the session context and close PTY to unblock the peer
+		log.Printf("[session] cancelling context\r\n")
+		s.terminalOnce.Do(s.ctxCancel)
+		s.gates.OutputOn = false
+		s.gates.StdinOpen = false
+		log.Printf("[session] closing pty\r\n")
+		_ = s.pty.Close()
+		// Wait for the second goroutine to report then signal “done”
+		<-s.mutualErr
+		log.Printf("[session] mutual control, second exit\r\n")
+	}()
+
+	return nil
+}
+
 func (s *Session) startPTY() error {
 
 	// Start under a PTY and inherit current terminal size
@@ -238,171 +455,28 @@ func (s *Session) startPTY() error {
 	}
 	s.pty = ptmx
 
-	var once sync.Once
-	sessionCtx, cancel := context.WithCancel(s.ctx)
-	s.ctxCancel = cancel
-
 	// Intra-routine error channel
 	s.mutualErr = make(chan error, 2)
 
-	// Go func to handle new connections to the socket
-	go func() {
-		cid := 0
-		for {
-			// New client connects
-			conn, err := s.ioLn.Accept()
-			if err != nil {
-				if ne, ok := err.(net.Error); ok && ne.Temporary() {
-					log.Printf("[session] socket error, continuing\r\n")
-					continue
-				}
-				log.Printf("[session] closing client routine\r\n")
+	// StdIn
+	// PTY reads from pipeInR
+	// conn writes to pipeInW
+	pipeInR, pipeInW, err := os.Pipe()
+	if err != nil {
+		log.Printf("[session] error opening IN pipe: %v\r\n", err)
+	}
 
-				return // listener closed
-			}
-			cid++
-			cl := &ioClient{id: cid, conn: conn, wch: make(chan []byte, 64)}
-			s.addClient(cl)
+	// StdOut
+	// conn reads from pipeOutR
+	// PTY writes to pipeOutW
+	pipeOutR, pipeOutW, err := os.Pipe()
+	if err != nil {
+		log.Printf("[session] error opening OUT pipe: %v\r\n", err)
+	}
 
-			/*
-			 * PTY READER goroutine
-			 */
-			go func(s *Session, c *ioClient) {
-				// If routine returns, close connection
-				defer c.conn.Close()
-				// If routine returns, cancel the context
-				defer once.Do(s.ctxCancel)
+	go s.terminalManager(pipeInR, pipeOutW)
 
-				buf := make([]byte, 8192)
-				for {
-					// Loop between (a) check if context is done; and (b) new reads from buffer
-					select {
-					// If sessionCtx is done, tell partner routine
-					case <-sessionCtx.Done():
-						log.Printf("[session] closing reader\r\n")
-						s.mutualErr <- sessionCtx.Err()
-						log.Printf("[session] reader closed, finished routine\r\n")
-
-					default:
-					}
-
-					n, err := s.pty.Read(buf)
-					// drain/emit data
-					if n > 0 {
-						s.lastRead = time.Now()
-						s.bytesOut += uint64(n)
-
-						// Render if output is enabled; otherwise we just drain
-						if s.gates.OutputOn {
-							_, err := c.conn.Write(buf[:n])
-							if err != nil {
-								log.Println("[session] error writing raw data to client")
-								once.Do(s.ctxCancel)
-								// return
-							}
-						}
-					}
-
-					// Handle read end/error
-					if err != nil {
-						log.Printf("[session] stdout closed %v:\r\n", err)
-						// Linux PTYs often return EIO when slave side closes — treat as normal close
-						if errors.Is(err, io.EOF) || errors.Is(err, syscall.EIO) {
-							trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvClosed, Err: err, When: time.Now()})
-						} else {
-							trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: err, When: time.Now()})
-						}
-						// Now that context is done, tell partner routine
-						once.Do(s.ctxCancel)
-						// s.mutualErr <- sessionCtx.Err()
-
-						// return
-					}
-				}
-			}(s, cl)
-
-			/*
-			* PTY WRITER  routine
-			 */
-			go func(s *Session, c *ioClient) {
-				// If routine returns, close connection
-				defer c.conn.Close()
-				// If routine returns, cancel the context
-				// defer once.Do(s.ctxCancel)
-				// If routine returns, remove the client
-				defer func() { s.removeClient(c) }()
-
-				buf := make([]byte, 4096)
-				for {
-					// Loop between (a) check if context is done; and (b) new reads from buffer
-					select {
-					case <-sessionCtx.Done():
-						log.Printf("[session] closing writer\r\n")
-						s.mutualErr <- sessionCtx.Err()
-						log.Printf("[session] writer closed, finished routine\r\n")
-
-						return
-					default:
-
-						n, err := cl.conn.Read(buf)
-						if n > 0 {
-							if s.gates.StdinOpen {
-
-								if _, werr := s.pty.Write(buf[:n]); werr != nil {
-									trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: werr, When: time.Now()})
-									once.Do(s.ctxCancel)
-									// return
-								}
-							}
-							// else: gate closed, drop input
-						}
-
-						if err != nil {
-							log.Printf("[session] stdin error: %v\r\n", err)
-							// stdin closed or fatal
-
-							trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: err, When: time.Now()})
-							once.Do(s.ctxCancel)
-							// Now that context is done, tell partner routine
-							// s.mutualErr <- sessionCtx.Err()
-
-							// return
-						}
-
-					}
-				}
-			}(s, cl)
-
-			s.Write([]byte(`export PS1="(sbsh-` + s.id + `) $PS1"` + "\n"))
-			// s.pty.Write([]byte("echo 'Hello from Go!'\n"))
-			// s.pty.Write([]byte(`export PS1="(sbsh) $PS1"` + "\n"))
-			// s.pty.Write([]byte(`__sbsh_emit() { printf '\033]1337;sbsh\007'; }` + "\n"))
-			// s.pty.Write([]byte(`smart()  { __sbsh_emit;  }` + "\n"))
-
-			// Supervisor: don’t block Start()
-			// This function is used when connection with a client is established
-			go func() {
-				// When one side finishes…
-				<-s.mutualErr
-				log.Printf("[session] mutual control, first exit\r\n")
-				log.Printf("[session] closing socket\r\n")
-				_ = s.ioLn.Close()
-				// …cancel the session context and close PTY to unblock the peer
-				log.Printf("[session] cancelling context\r\n")
-				once.Do(s.ctxCancel)
-				s.gates.OutputOn = false
-				s.gates.StdinOpen = false
-				log.Printf("[session] closing pty\r\n")
-				_ = s.pty.Close()
-				// Wait for the second goroutine to report then signal “done”
-				<-s.mutualErr
-				log.Printf("[session] mutual control, second exit\r\n")
-				// Also reap child:
-				// _ = s.cmd.Wait()
-			}()
-
-		}
-	}()
+	go s.handleConnections(pipeInW, pipeOutR)
 
 	go func() {
 		log.Printf("[session] pid=%d, waiting on bash pid=%d\r\n", os.Getpid(), s.cmd.Process.Pid)
