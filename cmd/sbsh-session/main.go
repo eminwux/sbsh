@@ -6,7 +6,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"log"
@@ -60,15 +59,9 @@ var rootCmd = &cobra.Command{
 }
 
 func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
-	// ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
-
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-
-	b := make([]byte, 4) // 4 bytes = 8 hex chars
-	_, _ = rand.Read(b)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -81,21 +74,18 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
+	// Create error channel
+	exit := make(chan error, 1)
+
 	// Create a new Controller
 	var sessionCtrl api.SessionController
 
-	sessionCtrl = session.NewSessionController()
+	sessionCtrl = session.NewSessionController(ctx, exit)
 
-	// Create error channel
-	errCh := make(chan error, 1)
-
-	// Run controller
-	go func() {
-		errCh <- sessionCtrl.Run(ctx) // Run should return when ctx is canceled
-	}()
+	go sessionCtrl.Run()
 
 	// block until controller is ready (or ctx cancels)
-	if err := sessionCtrl.WaitReady(ctx); err != nil {
+	if err := sessionCtrl.WaitReady(); err != nil {
 		log.Printf("controller not ready: %s", err)
 		return
 	}
@@ -111,7 +101,7 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
 		log.Printf("[sbsh-session] context done\r\n")
 		return
 		// graceful shutdown path
-	case err := <-errCh:
+	case err := <-exit:
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Printf("controller stopped with error: %v\r\n", err)
 		}

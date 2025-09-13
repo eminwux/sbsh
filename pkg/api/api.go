@@ -15,8 +15,8 @@ type SupervisorController interface {
 /////////////// SESSION
 
 type SessionController interface {
-	Run(ctx context.Context) error
-	WaitReady(ctx context.Context) error
+	Run() error
+	WaitReady() error
 	StartSession(spec *SessionSpec) error
 }
 

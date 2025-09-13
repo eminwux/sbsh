@@ -20,7 +20,7 @@ type SessionController struct {
 	ready  chan struct{}
 	events chan api.SessionEvent // fan-in from all sessions
 	ctx    context.Context
-	exit   chan struct{}
+	exit   chan error
 
 	socketCTRL string
 
@@ -31,19 +31,18 @@ type SessionController struct {
 var sessionDir string
 
 // NewSessionController wires the manager and the shared event channel from sessions.
-func NewSessionController() *SessionController {
+func NewSessionController(ctx context.Context, exit chan error) *SessionController {
 	log.Printf("[sessionCtrl] New controller is being created\r\n")
 
 	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
 
-	// mgr := NewSessionManager()
-
 	c := &SessionController{
-		ready: make(chan struct{}),
-		// mgr:    mgr,
+		ready:  make(chan struct{}),
 		events: events,
+		exit:   exit,
+		ctx:    ctx,
 	}
-	// signal.Notify(c.resizeSig, syscall.SIGWINCH)
+
 	return c
 }
 
@@ -51,19 +50,17 @@ func (c *SessionController) Status() string {
 	return "RUNNING"
 }
 
-func (c *SessionController) WaitReady(ctx context.Context) error {
+func (c *SessionController) WaitReady() error {
 	select {
 	case <-c.ready:
 		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-c.ctx.Done():
+		return c.ctx.Err()
 	}
 }
 
 // Run is the main orchestration loop. It owns all mode transitions.
-func (c *SessionController) Run(ctx context.Context) error {
-	c.ctx = ctx
-	c.exit = make(chan struct{})
+func (c *SessionController) Run() error {
 	log.Println("[sessionCtrl] Starting controller loop")
 	defer log.Printf("[sessionCtrl] controller stopped\r\n")
 
@@ -71,17 +68,17 @@ func (c *SessionController) Run(ctx context.Context) error {
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-c.ctx.Done():
 			log.Printf("[sessionCtrl] Context channel has been closed\r\n")
-			return ctx.Err()
+			return c.ctx.Err()
 
 		case ev := <-c.events:
 			// log.Printf("[sessionCtrl] SessionEvent has been received\r\n")
 			log.Printf("[sessionCtrl] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
 			c.handleEvent(ev)
 
-		case <-c.exit:
-			log.Printf("[sessionCtrl] received exit event\r\n")
+		case exit := <-c.exit:
+			log.Printf("[sessionCtrl] received exit event: %v\r\n", exit)
 			return nil
 
 		}
@@ -126,14 +123,7 @@ func (c *SessionController) onClosed(id api.SessionID, err error) {
 
 }
 
-func (c *SessionController) StartSession(spec *api.SessionSpec) error {
-
-	if len(spec.Command) == 0 {
-		return errors.New("empty command in SessionSpec")
-	}
-
-	c.session = NewSession(spec)
-	// c.mgr.Add(s)
+func (c *SessionController) openSocketCtrl(id api.SessionID) error {
 
 	// Set up sockets
 	base, err := common.RuntimeBaseSessions()
@@ -141,7 +131,7 @@ func (c *SessionController) StartSession(spec *api.SessionSpec) error {
 		return err
 	}
 
-	sessionDir = filepath.Join(base, string(spec.ID))
+	sessionDir = filepath.Join(base, string(id))
 	if err := os.MkdirAll(sessionDir, 0o700); err != nil {
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
@@ -168,12 +158,27 @@ func (c *SessionController) StartSession(spec *api.SessionSpec) error {
 	// keep references for Close()
 	c.ctrlLn = ctrlLn
 
+	return nil
+
+}
+
+func (c *SessionController) StartSession(spec *api.SessionSpec) error {
+
+	if len(spec.Command) == 0 {
+		return errors.New("empty command in SessionSpec")
+	}
+
+	c.session = NewSession(spec)
+	if err := c.openSocketCtrl(c.session.id); err != nil {
+		return fmt.Errorf("could not open control socket: %w", err)
+	}
+
 	// Start the Session Socket CTRL Loop
 	go func() {
 		srv := rpc.NewServer()
 		_ = srv.RegisterName("SessionController", &SessionControllerRPC{Core: *c})
 		for {
-			conn, err := ctrlLn.Accept()
+			conn, err := c.ctrlLn.Accept()
 			if err != nil {
 				// listener closed -> exit loop
 				if _, ok := err.(net.Error); ok {
