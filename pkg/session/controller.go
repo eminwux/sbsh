@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
-	"syscall"
 	"time"
 )
 
@@ -34,7 +33,7 @@ var sessionDir string
 func NewSessionController(ctx context.Context, exit chan error) *SessionController {
 	log.Printf("[sessionCtrl] New controller is being created\r\n")
 
-	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
+	events := make(chan api.SessionEvent, 32)
 
 	c := &SessionController{
 		ready:  make(chan struct{}),
@@ -61,8 +60,9 @@ func (c *SessionController) WaitReady() error {
 
 // Run is the main orchestration loop. It owns all mode transitions.
 func (c *SessionController) Run() error {
-	log.Println("[sessionCtrl] Starting controller loop")
 	defer log.Printf("[sessionCtrl] controller stopped\r\n")
+
+	log.Println("[sessionCtrl] Starting controller loop")
 
 	if err := c.openSocketCtrl(c.session.id); err != nil {
 		return fmt.Errorf("could not open control socket: %w", err)
@@ -86,13 +86,12 @@ func (c *SessionController) Run() error {
 			return c.ctx.Err()
 
 		case ev := <-c.events:
-			// log.Printf("[sessionCtrl] SessionEvent has been received\r\n")
 			log.Printf("[sessionCtrl] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
 			c.handleEvent(ev)
 
 		case exit := <-c.exit:
 			log.Printf("[sessionCtrl] received exit event: %v\r\n", exit)
-			return nil
+			return exit
 
 		}
 	}
@@ -101,11 +100,10 @@ func (c *SessionController) Run() error {
 /* ---------- Event handlers ---------- */
 
 func (c *SessionController) handleEvent(ev api.SessionEvent) {
-	// log.Printf("[sessionCtrl] session %s event received %d\r\n", ev.ID, ev.Type)
 	switch ev.Type {
 	case api.EvClosed:
 		log.Printf("[sessionCtrl] session %s EvClosed error: %v\r\n", ev.ID, ev.Err)
-		c.onClosed(ev.ID, ev.Err)
+		c.onClosed(ev.Err)
 
 	case api.EvError:
 		// log.Printf("[sessionCtrl] session %s EvError error: %v\r\n", ev.ID, ev.Err)
@@ -115,14 +113,26 @@ func (c *SessionController) handleEvent(ev api.SessionEvent) {
 
 	case api.EvSessionExited:
 		log.Printf("[sessionCtrl] session %s EvSessionExited error: %v\r\n", ev.ID, ev.Err)
-		close(c.exit)
+		c.onClosed(ev.Err)
 	}
 }
 
-func (c *SessionController) onClosed(id api.SessionID, err error) {
-	// Treat EIO/EOF as normal close
-	if err != nil && !errors.Is(err, syscall.EIO) && !errors.Is(err, os.ErrClosed) {
-		log.Printf("[sessionCtrl] session %s closed with error: %v\r\n", id, err)
+func (c *SessionController) Close() error {
+	if err := c.ctrlLn.Close(); err != nil {
+		log.Printf("[sessionCtrl] error closing Ctrl socket: %v\r\n", err)
+		return err
+	}
+
+	close(c.exit)
+
+	return nil
+}
+func (c *SessionController) onClosed(err error) {
+
+	if err != nil {
+		log.Printf("[sessionCtrl] session %s closed with error: %v\r\n", c.session.id, err)
+	} else {
+		log.Printf("[sessionCtrl] session %s closed with unknown error\r\n", c.session.id)
 	}
 
 	if err = c.session.Close(); err != nil {
@@ -130,9 +140,7 @@ func (c *SessionController) onClosed(id api.SessionID, err error) {
 		return
 	}
 
-	if c.ctrlLn != nil {
-		_ = c.ctrlLn.Close()
-	}
+	c.Close()
 
 }
 

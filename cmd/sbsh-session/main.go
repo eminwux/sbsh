@@ -6,7 +6,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -100,11 +99,12 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
 	case <-ctx.Done():
 		log.Printf("[sbsh-session] context done\r\n")
 		return
-		// graceful shutdown path
 	case err := <-exit:
-		if err != nil && !errors.Is(err, context.Canceled) {
-			log.Printf("controller stopped with error: %v\r\n", err)
+		if err != nil {
+			log.Printf("[sbsh-session] controller stopped with error: %v\r\n", err)
 		}
+		log.Printf("[sbsh-session] normal shutdown\r\n")
+
 		return
 	}
 }
