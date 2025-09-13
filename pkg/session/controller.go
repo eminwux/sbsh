@@ -64,6 +64,19 @@ func (c *SessionController) Run() error {
 	log.Println("[sessionCtrl] Starting controller loop")
 	defer log.Printf("[sessionCtrl] controller stopped\r\n")
 
+	if err := c.openSocketCtrl(c.session.id); err != nil {
+		return fmt.Errorf("could not open control socket: %w", err)
+	}
+
+	if err := c.StartServer(); err != nil {
+		return fmt.Errorf("could not start control server: %w", err)
+	}
+
+	if err := c.session.Start(c.ctx, c.events); err != nil {
+		log.Fatalf("failed to start session: %v", err)
+		return err
+	}
+
 	close(c.ready)
 
 	for {
@@ -162,16 +175,7 @@ func (c *SessionController) openSocketCtrl(id api.SessionID) error {
 
 }
 
-func (c *SessionController) StartSession(spec *api.SessionSpec) error {
-
-	if len(spec.Command) == 0 {
-		return errors.New("empty command in SessionSpec")
-	}
-
-	c.session = NewSession(spec)
-	if err := c.openSocketCtrl(c.session.id); err != nil {
-		return fmt.Errorf("could not open control socket: %w", err)
-	}
+func (c *SessionController) StartServer() error {
 
 	// Start the Session Socket CTRL Loop
 	go func() {
@@ -189,12 +193,17 @@ func (c *SessionController) StartSession(spec *api.SessionSpec) error {
 			go srv.ServeCodec(jsonrpc.NewServerCodec(conn))
 		}
 	}()
+	// TODO implement channel to close server
+	return nil
+}
 
-	if err := c.session.Start(c.ctx, c.events); err != nil {
-		log.Fatalf("failed to start session: %v", err)
-		return err
+func (c *SessionController) AddSession(spec *api.SessionSpec) error {
+
+	if len(spec.Command) == 0 {
+		return errors.New("empty command in SessionSpec")
 	}
 
+	c.session = NewSession(spec)
 	return nil
 }
 

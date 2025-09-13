@@ -17,7 +17,7 @@ type SupervisorController interface {
 type SessionController interface {
 	Run() error
 	WaitReady() error
-	StartSession(spec *SessionSpec) error
+	AddSession(spec *SessionSpec) error
 }
 
 // Identity & lifecycle
