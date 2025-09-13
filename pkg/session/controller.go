@@ -21,9 +21,9 @@ type SessionController struct {
 	ctx    context.Context
 	exit   chan error
 
-	socketCTRL string
+	socketCtrl   string
+	listenerCtrl net.Listener
 
-	ctrlLn  net.Listener
 	session *Session
 }
 
@@ -82,7 +82,8 @@ func (c *SessionController) Run() error {
 	for {
 		select {
 		case <-c.ctx.Done():
-			log.Printf("[sessionCtrl] Context channel has been closed\r\n")
+			log.Printf("[sessionCtrl] parent context channel has been closed\r\n")
+			c.Close()
 			return c.ctx.Err()
 
 		case ev := <-c.events:
@@ -91,6 +92,7 @@ func (c *SessionController) Run() error {
 
 		case exit := <-c.exit:
 			log.Printf("[sessionCtrl] received exit event: %v\r\n", exit)
+			c.Close()
 			return exit
 
 		}
@@ -118,9 +120,19 @@ func (c *SessionController) handleEvent(ev api.SessionEvent) {
 }
 
 func (c *SessionController) Close() error {
-	if err := c.ctrlLn.Close(); err != nil {
+	if err := c.listenerCtrl.Close(); err != nil {
 		log.Printf("[sessionCtrl] error closing Ctrl socket: %v\r\n", err)
 		return err
+	}
+	// remove sockets and dir
+	if err := os.Remove(c.socketCtrl); err != nil {
+		log.Printf("[session] couldn't remove Ctrl socket: %s\r\n", c.socketCtrl)
+	}
+
+	// remove whole session dir
+	dir := filepath.Dir(c.socketCtrl)
+	if err := os.RemoveAll(dir); err != nil {
+		log.Printf("[session] couldn't remove directory: %s, error: %v\r\n", dir, err)
 	}
 
 	close(c.exit)
@@ -135,10 +147,7 @@ func (c *SessionController) onClosed(err error) {
 		log.Printf("[sessionCtrl] session %s closed with unknown error\r\n", c.session.id)
 	}
 
-	if err = c.session.Close(); err != nil {
-		log.Println("[sessionCtrl] error closing the session:", err)
-		return
-	}
+	c.session.Close()
 
 	c.Close()
 
@@ -157,27 +166,27 @@ func (c *SessionController) openSocketCtrl(id api.SessionID) error {
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
-	c.socketCTRL = filepath.Join(sessionDir, "ctrl.sock")
-	log.Printf("[sessionCtrl] CTRL socket: %s", c.socketCTRL)
+	c.socketCtrl = filepath.Join(sessionDir, "ctrl.sock")
+	log.Printf("[sessionCtrl] CTRL socket: %s", c.socketCtrl)
 
 	// Remove sockets if they already exist
 	// remove sockets and dir
-	if err := os.Remove(c.socketCTRL); err != nil {
-		log.Printf("[sessionCtrl] couldn't remove stale CTRL socket: %s\r\n", c.socketCTRL)
+	if err := os.Remove(c.socketCtrl); err != nil {
+		log.Printf("[sessionCtrl] couldn't remove stale CTRL socket: %s\r\n", c.socketCtrl)
 	}
 
 	// Listen to CONTROL SOCKET
-	ctrlLn, err := net.Listen("unix", c.socketCTRL)
+	ctrlLn, err := net.Listen("unix", c.socketCtrl)
 	if err != nil {
 		return fmt.Errorf("listen ctrl: %w", err)
 	}
-	if err := os.Chmod(c.socketCTRL, 0o600); err != nil {
+	if err := os.Chmod(c.socketCtrl, 0o600); err != nil {
 		ctrlLn.Close()
 		return err
 	}
 
 	// keep references for Close()
-	c.ctrlLn = ctrlLn
+	c.listenerCtrl = ctrlLn
 
 	return nil
 
@@ -190,7 +199,7 @@ func (c *SessionController) StartServer() error {
 		srv := rpc.NewServer()
 		_ = srv.RegisterName("SessionController", &SessionControllerRPC{Core: *c})
 		for {
-			conn, err := c.ctrlLn.Accept()
+			conn, err := c.listenerCtrl.Accept()
 			if err != nil {
 				// listener closed -> exit loop
 				if _, ok := err.(net.Error); ok {

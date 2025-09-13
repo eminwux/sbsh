@@ -186,6 +186,10 @@ func (c *SupervisorController) onClosed(id api.SessionID, err error) {
 		close(c.exit)
 	}
 
+	// remove sockets and dir
+	if err := os.Remove(c.supervisorSockerCtrl); err != nil {
+		log.Printf("[session] couldn't remove IO socket: %s\r\n", c.supervisorSockerCtrl)
+	}
 }
 
 // func (c *SupervisorController) AddSession(spec *api.SessionSpec) error {

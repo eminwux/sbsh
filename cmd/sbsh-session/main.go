@@ -96,9 +96,9 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
 	}
 
 	select {
-	case <-ctx.Done():
-		log.Printf("[sbsh-session] context done\r\n")
-		return
+	// case <-ctx.Done():
+	// 	log.Printf("[sbsh-session] context done\r\n")
+	// 	return
 	case err := <-exit:
 		if err != nil {
 			log.Printf("[sbsh-session] controller stopped with error: %v\r\n", err)
