@@ -19,6 +19,7 @@ import (
 )
 
 type Session struct {
+	ctx context.Context
 	// immutable
 	id   api.SessionID
 	spec api.SessionSpec
@@ -165,15 +166,7 @@ func (s *Session) Spec() api.SessionSpec {
 	return s.spec
 }
 
-// Function to be called by sbsh-session
-func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error {
-
-	// Set up session
-	s.evCh = evCh
-	s.state = api.SessBash
-	s.gates.StdinOpen = true
-	s.gates.OutputOn = true
-
+func (s *Session) openSocketIO() error {
 	s.socketIO = filepath.Join(sessionDir, "io.sock")
 	log.Printf("[session] IO socket: %s", s.socketIO)
 
@@ -200,8 +193,13 @@ func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error
 	// keep references for Close()
 	s.ioLn = ioLn
 
+	return nil
+}
+
+func (s *Session) runSessionCommand() error {
+
 	// Build the child command with context (so ctx cancel can kill it)
-	cmd := exec.CommandContext(ctx, s.spec.Command, s.spec.CommandArgs...)
+	cmd := exec.CommandContext(s.ctx, s.spec.Command, s.spec.CommandArgs...)
 	// Environment: use provided or inherit
 	if len(s.spec.Env) > 0 {
 		cmd.Env = s.spec.Env
@@ -228,21 +226,22 @@ func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error
 	}
 
 	s.cmd = cmd
+	return nil
+}
+
+func (s *Session) startPTY() error {
 
 	// Start under a PTY and inherit current terminal size
-	ptmx, err := pty.Start(cmd)
+	ptmx, err := pty.Start(s.cmd)
 	if err != nil {
 		return err
 	}
 	s.pty = ptmx
 
-	/*
-	* PAIRING
-	 */
-
 	var once sync.Once
-	sessionCtx, cancel := context.WithCancel(ctx)
+	sessionCtx, cancel := context.WithCancel(s.ctx)
 	s.ctxCancel = cancel
+
 	// Intra-routine error channel
 	s.mutualErr = make(chan error, 2)
 
@@ -415,6 +414,33 @@ func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error
 		log.Printf("[session] sending EvSessionExited event\r\n")
 		trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvSessionExited, Err: err, When: time.Now()})
 	}()
+	return nil
+}
+
+// Function to be called by sbsh-session
+func (s *Session) Start(ctx context.Context, evCh chan<- api.SessionEvent) error {
+
+	// Set up session
+	s.evCh = evCh
+	s.state = api.SessBash
+	s.gates.StdinOpen = true
+	s.gates.OutputOn = true
+	s.ctx = ctx
+
+	if err := s.openSocketIO(); err != nil {
+		log.Fatalf("failed to open IO socket for session %s: %v", s.id, err)
+		return err
+	}
+
+	if err := s.runSessionCommand(); err != nil {
+		log.Fatalf("failed to run session command for session %s: %v", s.id, err)
+		return err
+	}
+
+	if err := s.startPTY(); err != nil {
+		log.Fatalf("failed to start PTY for session %s: %v", s.id, err)
+		return err
+	}
 
 	return nil
 }
