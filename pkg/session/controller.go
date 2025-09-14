@@ -3,7 +3,6 @@ package session
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net"
 	"net/rpc"
@@ -11,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sbsh/pkg/api"
-	"sbsh/pkg/common"
+	"sbsh/pkg/session/session_runner"
 	"time"
 )
 
@@ -29,7 +28,7 @@ type SessionController struct {
 	session *Session
 }
 
-var sessionDir string
+var newSessionRunner = session_runner.NewSessionRunnerExec
 
 // NewSessionController wires the manager and the shared event channel from sessions.
 func NewSessionController(ctx context.Context, exit chan error) api.SessionController {
@@ -74,18 +73,27 @@ func (c *SessionController) WaitClose() {
 
 // Run is the main orchestration loop. It owns all mode transitions.
 func (c *SessionController) Run() {
+	sr := newSessionRunner()
+
 	defer log.Printf("[sessionCtrl] controller stopped\r\n")
 
 	log.Println("[sessionCtrl] Starting controller loop")
 
-	if err := c.openSocketCtrl(c.session.id); err != nil {
-		fmt.Printf("could not open control socket: %v", err)
-		c.Close()
+	if c.session == nil {
+		log.Printf("no session added")
 		return
 	}
 
+	ctrlLn, err := sr.OpenSocketCtrl(c.session.id)
+	if err != nil {
+		log.Printf("could not open control socket: %v", err)
+		c.Close()
+		return
+	}
+	c.listenerCtrl = ctrlLn
+
 	if err := c.StartServer(); err != nil {
-		fmt.Printf("could not start control server: %v", err)
+		log.Printf("could not start control server: %v", err)
 		c.Close()
 		return
 
@@ -137,9 +145,11 @@ func (c *SessionController) handleEvent(ev api.SessionEvent) {
 func (c *SessionController) Close() error {
 	c.closing <- struct{}{}
 
-	if err := c.listenerCtrl.Close(); err != nil {
-		log.Printf("[sessionCtrl] error closing Ctrl socket: %v\r\n", err)
-		return err
+	if c.listenerCtrl != nil {
+		if err := c.listenerCtrl.Close(); err != nil {
+			log.Printf("[sessionCtrl] error closing Ctrl socket: %v\r\n", err)
+			return err
+		}
 	}
 
 	// remove Ctrl socket
@@ -169,45 +179,6 @@ func (c *SessionController) onClosed(err error) {
 	c.session.Close()
 
 	c.Close()
-
-}
-
-func (c *SessionController) openSocketCtrl(id api.SessionID) error {
-
-	// Set up sockets
-	base, err := common.RuntimeBaseSessions()
-	if err != nil {
-		return err
-	}
-
-	sessionDir = filepath.Join(base, string(id))
-	if err := os.MkdirAll(sessionDir, 0o700); err != nil {
-		return fmt.Errorf("mkdir session dir: %w", err)
-	}
-
-	c.socketCtrl = filepath.Join(sessionDir, "ctrl.sock")
-	log.Printf("[sessionCtrl] CTRL socket: %s", c.socketCtrl)
-
-	// Remove sockets if they already exist
-	// remove sockets and dir
-	if err := os.Remove(c.socketCtrl); err != nil {
-		log.Printf("[sessionCtrl] couldn't remove stale CTRL socket: %s\r\n", c.socketCtrl)
-	}
-
-	// Listen to CONTROL SOCKET
-	ctrlLn, err := net.Listen("unix", c.socketCtrl)
-	if err != nil {
-		return fmt.Errorf("listen ctrl: %w", err)
-	}
-	if err := os.Chmod(c.socketCtrl, 0o600); err != nil {
-		ctrlLn.Close()
-		return err
-	}
-
-	// keep references for Close()
-	c.listenerCtrl = ctrlLn
-
-	return nil
 
 }
 

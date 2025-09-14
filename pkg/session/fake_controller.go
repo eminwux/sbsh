@@ -13,6 +13,7 @@ type FakeSessionController struct {
 	WaitReadyFunc func() error
 	WaitCloseFunc func()
 	StatusFunc    func() string
+	CloseFunc     func() error
 }
 
 func (f *FakeSessionController) AddSession(s *api.SessionSpec) error {
@@ -39,7 +40,14 @@ func (f *FakeSessionController) WaitClose() {
 
 func (f *FakeSessionController) Status() string {
 	if f.StatusFunc != nil {
-		f.StatusFunc()
+		return f.StatusFunc()
 	}
 	return ""
+}
+
+func (f *FakeSessionController) Close() error {
+	if f.CloseFunc != nil {
+		return f.CloseFunc()
+	}
+	return nil
 }

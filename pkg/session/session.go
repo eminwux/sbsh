@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sbsh/pkg/api"
+	"sbsh/pkg/common"
 	"sync"
 	"syscall"
 	"time"
@@ -182,7 +183,19 @@ func (s *Session) Spec() api.SessionSpec {
 }
 
 func (s *Session) openSocketIO() error {
-	s.socketIO = filepath.Join(sessionDir, "io.sock")
+
+	// Set up sockets
+	base, err := common.RuntimeBaseSessions()
+	if err != nil {
+		return err
+	}
+
+	runPath := filepath.Join(base, string(s.id))
+	if err := os.MkdirAll(runPath, 0o700); err != nil {
+		return fmt.Errorf("mkdir session dir: %w", err)
+	}
+
+	s.socketIO = filepath.Join(runPath, "io.sock")
 	log.Printf("[session] IO socket: %s", s.socketIO)
 
 	// Remove socket if already exists

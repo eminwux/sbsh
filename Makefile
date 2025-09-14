@@ -16,3 +16,7 @@ clean:
 
 kill:
 	(killall sbsh || true ); (killall sbsh-session || true)
+
+test:
+	go test ./cmd/sbsh-session
+	go test ./pkg/session
