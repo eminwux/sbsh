@@ -32,7 +32,7 @@ type SessionController struct {
 var sessionDir string
 
 // NewSessionController wires the manager and the shared event channel from sessions.
-func NewSessionController(ctx context.Context, exit chan error) *SessionController {
+func NewSessionController(ctx context.Context, exit chan error) api.SessionController {
 	log.Printf("[sessionCtrl] New controller is being created\r\n")
 
 	events := make(chan api.SessionEvent, 32)

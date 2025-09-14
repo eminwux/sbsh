@@ -19,6 +19,7 @@ type SessionController interface {
 	WaitReady() error
 	WaitClose()
 	AddSession(spec *SessionSpec) error
+	Status() string
 }
 
 // Identity & lifecycle

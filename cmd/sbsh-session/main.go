@@ -25,6 +25,9 @@ var (
 	sessionCmd string
 )
 
+var newSessionController = session.NewSessionController
+var exit chan error = make(chan error)
+
 func main() {
 	Execute()
 }
@@ -73,13 +76,10 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
-	// Create error channel
-	exit := make(chan error, 1)
-
 	// Create a new Controller
 	var sessionCtrl api.SessionController
 
-	sessionCtrl = session.NewSessionController(ctx, exit)
+	sessionCtrl = newSessionController(ctx, exit)
 
 	// Add new session
 	if err := sessionCtrl.AddSession(&spec); err != nil {
@@ -91,16 +91,16 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
 
 	// block until controller is ready (or ctx cancels)
 	if err := sessionCtrl.WaitReady(); err != nil {
-		log.Printf("controller not ready: %s", err)
+		log.Printf("controller not ready: %s\r\n", err)
 		return
 	}
 
 	select {
 	case <-ctx.Done():
-		log.Printf("[sbsh-session] context closed, waiting on sessionCtrl\r\n")
+		log.Printf("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
 		// time.Sleep(1 * time.Second)
 		sessionCtrl.WaitClose()
-		log.Printf("[sbsh-session] sessionCtrl exited\r\n")
+		log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
 		return
 
 	case err := <-exit:
