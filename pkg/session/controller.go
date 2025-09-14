@@ -19,7 +19,9 @@ type SessionController struct {
 	ready  chan struct{}
 	events chan api.SessionEvent // fan-in from all sessions
 	ctx    context.Context
-	exit   chan error
+
+	close   chan error
+	closing chan struct{}
 
 	socketCtrl   string
 	listenerCtrl net.Listener
@@ -36,10 +38,11 @@ func NewSessionController(ctx context.Context, exit chan error) *SessionControll
 	events := make(chan api.SessionEvent, 32)
 
 	c := &SessionController{
-		ready:  make(chan struct{}),
-		events: events,
-		exit:   exit,
-		ctx:    ctx,
+		ready:   make(chan struct{}),
+		events:  events,
+		close:   exit,
+		ctx:     ctx,
+		closing: make(chan struct{}, 1),
 	}
 
 	return c
@@ -58,23 +61,40 @@ func (c *SessionController) WaitReady() error {
 	}
 }
 
+func (c *SessionController) WaitClose() {
+
+	select {
+	case <-c.close:
+		log.Printf("[sessionCtrl] controller exited")
+		return
+	case <-c.closing:
+		log.Printf("[sessionCtrl] controller closing")
+	}
+}
+
 // Run is the main orchestration loop. It owns all mode transitions.
-func (c *SessionController) Run() error {
+func (c *SessionController) Run() {
 	defer log.Printf("[sessionCtrl] controller stopped\r\n")
 
 	log.Println("[sessionCtrl] Starting controller loop")
 
 	if err := c.openSocketCtrl(c.session.id); err != nil {
-		return fmt.Errorf("could not open control socket: %w", err)
+		fmt.Printf("could not open control socket: %v", err)
+		c.Close()
+		return
 	}
 
 	if err := c.StartServer(); err != nil {
-		return fmt.Errorf("could not start control server: %w", err)
+		fmt.Printf("could not start control server: %v", err)
+		c.Close()
+		return
+
 	}
 
 	if err := c.session.Start(c.ctx, c.events); err != nil {
-		log.Fatalf("failed to start session: %v", err)
-		return err
+		log.Printf("failed to start session: %v", err)
+		c.Close()
+		return
 	}
 
 	close(c.ready)
@@ -84,19 +104,14 @@ func (c *SessionController) Run() error {
 		case <-c.ctx.Done():
 			log.Printf("[sessionCtrl] parent context channel has been closed\r\n")
 			c.Close()
-			return c.ctx.Err()
+			return
 
 		case ev := <-c.events:
 			log.Printf("[sessionCtrl] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
 			c.handleEvent(ev)
-
-		case exit := <-c.exit:
-			log.Printf("[sessionCtrl] received exit event: %v\r\n", exit)
-			c.Close()
-			return exit
-
 		}
 	}
+
 }
 
 /* ---------- Event handlers ---------- */
@@ -115,30 +130,34 @@ func (c *SessionController) handleEvent(ev api.SessionEvent) {
 
 	case api.EvSessionExited:
 		log.Printf("[sessionCtrl] session %s EvSessionExited error: %v\r\n", ev.ID, ev.Err)
-		c.onClosed(ev.Err)
+		// c.onClosed(ev.Err)
 	}
 }
 
 func (c *SessionController) Close() error {
+	c.closing <- struct{}{}
+
 	if err := c.listenerCtrl.Close(); err != nil {
 		log.Printf("[sessionCtrl] error closing Ctrl socket: %v\r\n", err)
 		return err
 	}
-	// remove sockets and dir
+
+	// remove Ctrl socket
 	if err := os.Remove(c.socketCtrl); err != nil {
-		log.Printf("[session] couldn't remove Ctrl socket: %s\r\n", c.socketCtrl)
+		log.Printf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", c.socketCtrl, err)
 	}
 
 	// remove whole session dir
 	dir := filepath.Dir(c.socketCtrl)
 	if err := os.RemoveAll(dir); err != nil {
-		log.Printf("[session] couldn't remove directory: %s, error: %v\r\n", dir, err)
+		log.Printf("[sessionCtrl] couldn't remove directory: %s, error: %v\r\n", dir, err)
 	}
 
-	close(c.exit)
+	close(c.close)
 
 	return nil
 }
+
 func (c *SessionController) onClosed(err error) {
 
 	if err != nil {

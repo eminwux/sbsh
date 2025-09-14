@@ -188,7 +188,7 @@ func (c *SupervisorController) onClosed(id api.SessionID, err error) {
 
 	// remove sockets and dir
 	if err := os.Remove(c.supervisorSockerCtrl); err != nil {
-		log.Printf("[session] couldn't remove IO socket: %s\r\n", c.supervisorSockerCtrl)
+		log.Printf("[session] couldn't remove IO socket %s: %v\r\n", c.supervisorSockerCtrl, err)
 	}
 }
 
