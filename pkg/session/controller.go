@@ -4,8 +4,6 @@ import (
 	"context"
 	"log"
 	"net"
-	"net/rpc"
-	"net/rpc/jsonrpc"
 	"os"
 	"path/filepath"
 	"sbsh/pkg/api"
@@ -191,28 +189,6 @@ func (c *SessionController) onClosed(err error) {
 
 	c.Close()
 
-}
-
-func (c *SessionController) StartServer() error {
-
-	// Start the Session Socket CTRL Loop
-	go func() {
-		srv := rpc.NewServer()
-		_ = srv.RegisterName("SessionController", &sessionrpc.SessionControllerRPC{Core: c})
-		for {
-			conn, err := c.listenerCtrl.Accept()
-			if err != nil {
-				// listener closed -> exit loop
-				if _, ok := err.(net.Error); ok {
-					continue
-				}
-				return
-			}
-			go srv.ServeCodec(jsonrpc.NewServerCodec(conn))
-		}
-	}()
-	// TODO implement channel to close server
-	return nil
 }
 
 func (c *SessionController) Resize(args api.ResizeArgs) {
