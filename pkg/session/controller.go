@@ -160,14 +160,18 @@ func (c *SessionController) Close() error {
 	c.closing <- struct{}{}
 
 	// remove Ctrl socket
-	if err := os.Remove(c.socketCtrl); err != nil {
-		log.Printf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", c.socketCtrl, err)
+	if _, err := os.Stat(c.socketCtrl); err != nil && !os.IsNotExist(err) {
+		if err := os.Remove(c.socketCtrl); err != nil {
+			log.Printf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", c.socketCtrl, err)
+		}
 	}
 
 	// remove whole session dir
 	dir := filepath.Dir(c.socketCtrl)
-	if err := os.RemoveAll(dir); err != nil {
-		log.Printf("[sessionCtrl] couldn't remove directory: %s, error: %v\r\n", dir, err)
+	if _, err := os.Stat(dir); err != nil && !os.IsNotExist(err) {
+		if err := os.RemoveAll(dir); err != nil {
+			log.Printf("[sessionCtrl] couldn't remove directory: %s, error: %v\r\n", dir, err)
+		}
 	}
 
 	close(c.close)
