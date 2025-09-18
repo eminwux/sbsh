@@ -25,11 +25,11 @@ type SessionController struct {
 
 	socketCtrl   string
 	listenerCtrl net.Listener
-
-	session *Session
 }
 
-var newSessionRunner = sessionrunner.NewSessionRunnerExec
+// var newSessionRunner = sessionrunner.NewSessionRunnerExec
+var newSessionRunner func(spec *api.SessionSpec) sessionrunner.SessionRunner
+var sr sessionrunner.SessionRunner
 
 // NewSessionController wires the manager and the shared event channel from sessions.
 func NewSessionController(ctx context.Context, exit chan error) api.SessionController {
@@ -74,18 +74,17 @@ func (c *SessionController) WaitClose() {
 
 // Run is the main orchestration loop. It owns all mode transitions.
 func (c *SessionController) Run() {
-	sr := newSessionRunner()
 
 	defer log.Printf("[sessionCtrl] controller stopped\r\n")
 
 	log.Println("[sessionCtrl] Starting controller loop")
 
-	if c.session == nil {
+	if sr == nil {
 		log.Printf("no session added")
 		return
 	}
 
-	ctrlLn, err := sr.OpenSocketCtrl(c.session.id)
+	ctrlLn, err := sr.OpenSocketCtrl()
 	if err != nil {
 		log.Printf("could not open control socket: %v", err)
 		c.Close()
@@ -95,8 +94,8 @@ func (c *SessionController) Run() {
 
 	rpc := &sessionrpc.SessionControllerRPC{Core: c}
 	readyCh := make(chan error)
-	serverDoneCh := make(chan error)
-	go sr.StartServer(c.ctx, c.listenerCtrl, rpc, readyCh, serverDoneCh)
+	rpcDoneCh := make(chan error)
+	go sr.StartServer(c.ctx, c.listenerCtrl, rpc, readyCh, rpcDoneCh)
 	// Wait for startup result
 	if err := <-readyCh; err != nil {
 		// failed to start — handle and return
@@ -104,7 +103,7 @@ func (c *SessionController) Run() {
 		return
 	}
 
-	if err := c.session.Start(c.ctx, c.events); err != nil {
+	if err := sr.StartSession(c.ctx, c.events); err != nil {
 		log.Printf("failed to start session: %v", err)
 		c.Close()
 		return
@@ -123,7 +122,7 @@ func (c *SessionController) Run() {
 			log.Printf("[sessionCtrl] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
 			c.handleEvent(ev)
 
-		case err := <-serverDoneCh:
+		case err := <-rpcDoneCh:
 			log.Printf("[sessionCtrl] rpc server has failed: %v\r\n", err)
 			c.Close()
 			return
@@ -175,12 +174,12 @@ func (c *SessionController) Close() error {
 func (c *SessionController) onClosed(err error) {
 
 	if err != nil {
-		log.Printf("[sessionCtrl] session %s closed with error: %v\r\n", c.session.id, err)
+		log.Printf("[sessionCtrl] session %s closed with error: %v\r\n", sr.ID(), err)
 	} else {
-		log.Printf("[sessionCtrl] session %s closed with unknown error\r\n", c.session.id)
+		log.Printf("[sessionCtrl] session %s closed with unknown error\r\n", sr.ID())
 	}
 
-	c.session.Close()
+	sr.Close()
 
 	c.Close()
 
@@ -208,18 +207,18 @@ func (c *SessionController) StartServer() error {
 	return nil
 }
 
-func (c *SessionController) AddSession(spec *api.SessionSpec) error {
+func (s *SessionController) AddSession(spec *api.SessionSpec) error {
+	sr = newSessionRunner(spec)
 
 	if len(spec.Command) == 0 {
 		return errors.New("empty command in SessionSpec")
 	}
 
-	c.session = NewSession(spec)
 	return nil
 }
 
 func (c *SessionController) Resize(args api.ResizeArgs) {
 
-	c.session.Resize(args)
+	sr.Resize(args)
 
 }

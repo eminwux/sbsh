@@ -45,15 +45,18 @@ func Test_OpenSocketCtrlError(t *testing.T) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
-	sessionCtrl.AddSession(&spec)
-
-	newSessionRunner = func() sessionrunner.SessionRunner {
+	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
-			OpenSocketCtrlFunc: func(sessionID api.SessionID) (net.Listener, error) {
+			IDFunc: func() api.SessionID {
+				return api.SessionID("iajs099")
+			},
+			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				return newStubListener(), fmt.Errorf("error opening listener")
 			},
 		}
 	}
+
+	sessionCtrl.AddSession(&spec)
 
 	var buf bytes.Buffer
 	old := log.Writer()
@@ -86,11 +89,12 @@ func Test_StartServerError(t *testing.T) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
-	sessionCtrl.AddSession(&spec)
-
-	newSessionRunner = func() sessionrunner.SessionRunner {
+	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
-			OpenSocketCtrlFunc: func(sessionID api.SessionID) (net.Listener, error) {
+			IDFunc: func() api.SessionID {
+				return spec.ID
+			},
+			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				return newStubListener(), nil
 			},
 			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
@@ -98,6 +102,8 @@ func Test_StartServerError(t *testing.T) {
 			},
 		}
 	}
+
+	sessionCtrl.AddSession(&spec)
 
 	var buf bytes.Buffer
 	old := log.Writer()
