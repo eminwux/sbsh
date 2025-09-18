@@ -256,3 +256,55 @@ func Test_ContextDone(t *testing.T) {
 	}
 
 }
+
+func Test_RPCServerDone(t *testing.T) {
+	exitCh := make(chan error)
+	ctx, _ := context.WithCancel(context.Background())
+	sessionCtrl := NewSessionController(ctx, exitCh)
+
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.SessionID("abcdef"),
+		Kind:        api.SessLocal,
+		Label:       "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+	}
+
+	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
+		return &sessionrunner.SessionRunnerTest{
+			IDFunc: func() api.SessionID {
+				return spec.ID
+			},
+			OpenSocketCtrlFunc: func() (net.Listener, error) {
+				return newStubListener(), nil
+			},
+			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+				readyCh <- nil
+			},
+			StartSessionFunc: func(ctx context.Context, evCh chan<- api.SessionEvent) error {
+				return nil
+			},
+		}
+	}
+
+	var buf bytes.Buffer
+	old := log.Writer()
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(old) })
+
+	rpcDoneCh = make(chan error)
+	go sessionCtrl.Run(&spec)
+
+	time.Sleep(10 * time.Millisecond)
+	rpcDoneCh <- fmt.Errorf("make rpc server exit with error")
+	time.Sleep(10 * time.Millisecond)
+
+	message := "rpc server has failed"
+	if !bytes.Contains(buf.Bytes(), []byte(message)) {
+		t.Fatalf("expected '"+message+"' in logs; got: %s", buf.String())
+	}
+
+}

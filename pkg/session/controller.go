@@ -28,6 +28,8 @@ type SessionController struct {
 
 var newSessionRunner = sessionrunner.NewSessionRunnerExec
 var sr sessionrunner.SessionRunner
+var rpcReadyCh chan error = make(chan error)
+var rpcDoneCh chan error = make(chan error)
 
 // NewSessionController wires the manager and the shared event channel from sessions.
 func NewSessionController(ctx context.Context, exit chan error) api.SessionController {
@@ -97,11 +99,9 @@ func (c *SessionController) Run(spec *api.SessionSpec) {
 	c.listenerCtrl = ctrlLn
 
 	rpc := &sessionrpc.SessionControllerRPC{Core: c}
-	readyCh := make(chan error)
-	rpcDoneCh := make(chan error)
-	go sr.StartServer(c.ctx, c.listenerCtrl, rpc, readyCh, rpcDoneCh)
+	go sr.StartServer(c.ctx, c.listenerCtrl, rpc, rpcReadyCh, rpcDoneCh)
 	// Wait for startup result
-	if err := <-readyCh; err != nil {
+	if err := <-rpcReadyCh; err != nil {
 		// failed to start — handle and return
 		log.Printf("failed to start server: %v", err)
 		return
