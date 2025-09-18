@@ -113,7 +113,7 @@ func Test_OpenSocketCtrlError(t *testing.T) {
 
 }
 
-func Test_StartServerError(t *testing.T) {
+func Test_RPCServerNotReady(t *testing.T) {
 	exitCh := make(chan error)
 	sessionCtrl := NewSessionController(context.Background(), exitCh)
 
