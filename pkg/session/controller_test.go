@@ -259,8 +259,7 @@ func Test_ContextDone(t *testing.T) {
 
 func Test_RPCServerDone(t *testing.T) {
 	exitCh := make(chan error)
-	ctx, _ := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx, exitCh)
+	sessionCtrl := NewSessionController(context.Background(), exitCh)
 
 	// Define a new Session
 	spec := api.SessionSpec{
