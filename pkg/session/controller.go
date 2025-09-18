@@ -10,7 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"sbsh/pkg/api"
-	"sbsh/pkg/session/session_runner"
+	"sbsh/pkg/session/sessionrpc"
+	"sbsh/pkg/session/sessionrunner"
 	"time"
 )
 
@@ -28,7 +29,7 @@ type SessionController struct {
 	session *Session
 }
 
-var newSessionRunner = session_runner.NewSessionRunnerExec
+var newSessionRunner = sessionrunner.NewSessionRunnerExec
 
 // NewSessionController wires the manager and the shared event channel from sessions.
 func NewSessionController(ctx context.Context, exit chan error) api.SessionController {
@@ -92,11 +93,15 @@ func (c *SessionController) Run() {
 	}
 	c.listenerCtrl = ctrlLn
 
-	if err := c.StartServer(); err != nil {
-		log.Printf("could not start control server: %v", err)
-		c.Close()
+	rpc := &sessionrpc.SessionControllerRPC{Core: c}
+	readyCh := make(chan error)
+	serverDoneCh := make(chan error)
+	go sr.StartServer(c.ctx, c.listenerCtrl, rpc, readyCh, serverDoneCh)
+	// Wait for startup result
+	if err := <-readyCh; err != nil {
+		// failed to start — handle and return
+		log.Printf("failed to start server: %v", err)
 		return
-
 	}
 
 	if err := c.session.Start(c.ctx, c.events); err != nil {
@@ -117,6 +122,12 @@ func (c *SessionController) Run() {
 		case ev := <-c.events:
 			log.Printf("[sessionCtrl] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
 			c.handleEvent(ev)
+
+		case err := <-serverDoneCh:
+			log.Printf("[sessionCtrl] rpc server has failed: %v\r\n", err)
+			c.Close()
+			return
+
 		}
 	}
 
@@ -144,13 +155,6 @@ func (c *SessionController) handleEvent(ev api.SessionEvent) {
 
 func (c *SessionController) Close() error {
 	c.closing <- struct{}{}
-
-	if c.listenerCtrl != nil {
-		if err := c.listenerCtrl.Close(); err != nil {
-			log.Printf("[sessionCtrl] error closing Ctrl socket: %v\r\n", err)
-			return err
-		}
-	}
 
 	// remove Ctrl socket
 	if err := os.Remove(c.socketCtrl); err != nil {
@@ -187,7 +191,7 @@ func (c *SessionController) StartServer() error {
 	// Start the Session Socket CTRL Loop
 	go func() {
 		srv := rpc.NewServer()
-		_ = srv.RegisterName("SessionController", &SessionControllerRPC{Core: *c})
+		_ = srv.RegisterName("SessionController", &sessionrpc.SessionControllerRPC{Core: c})
 		for {
 			conn, err := c.listenerCtrl.Accept()
 			if err != nil {

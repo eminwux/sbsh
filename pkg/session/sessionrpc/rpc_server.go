@@ -1,11 +1,11 @@
-package session
+package sessionrpc
 
 import (
 	"sbsh/pkg/api"
 )
 
 type SessionControllerRPC struct {
-	Core SessionController
+	Core api.SessionController
 }
 
 func (r *SessionControllerRPC) Status(_ *api.Empty, out *api.SessionStatus) error {

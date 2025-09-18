@@ -104,6 +104,7 @@ func TestRunSession_ErrorShutdown(t *testing.T) {
 			RunFunc:       func() {},
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() {},
+			ResizeFunc:    func() {},
 		}
 	}
 

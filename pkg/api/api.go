@@ -21,6 +21,7 @@ type SessionController interface {
 	AddSession(spec *SessionSpec) error
 	Status() string
 	Close() error
+	Resize(ResizeArgs)
 }
 
 // Identity & lifecycle

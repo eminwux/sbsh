@@ -14,6 +14,7 @@ type FakeSessionController struct {
 	WaitCloseFunc func()
 	StatusFunc    func() string
 	CloseFunc     func() error
+	ResizeFunc    func()
 }
 
 func (f *FakeSessionController) AddSession(s *api.SessionSpec) error {
@@ -50,4 +51,10 @@ func (f *FakeSessionController) Close() error {
 		return f.CloseFunc()
 	}
 	return nil
+}
+
+func (f *FakeSessionController) Resize(args api.ResizeArgs) {
+	if f.ResizeFunc != nil {
+		f.ResizeFunc()
+	}
 }
