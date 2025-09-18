@@ -56,14 +56,12 @@ func Test_OpenSocketCtrlError(t *testing.T) {
 		}
 	}
 
-	sessionCtrl.AddSession(&spec)
-
 	var buf bytes.Buffer
 	old := log.Writer()
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	go sessionCtrl.Run()
+	go sessionCtrl.Run(&spec)
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -103,14 +101,12 @@ func Test_StartServerError(t *testing.T) {
 		}
 	}
 
-	sessionCtrl.AddSession(&spec)
-
 	var buf bytes.Buffer
 	old := log.Writer()
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	go sessionCtrl.Run()
+	go sessionCtrl.Run(&spec)
 
 	time.Sleep(100 * time.Millisecond)
 

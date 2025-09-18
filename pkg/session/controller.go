@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net"
 	"net/rpc"
@@ -27,8 +26,7 @@ type SessionController struct {
 	listenerCtrl net.Listener
 }
 
-// var newSessionRunner = sessionrunner.NewSessionRunnerExec
-var newSessionRunner func(spec *api.SessionSpec) sessionrunner.SessionRunner
+var newSessionRunner = sessionrunner.NewSessionRunnerExec
 var sr sessionrunner.SessionRunner
 
 // NewSessionController wires the manager and the shared event channel from sessions.
@@ -73,9 +71,15 @@ func (c *SessionController) WaitClose() {
 }
 
 // Run is the main orchestration loop. It owns all mode transitions.
-func (c *SessionController) Run() {
+func (c *SessionController) Run(spec *api.SessionSpec) {
 
 	defer log.Printf("[sessionCtrl] controller stopped\r\n")
+
+	sr = newSessionRunner(spec)
+
+	if len(spec.Command) == 0 {
+		log.Printf("empty command in SessionSpec")
+	}
 
 	log.Println("[sessionCtrl] Starting controller loop")
 
@@ -204,16 +208,6 @@ func (c *SessionController) StartServer() error {
 		}
 	}()
 	// TODO implement channel to close server
-	return nil
-}
-
-func (s *SessionController) AddSession(spec *api.SessionSpec) error {
-	sr = newSessionRunner(spec)
-
-	if len(spec.Command) == 0 {
-		return errors.New("empty command in SessionSpec")
-	}
-
 	return nil
 }
 

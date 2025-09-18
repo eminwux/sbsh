@@ -18,7 +18,7 @@ func TestRunSession_ContextCancelPath(t *testing.T) {
 	newSessionController = func(ctx context.Context, exit chan error) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          make(chan error),
-			RunFunc:       func() {},
+			RunFunc:       func(spec *api.SessionSpec) {},
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() {},
 			StatusFunc:    func() string { return "" },
@@ -49,7 +49,7 @@ func TestRunSession_WaitReadyError(t *testing.T) {
 	newSessionController = func(ctx context.Context, exit chan error) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          make(chan error),
-			RunFunc:       func() {},
+			RunFunc:       func(spec *api.SessionSpec) {},
 			WaitReadyFunc: func() error { return fmt.Errorf("not ready") },
 			WaitCloseFunc: func() {},
 		}
@@ -73,7 +73,7 @@ func TestRunSession_NormalShutdown(t *testing.T) {
 	newSessionController = func(ctx context.Context, exit chan error) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          make(chan error),
-			RunFunc:       func() {},
+			RunFunc:       func(spec *api.SessionSpec) {},
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() {},
 		}
@@ -101,7 +101,7 @@ func TestRunSession_ErrorShutdown(t *testing.T) {
 	newSessionController = func(ctx context.Context, exit chan error) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          make(chan error),
-			RunFunc:       func() {},
+			RunFunc:       func(spec *api.SessionSpec) {},
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() {},
 			ResizeFunc:    func() {},

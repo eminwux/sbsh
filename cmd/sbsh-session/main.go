@@ -81,13 +81,7 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
 
 	sessionCtrl = newSessionController(ctx, exit)
 
-	// Add new session
-	if err := sessionCtrl.AddSession(&spec); err != nil {
-		log.Fatalf("failed to start session: %v", err)
-		return
-	}
-
-	go sessionCtrl.Run()
+	go sessionCtrl.Run(&spec)
 
 	// block until controller is ready (or ctx cancels)
 	if err := sessionCtrl.WaitReady(); err != nil {

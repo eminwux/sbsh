@@ -192,13 +192,6 @@ func (c *SupervisorController) onClosed(id api.SessionID, err error) {
 	}
 }
 
-// func (c *SupervisorController) AddSession(spec *api.SessionSpec) error {
-// 	// Create the new Session
-// 	sess := NewSupervisedSession(spec)
-// 	c.mgr.Add(sess)
-// 	return nil
-// }
-
 func (c *SupervisorController) SetCurrentSession(id api.SessionID) error {
 	if err := c.mgr.SetCurrent(id); err != nil {
 		log.Fatalf("failed to set current session: %v", err)
