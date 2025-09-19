@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"sbsh/pkg/api"
 	"sbsh/pkg/session"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -34,7 +32,7 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 
 	// Give Run() time to set ready, then signal the process (NotifyContext listens to SIGTERM/INT)
 	time.Sleep(20 * time.Millisecond)
-	_ = syscall.Kill(os.Getpid(), syscall.SIGTERM)
+	cancel()
 
 	select {
 	case err := <-done:

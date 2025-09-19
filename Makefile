@@ -20,3 +20,5 @@ kill:
 test:
 	go test ./cmd/sbsh-session
 	go test ./pkg/session
+	go test ./cmd/sbsh
+	go test ./pkg/supervisor

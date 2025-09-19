@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
+	"sbsh/pkg/supervisor/supervisorrpc"
+	"sbsh/pkg/supervisor/supervisorrunner"
 	"syscall"
 	"time"
 
@@ -46,8 +48,11 @@ type SupervisorController struct {
 	supervisorSockerCtrl string
 }
 
+var newSupervisorRunner = supervisorrunner.NewSupervisorRunnerExec
+var sr supervisorrunner.SupervisorRunner
+
 // NewSupervisorController wires the manager and the shared event channel from sessions.
-func NewSupervisorController() *SupervisorController {
+func NewSupervisorController(ctx context.Context) api.SupervisorController {
 	log.Printf("[supervisor] New controller is being created\r\n")
 
 	events := make(chan api.SessionEvent, 32) // buffered so PTY readers never block
@@ -106,7 +111,7 @@ func (c *SupervisorController) Run(ctx context.Context) error {
 		log.Fatal(err)
 	}
 
-	srv := &SupervisorControllerRPC{Core: *c} // your real impl
+	srv := &supervisorrpc.SupervisorControllerRPC{Core: c} // your real impl
 	rpc.RegisterName("Controller", srv)
 
 	go func() {

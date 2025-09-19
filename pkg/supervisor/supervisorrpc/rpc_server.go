@@ -1,4 +1,4 @@
-package supervisor
+package supervisorrpc
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 )
 
 type SupervisorControllerRPC struct {
-	Core SupervisorController // the real server-side controller
+	Core api.SupervisorController // the real server-side controller
 }
 
 // Optional: usually you don’t expose Run over RPC because it blocks.

@@ -10,13 +10,19 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sbsh/pkg/api"
 	"sbsh/pkg/supervisor"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+var newSupervisorController = supervisor.NewSupervisorController
+var ctx context.Context
+var cancel context.CancelFunc
 
 func main() {
 	Execute()
@@ -39,14 +45,14 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func runSupervisor() {
-	ctx, cancel := context.WithCancel(context.Background())
+func runSupervisor() error {
+	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	// Create a new Controller
 	var ctrl api.SupervisorController
 
-	ctrl = supervisor.NewSupervisorController()
+	ctrl = newSupervisorController(ctx)
 
 	// Create error channel
 	errCh := make(chan error, 1)
@@ -59,7 +65,7 @@ func runSupervisor() {
 	// block until controller is ready (or ctx cancels)
 	if err := ctrl.WaitReady(ctx); err != nil {
 		log.Printf("controller not ready: %s", err)
-		return
+		return fmt.Errorf("%w: %w", ErrWaitOnReady, err)
 	}
 
 	// Start new session
@@ -69,12 +75,16 @@ func runSupervisor() {
 
 	select {
 	case <-ctx.Done():
-		// graceful shutdown path
+		return ErrContextDone
 	case err := <-errCh:
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Printf("controller stopped with error: %v\r\n", err)
+			return fmt.Errorf("%w: %w", ErrChildExit, err)
+
 		}
 	}
+
+	return nil
 }
 
 func Execute() {

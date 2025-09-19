@@ -41,6 +41,28 @@
             "args": [
                 "-test.v" // show each test function executed
             ]
+        },
+        {
+            "name": "Debug Tests in cmd/sbsh",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/cmd/sbsh", // or ./pkg/session if you want that package
+            "console": "integratedTerminal",
+            "args": [
+                "-test.v" // show each test function executed
+            ]
+        },
+        {
+            "name": "Debug Tests in pkg/supervisor",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/pkg/supervisor", // or ./pkg/session if you want that package
+            "console": "integratedTerminal",
+            "args": [
+                "-test.v" // show each test function executed
+            ]
         }  
     ]
 }
