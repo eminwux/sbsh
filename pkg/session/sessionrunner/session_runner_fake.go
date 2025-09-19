@@ -11,7 +11,7 @@ type SessionRunnerTest struct {
 	OpenSocketCtrlFunc func() (net.Listener, error)
 	StartServerFunc    func(ctx context.Context, ln net.Listener, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error)
 	StartSessionFunc   func(ctx context.Context, evCh chan<- SessionRunnerEvent) error
-	CloseFunc          func()
+	CloseFunc          func(reason error) error
 	ResizeFunc         func(args api.ResizeArgs)
 	IDFunc             func() api.SessionID
 }
@@ -46,10 +46,11 @@ func (sr *SessionRunnerTest) ID() api.SessionID {
 	return api.SessionID("")
 }
 
-func (sr *SessionRunnerTest) Close() {
+func (sr *SessionRunnerTest) Close(reason error) error {
 	if sr.CloseFunc != nil {
-		sr.CloseFunc()
+		return sr.CloseFunc(reason)
 	}
+	return nil
 }
 
 func (sr *SessionRunnerTest) Resize(args api.ResizeArgs) {

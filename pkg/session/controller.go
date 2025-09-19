@@ -17,8 +17,8 @@ type SessionController struct {
 	events chan sessionrunner.SessionRunnerEvent // fan-in from all sessions
 	ctx    context.Context
 
-	close   chan error
-	closing chan struct{}
+	closed   chan error
+	closing chan error
 
 	socketCtrl   string
 	listenerCtrl net.Listener
@@ -38,9 +38,9 @@ func NewSessionController(ctx context.Context, exit chan error) api.SessionContr
 	c := &SessionController{
 		ready:   make(chan struct{}),
 		events:  events,
-		close:   exit,
+		closed:   exit,
 		ctx:     ctx,
-		closing: make(chan struct{}, 1),
+		closing: make(chan error, 1),
 	}
 
 	return c
@@ -59,15 +59,16 @@ func (c *SessionController) WaitReady() error {
 	}
 }
 
-func (c *SessionController) WaitClose() {
+func (c *SessionController) WaitClose() error {
 
 	select {
-	case <-c.close:
-		log.Printf("[sessionCtrl] controller exited")
-		return
-	case <-c.closing:
-		log.Printf("[sessionCtrl] controller closing")
+	case err := <-c.closed:
+		log.Printf("[sessionCtrl] controller exited: %v", err)
+		return err
+	case err := <-c.closing:
+		log.Printf("[sessionCtrl] controller closing: %v", err)
 	}
+	return nil
 }
 
 // Run is the main orchestration loop. It owns all mode transitions.
@@ -91,7 +92,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) {
 	ctrlLn, err := sr.OpenSocketCtrl()
 	if err != nil {
 		log.Printf("could not open control socket: %v", err)
-		c.Close()
+		c.Close(err)
 		return
 	}
 	c.listenerCtrl = ctrlLn
@@ -107,7 +108,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) {
 
 	if err := sr.StartSession(c.ctx, c.events); err != nil {
 		log.Printf("failed to start session: %v", err)
-		c.Close()
+		c.Close(err)
 		return
 	}
 
@@ -117,7 +118,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) {
 		select {
 		case <-c.ctx.Done():
 			log.Printf("[sessionCtrl] parent context channel has been closed\r\n")
-			c.Close()
+			c.Close(err)
 			return
 
 		case ev := <-c.events:
@@ -126,7 +127,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) {
 
 		case err := <-rpcDoneCh:
 			log.Printf("[sessionCtrl] rpc server has failed: %v\r\n", err)
-			c.Close()
+			c.Close(err)
 			return
 
 		}
@@ -154,8 +155,8 @@ func (c *SessionController) handleEvent(ev sessionrunner.SessionRunnerEvent) {
 	}
 }
 
-func (c *SessionController) Close() error {
-	c.closing <- struct{}{}
+func (c *SessionController) Close(reason error) error {
+	c.closing <- reason
 
 	// remove Ctrl socket
 	if _, err := os.Stat(c.socketCtrl); err != nil && !os.IsNotExist(err) {
@@ -172,22 +173,21 @@ func (c *SessionController) Close() error {
 		}
 	}
 
-	close(c.close)
+	close(c.closed)
 
 	return nil
 }
 
 func (c *SessionController) onClosed(err error) {
+	_ = sr.Close(err)
 
 	if err != nil {
 		log.Printf("[sessionCtrl] session %s closed with error: %v\r\n", sr.ID(), err)
+		c.Close(err)
 	} else {
 		log.Printf("[sessionCtrl] session %s closed with unknown error\r\n", sr.ID())
+		c.Close(nil)
 	}
-
-	sr.Close()
-
-	c.Close()
 
 }
 

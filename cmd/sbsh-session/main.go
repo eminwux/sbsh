@@ -27,6 +27,8 @@ var (
 
 var newSessionController = session.NewSessionController
 var exit chan error = make(chan error)
+var ctx context.Context
+var cancel context.CancelFunc
 
 func main() {
 	Execute()
@@ -60,9 +62,9 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
+func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	// Define a new Session
@@ -86,24 +88,25 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) {
 	// block until controller is ready (or ctx cancels)
 	if err := sessionCtrl.WaitReady(); err != nil {
 		log.Printf("controller not ready: %s\r\n", err)
-		return
+		return fmt.Errorf("%w: %w", ErrWaitOnReady, err)
 	}
 
 	select {
 	case <-ctx.Done():
 		log.Printf("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
-		// time.Sleep(1 * time.Second)
-		sessionCtrl.WaitClose()
+		if err := sessionCtrl.WaitClose(); err != nil {
+			return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
+		}
 		log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
-		return
+		return ErrContextCancelled
 
 	case err := <-exit:
 		if err != nil {
 			log.Printf("[sbsh-session] controller stopped with error: %v\r\n", err)
+			return fmt.Errorf("%w: %w", ErrExit, err)
 		}
 		log.Printf("[sbsh-session] normal shutdown\r\n")
-
-		return
+		return ErrGracefulExit
 	}
 }
 

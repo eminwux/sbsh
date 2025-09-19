@@ -27,7 +27,7 @@ type SessionRunner interface {
 	StartServer(ctx context.Context, ln net.Listener, sc *sessionrpc.SessionControllerRPC, readyCh chan error, errCh chan error)
 	StartSession(ctx context.Context, evCh chan<- SessionRunnerEvent) error
 	ID() api.SessionID
-	Close()
+	Close(reason error) error
 	Resize(args api.ResizeArgs)
 }
 
@@ -373,7 +373,7 @@ func (s *SessionRunnerExec) waitOnSession() {
 
 	select {
 	case err := <-s.close:
-		s.Close()
+		s.Close(err)
 		// s.WaitClose()
 		log.Printf("[session] cancelling context\r\n")
 		s.sessionCtxCancel()
@@ -382,7 +382,7 @@ func (s *SessionRunnerExec) waitOnSession() {
 		return
 	case <-s.sessionCtx.Done():
 		log.Printf("[session] ||||||||||||||session context has been closed\r\n")
-		s.Close()
+		s.Close(s.sessionCtx.Err())
 		// s.WaitClose()
 		return
 	}
@@ -467,7 +467,7 @@ func (s *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeOu
 		go s.handleClient(cl)
 	}
 }
-func (s *SessionRunnerExec) Close() {
+func (s *SessionRunnerExec) Close(reason error) error {
 
 	log.Printf("[sesion] closing session |||||||||||||")
 	s.closing <- struct{}{}
@@ -476,6 +476,7 @@ func (s *SessionRunnerExec) Close() {
 	if s.listenerIO != nil {
 		if err := s.listenerIO.Close(); err != nil {
 			log.Printf("[sesion] could not close IO listener: %v", err)
+			return err
 		}
 	}
 
@@ -484,6 +485,7 @@ func (s *SessionRunnerExec) Close() {
 	for _, c := range s.clients {
 		if err := c.conn.Close(); err != nil {
 			log.Printf("[sesion] could not close connection: %v\r\n", err)
+			return err
 		}
 	}
 
@@ -494,20 +496,24 @@ func (s *SessionRunnerExec) Close() {
 	if s.cmd != nil && s.cmd.Process != nil {
 		if err := s.cmd.Process.Kill(); err != nil {
 			log.Printf("[sesion] could not kill cmd: %v\r\n", err)
+			return err
 		}
 	}
 	if s.pty != nil {
 		if err := s.pty.Close(); err != nil {
 			log.Printf("[sesion] could not close pty: %v\r\n", err)
+			return err
 		}
 	}
 
 	// remove sockets and dir
 	if err := os.Remove(s.socketIO); err != nil {
 		log.Printf("[session] couldn't remove IO socket: %s: %v\r\n", s.socketIO, err)
+		return err
 	}
 
 	close(s.closed)
+	return nil
 
 }
 

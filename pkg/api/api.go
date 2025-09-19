@@ -17,9 +17,9 @@ type SupervisorController interface {
 type SessionController interface {
 	Run(spec *SessionSpec)
 	WaitReady() error
-	WaitClose()
+	WaitClose() error
 	Status() string
-	Close() error
+	Close(reason error) error
 	Resize(ResizeArgs)
 }
 
