@@ -14,9 +14,7 @@ import (
 )
 
 type SessionController struct {
-	ready  chan struct{}
-	events chan sessionrunner.SessionRunnerEvent // fan-in from all sessions
-	ctx    context.Context
+	ctx context.Context
 
 	closed  chan struct{}
 	closing chan error
@@ -30,19 +28,17 @@ var newSessionRunner = sessionrunner.NewSessionRunnerExec
 var sr sessionrunner.SessionRunner
 var rpcReadyCh chan error = make(chan error)
 var rpcDoneCh chan error = make(chan error)
+var ctrlReady chan struct{} = make(chan struct{})
+var eventsCh chan sessionrunner.SessionRunnerEvent = make(chan sessionrunner.SessionRunnerEvent, 32)
 
 // NewSessionController wires the manager and the shared event channel from sessions.
 func NewSessionController(ctx context.Context, cancel context.CancelFunc) api.SessionController {
 	log.Printf("[sessionCtrl] New controller is being created\r\n")
 
-	events := make(chan sessionrunner.SessionRunnerEvent, 32)
-
 	c := &SessionController{
-		ready:   make(chan struct{}),
-		events:  events,
-		closed:  make(chan struct{}),
 		ctx:     ctx,
 		cancel:  cancel,
+		closed:  make(chan struct{}),
 		closing: make(chan error, 1),
 	}
 
@@ -55,7 +51,7 @@ func (c *SessionController) Status() string {
 
 func (c *SessionController) WaitReady() error {
 	select {
-	case <-c.ready:
+	case <-ctrlReady:
 		return nil
 	case <-c.ctx.Done():
 		return c.ctx.Err()
@@ -108,7 +104,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		return fmt.Errorf("%w:%w", ErrStartRPCServer, err)
 	}
 
-	if err := sr.StartSession(c.ctx, c.events); err != nil {
+	if err := sr.StartSession(c.ctx, eventsCh); err != nil {
 		log.Printf("failed to start session: %v", err)
 		if err := c.Close(err); err != nil {
 			return fmt.Errorf("%w:%w", ErrOnClose, err)
@@ -116,7 +112,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		return fmt.Errorf("%w:%w", ErrStartSession, err)
 	}
 
-	close(c.ready)
+	close(ctrlReady)
 
 	for {
 		select {
@@ -127,7 +123,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 			}
 			return fmt.Errorf("%w:%w", ErrContextDone, c.ctx.Err())
 
-		case ev := <-c.events:
+		case ev := <-eventsCh:
 			log.Printf("[sessionCtrl] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
 			c.handleEvent(ev)
 
@@ -146,17 +142,11 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 
 func (c *SessionController) handleEvent(ev sessionrunner.SessionRunnerEvent) {
 	switch ev.Type {
-	case sessionrunner.EvClosed:
-		log.Printf("[sessionCtrl] session %s EvClosed error: %v\r\n", ev.ID, ev.Err)
-		// c.onClosed(ev.Err)
 
 	case sessionrunner.EvError:
-		// log.Printf("[sessionCtrl] session %s EvError error: %v\r\n", ev.ID, ev.Err)
+		log.Printf("[sessionCtrl] session %s EvError error: %v\r\n", ev.ID, ev.Err)
 
-	case sessionrunner.EvData:
-		// optional metrics hook
-
-	case sessionrunner.EvSessionExited:
+	case sessionrunner.EvCmdExited:
 		log.Printf("[sessionCtrl] session %s EvSessionExited error: %v\r\n", ev.ID, ev.Err)
 		c.onClosed(ev.Err)
 	}
@@ -191,12 +181,8 @@ func (c *SessionController) onClosed(err error) {
 
 	if err != nil {
 		log.Printf("[sessionCtrl] session %s closed with error: %v\r\n", sr.ID(), err)
-		// _ = sr.Close(err)
-		// c.Close(err)
 	} else {
 		log.Printf("[sessionCtrl] session %s closed with unknown error\r\n", sr.ID())
-		// _ = sr.Close(nil)
-		// c.Close(nil)
 	}
 
 }

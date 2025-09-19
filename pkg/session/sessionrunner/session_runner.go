@@ -109,10 +109,8 @@ func NewSessionRunnerExec(spec *api.SessionSpec) SessionRunner {
 type SessionRunnerEventType int
 
 const (
-	EvData   SessionRunnerEventType = iota // optional metrics
-	EvClosed                               // PTY closed / child exited
-	EvError                                // abnormal error
-	EvSessionExited
+	EvError SessionRunnerEventType = iota // abnormal error
+	EvCmdExited
 )
 
 type SessionRunnerEvent struct {
@@ -378,7 +376,7 @@ func (s *SessionRunnerExec) waitOnSession() {
 		log.Printf("[session] cancelling context\r\n")
 		s.sessionCtxCancel()
 		log.Printf("[session] sending EvSessionExited event\r\n")
-		trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvSessionExited, Err: err, When: time.Now()})
+		trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvCmdExited, Err: err, When: time.Now()})
 		return
 	case <-s.sessionCtx.Done():
 		log.Printf("[session] ||||||||||||||session context has been closed\r\n")
@@ -545,16 +543,8 @@ func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File) {
 		// Handle read end/error
 		if err != nil {
 			log.Printf("[session] stdout closed %v:\r\n", err)
-			// Linux PTYs often return EIO when slave side closes — treat as normal close
-			if errors.Is(err, io.EOF) || errors.Is(err, syscall.EIO) {
-				trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvClosed, Err: err, When: time.Now()})
-			} else {
-				trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
-			}
-
+			trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
 			return
-
-			// return
 		}
 	}
 }
@@ -584,8 +574,6 @@ func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) {
 
 		if err != nil {
 			log.Printf("[session] stdin error: %v\r\n", err)
-			// stdin closed or fatal
-
 			trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
 			return
 		}
