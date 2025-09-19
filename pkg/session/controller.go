@@ -14,7 +14,7 @@ import (
 
 type SessionController struct {
 	ready  chan struct{}
-	events chan api.SessionEvent // fan-in from all sessions
+	events chan sessionrunner.SessionRunnerEvent // fan-in from all sessions
 	ctx    context.Context
 
 	close   chan error
@@ -33,7 +33,7 @@ var rpcDoneCh chan error = make(chan error)
 func NewSessionController(ctx context.Context, exit chan error) api.SessionController {
 	log.Printf("[sessionCtrl] New controller is being created\r\n")
 
-	events := make(chan api.SessionEvent, 32)
+	events := make(chan sessionrunner.SessionRunnerEvent, 32)
 
 	c := &SessionController{
 		ready:   make(chan struct{}),
@@ -136,19 +136,19 @@ func (c *SessionController) Run(spec *api.SessionSpec) {
 
 /* ---------- Event handlers ---------- */
 
-func (c *SessionController) handleEvent(ev api.SessionEvent) {
+func (c *SessionController) handleEvent(ev sessionrunner.SessionRunnerEvent) {
 	switch ev.Type {
-	case api.EvClosed:
+	case sessionrunner.EvClosed:
 		log.Printf("[sessionCtrl] session %s EvClosed error: %v\r\n", ev.ID, ev.Err)
 		c.onClosed(ev.Err)
 
-	case api.EvError:
+	case sessionrunner.EvError:
 		// log.Printf("[sessionCtrl] session %s EvError error: %v\r\n", ev.ID, ev.Err)
 
-	case api.EvData:
+	case sessionrunner.EvData:
 		// optional metrics hook
 
-	case api.EvSessionExited:
+	case sessionrunner.EvSessionExited:
 		log.Printf("[sessionCtrl] session %s EvSessionExited error: %v\r\n", ev.ID, ev.Err)
 		// c.onClosed(ev.Err)
 	}

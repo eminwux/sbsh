@@ -184,7 +184,7 @@ func Test_StartSessionFailed(t *testing.T) {
 			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- api.SessionEvent) error {
+			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
 				return fmt.Errorf("make start session fail")
 			},
 		}
@@ -233,7 +233,7 @@ func Test_ContextDone(t *testing.T) {
 			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- api.SessionEvent) error {
+			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
 				return nil
 			},
 		}
@@ -283,7 +283,7 @@ func Test_RPCServerDone(t *testing.T) {
 			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- api.SessionEvent) error {
+			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
 				return nil
 			},
 		}

@@ -25,7 +25,7 @@ import (
 type SessionRunner interface {
 	OpenSocketCtrl() (net.Listener, error)
 	StartServer(ctx context.Context, ln net.Listener, sc *sessionrpc.SessionControllerRPC, readyCh chan error, errCh chan error)
-	StartSession(ctx context.Context, evCh chan<- api.SessionEvent) error
+	StartSession(ctx context.Context, evCh chan<- SessionRunnerEvent) error
 	ID() api.SessionID
 	Close()
 	Resize(args api.ResizeArgs)
@@ -54,7 +54,7 @@ type SessionRunnerExec struct {
 	lastRead          time.Time
 
 	// signaling
-	evCh chan<- api.SessionEvent // fan-out to controller (send-only from session)
+	evCh chan<- SessionRunnerEvent // fan-out to controller (send-only from session)
 
 	listenerIO net.Listener
 	socketIO   string
@@ -104,6 +104,23 @@ func NewSessionRunnerExec(spec *api.SessionSpec) SessionRunner {
 		closing: make(chan struct{}, 1),
 		closed:  make(chan struct{}),
 	}
+}
+
+type SessionRunnerEventType int
+
+const (
+	EvData   SessionRunnerEventType = iota // optional metrics
+	EvClosed                               // PTY closed / child exited
+	EvError                                // abnormal error
+	EvSessionExited
+)
+
+type SessionRunnerEvent struct {
+	ID    api.SessionID
+	Type  SessionRunnerEventType
+	Bytes int   // for EvData
+	Err   error // for EvClosed/EvError
+	When  time.Time
 }
 
 func (sr *SessionRunnerExec) ID() api.SessionID {
@@ -201,7 +218,7 @@ func (sr *SessionRunnerExec) StartServer(ctx context.Context, ln net.Listener, s
 	}
 }
 
-func (sr *SessionRunnerExec) StartSession(ctx context.Context, evCh chan<- api.SessionEvent) error {
+func (sr *SessionRunnerExec) StartSession(ctx context.Context, evCh chan<- SessionRunnerEvent) error {
 
 	sr.evCh = evCh
 
@@ -361,7 +378,7 @@ func (s *SessionRunnerExec) waitOnSession() {
 		log.Printf("[session] cancelling context\r\n")
 		s.sessionCtxCancel()
 		log.Printf("[session] sending EvSessionExited event\r\n")
-		trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvSessionExited, Err: err, When: time.Now()})
+		trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvSessionExited, Err: err, When: time.Now()})
 		return
 	case <-s.sessionCtx.Done():
 		log.Printf("[session] ||||||||||||||session context has been closed\r\n")
@@ -524,9 +541,9 @@ func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File) {
 			log.Printf("[session] stdout closed %v:\r\n", err)
 			// Linux PTYs often return EIO when slave side closes — treat as normal close
 			if errors.Is(err, io.EOF) || errors.Is(err, syscall.EIO) {
-				trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvClosed, Err: err, When: time.Now()})
+				trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvClosed, Err: err, When: time.Now()})
 			} else {
-				trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: err, When: time.Now()})
+				trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
 			}
 
 			return
@@ -552,7 +569,7 @@ func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) {
 				// if _, werr := s.pty.Write(buf[:n]); werr != nil {
 				// WRITE TO PIPE
 				if _, werr := s.pty.Write(buf[:n]); werr != nil {
-					trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: werr, When: time.Now()})
+					trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: werr, When: time.Now()})
 					return
 				}
 			}
@@ -563,7 +580,7 @@ func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) {
 			log.Printf("[session] stdin error: %v\r\n", err)
 			// stdin closed or fatal
 
-			trySendEvent(s.evCh, api.SessionEvent{ID: s.id, Type: api.EvError, Err: err, When: time.Now()})
+			trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
 			return
 		}
 
@@ -588,7 +605,7 @@ func (s *SessionRunnerExec) Write(p []byte) (int, error) {
 }
 
 // helper: non-blocking event send so the PTY reader never stalls
-func trySendEvent(ch chan<- api.SessionEvent, ev api.SessionEvent) {
+func trySendEvent(ch chan<- SessionRunnerEvent, ev SessionRunnerEvent) {
 	log.Printf("[session] send event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
 
 	select {

@@ -10,7 +10,7 @@ import (
 type SessionRunnerTest struct {
 	OpenSocketCtrlFunc func() (net.Listener, error)
 	StartServerFunc    func(ctx context.Context, ln net.Listener, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error)
-	StartSessionFunc   func(ctx context.Context, evCh chan<- api.SessionEvent) error
+	StartSessionFunc   func(ctx context.Context, evCh chan<- SessionRunnerEvent) error
 	CloseFunc          func()
 	ResizeFunc         func(args api.ResizeArgs)
 	IDFunc             func() api.SessionID
@@ -32,7 +32,7 @@ func (sr *SessionRunnerTest) StartServer(ctx context.Context, ln net.Listener, s
 	}
 }
 
-func (sr *SessionRunnerTest) StartSession(ctx context.Context, evCh chan<- api.SessionEvent) error {
+func (sr *SessionRunnerTest) StartSession(ctx context.Context, evCh chan<- SessionRunnerEvent) error {
 	if sr.OpenSocketCtrlFunc != nil {
 		return sr.StartSessionFunc(ctx, evCh)
 	}
