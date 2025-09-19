@@ -9,7 +9,7 @@ type FakeSessionController struct {
 
 	AddedSpec *api.SessionSpec
 
-	RunFunc       func(spec *api.SessionSpec)
+	RunFunc       func(spec *api.SessionSpec) error
 	WaitReadyFunc func() error
 	WaitCloseFunc func() error
 	StatusFunc    func() string
@@ -17,23 +17,24 @@ type FakeSessionController struct {
 	ResizeFunc    func()
 }
 
-func (f *FakeSessionController) Run(spec *api.SessionSpec) {
+func (f *FakeSessionController) Run(spec *api.SessionSpec) error {
 	f.AddedSpec = spec
 	if f.RunFunc != nil {
-		f.RunFunc(spec)
+		return f.RunFunc(spec)
 	}
+	return ErrFuncNotSet
 }
 func (f *FakeSessionController) WaitReady() error {
 	if f.WaitReadyFunc != nil {
 		return f.WaitReadyFunc()
 	}
-	return nil
+	return ErrFuncNotSet
 }
 func (f *FakeSessionController) WaitClose() error {
 	if f.WaitCloseFunc != nil {
 		return f.WaitCloseFunc()
 	}
-	return nil
+	return ErrFuncNotSet
 }
 
 func (f *FakeSessionController) Status() string {
@@ -47,7 +48,7 @@ func (f *FakeSessionController) Close(reason error) error {
 	if f.CloseFunc != nil {
 		return f.CloseFunc(reason)
 	}
-	return nil
+	return ErrFuncNotSet
 }
 
 func (f *FakeSessionController) Resize(args api.ResizeArgs) {

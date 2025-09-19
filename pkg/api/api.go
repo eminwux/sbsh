@@ -15,7 +15,7 @@ type SupervisorController interface {
 /////////////// SESSION
 
 type SessionController interface {
-	Run(spec *SessionSpec)
+	Run(spec *SessionSpec) error
 	WaitReady() error
 	WaitClose() error
 	Status() string

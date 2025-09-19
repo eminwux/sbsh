@@ -26,7 +26,6 @@ var (
 )
 
 var newSessionController = session.NewSessionController
-var exit chan error = make(chan error)
 var ctx context.Context
 var cancel context.CancelFunc
 
@@ -81,7 +80,7 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
 	// Create a new Controller
 	var sessionCtrl api.SessionController
 
-	sessionCtrl = newSessionController(ctx, exit)
+	sessionCtrl = newSessionController(ctx, cancel)
 
 	go sessionCtrl.Run(&spec)
 
@@ -91,23 +90,13 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
 		return fmt.Errorf("%w: %w", ErrWaitOnReady, err)
 	}
 
-	select {
-	case <-ctx.Done():
-		log.Printf("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
-		if err := sessionCtrl.WaitClose(); err != nil {
-			return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
-		}
-		log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
-		return ErrContextCancelled
-
-	case err := <-exit:
-		if err != nil {
-			log.Printf("[sbsh-session] controller stopped with error: %v\r\n", err)
-			return fmt.Errorf("%w: %w", ErrExit, err)
-		}
-		log.Printf("[sbsh-session] normal shutdown\r\n")
-		return ErrGracefulExit
+	<-ctx.Done()
+	log.Printf("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
+	if err := sessionCtrl.WaitClose(); err != nil {
+		return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
 	}
+	log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
+	return ErrContextDone
 }
 
 func Execute() {

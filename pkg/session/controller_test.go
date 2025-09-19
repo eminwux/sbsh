@@ -12,7 +12,6 @@ import (
 	"sbsh/pkg/session/sessionrpc"
 	"sbsh/pkg/session/sessionrunner"
 	"testing"
-	"time"
 )
 
 type fakeListener struct{}
@@ -29,9 +28,9 @@ func (f *fakeListener) Addr() net.Addr {
 // use in test
 func newStubListener() net.Listener { return &fakeListener{} }
 
-func Test_EmptySpecCmd(t *testing.T) {
-	exitCh := make(chan error)
-	sessionCtrl := NewSessionController(context.Background(), exitCh)
+func Test_ErrSpecCmdMissing(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	sessionCtrl := NewSessionController(ctx, cancel)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -60,20 +59,20 @@ func Test_EmptySpecCmd(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	go sessionCtrl.Run(&spec)
+	exitCh := make(chan error)
+	go func(exitCh chan error) {
+		exitCh <- sessionCtrl.Run(&spec)
+	}(exitCh)
 
-	time.Sleep(100 * time.Millisecond)
-
-	message := "empty command in SessionSpec"
-	if !bytes.Contains(buf.Bytes(), []byte(message)) {
-		t.Fatalf("expected '"+message+"' in logs; got: %s", buf.String())
+	if err := <-exitCh; err != nil && !errors.Is(err, ErrSpecCmdMissing) {
+		t.Fatalf("expected '%v'; got: '%v'", ErrSpecCmdMissing, err)
 	}
 
 }
 
-func Test_OpenSocketCtrlError(t *testing.T) {
-	exitCh := make(chan error)
-	sessionCtrl := NewSessionController(context.Background(), exitCh)
+func Test_ErrOpenSocketCtrl(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	sessionCtrl := NewSessionController(ctx, cancel)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -102,20 +101,20 @@ func Test_OpenSocketCtrlError(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	go sessionCtrl.Run(&spec)
+	exitCh := make(chan error)
+	go func(exitCh chan error) {
+		exitCh <- sessionCtrl.Run(&spec)
+	}(exitCh)
 
-	time.Sleep(100 * time.Millisecond)
-
-	message := "could not open control socket"
-	if !bytes.Contains(buf.Bytes(), []byte(message)) {
-		t.Fatalf("expected '"+message+"' in logs; got: %s", buf.String())
+	if err := <-exitCh; err != nil && !errors.Is(err, ErrOpenSocketCtrl) {
+		t.Fatalf("expected '%v'; got: '%v'", ErrOpenSocketCtrl, err)
 	}
 
 }
 
-func Test_RPCServerNotReady(t *testing.T) {
-	exitCh := make(chan error)
-	sessionCtrl := NewSessionController(context.Background(), exitCh)
+func Test_ErrStartRPCServer(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	sessionCtrl := NewSessionController(ctx, cancel)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -147,20 +146,20 @@ func Test_RPCServerNotReady(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	go sessionCtrl.Run(&spec)
+	exitCh := make(chan error)
+	go func(exitCh chan error) {
+		exitCh <- sessionCtrl.Run(&spec)
+	}(exitCh)
 
-	time.Sleep(100 * time.Millisecond)
-
-	message := "failed to start server"
-	if !bytes.Contains(buf.Bytes(), []byte(message)) {
-		t.Fatalf("expected '"+message+"' in logs; got: %s", buf.String())
+	if err := <-exitCh; err != nil && !errors.Is(err, ErrStartRPCServer) {
+		t.Fatalf("expected '%v'; got: '%v'", ErrStartRPCServer, err)
 	}
 
 }
 
-func Test_StartSessionFailed(t *testing.T) {
-	exitCh := make(chan error)
-	sessionCtrl := NewSessionController(context.Background(), exitCh)
+func Test_ErrStartSession(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	sessionCtrl := NewSessionController(ctx, cancel)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -195,21 +194,20 @@ func Test_StartSessionFailed(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	go sessionCtrl.Run(&spec)
+	exitCh := make(chan error)
+	go func(exitCh chan error) {
+		exitCh <- sessionCtrl.Run(&spec)
+	}(exitCh)
 
-	time.Sleep(100 * time.Millisecond)
-
-	message := "failed to start session"
-	if !bytes.Contains(buf.Bytes(), []byte(message)) {
-		t.Fatalf("expected '"+message+"' in logs; got: %s", buf.String())
+	if err := <-exitCh; err != nil && !errors.Is(err, ErrStartSession) {
+		t.Fatalf("expected '%v'; got: '%v'", ErrStartSession, err)
 	}
 
 }
 
-func Test_ContextDone(t *testing.T) {
-	exitCh := make(chan error)
+func Test_ErrContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx, exitCh)
+	sessionCtrl := NewSessionController(ctx, cancel)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -244,22 +242,22 @@ func Test_ContextDone(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	go sessionCtrl.Run(&spec)
+	exitCh := make(chan error)
+	go func(exitCh chan error) {
+		exitCh <- sessionCtrl.Run(&spec)
+	}(exitCh)
 
-	time.Sleep(10 * time.Millisecond)
 	cancel()
-	time.Sleep(10 * time.Millisecond)
 
-	message := "parent context channel has been closed"
-	if !bytes.Contains(buf.Bytes(), []byte(message)) {
-		t.Fatalf("expected '"+message+"' in logs; got: %s", buf.String())
+	if err := <-exitCh; err != nil && !errors.Is(err, ErrContextDone) {
+		t.Fatalf("expected '%v'; got: '%v'", ErrContextDone, err)
 	}
 
 }
 
-func Test_RPCServerDone(t *testing.T) {
-	exitCh := make(chan error)
-	sessionCtrl := NewSessionController(context.Background(), exitCh)
+func Test_ErrRPCServerExited(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	sessionCtrl := NewSessionController(ctx, cancel)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -295,15 +293,16 @@ func Test_RPCServerDone(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	rpcDoneCh = make(chan error)
-	go sessionCtrl.Run(&spec)
 
-	time.Sleep(10 * time.Millisecond)
+	exitCh := make(chan error)
+	go func(exitCh chan error) {
+		exitCh <- sessionCtrl.Run(&spec)
+	}(exitCh)
+
 	rpcDoneCh <- fmt.Errorf("make rpc server exit with error")
-	time.Sleep(10 * time.Millisecond)
 
-	message := "rpc server has failed"
-	if !bytes.Contains(buf.Bytes(), []byte(message)) {
-		t.Fatalf("expected '"+message+"' in logs; got: %s", buf.String())
+	if err := <-exitCh; err != nil && !errors.Is(err, ErrRPCServerExited) {
+		t.Fatalf("expected '%v'; got: '%v'", ErrRPCServerExited, err)
 	}
 
 }

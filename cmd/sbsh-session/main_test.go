@@ -16,10 +16,10 @@ import (
 
 func TestRunSession_ErrContextCancelled(t *testing.T) {
 	orig := newSessionController
-	newSessionController = func(ctx context.Context, exit chan error) api.SessionController {
+	newSessionController = func(ctx context.Context, cancel context.CancelFunc) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          make(chan error),
-			RunFunc:       func(spec *api.SessionSpec) {},
+			RunFunc:       func(spec *api.SessionSpec) error { return nil },
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() error { return nil },
 			StatusFunc:    func() string { return "" },
@@ -38,8 +38,8 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 
 	select {
 	case err := <-done:
-		if err != nil && !errors.Is(err, ErrContextCancelled) {
-			t.Fatalf("expected '%v'; got: '%v'", ErrContextCancelled, err)
+		if err != nil && !errors.Is(err, ErrContextDone) {
+			t.Fatalf("expected '%v'; got: '%v'", ErrContextDone, err)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for runSession to return after SIGTERM")
@@ -49,10 +49,10 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 
 func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	orig := newSessionController
-	newSessionController = func(ctx context.Context, exit chan error) api.SessionController {
+	newSessionController = func(ctx context.Context, cancel context.CancelFunc) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          make(chan error),
-			RunFunc:       func(spec *api.SessionSpec) {},
+			RunFunc:       func(spec *api.SessionSpec) error { return nil },
 			WaitReadyFunc: func() error { return fmt.Errorf("not ready") },
 			WaitCloseFunc: func() error { return nil },
 		}
@@ -72,10 +72,10 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 
 func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	orig := newSessionController
-	newSessionController = func(ctx context.Context, exit chan error) api.SessionController {
+	newSessionController = func(ctx context.Context, cancel context.CancelFunc) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          make(chan error),
-			RunFunc:       func(spec *api.SessionSpec) {},
+			RunFunc:       func(spec *api.SessionSpec) error { return nil },
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() error { return fmt.Errorf("error on close") },
 		}
@@ -99,71 +99,5 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 
 	if err := <-exitCh; err != nil && !errors.Is(err, ErrWaitOnClose) {
 		t.Fatalf("expected '%v'; got: '%v'", ErrWaitOnClose, err)
-	}
-}
-
-func TestRunSession_ErrGracefulClose(t *testing.T) {
-	orig := newSessionController
-	newSessionController = func(ctx context.Context, exit chan error) api.SessionController {
-		return &session.FakeSessionController{
-			Exit:          make(chan error),
-			RunFunc:       func(spec *api.SessionSpec) {},
-			WaitReadyFunc: func() error { return nil },
-			WaitCloseFunc: func() error { return nil },
-		}
-	}
-
-	t.Cleanup(func() { newSessionController = orig })
-
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
-
-	exitCh := make(chan error)
-
-	go func(exitCh chan error) {
-		exitCh <- runSession("s-wre", "/bin/true", nil)
-	}(exitCh)
-
-	time.Sleep(20 * time.Millisecond)
-	exit <- nil
-	time.Sleep(20 * time.Millisecond)
-
-	if err := <-exitCh; err != nil && !errors.Is(err, ErrGracefulExit) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrGracefulExit, err)
-	}
-}
-
-func TestRunSession_ErrOnClose(t *testing.T) {
-	orig := newSessionController
-	newSessionController = func(ctx context.Context, exit chan error) api.SessionController {
-		return &session.FakeSessionController{
-			Exit:          make(chan error),
-			RunFunc:       func(spec *api.SessionSpec) {},
-			WaitReadyFunc: func() error { return nil },
-			WaitCloseFunc: func() error { return nil },
-			ResizeFunc:    func() {},
-		}
-	}
-
-	t.Cleanup(func() { newSessionController = orig })
-
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
-
-	exitCh := make(chan error)
-	go func(exitCh chan error) {
-		exitCh <- runSession("s-wre", "/bin/true", nil)
-	}(exitCh)
-
-	time.Sleep(20 * time.Millisecond)
-	exit <- fmt.Errorf("error in controller")
-	time.Sleep(20 * time.Millisecond)
-
-	if err := <-exitCh; err != nil && !errors.Is(err, ErrExit) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrExit, err)
 	}
 }
