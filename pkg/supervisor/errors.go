@@ -11,3 +11,5 @@ var ErrRPCServerExited = errors.New("RPC Server exited with error")
 var ErrOnClose = errors.New("error closing")
 
 var ErrCloseReq = errors.New("close requested")
+
+var ErrSessionManager = errors.New("error in session manager")

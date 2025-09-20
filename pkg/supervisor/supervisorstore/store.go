@@ -8,7 +8,7 @@ import (
 )
 
 type SessionManager interface {
-	Add(s *SupervisedSession)
+	Add(s *SupervisedSession) error
 	Get(id api.SessionID) (*SupervisedSession, bool)
 	ListLive() []api.SessionID
 	Remove(id api.SessionID)
@@ -59,13 +59,17 @@ func NewSupervisedSession(spec *api.SessionSpec) *SupervisedSession {
 
 /* Basic ops */
 
-func (m *SessionManagerExec) Add(s *SupervisedSession) {
+func (m *SessionManagerExec) Add(s *SupervisedSession) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.sessions[s.Id] != nil {
+		return ErrSessionExists
+	}
 	m.sessions[s.Id] = s
 	if m.current == "" {
 		m.current = s.Id
 	}
+	return nil
 }
 
 func (m *SessionManagerExec) Get(id api.SessionID) (*SupervisedSession, bool) {

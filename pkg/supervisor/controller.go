@@ -108,8 +108,9 @@ func (s *SupervisorController) Run() error {
 	}
 
 	session := supervisorstore.NewSupervisedSession(sessionSpec)
-	sm.Add(session)
-	s.SetCurrentSession(api.SessionID(sessionID))
+	if err := sm.Add(session); err != nil {
+		return fmt.Errorf("%w:%w", ErrSessionManager, err)
+	}
 
 	if err := sr.StartSupervisor(s.ctx, eventsCh, session); err != nil {
 		log.Printf("failed to start session: %v", err)
