@@ -59,7 +59,7 @@ func runSupervisor() error {
 
 	// Run controller
 	go func() {
-		errCh <- ctrl.Run(ctx) // Run should return when ctx is canceled
+		errCh <- ctrl.Run() // Run should return when ctx is canceled
 		log.Printf("[sbsh] controller stopped\r\n")
 	}()
 

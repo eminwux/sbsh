@@ -171,7 +171,7 @@ func (s *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- 
 	cmd.Env = os.Environ()
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("spawn session: %w", err)
+		return fmt.Errorf("%w:%w", ErrSessionCmdStart, err)
 	}
 
 	// you can return cmd.Process.Pid to record in meta.json

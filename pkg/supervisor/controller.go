@@ -32,10 +32,8 @@ var newSessionManager = supervisorstore.NewSessionManagerExec
 var sm supervisorstore.SessionManager
 
 var ctrlReady chan struct{} = make(chan struct{})
-
 var rpcReadyCh chan error = make(chan error)
 var rpcDoneCh chan error = make(chan error)
-
 var closeReqCh chan error = make(chan error, 1)
 var eventsCh chan supervisorrunner.SupervisorRunnerEvent = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
 
@@ -44,6 +42,7 @@ func NewSupervisorController(ctx context.Context) api.SupervisorController {
 	log.Printf("[supervisor] New controller is being created\r\n")
 
 	c := &SupervisorController{
+		ctx:     ctx,
 		closed:  make(chan struct{}),
 		closing: make(chan error, 1),
 	}
@@ -60,20 +59,19 @@ func (s *SupervisorController) WaitReady(ctx context.Context) error {
 }
 
 // Run is the main orchestration loop. It owns all mode transitions.
-func (s *SupervisorController) Run(ctx context.Context) error {
-	s.ctx = ctx
+func (s *SupervisorController) Run() error {
 	s.exit = make(chan struct{})
 	log.Println("[supervisor] Starting controller loop")
 	defer log.Printf("[supervisor] controller stopped\r\n")
 
-	sr = newSupervisorRunner(ctx)
+	sr = newSupervisorRunner(s.ctx)
 	sm = newSessionManager()
 
 	ctrlLn, err := sr.OpenSocketCtrl()
 	if err != nil {
 		log.Printf("could not open control socket: %v", err)
 		if err := s.Close(err); err != nil {
-			return fmt.Errorf("%w:%w", ErrOnClose, err)
+			err = fmt.Errorf("%w:%w", ErrOnClose, err)
 		}
 		return fmt.Errorf("%w:%w", ErrOpenSocketCtrl, err)
 	}
@@ -85,6 +83,9 @@ func (s *SupervisorController) Run(ctx context.Context) error {
 	// Wait for startup result
 	if err := <-rpcReadyCh; err != nil {
 		// failed to start — handle and return
+		if errC := s.Close(err); errC != nil {
+			err = fmt.Errorf("%w:%w:%w", err, ErrOnClose, errC)
+		}
 		log.Printf("failed to start server: %v", err)
 		return fmt.Errorf("%w:%w", ErrStartRPCServer, err)
 	}
@@ -113,7 +114,7 @@ func (s *SupervisorController) Run(ctx context.Context) error {
 	if err := sr.StartSupervisor(s.ctx, eventsCh, session); err != nil {
 		log.Printf("failed to start session: %v", err)
 		if err := s.Close(err); err != nil {
-			return fmt.Errorf("%w:%w", ErrOnClose, err)
+			err = fmt.Errorf("%w:%w", ErrOnClose, err)
 		}
 		return fmt.Errorf("%w:%w", ErrStartSession, err)
 	}
@@ -121,12 +122,13 @@ func (s *SupervisorController) Run(ctx context.Context) error {
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-s.ctx.Done():
+			var err error
 			log.Printf("[supervisor] parent context channel has been closed\r\n")
-			if err := s.Close(s.ctx.Err()); err != nil {
-				return fmt.Errorf("%w:%w", ErrOnClose, err)
+			if errC := s.Close(s.ctx.Err()); errC != nil {
+				err = fmt.Errorf("%w:%w", ErrOnClose, errC)
 			}
-			return fmt.Errorf("%w:%w", ErrContextDone, s.ctx.Err())
+			return fmt.Errorf("%w:%w", ErrContextDone, err)
 
 		case ev := <-eventsCh:
 			log.Printf("[supervisor] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
@@ -135,9 +137,9 @@ func (s *SupervisorController) Run(ctx context.Context) error {
 		case err := <-rpcDoneCh:
 			log.Printf("[supervisor] rpc server has failed: %v\r\n", err)
 			if err := s.Close(err); err != nil {
-				return fmt.Errorf("%w:%w", ErrOnClose, err)
+				err = fmt.Errorf("%w:%w:%w", err, ErrOnClose, err)
 			}
-			return fmt.Errorf("%w:%w", ErrRPCServerExited, s.ctx.Err())
+			return fmt.Errorf("%w:%w", ErrRPCServerExited, err)
 
 		case err := <-closeReqCh:
 			log.Printf("[supervisor] close request received: %v\r\n", err)

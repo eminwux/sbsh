@@ -18,7 +18,7 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 	orig := newSupervisorController
 	newSupervisorController = func(ctx context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
-			RunFunc: func(ctx context.Context) error {
+			RunFunc: func() error {
 				// default: succeed without doing anything
 				return nil
 			},
@@ -65,7 +65,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	orig := newSupervisorController
 	newSupervisorController = func(ctx context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
-			RunFunc: func(ctx context.Context) error {
+			RunFunc: func() error {
 				// default: succeed without doing anything
 				return nil
 			},
@@ -106,7 +106,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	orig := newSupervisorController
 	newSupervisorController = func(ctx context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
-			RunFunc: func(ctx context.Context) error {
+			RunFunc: func() error {
 				// default: succeed without doing anything
 				return nil
 			},
@@ -146,7 +146,7 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 	orig := newSupervisorController
 	newSupervisorController = func(ctx context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
-			RunFunc: func(ctx context.Context) error {
+			RunFunc: func() error {
 				// default: succeed without doing anything
 				return fmt.Errorf("force child exit")
 			},

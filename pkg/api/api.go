@@ -6,7 +6,7 @@ import (
 )
 
 type SupervisorController interface {
-	Run(ctx context.Context) error
+	Run() error
 	WaitReady(ctx context.Context) error
 	SetCurrentSession(id SessionID) error
 	Close(reason error) error

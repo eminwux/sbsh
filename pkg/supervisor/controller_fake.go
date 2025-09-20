@@ -20,7 +20,7 @@ type SupervisorControllerTest struct {
 	LastID  api.SessionID
 
 	// Stub functions (set these in tests)
-	RunFunc             func(ctx context.Context) error
+	RunFunc             func() error
 	WaitReadyFunc       func(ctx context.Context) error
 	SetCurrentSessionFn func(id api.SessionID) error
 	StartFunc           func() error
@@ -31,7 +31,7 @@ type SupervisorControllerTest struct {
 // (Optional) constructor with zeroed fields.
 func NewSupervisorControllerTest() *SupervisorControllerTest {
 	return &SupervisorControllerTest{
-		RunFunc: func(ctx context.Context) error {
+		RunFunc: func() error {
 			// default: succeed without doing anything
 			return nil
 		},
@@ -50,10 +50,9 @@ func NewSupervisorControllerTest() *SupervisorControllerTest {
 	}
 }
 
-func (t *SupervisorControllerTest) Run(ctx context.Context) error {
-	t.LastCtx = ctx
+func (t *SupervisorControllerTest) Run() error {
 	if t.RunFunc != nil {
-		return t.RunFunc(ctx)
+		return t.RunFunc()
 	}
 	return ErrFuncNotSet
 }
