@@ -24,7 +24,7 @@ import (
 
 type SessionRunner interface {
 	OpenSocketCtrl() (net.Listener, error)
-	StartServer(ctx context.Context, ln net.Listener, sc *sessionrpc.SessionControllerRPC, readyCh chan error, errCh chan error)
+	StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, errCh chan error)
 	StartSession(ctx context.Context, evCh chan<- SessionRunnerEvent) error
 	ID() api.SessionID
 	Close(reason error) error
@@ -56,7 +56,9 @@ type SessionRunnerExec struct {
 	// signaling
 	evCh chan<- SessionRunnerEvent // fan-out to controller (send-only from session)
 
-	listenerIO net.Listener
+	listenerIO   net.Listener
+	listenerCtrl net.Listener
+
 	socketIO   string
 	socketCtrl string
 
@@ -153,6 +155,9 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() (net.Listener, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listen ctrl: %w", err)
 	}
+
+	sr.listenerCtrl = ctrlLn
+
 	if err := os.Chmod(sr.socketCtrl, 0o600); err != nil {
 		ctrlLn.Close()
 		return nil, err
@@ -162,10 +167,14 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() (net.Listener, error) {
 
 	return ctrlLn, nil
 }
-func (sr *SessionRunnerExec) StartServer(ctx context.Context, ln net.Listener, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+func (sr *SessionRunnerExec) StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
 	defer func() {
 		// Ensure ln is closed and no leaks on exit
-		_ = ln.Close()
+		_ = sr.listenerCtrl.Close()
+	}()
+	go func() {
+		<-ctx.Done()
+		_ = sr.listenerCtrl.Close()
 	}()
 
 	srv := rpc.NewServer()
@@ -188,13 +197,9 @@ func (sr *SessionRunnerExec) StartServer(ctx context.Context, ln net.Listener, s
 	close(readyCh)
 
 	// stop accepting when ctx is canceled.
-	go func() {
-		<-ctx.Done()
-		_ = ln.Close()
-	}()
 
 	for {
-		conn, err := ln.Accept()
+		conn, err := sr.listenerCtrl.Accept()
 		if err != nil {
 			// Normal path: listener closed by ctx cancel
 			if errors.Is(err, net.ErrClosed) || ctx.Err() != nil {
@@ -468,10 +473,17 @@ func (s *SessionRunnerExec) Close(reason error) error {
 	s.closing <- struct{}{}
 
 	// stop accepting
+	if s.listenerCtrl != nil {
+		if err := s.listenerCtrl.Close(); err != nil {
+			log.Printf("[sesion] could not close IO listener: %v", err)
+			// return err
+		}
+	}
+	// stop accepting
 	if s.listenerIO != nil {
 		if err := s.listenerIO.Close(); err != nil {
 			log.Printf("[sesion] could not close IO listener: %v", err)
-			return err
+			// return err
 		}
 	}
 
@@ -480,7 +492,7 @@ func (s *SessionRunnerExec) Close(reason error) error {
 	for _, c := range s.clients {
 		if err := c.conn.Close(); err != nil {
 			log.Printf("[sesion] could not close connection: %v\r\n", err)
-			return err
+			// return err
 		}
 	}
 
@@ -491,20 +503,20 @@ func (s *SessionRunnerExec) Close(reason error) error {
 	if s.cmd != nil && s.cmd.Process != nil {
 		if err := s.cmd.Process.Kill(); err != nil {
 			log.Printf("[sesion] could not kill cmd: %v\r\n", err)
-			return err
+			// return err
 		}
 	}
 	if s.pty != nil {
 		if err := s.pty.Close(); err != nil {
 			log.Printf("[sesion] could not close pty: %v\r\n", err)
-			return err
+			// return err
 		}
 	}
 
 	// remove sockets and dir
 	if err := os.Remove(s.socketIO); err != nil {
 		log.Printf("[session] couldn't remove IO socket: %s: %v\r\n", s.socketIO, err)
-		return err
+		// return err
 	}
 
 	// remove Ctrl socket

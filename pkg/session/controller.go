@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"sbsh/pkg/api"
 	"sbsh/pkg/session/sessionrpc"
 	"sbsh/pkg/session/sessionrunner"
@@ -17,9 +16,6 @@ type SessionController struct {
 	closed  chan struct{}
 	closing chan error
 	cancel  context.CancelFunc
-
-	socketCtrl   string
-	listenerCtrl net.Listener
 }
 
 var newSessionRunner = sessionrunner.NewSessionRunnerExec
@@ -83,7 +79,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 
 	log.Println("[sessionCtrl] Starting controller loop")
 
-	ctrlLn, err := sr.OpenSocketCtrl()
+	_, err := sr.OpenSocketCtrl()
 	if err != nil {
 		log.Printf("could not open control socket: %v", err)
 		if err := c.Close(err); err != nil {
@@ -92,10 +88,10 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		return fmt.Errorf("%w:%w", ErrOpenSocketCtrl, err)
 	}
 
-	c.listenerCtrl = ctrlLn
+	// c.listenerCtrl = ctrlLn
 
 	rpc := &sessionrpc.SessionControllerRPC{Core: c}
-	go sr.StartServer(c.ctx, c.listenerCtrl, rpc, rpcReadyCh, rpcDoneCh)
+	go sr.StartServer(c.ctx, rpc, rpcReadyCh, rpcDoneCh)
 	// Wait for startup result
 	if err := <-rpcReadyCh; err != nil {
 		// failed to start — handle and return
