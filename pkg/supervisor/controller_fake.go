@@ -24,6 +24,30 @@ type SupervisorControllerTest struct {
 	WaitReadyFunc       func(ctx context.Context) error
 	SetCurrentSessionFn func(id api.SessionID) error
 	StartFunc           func() error
+	CloseFunc           func(reason error) error
+	WaitCloseFunc       func() error
+}
+
+// (Optional) constructor with zeroed fields.
+func NewSupervisorControllerTest() *SupervisorControllerTest {
+	return &SupervisorControllerTest{
+		RunFunc: func(ctx context.Context) error {
+			// default: succeed without doing anything
+			return nil
+		},
+		WaitReadyFunc: func(ctx context.Context) error {
+			// default: succeed immediately
+			return nil
+		},
+		SetCurrentSessionFn: func(id api.SessionID) error {
+			// default: just accept the ID
+			return nil
+		},
+		StartFunc: func() error {
+			// default: succeed immediately
+			return nil
+		},
+	}
 }
 
 func (t *SupervisorControllerTest) Run(ctx context.Context) error {
@@ -55,25 +79,10 @@ func (t *SupervisorControllerTest) Start() error {
 	}
 	return ErrFuncNotSet
 }
+func (s *SupervisorControllerTest) Close(reason error) error {
+	return nil
+}
 
-// (Optional) constructor with zeroed fields.
-func NewSupervisorControllerTest() *SupervisorControllerTest {
-	return &SupervisorControllerTest{
-		RunFunc: func(ctx context.Context) error {
-			// default: succeed without doing anything
-			return nil
-		},
-		WaitReadyFunc: func(ctx context.Context) error {
-			// default: succeed immediately
-			return nil
-		},
-		SetCurrentSessionFn: func(id api.SessionID) error {
-			// default: just accept the ID
-			return nil
-		},
-		StartFunc: func() error {
-			// default: succeed immediately
-			return nil
-		},
-	}
+func (s *SupervisorControllerTest) WaitClose() error {
+	return nil
 }

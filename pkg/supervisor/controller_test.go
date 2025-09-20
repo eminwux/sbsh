@@ -30,19 +30,9 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 	// ctx, cancel := context.WithCancel(context.Background())
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	// Define a new Session
-	// spec := api.SessionSpec{
-	// 	ID:          api.SessionID("abcdef"),
-	// 	Kind:        api.SessLocal,
-	// 	Label:       "default",
-	// 	Command:     "",
-	// 	CommandArgs: nil,
-	// 	Env:         os.Environ(),
-	// 	LogDir:      "/tmp/sbsh-logs/s0",
-	// }
-
-	newSupervisorRunner = func(spec *api.SessionSpec) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(ctx context.Context) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
+			Ctx: ctx,
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				// default: return nil listener and nil error
 				return nil, nil

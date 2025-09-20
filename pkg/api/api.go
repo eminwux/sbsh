@@ -9,7 +9,8 @@ type SupervisorController interface {
 	Run(ctx context.Context) error
 	WaitReady(ctx context.Context) error
 	SetCurrentSession(id SessionID) error
-	Start() error
+	Close(reason error) error
+	WaitClose() error
 }
 
 /////////////// SESSION

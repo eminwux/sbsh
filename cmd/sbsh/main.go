@@ -60,6 +60,7 @@ func runSupervisor() error {
 	// Run controller
 	go func() {
 		errCh <- ctrl.Run(ctx) // Run should return when ctx is canceled
+		log.Printf("[sbsh] controller stopped\r\n")
 	}()
 
 	// block until controller is ready (or ctx cancels)
@@ -68,19 +69,23 @@ func runSupervisor() error {
 		return fmt.Errorf("%w: %w", ErrWaitOnReady, err)
 	}
 
-	// Start new session
-	if err := ctrl.Start(); err != nil {
-		log.Fatalf("failed to start session: %v", err)
-	}
-
 	select {
 	case <-ctx.Done():
+		log.Printf("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
+		if err := ctrl.WaitClose(); err != nil {
+			return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
+		}
+		log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
+
 		return ErrContextDone
 	case err := <-errCh:
+		log.Printf("[sbsh] controller stopped with error: %v\r\n", err)
 		if err != nil && !errors.Is(err, context.Canceled) {
-			log.Printf("controller stopped with error: %v\r\n", err)
+			if err := ctrl.WaitClose(); err != nil {
+				return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
+			}
+			log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
 			return fmt.Errorf("%w: %w", ErrChildExit, err)
-
 		}
 	}
 
