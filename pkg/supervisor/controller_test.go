@@ -136,7 +136,6 @@ func Test_ErrStartRPCServer(t *testing.T) {
 }
 
 func Test_ErrStartSession(t *testing.T) {
-	// ctx, cancel := context.WithCancel(context.Background())
 	sessionCtrl := NewSupervisorController(context.Background())
 
 	newSupervisorRunner = func(ctx context.Context) supervisorrunner.SupervisorRunner {

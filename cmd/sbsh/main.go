@@ -71,11 +71,11 @@ func runSupervisor() error {
 
 	select {
 	case <-ctx.Done():
-		log.Printf("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
+		log.Printf("[sbsh] context canceled, waiting on sessionCtrl to exit\r\n")
 		if err := ctrl.WaitClose(); err != nil {
 			return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
 		}
-		log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
+		log.Printf("[sbsh] context canceled, sessionCtrl exited\r\n")
 
 		return ErrContextDone
 	case err := <-errCh:
