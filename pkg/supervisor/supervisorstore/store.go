@@ -14,7 +14,6 @@ type SessionManager interface {
 	Remove(id api.SessionID)
 	Current() api.SessionID
 	SetCurrent(id api.SessionID) error
-	StopSession(id api.SessionID) error
 }
 
 type SessionManagerExec struct {
@@ -108,24 +107,5 @@ func (m *SessionManagerExec) SetCurrent(id api.SessionID) error {
 		return errors.New("unknown session id")
 	}
 	m.current = id
-	return nil
-}
-
-func (m *SessionManagerExec) StopSession(id api.SessionID) error {
-	m.mu.Lock()
-	_, ok := m.sessions[id]
-	m.mu.Unlock()
-	if !ok {
-		return errors.New("unknown session id")
-	} else {
-
-		// if err := sess.Close(); err != nil {
-		// 	log.Fatalf("failed to stop session: %v", err)
-		// 	return err
-		// }
-
-		m.Remove(id)
-
-	}
 	return nil
 }
