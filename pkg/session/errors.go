@@ -11,3 +11,5 @@ var ErrStartSession = errors.New("error starting session")
 var ErrContextDone = errors.New("context has been cancelled")
 var ErrRPCServerExited = errors.New("RPC Server exited with error")
 var ErrOnClose = errors.New("error closing")
+
+var ErrCloseReq = errors.New("close requested")

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
-	"path/filepath"
 	"sbsh/pkg/api"
 	"sbsh/pkg/session/sessionrpc"
 	"sbsh/pkg/session/sessionrunner"
@@ -30,6 +28,7 @@ var rpcReadyCh chan error = make(chan error)
 var rpcDoneCh chan error = make(chan error)
 var ctrlReady chan struct{} = make(chan struct{})
 var eventsCh chan sessionrunner.SessionRunnerEvent = make(chan sessionrunner.SessionRunnerEvent, 32)
+var closeReqCh chan error = make(chan error, 1)
 
 // NewSessionController wires the manager and the shared event channel from sessions.
 func NewSessionController(ctx context.Context, cancel context.CancelFunc) api.SessionController {
@@ -117,11 +116,12 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 	for {
 		select {
 		case <-c.ctx.Done():
-			log.Printf("[sessionCtrl] parent context channel has been closed\r\n")
-			if err := c.Close(c.ctx.Err()); err != nil {
-				return fmt.Errorf("%w:%w", ErrOnClose, err)
+			var err error
+			log.Printf("[supervisor] parent context channel has been closed\r\n")
+			if errC := c.Close(c.ctx.Err()); errC != nil {
+				err = fmt.Errorf("%w:%w", ErrOnClose, errC)
 			}
-			return fmt.Errorf("%w:%w", ErrContextDone, c.ctx.Err())
+			return fmt.Errorf("%w:%w", ErrContextDone, err)
 
 		case ev := <-eventsCh:
 			log.Printf("[sessionCtrl] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
@@ -133,6 +133,17 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 				return fmt.Errorf("%w:%w", ErrOnClose, err)
 			}
 			return fmt.Errorf("%w:%w", ErrRPCServerExited, c.ctx.Err())
+
+		case err := <-rpcDoneCh:
+			log.Printf("[supervisor] rpc server has failed: %v\r\n", err)
+			if err := c.Close(err); err != nil {
+				err = fmt.Errorf("%w:%w:%w", err, ErrOnClose, err)
+			}
+			return fmt.Errorf("%w:%w", ErrRPCServerExited, err)
+
+		case err := <-closeReqCh:
+			log.Printf("[supervisor] close request received: %v\r\n", err)
+			return fmt.Errorf("%w:%w", ErrCloseReq, err)
 		}
 	}
 
@@ -153,37 +164,20 @@ func (c *SessionController) handleEvent(ev sessionrunner.SessionRunnerEvent) {
 }
 
 func (c *SessionController) Close(reason error) error {
+
+	log.Printf("[session] Close called: %v\r\n", reason)
 	c.closing <- reason
-
-	// remove Ctrl socket
-	if _, err := os.Stat(c.socketCtrl); err != nil && !os.IsNotExist(err) {
-		if err := os.Remove(c.socketCtrl); err != nil {
-			log.Printf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", c.socketCtrl, err)
-		}
-	}
-
-	// remove whole session dir
-	dir := filepath.Dir(c.socketCtrl)
-	if _, err := os.Stat(dir); err != nil && !os.IsNotExist(err) {
-		if err := os.RemoveAll(dir); err != nil {
-			log.Printf("[sessionCtrl] couldn't remove directory: %s, error: %v\r\n", dir, err)
-		}
-	}
-
+	closeReqCh <- reason
+	log.Printf("[session] error sent to closeReqCh: %v\r\n", reason)
+	sr.Close(reason)
 	close(c.closed)
 
 	return nil
 }
 
 func (c *SessionController) onClosed(err error) {
-
-	c.cancel()
-
-	if err != nil {
-		log.Printf("[sessionCtrl] session %s closed with error: %v\r\n", sr.ID(), err)
-	} else {
-		log.Printf("[sessionCtrl] session %s closed with unknown error\r\n", sr.ID())
-	}
+	fmt.Printf("[sessionCtrl] onClosed triggered")
+	c.Close(err)
 
 }
 

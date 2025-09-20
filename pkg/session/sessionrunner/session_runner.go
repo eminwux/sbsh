@@ -58,6 +58,7 @@ type SessionRunnerExec struct {
 
 	listenerIO net.Listener
 	socketIO   string
+	socketCtrl string
 
 	clientsMu sync.RWMutex
 	clients   map[int]*ioClient
@@ -138,21 +139,21 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() (net.Listener, error) {
 		return nil, fmt.Errorf("mkdir session dir: %w", err)
 	}
 
-	socketCtrl := filepath.Join(runPath, "ctrl.sock")
-	log.Printf("[sessionCtrl] CTRL socket: %s", socketCtrl)
+	sr.socketCtrl = filepath.Join(runPath, "ctrl.sock")
+	log.Printf("[sessionCtrl] CTRL socket: %s", sr.socketCtrl)
 
 	// Remove sockets if they already exist
 	// remove sockets and dir
-	if err := os.Remove(socketCtrl); err != nil {
-		log.Printf("[sessionCtrl] couldn't remove stale CTRL socket: %s\r\n", socketCtrl)
+	if err := os.Remove(sr.socketCtrl); err != nil {
+		log.Printf("[sessionCtrl] couldn't remove stale CTRL socket: %s\r\n", sr.socketCtrl)
 	}
 
 	// Listen to CONTROL SOCKET
-	ctrlLn, err := net.Listen("unix", socketCtrl)
+	ctrlLn, err := net.Listen("unix", sr.socketCtrl)
 	if err != nil {
 		return nil, fmt.Errorf("listen ctrl: %w", err)
 	}
-	if err := os.Chmod(socketCtrl, 0o600); err != nil {
+	if err := os.Chmod(sr.socketCtrl, 0o600); err != nil {
 		ctrlLn.Close()
 		return nil, err
 	}
@@ -372,16 +373,12 @@ func (s *SessionRunnerExec) waitOnSession() {
 	select {
 	case err := <-s.close:
 		s.Close(err)
-		// s.WaitClose()
-		log.Printf("[session] cancelling context\r\n")
-		s.sessionCtxCancel()
 		log.Printf("[session] sending EvSessionExited event\r\n")
 		trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvCmdExited, Err: err, When: time.Now()})
 		return
 	case <-s.sessionCtx.Done():
 		log.Printf("[session] ||||||||||||||session context has been closed\r\n")
 		s.Close(s.sessionCtx.Err())
-		// s.WaitClose()
 		return
 	}
 
@@ -508,6 +505,15 @@ func (s *SessionRunnerExec) Close(reason error) error {
 	if err := os.Remove(s.socketIO); err != nil {
 		log.Printf("[session] couldn't remove IO socket: %s: %v\r\n", s.socketIO, err)
 		return err
+	}
+
+	// remove Ctrl socket
+	if err := os.Remove(s.socketCtrl); err != nil {
+		log.Printf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", s.socketCtrl, err)
+	}
+
+	if err := os.RemoveAll(filepath.Dir(s.socketIO)); err != nil {
+		log.Printf("[session] couldn't remove socket Directory '%s': %v\r\n", s.socketIO, err)
 	}
 
 	close(s.closed)

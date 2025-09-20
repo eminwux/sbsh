@@ -195,6 +195,12 @@ func Test_ErrStartSession(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
+	ctrlReady = make(chan struct{})
+	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	closeReqCh = make(chan error, 1)
+
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
@@ -243,7 +249,11 @@ func Test_ErrContextDone(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
 	ctrlReady = make(chan struct{})
+	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	closeReqCh = make(chan error, 1)
 
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
@@ -297,10 +307,11 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
 	ctrlReady = make(chan struct{})
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
-
-	rpcDoneCh = make(chan error)
+	closeReqCh = make(chan error, 1)
 
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
@@ -352,8 +363,11 @@ func Test_WaitReady(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
 	ctrlReady = make(chan struct{})
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	closeReqCh = make(chan error, 1)
 
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
@@ -413,8 +427,11 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
 	ctrlReady = make(chan struct{})
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	closeReqCh = make(chan error, 1)
 
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
@@ -430,8 +447,8 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 
 	eventsCh <- ev
 
-	if err := <-exitCh; err != nil && !errors.Is(err, ErrContextDone) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrContextDone, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, ErrCloseReq) {
+		t.Fatalf("expected '%v'; got: '%v'", ErrCloseReq, err)
 	}
 }
 
@@ -472,8 +489,11 @@ func Test_HandleEvent_EvError(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
 	ctrlReady = make(chan struct{})
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	closeReqCh = make(chan error, 1)
 
 	exitCh := make(chan error)
 	go func(exitCh chan error) {

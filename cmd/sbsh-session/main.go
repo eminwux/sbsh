@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -82,7 +83,14 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
 
 	sessionCtrl = newSessionController(ctx, cancel)
 
-	go sessionCtrl.Run(&spec)
+	// Create error channel
+	errCh := make(chan error, 1)
+
+	// Run controller
+	go func() {
+		errCh <- sessionCtrl.Run(&spec) // Run should return when ctx is canceled
+		log.Printf("[sbsh] controller stopped\r\n")
+	}()
 
 	// block until controller is ready (or ctx cancels)
 	if err := sessionCtrl.WaitReady(); err != nil {
@@ -90,13 +98,34 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
 		return fmt.Errorf("%w: %w", ErrWaitOnReady, err)
 	}
 
-	<-ctx.Done()
-	log.Printf("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
-	if err := sessionCtrl.WaitClose(); err != nil {
-		return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
+	select {
+	case <-ctx.Done():
+		log.Printf("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
+		if err := sessionCtrl.WaitClose(); err != nil {
+			return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
+		}
+		log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
+
+		return ErrContextDone
+	case err := <-errCh:
+		log.Printf("[sbsh-sesion] controller stopped with error: %v\r\n", err)
+		if err != nil && !errors.Is(err, context.Canceled) {
+			if err := sessionCtrl.WaitClose(); err != nil {
+				return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
+			}
+			log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
+			return fmt.Errorf("%w: %w", ErrChildExit, err)
+		}
 	}
-	log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
-	return ErrContextDone
+	return nil
+
+	// <-ctx.Done()
+	// log.Printf("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
+	// if err := sessionCtrl.WaitClose(); err != nil {
+	// 	return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
+	// }
+	// log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
+	// return ErrContextDone
 }
 
 func Execute() {
