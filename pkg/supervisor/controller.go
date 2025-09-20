@@ -72,9 +72,9 @@ func (s *SupervisorController) Run(ctx context.Context) error {
 	ctrlLn, err := sr.OpenSocketCtrl()
 	if err != nil {
 		log.Printf("could not open control socket: %v", err)
-		// if err := c.Close(err); err != nil {
-		// 	return fmt.Errorf("%w:%w", ErrOnClose, err)
-		// }
+		if err := s.Close(err); err != nil {
+			return fmt.Errorf("%w:%w", ErrOnClose, err)
+		}
 		return fmt.Errorf("%w:%w", ErrOpenSocketCtrl, err)
 	}
 
@@ -112,9 +112,9 @@ func (s *SupervisorController) Run(ctx context.Context) error {
 
 	if err := sr.StartSupervisor(s.ctx, eventsCh, session); err != nil {
 		log.Printf("failed to start session: %v", err)
-		// if err := c.Close(err); err != nil {
-		// 	return fmt.Errorf("%w:%w", ErrOnClose, err)
-		// }
+		if err := s.Close(err); err != nil {
+			return fmt.Errorf("%w:%w", ErrOnClose, err)
+		}
 		return fmt.Errorf("%w:%w", ErrStartSession, err)
 	}
 	close(ctrlReady)
@@ -162,10 +162,6 @@ func (s *SupervisorController) handleEvent(ev supervisorrunner.SupervisorRunnerE
 }
 
 func (s *SupervisorController) onClosed(_ api.SessionID, err error) {
-	// Treat EIO/EOF as normal close
-	// if err != nil && !errors.Is(err, syscall.EIO) && !errors.Is(err, os.ErrClosed) {
-	// 	log.Printf("[supervisor] session %s closed with error: %v\r\n", id, err)
-	// }
 	s.Close(err)
 }
 
