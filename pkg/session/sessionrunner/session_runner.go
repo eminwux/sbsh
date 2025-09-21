@@ -375,10 +375,6 @@ func (s *SessionRunnerExec) waitOnSession() {
 		slog.Debug("[session] sending EvSessionExited event\r\n")
 		trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvCmdExited, Err: err, When: time.Now()})
 		return
-	case <-s.sessionCtx.Done():
-		slog.Debug("[session] session context has been closed\r\n")
-		s.Close(s.sessionCtx.Err())
-		return
 	}
 
 }

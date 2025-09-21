@@ -251,7 +251,7 @@ func Test_ErrContextDone(t *testing.T) {
 
 	rpcReadyCh = make(chan error)
 	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
+	ctrlReady = make(chan struct{}, 1)
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
 	closeReqCh = make(chan error, 1)
 
@@ -309,7 +309,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 
 	rpcReadyCh = make(chan error)
 	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
+	ctrlReady = make(chan struct{}, 1)
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
 	closeReqCh = make(chan error, 1)
 
@@ -365,14 +365,9 @@ func Test_WaitReady(t *testing.T) {
 
 	rpcReadyCh = make(chan error)
 	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
+	ctrlReady = make(chan struct{}, 1)
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
 	closeReqCh = make(chan error, 1)
-
-	exitCh := make(chan error)
-	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
 
 	readyReturn := make(chan error)
 
@@ -380,7 +375,10 @@ func Test_WaitReady(t *testing.T) {
 		readyReturn <- sessionCtrl.WaitReady()
 	}(readyReturn)
 
-	ctrlReady <- struct{}{}
+	exitCh := make(chan error)
+	go func(exitCh chan error) {
+		exitCh <- sessionCtrl.Run(&spec)
+	}(exitCh)
 
 	if err := <-readyReturn; err != nil {
 		t.Fatalf("expected 'nil'; got: '%v'", err)
@@ -429,7 +427,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 
 	rpcReadyCh = make(chan error)
 	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
+	ctrlReady = make(chan struct{}, 1)
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
 	closeReqCh = make(chan error, 1)
 
