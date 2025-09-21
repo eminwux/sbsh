@@ -9,7 +9,7 @@ import (
 
 type SessionRunnerTest struct {
 	OpenSocketCtrlFunc func() (net.Listener, error)
-	StartServerFunc    func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error)
+	StartServerFunc    func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error)
 	StartSessionFunc   func(ctx context.Context, evCh chan<- SessionRunnerEvent) error
 	CloseFunc          func(reason error) error
 	ResizeFunc         func(args api.ResizeArgs)
@@ -26,9 +26,9 @@ func (sr *SessionRunnerTest) OpenSocketCtrl() (net.Listener, error) {
 	}
 	return nil, nil
 }
-func (sr *SessionRunnerTest) StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+func (sr *SessionRunnerTest) StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 	if sr.StartServerFunc != nil {
-		sr.StartServerFunc(ctx, sc, readyCh, doneCh)
+		sr.StartServerFunc(ctx, sc, readyCh)
 	}
 }
 

@@ -9,9 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
 	"sbsh/pkg/session"
@@ -19,6 +21,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	_ "net/http/pprof"
 )
 
 var (
@@ -63,8 +67,11 @@ var rootCmd = &cobra.Command{
 }
 
 func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
+	go http.ListenAndServe("127.0.0.1:6060", nil)
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
 	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	runtime.SetBlockProfileRate(1)     // sample ALL blocking events on chans/locks
+	runtime.SetMutexProfileFraction(1) // sample ALL mutex contention
 	defer cancel()
 
 	// Define a new Session
@@ -97,7 +104,6 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
 		log.Printf("controller not ready: %s\r\n", err)
 		return fmt.Errorf("%w: %w", ErrWaitOnReady, err)
 	}
-
 	select {
 	case <-ctx.Done():
 		log.Printf("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")

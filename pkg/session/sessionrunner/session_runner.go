@@ -24,7 +24,7 @@ import (
 
 type SessionRunner interface {
 	OpenSocketCtrl() (net.Listener, error)
-	StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, errCh chan error)
+	StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error)
 	StartSession(ctx context.Context, evCh chan<- SessionRunnerEvent) error
 	ID() api.SessionID
 	Close(reason error) error
@@ -67,7 +67,6 @@ type SessionRunnerExec struct {
 
 	closeReqCh chan error
 	closedCh   chan struct{}
-	closingCh  chan struct{}
 }
 type ioClient struct {
 	id       int
@@ -106,7 +105,6 @@ func NewSessionRunnerExec(spec *api.SessionSpec) SessionRunner {
 		evCh: nil, // assigned in Start(...)
 
 		closeReqCh: make(chan error),
-		closingCh:  make(chan struct{}, 1),
 		closedCh:   make(chan struct{}),
 	}
 }
@@ -169,13 +167,9 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() (net.Listener, error) {
 
 	return ctrlLn, nil
 }
-func (sr *SessionRunnerExec) StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+func (sr *SessionRunnerExec) StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 	defer func() {
 		// Ensure ln is closed and no leaks on exit
-		_ = sr.listenerCtrl.Close()
-	}()
-	go func() {
-		<-ctx.Done()
 		_ = sr.listenerCtrl.Close()
 	}()
 
@@ -188,10 +182,9 @@ func (sr *SessionRunnerExec) StartServer(ctx context.Context, sc *sessionrpc.Ses
 
 		// also inform 'done' since we won't run
 		select {
-		case doneCh <- err:
+		case sr.closeReqCh <- err:
 		default:
 		}
-		close(doneCh)
 		return
 	}
 	// Signal: the accept loop is about to run on an already-listening socket.
@@ -206,18 +199,17 @@ func (sr *SessionRunnerExec) StartServer(ctx context.Context, sc *sessionrpc.Ses
 			// Normal path: listener closed by ctx cancel
 			if errors.Is(err, net.ErrClosed) || ctx.Err() != nil {
 				select {
-				case doneCh <- nil:
+				case sr.closeReqCh <- fmt.Errorf("unknown rpc server error"):
 				default:
 				}
-				close(doneCh)
 				return
 			}
 			// Abnormal accept error
 			select {
-			case doneCh <- err:
+			case sr.closeReqCh <- err:
 			default:
 			}
-			close(doneCh)
+
 			return
 		}
 		go srv.ServeCodec(jsonrpc.NewServerCodec(conn))
@@ -396,14 +388,14 @@ func (s *SessionRunnerExec) terminalManager(pipeInR *os.File, pipeOutW *os.File)
 	 */
 
 	go func() {
-		s.terminalManagerReader(pipeOutW, finishTermMgr)
+		s.terminalManagerReader(pipeOutW)
 	}()
 
 	/*
 	* PTY WRITER  routine
 	 */
 	go func() {
-		s.terminalManagerWriter(pipeInR, finishTermMgr)
+		s.terminalManagerWriter(pipeInR)
 	}()
 
 	s.Write([]byte(`export PS1="(sbsh-` + s.id + `) $PS1"` + "\n"))
@@ -475,14 +467,11 @@ func (s *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeOu
 func (s *SessionRunnerExec) Close(reason error) error {
 
 	log.Printf("[session-runner] closing session-runner on request, reason: %v\r\n", reason)
-	s.closingCh <- struct{}{}
 	log.Printf("[session-runner] sent 'closingCh' signal\r\n")
 
 	// stop terminalManager, 2 messages needed, one for writer/reader
-	finishTermMgr <- struct{}{}
-	log.Printf("[session-runner] sent 'finishTermMgr' 1s signalt\r\n")
-	finishTermMgr <- struct{}{}
-	log.Printf("[session-runner] sent 'finishTermMgr' 2nd signal \r\n")
+	close(finishTermMgr)
+	log.Printf("[session-runner] closed 'finishTermMgr' \r\n")
 
 	// stop accepting
 	if s.listenerCtrl != nil {
@@ -545,10 +534,10 @@ func (s *SessionRunnerExec) Close(reason error) error {
 
 }
 
-func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File, finReqCh <-chan struct{}) error {
+func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File) error {
 
 	go func() {
-		<-finReqCh
+		<-finishTermMgr
 		log.Printf("[session-runner] finishing terminalManagerReader ")
 		_ = pipeOutW.Close()
 		_ = s.pty.Close() // This unblocks s.pty.Read(...)
@@ -588,9 +577,9 @@ func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File, finReqCh <-
 	}
 }
 
-func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File, finReqCh <-chan struct{}) error {
+func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
 	go func() {
-		<-finReqCh
+		<-finishTermMgr
 		log.Printf("[session-runner] finishing terminalManagerWriter ")
 		_ = pipeInR.Close()
 		_ = s.pty.Close() // This unblocks s.pty.Read(...)

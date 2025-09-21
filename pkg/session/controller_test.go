@@ -136,7 +136,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				return newStubListener(), nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- fmt.Errorf("make server fail")
 			},
 		}
@@ -181,7 +181,7 @@ func Test_ErrStartSession(t *testing.T) {
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				return newStubListener(), nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
@@ -235,7 +235,7 @@ func Test_ErrContextDone(t *testing.T) {
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				return newStubListener(), nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
@@ -293,7 +293,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				return newStubListener(), nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
@@ -349,7 +349,7 @@ func Test_WaitReady(t *testing.T) {
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				return newStubListener(), nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
@@ -413,7 +413,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				return newStubListener(), nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
@@ -475,7 +475,7 @@ func Test_HandleEvent_EvError(t *testing.T) {
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				return newStubListener(), nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
