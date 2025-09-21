@@ -81,17 +81,18 @@ func runSupervisor() error {
 
 	select {
 	case <-ctx.Done():
+		var err error
 		slog.Debug("[sbsh] context canceled, waiting on sessionCtrl to exit\r\n")
-		if err := ctrl.WaitClose(); err != nil {
-			return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
+		if e := ctrl.WaitClose(); e != nil {
+			err = fmt.Errorf("%w: %w", ErrWaitOnClose, e)
 		}
 		slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
+		return fmt.Errorf("%w: %w", ErrContextDone, err)
 
-		return ErrContextDone
 	case err := <-errCh:
 		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
-		err = fmt.Errorf("%w: %w", ErrChildExit, err)
 		if err != nil && !errors.Is(err, context.Canceled) {
+			err = fmt.Errorf("%w: %w", ErrChildExit, err)
 			if err := ctrl.WaitClose(); err != nil {
 				err = fmt.Errorf("%w: %w", ErrWaitOnClose, err)
 			}
