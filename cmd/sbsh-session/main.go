@@ -133,14 +133,6 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
 		}
 	}
 	return nil
-
-	// <-ctx.Done()
-	// slog.Debug("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
-	// if err := sessionCtrl.WaitClose(); err != nil {
-	// 	return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
-	// }
-	// slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
-	// return ErrContextDone
 }
 
 func Execute() {
