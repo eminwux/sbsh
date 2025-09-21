@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net"
 	"os"
 	"sbsh/pkg/api"
@@ -39,7 +40,7 @@ var eventsCh chan supervisorrunner.SupervisorRunnerEvent = make(chan supervisorr
 
 // NewSupervisorController wires the manager and the shared event channel from sessions.
 func NewSupervisorController(ctx context.Context) api.SupervisorController {
-	log.Printf("[supervisor] New controller is being created\r\n")
+	slog.Debug("[supervisor] New controller is being created\r\n")
 
 	c := &SupervisorController{
 		ctx:     ctx,
@@ -61,15 +62,15 @@ func (s *SupervisorController) WaitReady(ctx context.Context) error {
 // Run is the main orchestration loop. It owns all mode transitions.
 func (s *SupervisorController) Run() error {
 	s.exit = make(chan struct{})
-	log.Println("[supervisor] Starting controller loop")
-	defer log.Printf("[supervisor] controller stopped\r\n")
+	slog.Debug("[supervisor] Starting controller loop")
+	defer slog.Debug("[supervisor] controller stopped\r\n")
 
 	sr = newSupervisorRunner(s.ctx)
 	sm = newSessionManager()
 
 	ctrlLn, err := sr.OpenSocketCtrl()
 	if err != nil {
-		log.Printf("could not open control socket: %v", err)
+		slog.Debug(fmt.Sprintf("could not open control socket: %v", err))
 		if err := s.Close(err); err != nil {
 			err = fmt.Errorf("%w:%w", ErrOnClose, err)
 		}
@@ -86,7 +87,7 @@ func (s *SupervisorController) Run() error {
 		if errC := s.Close(err); errC != nil {
 			err = fmt.Errorf("%w:%w:%w", err, ErrOnClose, errC)
 		}
-		log.Printf("failed to start server: %v", err)
+		slog.Debug(fmt.Sprintf("failed to start server: %v", err))
 		return fmt.Errorf("%w:%w", ErrStartRPCServer, err)
 	}
 
@@ -113,7 +114,7 @@ func (s *SupervisorController) Run() error {
 	}
 
 	if err := sr.StartSupervisor(s.ctx, eventsCh, session); err != nil {
-		log.Printf("failed to start session: %v", err)
+		slog.Debug(fmt.Sprintf("failed to start session: %v", err))
 		if err := s.Close(err); err != nil {
 			err = fmt.Errorf("%w:%w", ErrOnClose, err)
 		}
@@ -125,25 +126,25 @@ func (s *SupervisorController) Run() error {
 		select {
 		case <-s.ctx.Done():
 			var err error
-			log.Printf("[supervisor] parent context channel has been closed\r\n")
+			slog.Debug("[supervisor] parent context channel has been closed\r\n")
 			if errC := s.Close(s.ctx.Err()); errC != nil {
 				err = fmt.Errorf("%w:%w", ErrOnClose, errC)
 			}
 			return fmt.Errorf("%w:%w", ErrContextDone, err)
 
 		case ev := <-eventsCh:
-			log.Printf("[supervisor] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
+			slog.Debug(fmt.Sprintf("[supervisor] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano)))
 			s.handleEvent(ev)
 
 		case err := <-rpcDoneCh:
-			log.Printf("[supervisor] rpc server has failed: %v\r\n", err)
+			slog.Debug(fmt.Sprintf("[supervisor] rpc server has failed: %v\r\n", err))
 			if err := s.Close(err); err != nil {
 				err = fmt.Errorf("%w:%w:%w", err, ErrOnClose, err)
 			}
 			return fmt.Errorf("%w:%w", ErrRPCServerExited, err)
 
 		case err := <-closeReqCh:
-			log.Printf("[supervisor] close request received: %v\r\n", err)
+			slog.Debug(fmt.Sprintf("[supervisor] close request received: %v\r\n", err))
 			return fmt.Errorf("%w:%w", ErrCloseReq, err)
 		}
 	}
@@ -152,14 +153,14 @@ func (s *SupervisorController) Run() error {
 /* ---------- Event handlers ---------- */
 
 func (s *SupervisorController) handleEvent(ev supervisorrunner.SupervisorRunnerEvent) {
-	// log.Printf("[supervisor] session %s event received %d\r\n", ev.ID, ev.Type)
+	// slog.Debug("[supervisor] session %s event received %d\r\n", ev.ID, ev.Type)
 	switch ev.Type {
 	case supervisorrunner.EvCmdExited:
-		log.Printf("[supervisor] session %s EvCmdExited error: %v\r\n", ev.ID, ev.Err)
+		slog.Debug(fmt.Sprintf("[supervisor] session %s EvCmdExited error: %v\r\n", ev.ID, ev.Err))
 		s.onClosed(ev.ID, ev.Err)
 
 	case supervisorrunner.EvError:
-		log.Printf("[supervisor] session %s EvError error: %v\r\n", ev.ID, ev.Err)
+		slog.Debug(fmt.Sprintf("[supervisor] session %s EvError error: %v\r\n", ev.ID, ev.Err))
 		s.onClosed(ev.ID, ev.Err)
 	}
 }
@@ -177,10 +178,10 @@ func (s *SupervisorController) SetCurrentSession(id api.SessionID) error {
 
 }
 func (s *SupervisorController) Close(reason error) error {
-	log.Printf("[supervisor] Close called: %v\r\n", reason)
+	slog.Debug(fmt.Sprintf("[supervisor] Close called: %v\r\n", reason))
 	s.closing <- reason
 	closeReqCh <- reason
-	log.Printf("[supervisor] error sent to closeReqCh: %v\r\n", reason)
+	slog.Debug(fmt.Sprintf("[supervisor] error sent to closeReqCh: %v\r\n", reason))
 	sr.Close(reason)
 	close(s.closed)
 
@@ -191,10 +192,10 @@ func (s *SupervisorController) WaitClose() error {
 
 	select {
 	case <-s.closed:
-		log.Printf("[supervisor] controller exited\r\n")
+		slog.Debug("[supervisor] controller exited\r\n")
 		return nil
 	case err := <-s.closing:
-		log.Printf("[supervisor] controller closing: %v\r\n", err)
+		slog.Debug(fmt.Sprintf("[supervisor] controller closing: %v\r\n", err))
 	}
 	return nil
 }

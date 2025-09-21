@@ -8,7 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -38,11 +38,20 @@ func main() {
 	Execute()
 }
 
+var logLevel string
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "sbsh-session",
 	Short: "A brief description of your application",
 	Long:  `A longer description ...`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: common.ParseLevel(logLevel),
+		})
+		slog.SetDefault(slog.New(h))
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		err := LoadConfig()
@@ -96,41 +105,41 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
 	// Run controller
 	go func() {
 		errCh <- sessionCtrl.Run(&spec) // Run should return when ctx is canceled
-		log.Printf("[sbsh] controller stopped\r\n")
+		slog.Debug("[sbsh] controller stopped\r\n")
 	}()
 
 	// block until controller is ready (or ctx cancels)
 	if err := sessionCtrl.WaitReady(); err != nil {
-		log.Printf("controller not ready: %s\r\n", err)
+		slog.Debug(fmt.Sprintf("controller not ready: %s\r\n", err))
 		return fmt.Errorf("%w: %w", ErrWaitOnReady, err)
 	}
 	select {
 	case <-ctx.Done():
-		log.Printf("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
+		slog.Debug("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
 		if err := sessionCtrl.WaitClose(); err != nil {
 			return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
 		}
-		log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
+		slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
 
 		return ErrContextDone
 	case err := <-errCh:
-		log.Printf("[sbsh-sesion] controller stopped with error: %v\r\n", err)
+		slog.Debug(fmt.Sprintf("[sbsh-sesion] controller stopped with error: %v\r\n", err))
 		if err != nil && !errors.Is(err, context.Canceled) {
 			if err := sessionCtrl.WaitClose(); err != nil {
 				return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
 			}
-			log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
+			slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
 			return fmt.Errorf("%w: %w", ErrChildExit, err)
 		}
 	}
 	return nil
 
 	// <-ctx.Done()
-	// log.Printf("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
+	// slog.Debug("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
 	// if err := sessionCtrl.WaitClose(); err != nil {
 	// 	return fmt.Errorf("%w: %w", ErrWaitOnClose, err)
 	// }
-	// log.Printf("[sbsh-session] context canceled, sessionCtrl exited\r\n")
+	// slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
 	// return ErrContextDone
 }
 
@@ -144,7 +153,7 @@ func Execute() {
 func init() {
 	rootCmd.Flags().StringVar(&sessionID, "id", "", "Optional session ID (random if omitted)")
 	rootCmd.Flags().StringVar(&sessionCmd, "command", "", "Optional command (default: bash -i)")
-
+	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 }
 
 // LoadConfig loads config.yaml from the given path or HOME/.sbsh

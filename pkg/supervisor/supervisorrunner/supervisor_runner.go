@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
@@ -91,7 +92,7 @@ func (s *SupervisorRunnerExec) OpenSocketCtrl() (net.Listener, error) {
 	}
 
 	s.supervisorSockerCtrl = filepath.Join(supervisorsDir, "ctrl.sock")
-	log.Printf("[supervisor] CTRL socket: %s", s.supervisorSockerCtrl)
+	slog.Debug(fmt.Sprintf("[supervisor] CTRL socket: %s", s.supervisorSockerCtrl))
 
 	// remove stale socket if it exists
 	if _, err := os.Stat(s.supervisorSockerCtrl); err == nil {
@@ -177,12 +178,12 @@ func (s *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- 
 	// you can return cmd.Process.Pid to record in meta.json
 	session.Pid = cmd.Process.Pid
 
-	log.Printf("[supervisor] session %s process %d has started\r\n", session.Id, session.Pid)
+	slog.Debug(fmt.Sprintf("[supervisor] session %s process %d has started\r\n", session.Id, session.Pid))
 
 	// IMPORTANT: reap it in the background so it never zombifies
 	go func() {
 		_ = cmd.Wait()
-		log.Printf("[supervisor] session %s process has exited\r\n", session.Id)
+		slog.Debug(fmt.Sprintf("[supervisor] session %s process has exited\r\n", session.Id))
 		err := fmt.Errorf("session %s process has exited", session.Id)
 		trySendEvent(s.events, SupervisorRunnerEvent{ID: api.SessionID(session.Id), Type: EvCmdExited, Err: err, When: time.Now()})
 	}()
@@ -209,10 +210,10 @@ func (s *SupervisorRunnerExec) ID() api.SessionID {
 func (s *SupervisorRunnerExec) Close(reason error) error {
 	// remove sockets and dir
 	if err := os.Remove(s.supervisorSockerCtrl); err != nil {
-		log.Printf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", s.supervisorSockerCtrl, err)
+		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", s.supervisorSockerCtrl, err))
 	}
 	if err := os.RemoveAll(filepath.Dir(s.supervisorSockerCtrl)); err != nil {
-		log.Printf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", s.supervisorSockerCtrl, err)
+		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", s.supervisorSockerCtrl, err))
 	}
 	s.toExitShell()
 	return nil
@@ -229,7 +230,7 @@ func (s *SupervisorRunnerExec) Resize(args api.ResizeArgs) {
 func (s *SupervisorRunnerExec) SetCurrentSession(id api.SessionID) error {
 	// Initial terminal mode (bash passthrough)
 	if err := s.toBashUIMode(); err != nil {
-		log.Printf("[supervisor] initial raw mode failed: %v", err)
+		slog.Debug(fmt.Sprintf("[supervisor] initial raw mode failed: %v", err))
 	}
 	return nil
 }
@@ -239,7 +240,7 @@ func (s *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 	var conn net.Conn
 	var err error
 
-	log.Printf("[supervisor] %s session on  %d trying to connect to %s\r\n", s.session.Id, s.session.Pid, s.session.SockerCtrl)
+	slog.Debug(fmt.Sprintf("[supervisor] %s session on  %d trying to connect to %s\r\n", s.session.Id, s.session.Pid, s.session.SockerCtrl))
 
 	// Dial the Unix domain socket
 	for range 3 {
@@ -251,7 +252,7 @@ func (s *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 	}
 
 	if err != nil {
-		log.Printf("[supervisor] session %s process has exited\r\n", s.session.Id)
+		slog.Debug(fmt.Sprintf("[supervisor] session %s process has exited\r\n", s.session.Id))
 		log.Fatalf("failed to connect to ctrl.sock in '%s' after 3 retries: %v", s.session.SockerCtrl, err)
 	}
 
@@ -267,7 +268,7 @@ func (s *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 		return err
 	}
 
-	log.Printf("[supervisor] rpc->session (Status): %+v\r\n", info)
+	slog.Debug(fmt.Sprintf("[supervisor] rpc->session (Status): %+v\r\n", info))
 
 	return nil
 
@@ -294,7 +295,7 @@ func (s *SupervisorRunnerExec) attachIOSocket() error {
 
 	// Connected, now we enable raw mode
 	if err := s.toBashUIMode(); err != nil {
-		log.Printf("[supervisor] initial raw mode failed: %v", err)
+		slog.Debug(fmt.Sprintf("[supervisor] initial raw mode failed: %v", err))
 	}
 
 	// We want half-closes; UnixConn exposes CloseRead/CloseWrite
@@ -312,10 +313,10 @@ func (s *SupervisorRunnerExec) attachIOSocket() error {
 		}
 		// send event (EOF or error while copying stdin -> socket)
 		if e == io.EOF {
-			log.Printf("[supervisor] stdin reached EOF\r\n")
+			slog.Debug("[supervisor] stdin reached EOF\r\n")
 			trySendEvent(s.events, SupervisorRunnerEvent{ID: s.session.Id, Type: EvCmdExited, Err: err, When: time.Now()})
 		} else if e != nil {
-			log.Printf("[supervisor] stdin->socket error: %v\r\n", e)
+			slog.Debug(fmt.Sprintf("[supervisor] stdin->socket error: %v\r\n", e))
 			trySendEvent(s.events, SupervisorRunnerEvent{ID: s.session.Id, Type: EvError, Err: err, When: time.Now()})
 		}
 
@@ -331,10 +332,10 @@ func (s *SupervisorRunnerExec) attachIOSocket() error {
 		}
 		// send event (EOF or error while copying socket -> stdout)
 		if e == io.EOF {
-			log.Printf("[supervisor] socket closed (EOF)\r\n")
+			slog.Debug("[supervisor] socket closed (EOF)\r\n")
 			trySendEvent(s.events, SupervisorRunnerEvent{ID: s.session.Id, Type: EvCmdExited, Err: err, When: time.Now()})
 		} else if e != nil {
-			log.Printf("[supervisor] socket->stdout error: %v\r\n", e)
+			slog.Debug(fmt.Sprintf("[supervisor] socket->stdout error: %v\r\n", e))
 			trySendEvent(s.events, SupervisorRunnerEvent{ID: s.session.Id, Type: EvError, Err: err, When: time.Now()})
 		}
 
@@ -348,7 +349,7 @@ func (s *SupervisorRunnerExec) attachIOSocket() error {
 		// Wait for either context cancel or one side finishing
 		select {
 		case <-s.sessionCtx.Done():
-			log.Printf("[supervisor-runner] context done\r\n")
+			slog.Debug("[supervisor-runner] context done\r\n")
 			_ = conn.Close() // unblock goroutines
 			<-errCh
 			<-errCh
@@ -386,7 +387,7 @@ func (s *SupervisorRunnerExec) attachAndForwardResize() error {
 			case <-s.sessionCtx.Done():
 				return
 			case <-ch:
-				// log.Printf("[supervisor] window change\r\n")
+				// slog.Debug("[supervisor] window change\r\n")
 				// Query current terminal size again on every WINCH
 				rows, cols, err := pty.Getsize(os.Stdin)
 				if err != nil {
@@ -397,7 +398,7 @@ func (s *SupervisorRunnerExec) attachAndForwardResize() error {
 				if err := s.session.SessionClientRPC.Call("SessionController.Resize",
 					api.ResizeArgs{Cols: int(cols), Rows: int(rows)}, &reply); err != nil {
 					// Don't kill the process on resize failure; just log
-					log.Printf("resize RPC failed: %v\r\n", err)
+					slog.Debug(fmt.Sprintf("resize RPC failed: %v\r\n", err))
 				}
 			}
 		}
@@ -448,7 +449,7 @@ func toRawMode() (*term.State, error) {
 
 // helper: non-blocking event send so the PTY reader never stalls
 func trySendEvent(ch chan<- SupervisorRunnerEvent, ev SupervisorRunnerEvent) {
-	log.Printf("[supervisor] send event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
+	slog.Debug(fmt.Sprintf("[supervisor] send event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano)))
 
 	select {
 	case ch <- ev:

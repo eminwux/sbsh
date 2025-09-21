@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
@@ -142,12 +143,12 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() (net.Listener, error) {
 	}
 
 	sr.socketCtrl = filepath.Join(runPath, "ctrl.sock")
-	log.Printf("[sessionCtrl] CTRL socket: %s", sr.socketCtrl)
+	slog.Debug(fmt.Sprintf("[sessionCtrl] CTRL socket: %s", sr.socketCtrl))
 
 	// Remove sockets if they already exist
 	// remove sockets and dir
 	if err := os.Remove(sr.socketCtrl); err != nil {
-		log.Printf("[sessionCtrl] couldn't remove stale CTRL socket: %s\r\n", sr.socketCtrl)
+		slog.Debug(fmt.Sprintf("[sessionCtrl] couldn't remove stale CTRL socket: %s\r\n", sr.socketCtrl))
 	}
 
 	// Listen to CONTROL SOCKET
@@ -265,11 +266,11 @@ func (s *SessionRunnerExec) openSocketIO() error {
 	}
 
 	s.socketIO = filepath.Join(runPath, "io.sock")
-	log.Printf("[session] IO socket: %s", s.socketIO)
+	slog.Debug(fmt.Sprintf("[session] IO socket: %s", s.socketIO))
 
 	// Remove socket if already exists
 	if err := os.Remove(s.socketIO); err != nil {
-		log.Printf("[session] couldn't remove stale IO socket: %s\r\n", s.socketIO)
+		slog.Debug(fmt.Sprintf("[session] couldn't remove stale IO socket: %s\r\n", s.socketIO))
 	}
 
 	// Listen to IO SOCKET
@@ -335,9 +336,9 @@ func (s *SessionRunnerExec) startPTY() error {
 	s.pty = ptmx
 
 	go func() {
-		log.Printf("[session] pid=%d, waiting on bash pid=%d\r\n", os.Getpid(), s.cmd.Process.Pid)
+		slog.Debug(fmt.Sprintf("[session] pid=%d, waiting on bash pid=%d\r\n", os.Getpid(), s.cmd.Process.Pid))
 		_ = s.cmd.Wait() // blocks until process exits
-		log.Printf("[session] pid=%d, bash with pid=%d has exited\r\n", os.Getpid(), s.cmd.Process.Pid)
+		slog.Debug(fmt.Sprintf("[session] pid=%d, bash with pid=%d has exited\r\n", os.Getpid(), s.cmd.Process.Pid))
 		s.closeReqCh <- fmt.Errorf("the shell process has exited")
 
 	}()
@@ -347,7 +348,7 @@ func (s *SessionRunnerExec) startPTY() error {
 	// conn writes to pipeInW
 	pipeInR, pipeInW, err := os.Pipe()
 	if err != nil {
-		log.Printf("[session] error opening IN pipe: %v\r\n", err)
+		slog.Debug(fmt.Sprintf("[session] error opening IN pipe: %v\r\n", err))
 		return fmt.Errorf("error opening IN pipe: %w", err)
 	}
 
@@ -356,7 +357,7 @@ func (s *SessionRunnerExec) startPTY() error {
 	// PTY writes to pipeOutW
 	pipeOutR, pipeOutW, err := os.Pipe()
 	if err != nil {
-		log.Printf("[session] error opening OUT pipe: %v\r\n", err)
+		slog.Debug(fmt.Sprintf("[session] error opening OUT pipe: %v\r\n", err))
 		return fmt.Errorf("error opening OUT pipe: %w", err)
 	}
 
@@ -371,11 +372,11 @@ func (s *SessionRunnerExec) waitOnSession() {
 
 	select {
 	case err := <-s.closeReqCh:
-		log.Printf("[session] sending EvSessionExited event\r\n")
+		slog.Debug("[session] sending EvSessionExited event\r\n")
 		trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvCmdExited, Err: err, When: time.Now()})
 		return
 	case <-s.sessionCtx.Done():
-		log.Printf("[session] session context has been closed\r\n")
+		slog.Debug("[session] session context has been closed\r\n")
 		s.Close(s.sessionCtx.Err())
 		return
 	}
@@ -437,7 +438,7 @@ func (s *SessionRunnerExec) handleClient(client *ioClient) {
 
 	err := <-errCh
 	if err != nil {
-		log.Printf("[session-runner] error in copy pipes: %v\r\n", err)
+		slog.Debug(fmt.Sprintf("[session-runner] error in copy pipes: %v\r\n", err))
 	}
 	client.conn.Close()
 	close(errCh)
@@ -450,13 +451,13 @@ func (s *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeOu
 	cid := 0
 	for {
 		// New client connects
-		log.Printf("[session] waiting for new connection...\r\n")
+		slog.Debug("[session] waiting for new connection...\r\n")
 		conn, err := s.listenerIO.Accept()
 		if err != nil {
-			log.Printf("[session] closing IO listener routine\r\n")
+			slog.Debug("[session] closing IO listener routine\r\n")
 			return err
 		}
-		log.Printf("[session] client connected!\r\n")
+		slog.Debug("[session] client connected!\r\n")
 		cid++
 		cl := &ioClient{id: cid, conn: conn, pipeInR: pipeInR, pipeInW: pipeInW, pipeOutR: pipeOutR, pipeOutW: pipeOutW}
 
@@ -466,24 +467,24 @@ func (s *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeOu
 }
 func (s *SessionRunnerExec) Close(reason error) error {
 
-	log.Printf("[session-runner] closing session-runner on request, reason: %v\r\n", reason)
-	log.Printf("[session-runner] sent 'closingCh' signal\r\n")
+	slog.Debug(fmt.Sprintf("[session-runner] closing session-runner on request, reason: %v\r\n", reason))
+	slog.Debug("[session-runner] sent 'closingCh' signal\r\n")
 
 	// stop terminalManager, 2 messages needed, one for writer/reader
 	close(finishTermMgr)
-	log.Printf("[session-runner] closed 'finishTermMgr' \r\n")
+	slog.Debug("[session-runner] closed 'finishTermMgr' \r\n")
 
 	// stop accepting
 	if s.listenerCtrl != nil {
 		if err := s.listenerCtrl.Close(); err != nil {
-			log.Printf("[session-runner] could not close IO listener: %v", err)
+			slog.Debug(fmt.Sprintf("[session-runner] could not close IO listener: %v", err))
 			// return err
 		}
 	}
 	// stop accepting
 	if s.listenerIO != nil {
 		if err := s.listenerIO.Close(); err != nil {
-			log.Printf("[session-runner] could not close IO listener: %v", err)
+			slog.Debug(fmt.Sprintf("[session-runner] could not close IO listener: %v", err))
 			// return err
 		}
 	}
@@ -492,7 +493,7 @@ func (s *SessionRunnerExec) Close(reason error) error {
 	s.clientsMu.Lock()
 	for _, c := range s.clients {
 		if err := c.conn.Close(); err != nil {
-			log.Printf("[session-runner] could not close connection: %v\r\n", err)
+			slog.Debug(fmt.Sprintf("[session-runner] could not close connection: %v\r\n", err))
 			// return err
 		}
 	}
@@ -503,30 +504,30 @@ func (s *SessionRunnerExec) Close(reason error) error {
 	// kill PTY child and close PTY master as needed
 	if s.cmd != nil && s.cmd.Process != nil {
 		if err := s.cmd.Process.Kill(); err != nil {
-			log.Printf("[sesion] could not kill cmd: %v\r\n", err)
+			slog.Debug(fmt.Sprintf("[sesion] could not kill cmd: %v\r\n", err))
 			// return err
 		}
 	}
 	if s.pty != nil {
 		if err := s.pty.Close(); err != nil {
-			log.Printf("[sesion] could not close pty: %v\r\n", err)
+			slog.Debug(fmt.Sprintf("[sesion] could not close pty: %v\r\n", err))
 			// return err
 		}
 	}
 
 	// remove sockets and dir
 	if err := os.Remove(s.socketIO); err != nil {
-		log.Printf("[session] couldn't remove IO socket: %s: %v\r\n", s.socketIO, err)
+		slog.Debug(fmt.Sprintf("[session] couldn't remove IO socket: %s: %v\r\n", s.socketIO, err))
 		// return err
 	}
 
 	// remove Ctrl socket
 	if err := os.Remove(s.socketCtrl); err != nil {
-		log.Printf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", s.socketCtrl, err)
+		slog.Debug(fmt.Sprintf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", s.socketCtrl, err))
 	}
 
 	if err := os.RemoveAll(filepath.Dir(s.socketIO)); err != nil {
-		log.Printf("[session] couldn't remove socket Directory '%s': %v\r\n", s.socketIO, err)
+		slog.Debug(fmt.Sprintf("[session] couldn't remove socket Directory '%s': %v\r\n", s.socketIO, err))
 	}
 
 	close(s.closedCh)
@@ -538,10 +539,10 @@ func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File) error {
 
 	go func() {
 		<-finishTermMgr
-		log.Printf("[session-runner] finishing terminalManagerReader ")
+		slog.Debug("[session-runner] finishing terminalManagerReader ")
 		_ = pipeOutW.Close()
 		_ = s.pty.Close() // This unblocks s.pty.Read(...)
-		log.Printf("[session-runner] FINISHED terminalManagerReader ")
+		slog.Debug("[session-runner] FINISHED terminalManagerReader ")
 	}()
 
 	buf := make([]byte, 8192)
@@ -558,11 +559,11 @@ func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File) error {
 			if s.gates.OutputOn {
 				//  WRITE TO PIPE
 				// PTY writes to pipeOutW
-				log.Printf("read from pty %q", buf[:n])
-				log.Println("[session] writing to pipeOutW")
+				slog.Debug(fmt.Sprintf("read from pty %q", buf[:n]))
+				slog.Debug("[session] writing to pipeOutW")
 				_, err := pipeOutW.Write(buf[:n])
 				if err != nil {
-					log.Println("[session] error writing raw data to client")
+					slog.Debug("[session] error writing raw data to client")
 					return ErrPipeWrite
 				}
 			}
@@ -570,7 +571,7 @@ func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File) error {
 
 		// Handle read end/error
 		if err != nil {
-			log.Printf("[session] stdout err  %v:\r\n", err)
+			slog.Debug(fmt.Sprintf("[session] stdout err  %v:\r\n", err))
 			trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
 			return ErrTerminalRead
 		}
@@ -580,10 +581,10 @@ func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File) error {
 func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
 	go func() {
 		<-finishTermMgr
-		log.Printf("[session-runner] finishing terminalManagerWriter ")
+		slog.Debug("[session-runner] finishing terminalManagerWriter ")
 		_ = pipeInR.Close()
 		_ = s.pty.Close() // This unblocks s.pty.Read(...)
-		log.Printf("[session-runner] FINISHED terminalManagerWriter ")
+		slog.Debug("[session-runner] FINISHED terminalManagerWriter ")
 	}()
 
 	buf := make([]byte, 4096)
@@ -591,13 +592,13 @@ func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
 	for {
 		// READ FROM PIPE - WRITE TO PTY
 		// PTY reads from pipeInR
-		log.Printf("reading from pipeInR %d\r\n", i) // quoted, escapes control chars
+		slog.Debug(fmt.Sprintf("reading from pipeInR %d\r\n", i)) // quoted, escapes control chars
 		i++
 		n, err := pipeInR.Read(buf)
-		log.Printf("read from pipeInR %q", buf[:n]) // quoted, escapes control chars
+		slog.Debug(fmt.Sprintf("read from pipeInR %q", buf[:n])) // quoted, escapes control chars
 		if n > 0 {
 			if s.gates.StdinOpen {
-				log.Println("[session] reading from pipeInR")
+				slog.Debug("[session] reading from pipeInR")
 				// if _, werr := s.pty.Write(buf[:n]); werr != nil {
 				// WRITE TO PIPE
 				if _, werr := s.pty.Write(buf[:n]); werr != nil {
@@ -609,7 +610,7 @@ func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
 		}
 
 		if err != nil {
-			log.Printf("[session] stdin error: %v\r\n", err)
+			slog.Debug(fmt.Sprintf("[session] stdin error: %v\r\n", err))
 			trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
 			return ErrTerminalWrite
 		}
@@ -636,7 +637,7 @@ func (s *SessionRunnerExec) Write(p []byte) (int, error) {
 
 // helper: non-blocking event send so the PTY reader never stalls
 func trySendEvent(ch chan<- SessionRunnerEvent, ev SessionRunnerEvent) {
-	log.Printf("[session] send event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano))
+	slog.Debug(fmt.Sprintf("[session] send event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano)))
 
 	select {
 	case ch <- ev:

@@ -3,6 +3,7 @@ package common
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"log/slog"
 	"os"
 	"path/filepath"
 )
@@ -28,4 +29,20 @@ func RuntimeBaseSupervisor() (string, error) {
 		return "", err
 	}
 	return filepath.Join(home, ".sbsh", "run", "supervisors"), nil
+}
+
+func ParseLevel(lvl string) slog.Level {
+	switch lvl {
+	case "debug":
+		return slog.LevelDebug
+	case "info":
+		return slog.LevelInfo
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error", "err":
+		return slog.LevelError
+	default:
+		// default if unknown
+		return slog.LevelInfo
+	}
 }
