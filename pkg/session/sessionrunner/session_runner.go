@@ -65,9 +65,9 @@ type SessionRunnerExec struct {
 	clientsMu sync.RWMutex
 	clients   map[int]*ioClient
 
-	close   chan error
-	closed  chan struct{}
-	closing chan struct{}
+	closeReqCh chan error
+	closedCh   chan struct{}
+	closingCh  chan struct{}
 }
 type ioClient struct {
 	id       int
@@ -77,6 +77,8 @@ type ioClient struct {
 	pipeOutR *os.File
 	pipeOutW *os.File
 }
+
+var finishTermMgr chan struct{} = make(chan struct{}, 2)
 
 func NewSessionRunnerExec(spec *api.SessionSpec) SessionRunner {
 	return &SessionRunnerExec{
@@ -103,9 +105,9 @@ func NewSessionRunnerExec(spec *api.SessionSpec) SessionRunner {
 		// signaling (set in Start)
 		evCh: nil, // assigned in Start(...)
 
-		close:   make(chan error),
-		closing: make(chan struct{}, 1),
-		closed:  make(chan struct{}),
+		closeReqCh: make(chan error),
+		closingCh:  make(chan struct{}, 1),
+		closedCh:   make(chan struct{}),
 	}
 }
 
@@ -342,9 +344,9 @@ func (s *SessionRunnerExec) startPTY() error {
 
 	go func() {
 		log.Printf("[session] pid=%d, waiting on bash pid=%d\r\n", os.Getpid(), s.cmd.Process.Pid)
-		err := s.cmd.Wait() // blocks until process exits
+		_ = s.cmd.Wait() // blocks until process exits
 		log.Printf("[session] pid=%d, bash with pid=%d has exited\r\n", os.Getpid(), s.cmd.Process.Pid)
-		s.close <- err
+		s.closeReqCh <- fmt.Errorf("the shell process has exited")
 
 	}()
 
@@ -376,13 +378,12 @@ func (s *SessionRunnerExec) startPTY() error {
 func (s *SessionRunnerExec) waitOnSession() {
 
 	select {
-	case err := <-s.close:
-		s.Close(err)
+	case err := <-s.closeReqCh:
 		log.Printf("[session] sending EvSessionExited event\r\n")
 		trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvCmdExited, Err: err, When: time.Now()})
 		return
 	case <-s.sessionCtx.Done():
-		log.Printf("[session] ||||||||||||||session context has been closed\r\n")
+		log.Printf("[session] session context has been closed\r\n")
 		s.Close(s.sessionCtx.Err())
 		return
 	}
@@ -390,16 +391,20 @@ func (s *SessionRunnerExec) waitOnSession() {
 }
 
 func (s *SessionRunnerExec) terminalManager(pipeInR *os.File, pipeOutW *os.File) error {
-
 	/*
 	 * PTY READER goroutine
 	 */
-	go s.terminalManagerReader(pipeOutW)
+
+	go func() {
+		s.terminalManagerReader(pipeOutW, finishTermMgr)
+	}()
 
 	/*
 	* PTY WRITER  routine
 	 */
-	go s.terminalManagerWriter(pipeInR)
+	go func() {
+		s.terminalManagerWriter(pipeInR, finishTermMgr)
+	}()
 
 	s.Write([]byte(`export PS1="(sbsh-` + s.id + `) $PS1"` + "\n"))
 	// s.pty.Write([]byte("echo 'Hello from Go!'\n"))
@@ -412,7 +417,7 @@ func (s *SessionRunnerExec) terminalManager(pipeInR *os.File, pipeOutW *os.File)
 
 func (s *SessionRunnerExec) handleClient(client *ioClient) {
 	defer client.conn.Close()
-	errCh := make(chan error)
+	errCh := make(chan error, 2)
 
 	// READ FROM CONN, WRITE TO PTY STDIN
 	go func(chan error) {
@@ -440,7 +445,7 @@ func (s *SessionRunnerExec) handleClient(client *ioClient) {
 
 	err := <-errCh
 	if err != nil {
-		log.Printf("error in copy pipes: %v\r\n", err)
+		log.Printf("[session-runner] error in copy pipes: %v\r\n", err)
 	}
 	client.conn.Close()
 	close(errCh)
@@ -456,7 +461,7 @@ func (s *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeOu
 		log.Printf("[session] waiting for new connection...\r\n")
 		conn, err := s.listenerIO.Accept()
 		if err != nil {
-			log.Printf("[session] closing client routine\r\n")
+			log.Printf("[session] closing IO listener routine\r\n")
 			return err
 		}
 		log.Printf("[session] client connected!\r\n")
@@ -469,20 +474,27 @@ func (s *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeOu
 }
 func (s *SessionRunnerExec) Close(reason error) error {
 
-	log.Printf("[sesion] closing session |||||||||||||")
-	s.closing <- struct{}{}
+	log.Printf("[session-runner] closing session-runner on request, reason: %v\r\n", reason)
+	s.closingCh <- struct{}{}
+	log.Printf("[session-runner] sent 'closingCh' signal\r\n")
+
+	// stop terminalManager, 2 messages needed, one for writer/reader
+	finishTermMgr <- struct{}{}
+	log.Printf("[session-runner] sent 'finishTermMgr' 1s signalt\r\n")
+	finishTermMgr <- struct{}{}
+	log.Printf("[session-runner] sent 'finishTermMgr' 2nd signal \r\n")
 
 	// stop accepting
 	if s.listenerCtrl != nil {
 		if err := s.listenerCtrl.Close(); err != nil {
-			log.Printf("[sesion] could not close IO listener: %v", err)
+			log.Printf("[session-runner] could not close IO listener: %v", err)
 			// return err
 		}
 	}
 	// stop accepting
 	if s.listenerIO != nil {
 		if err := s.listenerIO.Close(); err != nil {
-			log.Printf("[sesion] could not close IO listener: %v", err)
+			log.Printf("[session-runner] could not close IO listener: %v", err)
 			// return err
 		}
 	}
@@ -491,7 +503,7 @@ func (s *SessionRunnerExec) Close(reason error) error {
 	s.clientsMu.Lock()
 	for _, c := range s.clients {
 		if err := c.conn.Close(); err != nil {
-			log.Printf("[sesion] could not close connection: %v\r\n", err)
+			log.Printf("[session-runner] could not close connection: %v\r\n", err)
 			// return err
 		}
 	}
@@ -528,17 +540,26 @@ func (s *SessionRunnerExec) Close(reason error) error {
 		log.Printf("[session] couldn't remove socket Directory '%s': %v\r\n", s.socketIO, err)
 	}
 
-	close(s.closed)
+	close(s.closedCh)
 	return nil
 
 }
 
-func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File) {
+func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File, finReqCh <-chan struct{}) error {
+
+	go func() {
+		<-finReqCh
+		log.Printf("[session-runner] finishing terminalManagerReader ")
+		_ = pipeOutW.Close()
+		_ = s.pty.Close() // This unblocks s.pty.Read(...)
+		log.Printf("[session-runner] FINISHED terminalManagerReader ")
+	}()
 
 	buf := make([]byte, 8192)
 	for {
 		// READ FROM PTY - WRITE TO PIPE
 		n, err := s.pty.Read(buf)
+
 		// drain/emit data
 		if n > 0 {
 			s.lastRead = time.Now()
@@ -553,21 +574,29 @@ func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File) {
 				_, err := pipeOutW.Write(buf[:n])
 				if err != nil {
 					log.Println("[session] error writing raw data to client")
-					return
+					return ErrPipeWrite
 				}
 			}
 		}
 
 		// Handle read end/error
 		if err != nil {
-			log.Printf("[session] stdout closed %v:\r\n", err)
+			log.Printf("[session] stdout err  %v:\r\n", err)
 			trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
-			return
+			return ErrTerminalRead
 		}
 	}
 }
 
-func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) {
+func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File, finReqCh <-chan struct{}) error {
+	go func() {
+		<-finReqCh
+		log.Printf("[session-runner] finishing terminalManagerWriter ")
+		_ = pipeInR.Close()
+		_ = s.pty.Close() // This unblocks s.pty.Read(...)
+		log.Printf("[session-runner] FINISHED terminalManagerWriter ")
+	}()
+
 	buf := make([]byte, 4096)
 	i := 0
 	for {
@@ -584,7 +613,7 @@ func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) {
 				// WRITE TO PIPE
 				if _, werr := s.pty.Write(buf[:n]); werr != nil {
 					trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: werr, When: time.Now()})
-					return
+					return ErrPipeRead
 				}
 			}
 			// else: gate closed, drop input
@@ -593,7 +622,7 @@ func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) {
 		if err != nil {
 			log.Printf("[session] stdin error: %v\r\n", err)
 			trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
-			return
+			return ErrTerminalWrite
 		}
 
 		// }

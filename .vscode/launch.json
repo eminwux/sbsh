@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "cmd/sbsh/main.go",
+            "program": "cmd/sbsh/",
             "console": "integratedTerminal"
         },
         {
@@ -17,7 +17,7 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "cmd/sbsh-session/main.go",
+            "program": "cmd/sbsh-session/",
             "console": "integratedTerminal"
         },
         {

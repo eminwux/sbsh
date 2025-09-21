@@ -13,9 +13,9 @@ import (
 type SessionController struct {
 	ctx context.Context
 
-	closed  chan struct{}
-	closing chan error
-	cancel  context.CancelFunc
+	closedCh  chan struct{}
+	closingCh chan error
+	cancel    context.CancelFunc
 }
 
 var newSessionRunner = sessionrunner.NewSessionRunnerExec
@@ -31,10 +31,10 @@ func NewSessionController(ctx context.Context, cancel context.CancelFunc) api.Se
 	log.Printf("[sessionCtrl] New controller is being created\r\n")
 
 	c := &SessionController{
-		ctx:     ctx,
-		cancel:  cancel,
-		closed:  make(chan struct{}),
-		closing: make(chan error, 1),
+		ctx:       ctx,
+		cancel:    cancel,
+		closedCh:  make(chan struct{}),
+		closingCh: make(chan error, 1),
 	}
 
 	return c
@@ -56,10 +56,10 @@ func (c *SessionController) WaitReady() error {
 func (c *SessionController) WaitClose() error {
 
 	select {
-	case <-c.closed:
+	case <-c.closedCh:
 		log.Printf("[sessionCtrl] controller exited")
 		return nil
-	case err := <-c.closing:
+	case err := <-c.closingCh:
 		log.Printf("[sessionCtrl] controller closing: %v", err)
 	}
 	return nil
@@ -124,21 +124,21 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 			c.handleEvent(ev)
 
 		case err := <-rpcDoneCh:
-			log.Printf("[sessionCtrl] rpc server has failed: %v\r\n", err)
+			log.Printf("[sessionCtrl] rpc server has exited: %v\r\n", err)
 			if err := c.Close(err); err != nil {
 				return fmt.Errorf("%w:%w", ErrOnClose, err)
 			}
 			return fmt.Errorf("%w:%w", ErrRPCServerExited, c.ctx.Err())
 
 		case err := <-rpcDoneCh:
-			log.Printf("[supervisor] rpc server has failed: %v\r\n", err)
+			log.Printf("[sessionCtrl] rpc server has failed: %v\r\n", err)
 			if err := c.Close(err); err != nil {
 				err = fmt.Errorf("%w:%w:%w", err, ErrOnClose, err)
 			}
 			return fmt.Errorf("%w:%w", ErrRPCServerExited, err)
 
 		case err := <-closeReqCh:
-			log.Printf("[supervisor] close request received: %v\r\n", err)
+			log.Printf("[sessionCtrl] close request received: %v\r\n", err)
 			return fmt.Errorf("%w:%w", ErrCloseReq, err)
 		}
 	}
@@ -162,17 +162,21 @@ func (c *SessionController) handleEvent(ev sessionrunner.SessionRunnerEvent) {
 func (c *SessionController) Close(reason error) error {
 
 	log.Printf("[session] Close called: %v\r\n", reason)
-	c.closing <- reason
-	closeReqCh <- reason
-	log.Printf("[session] error sent to closeReqCh: %v\r\n", reason)
+	c.closingCh <- reason
+
+	log.Printf("[session] sent close order to session-runner, reason: %v\r\n", reason)
 	sr.Close(reason)
-	close(c.closed)
+
+	closeReqCh <- reason
+	log.Printf("[session] error sent to closingCh, reason: %v\r\n", reason)
+
+	close(c.closedCh)
 
 	return nil
 }
 
 func (c *SessionController) onClosed(err error) {
-	fmt.Printf("[sessionCtrl] onClosed triggered")
+	log.Printf("[sessionCtrl] onClosed triggered\r\n")
 	c.Close(err)
 
 }
