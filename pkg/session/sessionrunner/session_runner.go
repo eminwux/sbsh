@@ -80,6 +80,21 @@ type ioClient struct {
 
 var finishTermMgr chan struct{} = make(chan struct{}, 2)
 
+type SessionRunnerEventType int
+
+const (
+	EvError SessionRunnerEventType = iota // abnormal error
+	EvCmdExited
+)
+
+type SessionRunnerEvent struct {
+	ID    api.SessionID
+	Type  SessionRunnerEventType
+	Bytes int   // for EvData
+	Err   error // for EvClosed/EvError
+	When  time.Time
+}
+
 func NewSessionRunnerExec(spec *api.SessionSpec) SessionRunner {
 	return &SessionRunnerExec{
 		id:   spec.ID,
@@ -108,21 +123,6 @@ func NewSessionRunnerExec(spec *api.SessionSpec) SessionRunner {
 		closeReqCh: make(chan error),
 		closedCh:   make(chan struct{}),
 	}
-}
-
-type SessionRunnerEventType int
-
-const (
-	EvError SessionRunnerEventType = iota // abnormal error
-	EvCmdExited
-)
-
-type SessionRunnerEvent struct {
-	ID    api.SessionID
-	Type  SessionRunnerEventType
-	Bytes int   // for EvData
-	Err   error // for EvClosed/EvError
-	When  time.Time
 }
 
 func (sr *SessionRunnerExec) ID() api.SessionID {
