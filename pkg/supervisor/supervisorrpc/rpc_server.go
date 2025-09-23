@@ -13,3 +13,8 @@ type SupervisorControllerRPC struct {
 func (s *SupervisorControllerRPC) WaitReady(_ *api.Empty, _ *api.Empty) error {
 	return s.Core.WaitReady(context.Background())
 }
+
+// TODO
+// show current attach session
+// attach to a different session
+// detach from session and exit

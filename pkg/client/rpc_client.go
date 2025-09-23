@@ -47,3 +47,12 @@ func (cc *ClientControllerRPC) Close() error {
 	_ = cc.c.Close()
 	return cc.conn.Close()
 }
+
+// TODO
+// list all existing sessions
+// show session
+// stop session
+// restart session
+// create new session
+// attach to a different session
+// dettach from current session
