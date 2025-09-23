@@ -8,9 +8,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"sbsh/cmd/sb/sessions"
 	"sbsh/pkg/client"
+	"sbsh/pkg/common"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -20,11 +23,22 @@ func main() {
 	Execute()
 }
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
+var logLevel string
+
+// RootCmd represents the base command when called without any subcommands
+var RootCmd = &cobra.Command{
 	Use:   "sb",
 	Short: "A brief description of your application",
 	Long:  `A longer description ...`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		viper.BindEnv("SBSH_LOG_LEVEL")
+		logLevel = viper.GetString("SBSH_LOG_LEVEL")
+		h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: common.ParseLevel(logLevel),
+		})
+		slog.SetDefault(slog.New(h))
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		err := LoadConfig()
@@ -58,14 +72,15 @@ func run() {
 ///////////////////////////////////////////////
 
 func Execute() {
-	err := rootCmd.Execute()
+	err := RootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
 	}
 }
 
 func init() {
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	RootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
+	RootCmd.AddCommand(sessions.SessionsCmd)
 }
 
 // LoadConfig loads config.yaml from the given path or HOME/.sbsh
@@ -80,7 +95,7 @@ func LoadConfig() error {
 	}
 
 	// Bind ENV variable as a fallback
-	viper.BindEnv("openai_api_key", "OPENAI_API_KEY")
+	// viper.BindEnv("SBSH_LOG_LEVEL")
 
 	if err := viper.ReadInConfig(); err != nil {
 		// File not found is OK if ENV is set
