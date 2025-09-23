@@ -46,6 +46,8 @@ var rootCmd = &cobra.Command{
 	Short: "A brief description of your application",
 	Long:  `A longer description ...`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		viper.BindEnv("SBSH_LOG_LEVEL")
+		logLevel = viper.GetString("SBSH_LOG_LEVEL")
 		h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			Level: common.ParseLevel(logLevel),
 		})
