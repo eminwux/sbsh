@@ -18,7 +18,7 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 	orig := newSupervisorController
 	newSupervisorController = func(ctx context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
-			RunFunc: func() error {
+			RunFunc: func(spec *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil
 			},
@@ -29,7 +29,7 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 			WaitCloseFunc: func() error {
 				return nil
 			},
-			SetCurrentSessionFn: func(id api.SessionID) error {
+			SetCurrentSessionFn: func(id api.ID) error {
 				// default: just accept the ID
 				return nil
 			},
@@ -65,7 +65,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	orig := newSupervisorController
 	newSupervisorController = func(ctx context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
-			RunFunc: func() error {
+			RunFunc: func(spec *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil
 			},
@@ -75,7 +75,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 			WaitCloseFunc: func() error {
 				return nil
 			},
-			SetCurrentSessionFn: func(id api.SessionID) error {
+			SetCurrentSessionFn: func(id api.ID) error {
 				// default: just accept the ID
 				return nil
 			},
@@ -106,7 +106,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	orig := newSupervisorController
 	newSupervisorController = func(ctx context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
-			RunFunc: func() error {
+			RunFunc: func(spec *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil
 			},
@@ -116,7 +116,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 			WaitCloseFunc: func() error {
 				return fmt.Errorf("not closed")
 			},
-			SetCurrentSessionFn: func(id api.SessionID) error {
+			SetCurrentSessionFn: func(id api.ID) error {
 				// default: just accept the ID
 				return nil
 			},
@@ -146,7 +146,7 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 	orig := newSupervisorController
 	newSupervisorController = func(ctx context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
-			RunFunc: func() error {
+			RunFunc: func(spec *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return fmt.Errorf("force child exit")
 			},
@@ -156,7 +156,7 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 			WaitCloseFunc: func() error {
 				return nil
 			},
-			SetCurrentSessionFn: func(id api.SessionID) error {
+			SetCurrentSessionFn: func(id api.ID) error {
 				// default: just accept the ID
 				return nil
 			},

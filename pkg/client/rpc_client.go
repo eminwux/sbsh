@@ -32,12 +32,12 @@ func (cc *ClientControllerRPC) WaitReady(ctx context.Context) error {
 	return cc.c.Call("Controller.WaitReady", &api.Empty{}, &reply)
 }
 
-func (cc *ClientControllerRPC) SetCurrentSession(id api.SessionID) error {
+func (cc *ClientControllerRPC) SetCurrentSession(id api.ID) error {
 	var reply api.Empty
 	return cc.c.Call("Controller.SetCurrentSession", &api.SessionIDArg{ID: id}, &reply)
 }
 
-func (cc *ClientControllerRPC) StartSession(id api.SessionID) error {
+func (cc *ClientControllerRPC) StartSession(id api.ID) error {
 	var reply api.Empty
 	return cc.c.Call("Controller.StartSession", &api.SessionIDArg{ID: id}, &reply)
 }

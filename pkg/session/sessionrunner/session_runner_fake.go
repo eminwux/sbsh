@@ -13,7 +13,7 @@ type SessionRunnerTest struct {
 	StartSessionFunc   func(ctx context.Context, evCh chan<- SessionRunnerEvent) error
 	CloseFunc          func(reason error) error
 	ResizeFunc         func(args api.ResizeArgs)
-	IDFunc             func() api.SessionID
+	IDFunc             func() api.ID
 }
 
 func NewSessionRunnerTest() SessionRunner {
@@ -39,11 +39,11 @@ func (sr *SessionRunnerTest) StartSession(ctx context.Context, evCh chan<- Sessi
 	return nil
 }
 
-func (sr *SessionRunnerTest) ID() api.SessionID {
+func (sr *SessionRunnerTest) ID() api.ID {
 	if sr.IDFunc != nil {
 		return sr.IDFunc()
 	}
-	return api.SessionID("")
+	return api.ID("")
 }
 
 func (sr *SessionRunnerTest) Close(reason error) error {

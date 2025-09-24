@@ -36,7 +36,7 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 
 	// Define a new Session
 	spec := api.SessionSpec{
-		ID:          api.SessionID("abcdef"),
+		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
 		Label:       "default",
 		Command:     "",
@@ -47,8 +47,8 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 
 	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
-			IDFunc: func() api.SessionID {
-				return api.SessionID("iajs099")
+			IDFunc: func() api.ID {
+				return api.ID("iajs099")
 			},
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				return newStubListener(), fmt.Errorf("error opening listener")
@@ -78,7 +78,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 
 	// Define a new Session
 	spec := api.SessionSpec{
-		ID:          api.SessionID("abcdef"),
+		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
 		Label:       "default",
 		Command:     "/bin/bash",
@@ -89,8 +89,8 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 
 	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
-			IDFunc: func() api.SessionID {
-				return api.SessionID("iajs099")
+			IDFunc: func() api.ID {
+				return api.ID("iajs099")
 			},
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				return newStubListener(), fmt.Errorf("error opening listener")
@@ -120,7 +120,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 
 	// Define a new Session
 	spec := api.SessionSpec{
-		ID:          api.SessionID("abcdef"),
+		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
 		Label:       "default",
 		Command:     "/bin/bash",
@@ -131,7 +131,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 
 	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				return spec.ID
 			},
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
@@ -165,7 +165,7 @@ func Test_ErrStartSession(t *testing.T) {
 
 	// Define a new Session
 	spec := api.SessionSpec{
-		ID:          api.SessionID("abcdef"),
+		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
 		Label:       "default",
 		Command:     "/bin/bash",
@@ -176,7 +176,7 @@ func Test_ErrStartSession(t *testing.T) {
 
 	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				return spec.ID
 			},
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
@@ -219,7 +219,7 @@ func Test_ErrContextDone(t *testing.T) {
 
 	// Define a new Session
 	spec := api.SessionSpec{
-		ID:          api.SessionID("abcdef"),
+		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
 		Label:       "default",
 		Command:     "/bin/bash",
@@ -230,7 +230,7 @@ func Test_ErrContextDone(t *testing.T) {
 
 	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				return spec.ID
 			},
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
@@ -277,7 +277,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 
 	// Define a new Session
 	spec := api.SessionSpec{
-		ID:          api.SessionID("abcdef"),
+		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
 		Label:       "default",
 		Command:     "/bin/bash",
@@ -288,7 +288,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 
 	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				return spec.ID
 			},
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
@@ -333,7 +333,7 @@ func Test_WaitReady(t *testing.T) {
 
 	// Define a new Session
 	spec := api.SessionSpec{
-		ID:          api.SessionID("abcdef"),
+		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
 		Label:       "default",
 		Command:     "/bin/bash",
@@ -344,7 +344,7 @@ func Test_WaitReady(t *testing.T) {
 
 	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				return spec.ID
 			},
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
@@ -395,7 +395,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 
 	// Define a new Session
 	spec := api.SessionSpec{
-		ID:          api.SessionID("abcdef"),
+		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
 		Label:       "default",
 		Command:     "/bin/bash",
@@ -406,7 +406,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 
 	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				return spec.ID
 			},
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
@@ -457,7 +457,7 @@ func Test_HandleEvent_EvError(t *testing.T) {
 
 	// Define a new Session
 	spec := api.SessionSpec{
-		ID:          api.SessionID("abcdef"),
+		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
 		Label:       "default",
 		Command:     "/bin/bash",
@@ -468,7 +468,7 @@ func Test_HandleEvent_EvError(t *testing.T) {
 
 	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				return spec.ID
 			},
 			OpenSocketCtrlFunc: func() (net.Listener, error) {

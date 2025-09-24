@@ -31,17 +31,17 @@ type SupervisorRunnerTest struct {
 	OpenSocketCtrlFunc    func() (net.Listener, error)
 	StartServerFunc       func(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error)
 	StartSessionFunc      func(ctx context.Context, evCh chan<- SupervisorRunnerEvent) error
-	IDFunc                func() api.SessionID
+	IDFunc                func() api.ID
 	CloseFunc             func(reason error) error
 	ResizeFunc            func(args api.ResizeArgs)
-	SetCurrentSessionFunc func(id api.SessionID) error
+	SetCurrentSessionFunc func(id api.ID) error
 	StartSupervisorFunc   func(ctx context.Context, evCh chan<- SupervisorRunnerEvent) error
 }
 
 // NewSupervisorRunnerTest returns a new SupervisorRunnerTest instance
-func NewSupervisorRunnerTest(ctx context.Context) *SupervisorRunnerTest {
+func NewSupervisorRunnerTest(spec *api.SupervisorSpec) *SupervisorRunnerTest {
 	return &SupervisorRunnerTest{
-		Ctx: ctx,
+		Ctx: spec.Ctx,
 	}
 }
 
@@ -61,7 +61,7 @@ func (t *SupervisorRunnerTest) StartServer(ctx context.Context, ln net.Listener,
 	}
 }
 
-func (t *SupervisorRunnerTest) ID() api.SessionID {
+func (t *SupervisorRunnerTest) ID() api.ID {
 	if t.IDFunc != nil {
 		return t.IDFunc()
 	}
@@ -82,7 +82,7 @@ func (t *SupervisorRunnerTest) Resize(args api.ResizeArgs) {
 		t.ResizeFunc(args)
 	}
 }
-func (t *SupervisorRunnerTest) SetCurrentSession(id api.SessionID) error {
+func (t *SupervisorRunnerTest) SetCurrentSession(id api.ID) error {
 	if t.SetCurrentSessionFunc != nil {
 		return t.SetCurrentSessionFunc(id)
 	}

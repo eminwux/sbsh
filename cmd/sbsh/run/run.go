@@ -73,7 +73,7 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
 
 	// Define a new Session
 	spec := api.SessionSpec{
-		ID:          api.SessionID(sessionID),
+		ID:          api.ID(sessionID),
 		Kind:        api.SessLocal,
 		Label:       "default",
 		Command:     sessionCmd,

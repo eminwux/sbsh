@@ -15,7 +15,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sbsh/pkg/api"
-	"sbsh/pkg/common"
 	"sbsh/pkg/errdefs"
 	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
@@ -30,27 +29,27 @@ type SupervisorRunner interface {
 	OpenSocketCtrl() (net.Listener, error)
 	StartServer(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error)
 	StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *sessionstore.SupervisedSession) error
-	ID() api.SessionID
+	ID() api.ID
 	Close(reason error) error
 	Resize(args api.ResizeArgs)
-	SetCurrentSession(id api.SessionID) error
+	SetCurrentSession(id api.ID) error
 }
 
 type SupervisorRunnerExec struct {
-	// sessionID        api.SessionID
-	session    *sessionstore.SupervisedSession
-	sessionCtx context.Context
-	uiMode     UIMode
-	events     chan<- SupervisorRunnerEvent
-
-	lastTermState *term.State
-
+	id                   api.ID
+	spec                 api.SupervisorSpec
+	runPath              string
+	session              *sessionstore.SupervisedSession
+	sessionCtx           context.Context
+	uiMode               UIMode
+	events               chan<- SupervisorRunnerEvent
+	lastTermState        *term.State
 	Mgr                  *sessionstore.SessionStoreExec
 	supervisorSockerCtrl string
 }
 
 type SupervisorRunnerEvent struct {
-	ID    api.SessionID
+	ID    api.ID
 	Type  SupervisorRunnerEventType
 	Bytes int   // for EvData
 	Err   error // for EvClosed/EvError
@@ -72,22 +71,18 @@ const (
 	UIExitShell // Saved lastState restore
 )
 
-func NewSupervisorRunnerExec(ctx context.Context) SupervisorRunner {
+func NewSupervisorRunnerExec(spec *api.SupervisorSpec) SupervisorRunner {
 	return &SupervisorRunnerExec{
-		sessionCtx: ctx,
+		sessionCtx: spec.Ctx,
+		id:         spec.ID,
+		spec:       *spec,
+		runPath:    spec.RunPath + "/supervisors",
 	}
 }
 
 func (s *SupervisorRunnerExec) OpenSocketCtrl() (net.Listener, error) {
-	supervisorID := common.RandomID()
 
-	// Set up sockets
-	base, err := common.RuntimeBaseSupervisor()
-	if err != nil {
-		return nil, err
-	}
-
-	supervisorsDir := filepath.Join(base, string(supervisorID))
+	supervisorsDir := filepath.Join(s.runPath, string(s.id))
 	if err := os.MkdirAll(supervisorsDir, 0o700); err != nil {
 		return nil, fmt.Errorf("mkdir session dir: %w", err)
 	}
@@ -186,7 +181,7 @@ func (s *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- 
 		_ = cmd.Wait()
 		slog.Debug(fmt.Sprintf("[supervisor] session %s process has exited\r\n", session.Id))
 		err := fmt.Errorf("session %s process has exited", session.Id)
-		trySendEvent(s.events, SupervisorRunnerEvent{ID: api.SessionID(session.Id), Type: EvCmdExited, Err: err, When: time.Now()})
+		trySendEvent(s.events, SupervisorRunnerEvent{ID: api.ID(session.Id), Type: EvCmdExited, Err: err, When: time.Now()})
 	}()
 
 	if err := s.dialSessionCtrlSocket(); err != nil {
@@ -204,7 +199,7 @@ func (s *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- 
 	return nil
 }
 
-func (s *SupervisorRunnerExec) ID() api.SessionID {
+func (s *SupervisorRunnerExec) ID() api.ID {
 	return s.session.Id
 }
 
@@ -213,6 +208,8 @@ func (s *SupervisorRunnerExec) Close(reason error) error {
 	if err := os.Remove(s.supervisorSockerCtrl); err != nil {
 		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", s.supervisorSockerCtrl, err))
 	}
+
+	// TODO remove this because there might be other supervisors running
 	if err := os.RemoveAll(filepath.Dir(s.supervisorSockerCtrl)); err != nil {
 		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", s.supervisorSockerCtrl, err))
 	}
@@ -228,7 +225,7 @@ func (s *SupervisorRunnerExec) Resize(args api.ResizeArgs) {
 	// No-op
 }
 
-func (s *SupervisorRunnerExec) SetCurrentSession(id api.SessionID) error {
+func (s *SupervisorRunnerExec) SetCurrentSession(id api.ID) error {
 	// Initial terminal mode (bash passthrough)
 	if err := s.toBashUIMode(); err != nil {
 		slog.Debug(fmt.Sprintf("[supervisor] initial raw mode failed: %v", err))

@@ -7,12 +7,16 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"sbsh/pkg/api"
+	"sbsh/pkg/common"
 	"sbsh/pkg/errdefs"
 	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
 	"sbsh/pkg/supervisor/supervisorrunner"
 	"testing"
+
+	"github.com/spf13/viper"
 )
 
 type fakeListener struct{}
@@ -33,9 +37,9 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	// ctx, cancel := context.WithCancel(context.Background())
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(ctx context.Context) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx: spec.Ctx,
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				// default: return nil listener and nil error
 				return nil, fmt.Errorf("force socket fail")
@@ -51,7 +55,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 				// default: do nothing and succeed
 				return nil
 			},
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
@@ -72,9 +76,19 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 
 	closeReqCh = make(chan error, 1)
 
+	supervisorID := common.RandomID()
+	// Define a new Supervisor
+	spec := api.SupervisorSpec{
+		ID:      api.ID(supervisorID),
+		Label:   "default",
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString("global.runPath"),
+	}
+
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run()
+		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrOpenSocketCtrl) {
@@ -86,9 +100,9 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	// ctx, cancel := context.WithCancel(context.Background())
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(ctx context.Context) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx: spec.Ctx,
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				// default: return nil listener and nil error
 				return nil, nil
@@ -104,7 +118,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 				// default: do nothing and succeed
 				return nil
 			},
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
@@ -125,9 +139,18 @@ func Test_ErrStartRPCServer(t *testing.T) {
 
 	closeReqCh = make(chan error, 1)
 
+	supervisorID := common.RandomID()
+	// Define a new Supervisor
+	spec := api.SupervisorSpec{
+		ID:      api.ID(supervisorID),
+		Label:   "default",
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString("global.runPath"),
+	}
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run()
+		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartRPCServer) {
@@ -139,9 +162,9 @@ func Test_ErrStartRPCServer(t *testing.T) {
 func Test_ErrStartSession(t *testing.T) {
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(ctx context.Context) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx: spec.Ctx,
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				// default: return nil listener and nil error
 				return nil, nil
@@ -160,7 +183,7 @@ func Test_ErrStartSession(t *testing.T) {
 			StartSupervisorFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
 				return fmt.Errorf("force session start fail")
 			},
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
@@ -181,9 +204,19 @@ func Test_ErrStartSession(t *testing.T) {
 
 	closeReqCh = make(chan error, 1)
 
+	supervisorID := common.RandomID()
+	// Define a new Supervisor
+	spec := api.SupervisorSpec{
+		ID:      api.ID(supervisorID),
+		Label:   "default",
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString("global.runPath"),
+	}
+
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run()
+		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartSession) {
@@ -196,7 +229,7 @@ func Test_ErrContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	sessionCtrl := NewSupervisorController(ctx)
 
-	newSupervisorRunner = func(ctx context.Context) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
@@ -217,7 +250,7 @@ func Test_ErrContextDone(t *testing.T) {
 			StartSupervisorFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
 				return nil
 			},
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
@@ -242,10 +275,19 @@ func Test_ErrContextDone(t *testing.T) {
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
 	ctrlReady = make(chan struct{}, 1)
 
-	exitCh := make(chan error)
+	supervisorID := common.RandomID()
+	// Define a new Supervisor
+	spec := api.SupervisorSpec{
+		ID:      api.ID(supervisorID),
+		Label:   "default",
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString("global.runPath"),
+	}
 
+	exitCh := make(chan error)
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run()
+		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
 	<-ctrlReady
@@ -260,9 +302,9 @@ func Test_ErrContextDone(t *testing.T) {
 func Test_ErrRPCServerExited(t *testing.T) {
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(ctx context.Context) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx: spec.Ctx,
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				// default: return nil listener and nil error
 				return nil, nil
@@ -281,7 +323,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 			StartSupervisorFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
 				return nil
 			},
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
@@ -308,8 +350,17 @@ func Test_ErrRPCServerExited(t *testing.T) {
 
 	exitCh := make(chan error)
 
+	supervisorID := common.RandomID()
+	// Define a new Supervisor
+	spec := api.SupervisorSpec{
+		ID:      api.ID(supervisorID),
+		Label:   "default",
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString("global.runPath"),
+	}
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run()
+		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
 	<-ctrlReady
@@ -324,9 +375,9 @@ func Test_ErrRPCServerExited(t *testing.T) {
 func Test_ErrSessionExists(t *testing.T) {
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(ctx context.Context) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx: spec.Ctx,
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				// default: return nil listener and nil error
 				return nil, nil
@@ -345,7 +396,7 @@ func Test_ErrSessionExists(t *testing.T) {
 			StartSupervisorFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
 				return nil
 			},
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
@@ -370,10 +421,19 @@ func Test_ErrSessionExists(t *testing.T) {
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
 	ctrlReady = make(chan struct{}, 1)
 
-	exitCh := make(chan error)
+	supervisorID := common.RandomID()
+	// Define a new Supervisor
+	spec := api.SupervisorSpec{
+		ID:      api.ID(supervisorID),
+		Label:   "default",
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString("global.runPath"),
+	}
 
+	exitCh := make(chan error)
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run()
+		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
 	<-ctrlReady
@@ -388,9 +448,9 @@ func Test_ErrSessionExists(t *testing.T) {
 func Test_ErrCloseReq(t *testing.T) {
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(ctx context.Context) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx: spec.Ctx,
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				// default: return nil listener and nil error
 				return nil, nil
@@ -409,7 +469,7 @@ func Test_ErrCloseReq(t *testing.T) {
 			StartSupervisorFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
 				return nil
 			},
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
@@ -434,10 +494,19 @@ func Test_ErrCloseReq(t *testing.T) {
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
 	ctrlReady = make(chan struct{}, 1)
 
-	exitCh := make(chan error)
+	supervisorID := common.RandomID()
+	// Define a new Supervisor
+	spec := api.SupervisorSpec{
+		ID:      api.ID(supervisorID),
+		Label:   "default",
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString("global.runPath"),
+	}
 
+	exitCh := make(chan error)
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run()
+		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
 	<-ctrlReady
@@ -452,9 +521,9 @@ func Test_ErrCloseReq(t *testing.T) {
 func Test_ErrSessionStore(t *testing.T) {
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(ctx context.Context) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx: spec.Ctx,
 			OpenSocketCtrlFunc: func() (net.Listener, error) {
 				// default: return nil listener and nil error
 				return nil, nil
@@ -473,7 +542,7 @@ func Test_ErrSessionStore(t *testing.T) {
 			StartSupervisorFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
 				return nil
 			},
-			IDFunc: func() api.SessionID {
+			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
@@ -492,18 +561,18 @@ func Test_ErrSessionStore(t *testing.T) {
 
 				return fmt.Errorf("force add fail")
 			},
-			GetFunc: func(id api.SessionID) (*sessionstore.SupervisedSession, bool) {
+			GetFunc: func(id api.ID) (*sessionstore.SupervisedSession, bool) {
 				return nil, false
 			},
-			ListLiveFunc: func() []api.SessionID {
-				return []api.SessionID{}
+			ListLiveFunc: func() []api.ID {
+				return []api.ID{}
 			},
-			RemoveFunc: func(id api.SessionID) {
+			RemoveFunc: func(id api.ID) {
 			},
-			CurrentFunc: func() api.SessionID {
+			CurrentFunc: func() api.ID {
 				return "sess-1"
 			},
-			SetCurrentFunc: func(id api.SessionID) error {
+			SetCurrentFunc: func(id api.ID) error {
 				if id == "" {
 					return errors.New("empty id not allowed")
 				}
@@ -524,10 +593,19 @@ func Test_ErrSessionStore(t *testing.T) {
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
 	ctrlReady = make(chan struct{}, 1)
 
-	exitCh := make(chan error)
+	supervisorID := common.RandomID()
+	// Define a new Supervisor
+	spec := api.SupervisorSpec{
+		ID:      api.ID(supervisorID),
+		Label:   "default",
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString("global.runPath"),
+	}
 
+	exitCh := make(chan error)
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run()
+		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrSessionStore) {

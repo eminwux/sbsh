@@ -73,6 +73,16 @@ func runSupervisor() error {
 	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
+	supervisorID := common.RandomID()
+	// Define a new Supervisor
+	spec := api.SupervisorSpec{
+		ID:      api.ID(supervisorID),
+		Ctx:     ctx,
+		Label:   "default",
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString("global.runPath"),
+	}
 	// Create a new Controller
 	var ctrl api.SupervisorController
 
@@ -83,7 +93,7 @@ func runSupervisor() error {
 
 	// Run controller
 	go func() {
-		errCh <- ctrl.Run() // Run should return when ctx is canceled
+		errCh <- ctrl.Run(&spec) // Run should return when ctx is canceled
 		slog.Debug("[sbsh] controller stopped\r\n")
 	}()
 

@@ -6,9 +6,9 @@ import (
 )
 
 type SupervisorController interface {
-	Run() error
+	Run(spec *SupervisorSpec) error
 	WaitReady(ctx context.Context) error
-	SetCurrentSession(id SessionID) error
+	SetCurrentSession(id ID) error
 	Close(reason error) error
 	WaitClose() error
 }
@@ -25,7 +25,7 @@ type SessionController interface {
 }
 
 // Identity & lifecycle
-type SessionID string
+type ID string
 
 type SessionState int
 
@@ -44,7 +44,7 @@ const (
 
 // Inputs needed to spawn a session; serialize parts of this into sessions.json
 type SessionSpec struct {
-	ID          SessionID
+	ID          ID
 	Kind        SessionKind
 	Label       string // user-friendly name
 	Command     string
@@ -58,6 +58,17 @@ type SessionSpec struct {
 	RunPath     string
 }
 
+type SupervisorSpec struct {
+	ID         ID
+	Ctx        context.Context
+	Label      string            // user-friendly name
+	Env        []string          // TERM, COLORTERM, etc.
+	Context    map[string]string // kubectl ns, cwd hint, etc.
+	LogDir     string
+	SockerCtrl string
+	Pid        int
+	RunPath    string
+}
 type SessionEventType int
 
 const (
@@ -68,7 +79,7 @@ const (
 )
 
 type SessionEvent struct {
-	ID    SessionID
+	ID    ID
 	Type  SessionEventType
 	Bytes int   // for EvData
 	Err   error // for EvClosed/EvError
@@ -79,7 +90,7 @@ type SessionEvent struct {
 type Empty struct{}
 
 type SessionIDArg struct {
-	ID SessionID
+	ID ID
 }
 
 type SessionStatus struct {

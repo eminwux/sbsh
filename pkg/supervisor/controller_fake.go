@@ -17,12 +17,12 @@ var ErrFuncNotSet error = nil
 type SupervisorControllerTest struct {
 	// Last-call trackers (useful for assertions)
 	LastCtx context.Context
-	LastID  api.SessionID
+	LastID  api.ID
 
 	// Stub functions (set these in tests)
-	RunFunc             func() error
+	RunFunc             func(spec *api.SupervisorSpec) error
 	WaitReadyFunc       func(ctx context.Context) error
-	SetCurrentSessionFn func(id api.SessionID) error
+	SetCurrentSessionFn func(id api.ID) error
 	StartFunc           func() error
 	CloseFunc           func(reason error) error
 	WaitCloseFunc       func() error
@@ -31,7 +31,7 @@ type SupervisorControllerTest struct {
 // (Optional) constructor with zeroed fields.
 func NewSupervisorControllerTest() *SupervisorControllerTest {
 	return &SupervisorControllerTest{
-		RunFunc: func() error {
+		RunFunc: func(spec *api.SupervisorSpec) error {
 			// default: succeed without doing anything
 			return nil
 		},
@@ -39,7 +39,7 @@ func NewSupervisorControllerTest() *SupervisorControllerTest {
 			// default: succeed immediately
 			return nil
 		},
-		SetCurrentSessionFn: func(id api.SessionID) error {
+		SetCurrentSessionFn: func(id api.ID) error {
 			// default: just accept the ID
 			return nil
 		},
@@ -50,9 +50,9 @@ func NewSupervisorControllerTest() *SupervisorControllerTest {
 	}
 }
 
-func (t *SupervisorControllerTest) Run() error {
+func (t *SupervisorControllerTest) Run(spec *api.SupervisorSpec) error {
 	if t.RunFunc != nil {
-		return t.RunFunc()
+		return t.RunFunc(spec)
 	}
 	return ErrFuncNotSet
 }
@@ -64,7 +64,7 @@ func (t *SupervisorControllerTest) WaitReady(ctx context.Context) error {
 	return ErrFuncNotSet
 }
 
-func (t *SupervisorControllerTest) SetCurrentSession(id api.SessionID) error {
+func (t *SupervisorControllerTest) SetCurrentSession(id api.ID) error {
 	t.LastID = id
 	if t.SetCurrentSessionFn != nil {
 		return t.SetCurrentSessionFn(id)

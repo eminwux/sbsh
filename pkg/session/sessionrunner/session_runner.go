@@ -26,7 +26,7 @@ type SessionRunner interface {
 	OpenSocketCtrl() (net.Listener, error)
 	StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error)
 	StartSession(ctx context.Context, evCh chan<- SessionRunnerEvent) error
-	ID() api.SessionID
+	ID() api.ID
 	Close(reason error) error
 	Resize(args api.ResizeArgs)
 }
@@ -36,7 +36,7 @@ type SessionRunnerExec struct {
 	sessionCtx       context.Context
 
 	// immutable
-	id   api.SessionID
+	id   api.ID
 	spec api.SessionSpec
 
 	// runtime (owned by Session)
@@ -88,7 +88,7 @@ const (
 )
 
 type SessionRunnerEvent struct {
-	ID    api.SessionID
+	ID    api.ID
 	Type  SessionRunnerEventType
 	Bytes int   // for EvData
 	Err   error // for EvClosed/EvError
@@ -126,7 +126,7 @@ func NewSessionRunnerExec(spec *api.SessionSpec) SessionRunner {
 	}
 }
 
-func (sr *SessionRunnerExec) ID() api.SessionID {
+func (sr *SessionRunnerExec) ID() api.ID {
 	return sr.id
 }
 
@@ -511,6 +511,7 @@ func (s *SessionRunnerExec) Close(reason error) error {
 		slog.Debug(fmt.Sprintf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", s.socketCtrl, err))
 	}
 
+	// TODO remove this because there might be other sessions running
 	if err := os.RemoveAll(filepath.Dir(s.socketIO)); err != nil {
 		slog.Debug(fmt.Sprintf("[session] couldn't remove socket Directory '%s': %v\r\n", s.socketIO, err))
 	}

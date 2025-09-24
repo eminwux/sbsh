@@ -24,7 +24,10 @@ type SupervisorController struct {
 	closed  chan struct{}
 	closing chan error
 
+	// TODO move to SupervisorRunner
 	listenerCtrl net.Listener
+
+	runPath string
 }
 
 var newSupervisorRunner = supervisorrunner.NewSupervisorRunnerExec
@@ -61,12 +64,14 @@ func (s *SupervisorController) WaitReady(ctx context.Context) error {
 }
 
 // Run is the main orchestration loop. It owns all mode transitions.
-func (s *SupervisorController) Run() error {
+func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	s.exit = make(chan struct{})
 	slog.Debug("[supervisor] Starting controller loop")
 	defer slog.Debug("[supervisor] controller stopped\r\n")
 
-	sr = newSupervisorRunner(s.ctx)
+	s.runPath = spec.RunPath
+
+	sr = newSupervisorRunner(spec)
 	ss = newSessionStore()
 
 	ctrlLn, err := sr.OpenSocketCtrl()
@@ -103,15 +108,15 @@ func (s *SupervisorController) Run() error {
 	}
 
 	sessionSpec := &api.SessionSpec{
-		ID:          api.SessionID(sessionID),
+		ID:          api.ID(sessionID),
 		Kind:        api.SessLocal,
 		Label:       "default",
 		Command:     execPath,
 		CommandArgs: args,
 		Env:         os.Environ(),
 		LogDir:      "/tmp/sbsh-logs/s0",
-		SockerCtrl:  "/home/inwx/.sbsh/run/sessions/" + sessionID + "/ctrl.sock",
-		SocketIO:    "/home/inwx/.sbsh/run/sessions/" + sessionID + "/io.sock",
+		SockerCtrl:  s.runPath + "/sessions/" + sessionID + "/ctrl.sock",
+		SocketIO:    s.runPath + "/sessions/" + sessionID + "/io.sock",
 	}
 
 	session := sessionstore.NewSupervisedSession(sessionSpec)
@@ -171,11 +176,11 @@ func (s *SupervisorController) handleEvent(ev supervisorrunner.SupervisorRunnerE
 	}
 }
 
-func (s *SupervisorController) onClosed(_ api.SessionID, err error) {
+func (s *SupervisorController) onClosed(_ api.ID, err error) {
 	s.Close(err)
 }
 
-func (s *SupervisorController) SetCurrentSession(id api.SessionID) error {
+func (s *SupervisorController) SetCurrentSession(id api.ID) error {
 	if err := ss.SetCurrent(id); err != nil {
 		log.Fatalf("failed to set current session: %v", err)
 		return err
