@@ -212,7 +212,6 @@ func (s *SupervisorRunnerExec) Close(reason error) error {
 		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", s.supervisorSockerCtrl, err))
 	}
 
-	// TODO remove this because there might be other supervisors running
 	if err := os.RemoveAll(filepath.Dir(s.supervisorSockerCtrl)); err != nil {
 		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", s.supervisorSockerCtrl, err))
 	}
@@ -409,10 +408,6 @@ func (s *SupervisorRunnerExec) attachAndForwardResize() error {
 
 // toBashUIMode: set terminal to RAW, update flags
 func (s *SupervisorRunnerExec) toBashUIMode() error {
-	// TODO: restore raw mode on os.Stdin (your terminal manager)
-	// e.g., term.MakeRaw / term.Restore handled by a helper
-	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
-
 	lastTermState, err := toRawMode()
 	if err != nil {
 		log.Fatalf("MakeRaw: %v", err)
@@ -427,8 +422,6 @@ func (s *SupervisorRunnerExec) toBashUIMode() error {
 
 // toSupervisorUIMode: set terminal to COOKED for your REPL
 func (s *SupervisorRunnerExec) toExitShell() error {
-	// TODO: restore cooked mode on os.Stdin
-	// Put sbsh terminal into raw mode so ^C (0x03) is passed through
 	err := term.Restore(int(os.Stdin.Fd()), s.lastTermState)
 	if err != nil {
 		log.Fatalf("MakeRaw: %v", err)

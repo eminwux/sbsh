@@ -511,7 +511,6 @@ func (s *SessionRunnerExec) Close(reason error) error {
 		slog.Debug(fmt.Sprintf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", s.socketCtrl, err))
 	}
 
-	// TODO remove this because there might be other sessions running
 	if err := os.RemoveAll(filepath.Dir(s.socketIO)); err != nil {
 		slog.Debug(fmt.Sprintf("[session] couldn't remove socket Directory '%s': %v\r\n", s.socketIO, err))
 	}
