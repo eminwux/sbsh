@@ -8,14 +8,15 @@ import (
 
 type SessionRunnerTest struct {
 	OpenSocketCtrlFunc func() error
-	StartServerFunc    func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error)
-	StartSessionFunc   func(ctx context.Context, evCh chan<- SessionRunnerEvent) error
+	StartServerFunc    func(sc *sessionrpc.SessionControllerRPC, readyCh chan error)
+	StartSessionFunc   func(evCh chan<- SessionRunnerEvent) error
 	CloseFunc          func(reason error) error
 	ResizeFunc         func(args api.ResizeArgs)
 	IDFunc             func() api.ID
+	CreateMetadataFunc func() error
 }
 
-func NewSessionRunnerTest() SessionRunner {
+func NewSessionRunnerTest(ctx context.Context) SessionRunner {
 	return &SessionRunnerTest{}
 }
 
@@ -25,15 +26,15 @@ func (sr *SessionRunnerTest) OpenSocketCtrl() error {
 	}
 	return nil
 }
-func (sr *SessionRunnerTest) StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+func (sr *SessionRunnerTest) StartServer(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 	if sr.StartServerFunc != nil {
-		sr.StartServerFunc(ctx, sc, readyCh)
+		sr.StartServerFunc(sc, readyCh)
 	}
 }
 
-func (sr *SessionRunnerTest) StartSession(ctx context.Context, evCh chan<- SessionRunnerEvent) error {
+func (sr *SessionRunnerTest) StartSession(evCh chan<- SessionRunnerEvent) error {
 	if sr.OpenSocketCtrlFunc != nil {
-		return sr.StartSessionFunc(ctx, evCh)
+		return sr.StartSessionFunc(evCh)
 	}
 	return nil
 }
@@ -56,4 +57,8 @@ func (sr *SessionRunnerTest) Resize(args api.ResizeArgs) {
 	if sr.ResizeFunc != nil {
 		sr.ResizeFunc(args)
 	}
+}
+
+func (sr *SessionRunnerTest) CreateMetadata() error {
+	return nil
 }

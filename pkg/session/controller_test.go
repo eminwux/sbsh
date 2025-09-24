@@ -45,7 +45,7 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
-	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return api.ID("iajs099")
@@ -87,7 +87,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
-	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return api.ID("iajs099")
@@ -129,7 +129,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
-	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -137,7 +137,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- fmt.Errorf("make server fail")
 			},
 		}
@@ -174,7 +174,7 @@ func Test_ErrStartSession(t *testing.T) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
-	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -182,10 +182,10 @@ func Test_ErrStartSession(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
 				return fmt.Errorf("make start session fail")
 			},
 		}
@@ -228,7 +228,7 @@ func Test_ErrContextDone(t *testing.T) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
-	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -236,10 +236,10 @@ func Test_ErrContextDone(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
 				return nil
 			},
 		}
@@ -286,7 +286,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
-	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -294,10 +294,10 @@ func Test_ErrRPCServerExited(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
 				return nil
 			},
 		}
@@ -342,7 +342,7 @@ func Test_WaitReady(t *testing.T) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
-	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -350,10 +350,10 @@ func Test_WaitReady(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
 				return nil
 			},
 		}
@@ -404,7 +404,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
-	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -412,10 +412,10 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
 				return nil
 			},
 		}
@@ -466,7 +466,7 @@ func Test_HandleEvent_EvError(t *testing.T) {
 		LogDir:      "/tmp/sbsh-logs/s0",
 	}
 
-	newSessionRunner = func(spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -474,10 +474,10 @@ func Test_HandleEvent_EvError(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
 				return nil
 			},
 		}

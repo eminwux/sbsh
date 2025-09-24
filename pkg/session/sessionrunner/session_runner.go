@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sbsh/pkg/api"
+	"sbsh/pkg/common"
 	"sbsh/pkg/session/sessionrpc"
 	"sync"
 	"syscall"
@@ -24,16 +25,16 @@ import (
 
 type SessionRunner interface {
 	OpenSocketCtrl() error
-	StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error)
-	StartSession(ctx context.Context, evCh chan<- SessionRunnerEvent) error
+	StartServer(sc *sessionrpc.SessionControllerRPC, readyCh chan error)
+	StartSession(evCh chan<- SessionRunnerEvent) error
 	ID() api.ID
 	Close(reason error) error
 	Resize(args api.ResizeArgs)
+	CreateMetadata() error
 }
 
 type SessionRunnerExec struct {
-	sessionCtxCancel context.CancelFunc
-	sessionCtx       context.Context
+	ctx context.Context
 
 	// immutable
 	id   api.ID
@@ -60,8 +61,9 @@ type SessionRunnerExec struct {
 	listenerIO   net.Listener
 	listenerCtrl net.Listener
 
-	socketIO   string
-	socketCtrl string
+	socketIO     string
+	socketCtrl   string
+	metadataFile string
 
 	clientsMu sync.RWMutex
 	clients   map[int]*ioClient
@@ -95,10 +97,11 @@ type SessionRunnerEvent struct {
 	When  time.Time
 }
 
-func NewSessionRunnerExec(spec *api.SessionSpec) SessionRunner {
+func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRunner {
 	return &SessionRunnerExec{
 		id:   spec.ID,
 		spec: *spec,
+		ctx:  ctx,
 
 		// runtime (initialized but inactive)
 		cmd:     nil,
@@ -130,14 +133,22 @@ func (sr *SessionRunnerExec) ID() api.ID {
 	return sr.id
 }
 
-func (sr *SessionRunnerExec) OpenSocketCtrl() error {
+func (sr *SessionRunnerExec) CreateMetadata() error {
 
-	runPath := filepath.Join(sr.runPath, string(sr.id))
-	if err := os.MkdirAll(runPath, 0o700); err != nil {
+	if err := os.MkdirAll(sr.getSessionDir(), 0o700); err != nil {
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
-	sr.socketCtrl = filepath.Join(runPath, "ctrl.sock")
+	return common.WriteMetadata(sr.ctx, sr.spec, sr.getSessionDir())
+}
+
+func (sr *SessionRunnerExec) getSessionDir() string {
+	return filepath.Join(sr.runPath, string(sr.id))
+}
+
+func (sr *SessionRunnerExec) OpenSocketCtrl() error {
+
+	sr.socketCtrl = filepath.Join(sr.getSessionDir(), "ctrl.sock")
 	slog.Debug(fmt.Sprintf("[sessionCtrl] CTRL socket: %s", sr.socketCtrl))
 
 	// Remove sockets if they already exist
@@ -163,7 +174,7 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() error {
 
 	return nil
 }
-func (sr *SessionRunnerExec) StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+func (sr *SessionRunnerExec) StartServer(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 	defer func() {
 		// Ensure ln is closed and no leaks on exit
 		_ = sr.listenerCtrl.Close()
@@ -193,7 +204,7 @@ func (sr *SessionRunnerExec) StartServer(ctx context.Context, sc *sessionrpc.Ses
 		conn, err := sr.listenerCtrl.Accept()
 		if err != nil {
 			// Normal path: listener closed by ctx cancel
-			if errors.Is(err, net.ErrClosed) || ctx.Err() != nil {
+			if errors.Is(err, net.ErrClosed) || sr.ctx.Err() != nil {
 				select {
 				case sr.closeReqCh <- fmt.Errorf("unknown rpc server error"):
 				default:
@@ -212,13 +223,9 @@ func (sr *SessionRunnerExec) StartServer(ctx context.Context, sc *sessionrpc.Ses
 	}
 }
 
-func (sr *SessionRunnerExec) StartSession(ctx context.Context, evCh chan<- SessionRunnerEvent) error {
+func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error {
 
 	sr.evCh = evCh
-
-	sessionCtx, cancel := context.WithCancel(ctx)
-	sr.sessionCtx = sessionCtx
-	sr.sessionCtxCancel = cancel
 
 	if err := sr.openSocketIO(); err != nil {
 		log.Fatalf("failed to open IO socket for session %s: %v", sr.id, err)
@@ -284,7 +291,7 @@ func (s *SessionRunnerExec) openSocketIO() error {
 func (s *SessionRunnerExec) prepareSessionCommand() error {
 
 	// Build the child command with context (so ctx cancel can kill it)
-	cmd := exec.CommandContext(s.sessionCtx, s.spec.Command, s.spec.CommandArgs...)
+	cmd := exec.CommandContext(s.ctx, s.spec.Command, s.spec.CommandArgs...)
 	// Environment: use provided or inherit
 	if len(s.spec.Env) > 0 {
 		cmd.Env = s.spec.Env
@@ -512,7 +519,7 @@ func (s *SessionRunnerExec) Close(reason error) error {
 	}
 
 	if err := os.RemoveAll(filepath.Dir(s.socketIO)); err != nil {
-		slog.Debug(fmt.Sprintf("[session] couldn't remove socket Directory '%s': %v\r\n", s.socketIO, err))
+		slog.Debug(fmt.Sprintf("[session] couldn't remove session directory '%s': %v\r\n", s.socketIO, err))
 	}
 
 	close(s.closedCh)

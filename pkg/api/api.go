@@ -44,18 +44,18 @@ const (
 
 // Inputs needed to spawn a session; serialize parts of this into sessions.json
 type SessionSpec struct {
-	ID          ID
-	Kind        SessionKind
-	Label       string // user-friendly name
-	Command     string
-	CommandArgs []string          // for local: ["bash","-i"]; for ssh: ["ssh","-tt","user@host"]
-	Env         []string          // TERM, COLORTERM, etc.
-	Context     map[string]string // kubectl ns, cwd hint, etc.
-	LogDir      string
-	SockerCtrl  string
-	SocketIO    string
-	Pid         int
-	RunPath     string
+	ID          ID                `json:"id"`
+	Kind        SessionKind       `json:"kind"`
+	Label       string            `json:"label"`
+	Command     string            `json:"command"`
+	CommandArgs []string          `json:"commandArgs"`
+	Env         []string          `json:"env"`
+	Context     map[string]string `json:"contex"`
+	LogDir      string            `json:"logDir"`
+	SockerCtrl  string            `json:"socketCtrl"`
+	SocketIO    string            `json:"socketIO"`
+	Pid         int               `json:"pid"`
+	RunPath     string            `json:"runPath"`
 }
 
 type SupervisorSpec struct {

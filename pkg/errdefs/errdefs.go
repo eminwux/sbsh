@@ -17,6 +17,6 @@ var (
 	ErrCloseReq        = errors.New("close requested")
 	ErrSessionStore    = errors.New("error in session store")
 	ErrSessionCmdStart = errors.New("error in shell cmd")
-
-	ErrSessionExists error = errors.New("session id already exists in store")
+	ErrSessionExists   = errors.New("session id already exists in store")
+	ErrWriteMetadata   = errors.New("could not write metadata file")
 )

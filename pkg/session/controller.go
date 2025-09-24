@@ -67,7 +67,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 
 	defer slog.Debug("[sessionCtrl] controller stopped\r\n")
 
-	sr = newSessionRunner(spec)
+	sr = newSessionRunner(c.ctx, spec)
 
 	if len(spec.Command) == 0 {
 		slog.Debug("empty command in SessionSpec")
@@ -76,17 +76,26 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 
 	slog.Debug("[sessionCtrl] Starting controller loop")
 
-	err := sr.OpenSocketCtrl()
+	err := sr.CreateMetadata()
+	if err != nil {
+		slog.Debug(fmt.Sprintf("could not write metadata file: %v", err))
+		if err := c.Close(err); err != nil {
+			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
+		}
+		return fmt.Errorf("%w:%w", errdefs.ErrWriteMetadata, err)
+	}
+
+	err = sr.OpenSocketCtrl()
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not open control socket: %v", err))
 		if err := c.Close(err); err != nil {
-			return fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
+			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
 		}
 		return fmt.Errorf("%w:%w", errdefs.ErrOpenSocketCtrl, err)
 	}
 
 	rpc := &sessionrpc.SessionControllerRPC{Core: c}
-	go sr.StartServer(c.ctx, rpc, rpcReadyCh)
+	go sr.StartServer(rpc, rpcReadyCh)
 	// Wait for startup result
 	if err := <-rpcReadyCh; err != nil {
 		// failed to start — handle and return
@@ -94,10 +103,10 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		return fmt.Errorf("%w:%w", errdefs.ErrStartRPCServer, err)
 	}
 
-	if err := sr.StartSession(c.ctx, eventsCh); err != nil {
+	if err := sr.StartSession(eventsCh); err != nil {
 		slog.Debug(fmt.Sprintf("failed to start session: %v", err))
 		if err := c.Close(err); err != nil {
-			return fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
+			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
 		}
 		return fmt.Errorf("%w:%w", errdefs.ErrStartSession, err)
 	}
