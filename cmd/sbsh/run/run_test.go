@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"sbsh/pkg/api"
+	"sbsh/pkg/errdefs"
 	"sbsh/pkg/session"
 	"testing"
 	"time"
@@ -36,8 +37,8 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 
 	select {
 	case err := <-done:
-		if err != nil && !errors.Is(err, ErrContextDone) {
-			t.Fatalf("expected '%v'; got: '%v'", ErrContextDone, err)
+		if err != nil && !errors.Is(err, errdefs.ErrContextDone) {
+			t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrContextDone, err)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for runSession to return after SIGTERM")
@@ -62,8 +63,8 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	if err := runSession("s-wre", "/bin/true", nil); err != nil && !errors.Is(err, ErrWaitOnReady) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrWaitOnReady, err)
+	if err := runSession("s-wre", "/bin/true", nil); err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrWaitOnReady, err)
 
 	}
 }
@@ -95,7 +96,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	cancel()
 	time.Sleep(40 * time.Millisecond)
 
-	if err := <-exitCh; err != nil && !errors.Is(err, ErrWaitOnClose) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrWaitOnClose, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrWaitOnClose) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrWaitOnClose, err)
 	}
 }

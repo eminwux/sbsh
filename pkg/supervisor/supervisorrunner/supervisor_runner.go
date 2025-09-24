@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
+	"sbsh/pkg/errdefs"
 	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
 	"syscall"
@@ -172,7 +173,7 @@ func (s *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- 
 	cmd.Env = os.Environ()
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("%w:%w", ErrSessionCmdStart, err)
+		return fmt.Errorf("%w:%w", errdefs.ErrSessionCmdStart, err)
 	}
 
 	// you can return cmd.Process.Pid to record in meta.json

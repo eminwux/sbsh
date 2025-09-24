@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"sbsh/pkg/api"
+	"sbsh/pkg/errdefs"
 	"sbsh/pkg/session/sessionrpc"
 	"sbsh/pkg/session/sessionrunner"
 	"testing"
@@ -65,8 +66,8 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
-	if err := <-exitCh; err != nil && !errors.Is(err, ErrSpecCmdMissing) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrSpecCmdMissing, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrSpecCmdMissing) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrSpecCmdMissing, err)
 	}
 
 }
@@ -107,8 +108,8 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
-	if err := <-exitCh; err != nil && !errors.Is(err, ErrOpenSocketCtrl) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrOpenSocketCtrl, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrOpenSocketCtrl) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrOpenSocketCtrl, err)
 	}
 
 }
@@ -152,8 +153,8 @@ func Test_ErrStartRPCServer(t *testing.T) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
-	if err := <-exitCh; err != nil && !errors.Is(err, ErrStartRPCServer) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrStartRPCServer, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartRPCServer) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartRPCServer, err)
 	}
 
 }
@@ -206,8 +207,8 @@ func Test_ErrStartSession(t *testing.T) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
-	if err := <-exitCh; err != nil && !errors.Is(err, ErrStartSession) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrStartSession, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartSession) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartSession, err)
 	}
 
 }
@@ -264,8 +265,8 @@ func Test_ErrContextDone(t *testing.T) {
 
 	cancel()
 
-	if err := <-exitCh; err != nil && !errors.Is(err, ErrContextDone) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrContextDone, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrContextDone) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrContextDone, err)
 	}
 
 }
@@ -320,8 +321,8 @@ func Test_ErrRPCServerExited(t *testing.T) {
 
 	rpcDoneCh <- fmt.Errorf("make rpc server exit with error")
 
-	if err := <-exitCh; err != nil && !errors.Is(err, ErrRPCServerExited) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrRPCServerExited, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrRPCServerExited) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrRPCServerExited, err)
 	}
 
 }
@@ -445,8 +446,8 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 
 	eventsCh <- ev
 
-	if err := <-exitCh; err != nil && !errors.Is(err, ErrCloseReq) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrCloseReq, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrCloseReq) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrCloseReq, err)
 	}
 }
 

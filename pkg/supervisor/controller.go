@@ -9,6 +9,7 @@ import (
 	"os"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
+	"sbsh/pkg/errdefs"
 	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
 	"sbsh/pkg/supervisor/supervisorrunner"
@@ -72,9 +73,9 @@ func (s *SupervisorController) Run() error {
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not open control socket: %v", err))
 		if err := s.Close(err); err != nil {
-			err = fmt.Errorf("%w:%w", ErrOnClose, err)
+			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
 		}
-		return fmt.Errorf("%w:%w", ErrOpenSocketCtrl, err)
+		return fmt.Errorf("%w:%w", errdefs.ErrOpenSocketCtrl, err)
 	}
 
 	s.listenerCtrl = ctrlLn
@@ -85,10 +86,10 @@ func (s *SupervisorController) Run() error {
 	if err := <-rpcReadyCh; err != nil {
 		// failed to start — handle and return
 		if errC := s.Close(err); errC != nil {
-			err = fmt.Errorf("%w:%w:%w", err, ErrOnClose, errC)
+			err = fmt.Errorf("%w:%w:%w", err, errdefs.ErrOnClose, errC)
 		}
 		slog.Debug(fmt.Sprintf("failed to start server: %v", err))
-		return fmt.Errorf("%w:%w", ErrStartRPCServer, err)
+		return fmt.Errorf("%w:%w", errdefs.ErrStartRPCServer, err)
 	}
 
 	sessionID := common.RandomID()
@@ -115,15 +116,15 @@ func (s *SupervisorController) Run() error {
 
 	session := sessionstore.NewSupervisedSession(sessionSpec)
 	if err := ss.Add(session); err != nil {
-		return fmt.Errorf("%w:%w", ErrSessionStore, err)
+		return fmt.Errorf("%w:%w", errdefs.ErrSessionStore, err)
 	}
 
 	if err := sr.StartSupervisor(s.ctx, eventsCh, session); err != nil {
 		slog.Debug(fmt.Sprintf("failed to start session: %v", err))
 		if err := s.Close(err); err != nil {
-			err = fmt.Errorf("%w:%w", ErrOnClose, err)
+			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
 		}
-		return fmt.Errorf("%w:%w", ErrStartSession, err)
+		return fmt.Errorf("%w:%w", errdefs.ErrStartSession, err)
 	}
 	close(ctrlReady)
 
@@ -133,9 +134,9 @@ func (s *SupervisorController) Run() error {
 			var err error
 			slog.Debug("[supervisor] parent context channel has been closed\r\n")
 			if errC := s.Close(s.ctx.Err()); errC != nil {
-				err = fmt.Errorf("%w:%w", ErrOnClose, errC)
+				err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, errC)
 			}
-			return fmt.Errorf("%w:%w", ErrContextDone, err)
+			return fmt.Errorf("%w:%w", errdefs.ErrContextDone, err)
 
 		case ev := <-eventsCh:
 			slog.Debug(fmt.Sprintf("[supervisor] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano)))
@@ -144,13 +145,13 @@ func (s *SupervisorController) Run() error {
 		case err := <-rpcDoneCh:
 			slog.Debug(fmt.Sprintf("[supervisor] rpc server has failed: %v\r\n", err))
 			if err := s.Close(err); err != nil {
-				err = fmt.Errorf("%w:%w:%w", err, ErrOnClose, err)
+				err = fmt.Errorf("%w:%w:%w", err, errdefs.ErrOnClose, err)
 			}
-			return fmt.Errorf("%w:%w", ErrRPCServerExited, err)
+			return fmt.Errorf("%w:%w", errdefs.ErrRPCServerExited, err)
 
 		case err := <-closeReqCh:
 			slog.Debug(fmt.Sprintf("[supervisor] close request received: %v\r\n", err))
-			return fmt.Errorf("%w:%w", ErrCloseReq, err)
+			return fmt.Errorf("%w:%w", errdefs.ErrCloseReq, err)
 		}
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/rpc"
 	"sbsh/pkg/api"
+	"sbsh/pkg/errdefs"
 	"sync"
 )
 
@@ -63,7 +64,7 @@ func (m *SessionStoreExec) Add(s *SupervisedSession) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.sessions[s.Id] != nil {
-		return ErrSessionExists
+		return errdefs.ErrSessionExists
 	}
 	m.sessions[s.Id] = s
 	if m.current == "" {

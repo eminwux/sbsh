@@ -3,6 +3,7 @@ package sessionstore
 import (
 	"errors"
 	"sbsh/pkg/api"
+	"sbsh/pkg/errdefs"
 )
 
 type SessionStoreTest struct {
@@ -61,7 +62,7 @@ func (t *SessionStoreTest) Add(s *SupervisedSession) error {
 	if t.AddFunc != nil {
 		return t.AddFunc(s)
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
 func (t *SessionStoreTest) Get(id api.SessionID) (*SupervisedSession, bool) {
@@ -98,5 +99,5 @@ func (t *SessionStoreTest) SetCurrent(id api.SessionID) error {
 	if t.SetCurrentFunc != nil {
 		return t.SetCurrentFunc(id)
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }

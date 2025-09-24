@@ -2,6 +2,7 @@ package session
 
 import (
 	"sbsh/pkg/api"
+	"sbsh/pkg/errdefs"
 )
 
 type FakeSessionController struct {
@@ -22,19 +23,19 @@ func (f *FakeSessionController) Run(spec *api.SessionSpec) error {
 	if f.RunFunc != nil {
 		return f.RunFunc(spec)
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 func (f *FakeSessionController) WaitReady() error {
 	if f.WaitReadyFunc != nil {
 		return f.WaitReadyFunc()
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 func (f *FakeSessionController) WaitClose() error {
 	if f.WaitCloseFunc != nil {
 		return f.WaitCloseFunc()
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
 func (f *FakeSessionController) Status() string {
@@ -48,7 +49,7 @@ func (f *FakeSessionController) Close(reason error) error {
 	if f.CloseFunc != nil {
 		return f.CloseFunc(reason)
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
 func (f *FakeSessionController) Resize(args api.ResizeArgs) {
