@@ -12,8 +12,9 @@ import (
 
 // sessionsCmd represents the sessions command
 var SessionsCmd = &cobra.Command{
-	Use:   "sessions",
-	Short: "A brief description of your command",
+	Use:     "sessions",
+	Aliases: []string{"session", "s"},
+	Short:   "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
