@@ -23,7 +23,7 @@ import (
 )
 
 type SessionRunner interface {
-	OpenSocketCtrl() (net.Listener, error)
+	OpenSocketCtrl() error
 	StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error)
 	StartSession(ctx context.Context, evCh chan<- SessionRunnerEvent) error
 	ID() api.ID
@@ -130,11 +130,11 @@ func (sr *SessionRunnerExec) ID() api.ID {
 	return sr.id
 }
 
-func (sr *SessionRunnerExec) OpenSocketCtrl() (net.Listener, error) {
+func (sr *SessionRunnerExec) OpenSocketCtrl() error {
 
 	runPath := filepath.Join(sr.runPath, string(sr.id))
 	if err := os.MkdirAll(runPath, 0o700); err != nil {
-		return nil, fmt.Errorf("mkdir session dir: %w", err)
+		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
 	sr.socketCtrl = filepath.Join(runPath, "ctrl.sock")
@@ -149,19 +149,19 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() (net.Listener, error) {
 	// Listen to CONTROL SOCKET
 	ctrlLn, err := net.Listen("unix", sr.socketCtrl)
 	if err != nil {
-		return nil, fmt.Errorf("listen ctrl: %w", err)
+		return fmt.Errorf("listen ctrl: %w", err)
 	}
 
 	sr.listenerCtrl = ctrlLn
 
 	if err := os.Chmod(sr.socketCtrl, 0o600); err != nil {
 		ctrlLn.Close()
-		return nil, err
+		return err
 	}
 
 	// keep references for Close()
 
-	return ctrlLn, nil
+	return nil
 }
 func (sr *SessionRunnerExec) StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 	defer func() {

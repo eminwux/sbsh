@@ -50,8 +50,8 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 			IDFunc: func() api.ID {
 				return api.ID("iajs099")
 			},
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
-				return newStubListener(), fmt.Errorf("error opening listener")
+			OpenSocketCtrlFunc: func() error {
+				return nil
 			},
 		}
 	}
@@ -92,8 +92,8 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 			IDFunc: func() api.ID {
 				return api.ID("iajs099")
 			},
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
-				return newStubListener(), fmt.Errorf("error opening listener")
+			OpenSocketCtrlFunc: func() error {
+				return fmt.Errorf("error opening listener")
 			},
 		}
 	}
@@ -134,8 +134,8 @@ func Test_ErrStartRPCServer(t *testing.T) {
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
-				return newStubListener(), nil
+			OpenSocketCtrlFunc: func() error {
+				return nil
 			},
 			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- fmt.Errorf("make server fail")
@@ -179,8 +179,8 @@ func Test_ErrStartSession(t *testing.T) {
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
-				return newStubListener(), nil
+			OpenSocketCtrlFunc: func() error {
+				return nil
 			},
 			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
@@ -233,8 +233,8 @@ func Test_ErrContextDone(t *testing.T) {
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
-				return newStubListener(), nil
+			OpenSocketCtrlFunc: func() error {
+				return nil
 			},
 			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
@@ -291,8 +291,8 @@ func Test_ErrRPCServerExited(t *testing.T) {
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
-				return newStubListener(), nil
+			OpenSocketCtrlFunc: func() error {
+				return nil
 			},
 			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
@@ -347,8 +347,8 @@ func Test_WaitReady(t *testing.T) {
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
-				return newStubListener(), nil
+			OpenSocketCtrlFunc: func() error {
+				return nil
 			},
 			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
@@ -409,8 +409,8 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
-				return newStubListener(), nil
+			OpenSocketCtrlFunc: func() error {
+				return nil
 			},
 			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil
@@ -471,8 +471,8 @@ func Test_HandleEvent_EvError(t *testing.T) {
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
-				return newStubListener(), nil
+			OpenSocketCtrlFunc: func() error {
+				return nil
 			},
 			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
 				readyCh <- nil

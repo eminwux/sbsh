@@ -76,7 +76,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 
 	slog.Debug("[sessionCtrl] Starting controller loop")
 
-	_, err := sr.OpenSocketCtrl()
+	err := sr.OpenSocketCtrl()
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not open control socket: %v", err))
 		if err := c.Close(err); err != nil {
