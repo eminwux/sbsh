@@ -16,8 +16,8 @@ import (
 	"path/filepath"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
+	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
-	"sbsh/pkg/supervisor/supervisorstore"
 	"syscall"
 	"time"
 
@@ -28,7 +28,7 @@ import (
 type SupervisorRunner interface {
 	OpenSocketCtrl() (net.Listener, error)
 	StartServer(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error)
-	StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *supervisorstore.SupervisedSession) error
+	StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *sessionstore.SupervisedSession) error
 	ID() api.SessionID
 	Close(reason error) error
 	Resize(args api.ResizeArgs)
@@ -37,14 +37,14 @@ type SupervisorRunner interface {
 
 type SupervisorRunnerExec struct {
 	// sessionID        api.SessionID
-	session    *supervisorstore.SupervisedSession
+	session    *sessionstore.SupervisedSession
 	sessionCtx context.Context
 	uiMode     UIMode
 	events     chan<- SupervisorRunnerEvent
 
 	lastTermState *term.State
 
-	Mgr                  *supervisorstore.SessionManagerExec
+	Mgr                  *sessionstore.SessionStoreExec
 	supervisorSockerCtrl string
 }
 
@@ -161,7 +161,7 @@ func (s *SupervisorRunnerExec) StartServer(ctx context.Context, ln net.Listener,
 	}
 }
 
-func (s *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *supervisorstore.SupervisedSession) error {
+func (s *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *sessionstore.SupervisedSession) error {
 	s.events = evCh
 	s.session = session
 

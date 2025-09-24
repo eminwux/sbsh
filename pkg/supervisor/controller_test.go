@@ -8,9 +8,9 @@ import (
 	"log"
 	"net"
 	"sbsh/pkg/api"
+	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
 	"sbsh/pkg/supervisor/supervisorrunner"
-	"sbsh/pkg/supervisor/supervisorstore"
 	"testing"
 )
 
@@ -448,7 +448,7 @@ func Test_ErrCloseReq(t *testing.T) {
 
 }
 
-func Test_ErrSessionManager(t *testing.T) {
+func Test_ErrSessionStore(t *testing.T) {
 	sessionCtrl := NewSupervisorController(context.Background())
 
 	newSupervisorRunner = func(ctx context.Context) supervisorrunner.SupervisorRunner {
@@ -485,13 +485,13 @@ func Test_ErrSessionManager(t *testing.T) {
 			},
 		}
 	}
-	newSessionManager = func() supervisorstore.SessionManager {
-		return &supervisorstore.SessionManagerTest{
-			AddFunc: func(s *supervisorstore.SupervisedSession) error {
+	newSessionStore = func() sessionstore.SessionStore {
+		return &sessionstore.SessionStoreTest{
+			AddFunc: func(s *sessionstore.SupervisedSession) error {
 
 				return fmt.Errorf("force add fail")
 			},
-			GetFunc: func(id api.SessionID) (*supervisorstore.SupervisedSession, bool) {
+			GetFunc: func(id api.SessionID) (*sessionstore.SupervisedSession, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.SessionID {
@@ -529,8 +529,8 @@ func Test_ErrSessionManager(t *testing.T) {
 		exitCh <- sessionCtrl.Run()
 	}(exitCh)
 
-	if err := <-exitCh; err != nil && !errors.Is(err, ErrSessionManager) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrSessionManager, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, ErrSessionStore) {
+		t.Fatalf("expected '%v'; got: '%v'", ErrSessionStore, err)
 	}
 
 }

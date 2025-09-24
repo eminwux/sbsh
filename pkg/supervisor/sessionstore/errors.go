@@ -1,4 +1,4 @@
-package supervisorstore
+package sessionstore
 
 import "errors"
 

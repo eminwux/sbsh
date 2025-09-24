@@ -1,11 +1,11 @@
-package supervisorstore
+package sessionstore
 
 import (
 	"errors"
 	"sbsh/pkg/api"
 )
 
-type SessionManagerTest struct {
+type SessionStoreTest struct {
 	// Last-call trackers (useful for assertions)
 	LastAdded        *SupervisedSession
 	LastGetID        api.SessionID
@@ -24,8 +24,8 @@ type SessionManagerTest struct {
 	SetCurrentFunc func(id api.SessionID) error
 }
 
-func NewSessionManagerTest() *SessionManagerTest {
-	return &SessionManagerTest{
+func NewSessionStoreTest() *SessionStoreTest {
+	return &SessionStoreTest{
 		AddFunc: func(s *SupervisedSession) error {
 			if s == nil {
 				return errors.New("nil session")
@@ -56,7 +56,7 @@ func NewSessionManagerTest() *SessionManagerTest {
 	}
 }
 
-func (t *SessionManagerTest) Add(s *SupervisedSession) error {
+func (t *SessionStoreTest) Add(s *SupervisedSession) error {
 	t.LastAdded = s
 	if t.AddFunc != nil {
 		return t.AddFunc(s)
@@ -64,7 +64,7 @@ func (t *SessionManagerTest) Add(s *SupervisedSession) error {
 	return ErrFuncNotSet
 }
 
-func (t *SessionManagerTest) Get(id api.SessionID) (*SupervisedSession, bool) {
+func (t *SessionStoreTest) Get(id api.SessionID) (*SupervisedSession, bool) {
 	t.LastGetID = id
 	if t.GetFunc != nil {
 		return t.GetFunc(id)
@@ -72,28 +72,28 @@ func (t *SessionManagerTest) Get(id api.SessionID) (*SupervisedSession, bool) {
 	return nil, false
 }
 
-func (t *SessionManagerTest) ListLive() []api.SessionID {
+func (t *SessionStoreTest) ListLive() []api.SessionID {
 	if t.ListLiveFunc != nil {
 		return t.ListLiveFunc()
 	}
 	return nil
 }
 
-func (t *SessionManagerTest) Remove(id api.SessionID) {
+func (t *SessionStoreTest) Remove(id api.SessionID) {
 	t.LastRemovedID = id
 	if t.RemoveFunc != nil {
 		t.RemoveFunc(id)
 	}
 }
 
-func (t *SessionManagerTest) Current() api.SessionID {
+func (t *SessionStoreTest) Current() api.SessionID {
 	if t.CurrentFunc != nil {
 		return t.CurrentFunc()
 	}
 	return t.CurrentID
 }
 
-func (t *SessionManagerTest) SetCurrent(id api.SessionID) error {
+func (t *SessionStoreTest) SetCurrent(id api.SessionID) error {
 	t.LastSetCurrentID = id
 	if t.SetCurrentFunc != nil {
 		return t.SetCurrentFunc(id)

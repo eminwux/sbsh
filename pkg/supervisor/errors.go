@@ -12,4 +12,4 @@ var ErrOnClose = errors.New("error closing")
 
 var ErrCloseReq = errors.New("close requested")
 
-var ErrSessionManager = errors.New("error in session manager")
+var ErrSessionStore = errors.New("error in session store")

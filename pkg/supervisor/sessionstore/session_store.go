@@ -1,4 +1,4 @@
-package supervisorstore
+package sessionstore
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-type SessionManager interface {
+type SessionStore interface {
 	Add(s *SupervisedSession) error
 	Get(id api.SessionID) (*SupervisedSession, bool)
 	ListLive() []api.SessionID
@@ -16,7 +16,7 @@ type SessionManager interface {
 	SetCurrent(id api.SessionID) error
 }
 
-type SessionManagerExec struct {
+type SessionStoreExec struct {
 	mu       sync.RWMutex
 	sessions map[api.SessionID]*SupervisedSession
 	current  api.SessionID
@@ -37,8 +37,8 @@ type SupervisedSession struct {
 	SessionClientRPC *rpc.Client
 }
 
-func NewSessionManagerExec() SessionManager {
-	return &SessionManagerExec{
+func NewSessionStoreExec() SessionStore {
+	return &SessionStoreExec{
 		sessions: make(map[api.SessionID]*SupervisedSession),
 	}
 }
@@ -59,7 +59,7 @@ func NewSupervisedSession(spec *api.SessionSpec) *SupervisedSession {
 
 /* Basic ops */
 
-func (m *SessionManagerExec) Add(s *SupervisedSession) error {
+func (m *SessionStoreExec) Add(s *SupervisedSession) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.sessions[s.Id] != nil {
@@ -72,14 +72,14 @@ func (m *SessionManagerExec) Add(s *SupervisedSession) error {
 	return nil
 }
 
-func (m *SessionManagerExec) Get(id api.SessionID) (*SupervisedSession, bool) {
+func (m *SessionStoreExec) Get(id api.SessionID) (*SupervisedSession, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	s, ok := m.sessions[id]
 	return s, ok
 }
 
-func (m *SessionManagerExec) ListLive() []api.SessionID {
+func (m *SessionStoreExec) ListLive() []api.SessionID {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	out := make([]api.SessionID, 0, len(m.sessions))
@@ -89,7 +89,7 @@ func (m *SessionManagerExec) ListLive() []api.SessionID {
 	return out
 }
 
-func (m *SessionManagerExec) Remove(id api.SessionID) {
+func (m *SessionStoreExec) Remove(id api.SessionID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.sessions, id)
@@ -98,13 +98,13 @@ func (m *SessionManagerExec) Remove(id api.SessionID) {
 	}
 }
 
-func (m *SessionManagerExec) Current() api.SessionID {
+func (m *SessionStoreExec) Current() api.SessionID {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.current
 }
 
-func (m *SessionManagerExec) SetCurrent(id api.SessionID) error {
+func (m *SessionStoreExec) SetCurrent(id api.SessionID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, ok := m.sessions[id]; !ok {

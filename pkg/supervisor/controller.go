@@ -9,9 +9,9 @@ import (
 	"os"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
+	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
 	"sbsh/pkg/supervisor/supervisorrunner"
-	"sbsh/pkg/supervisor/supervisorstore"
 	"time"
 )
 
@@ -29,8 +29,8 @@ type SupervisorController struct {
 var newSupervisorRunner = supervisorrunner.NewSupervisorRunnerExec
 var sr supervisorrunner.SupervisorRunner
 
-var newSessionManager = supervisorstore.NewSessionManagerExec
-var sm supervisorstore.SessionManager
+var newSessionStore = sessionstore.NewSessionStoreExec
+var ss sessionstore.SessionStore
 
 var ctrlReady chan struct{} = make(chan struct{})
 var rpcReadyCh chan error = make(chan error)
@@ -66,7 +66,7 @@ func (s *SupervisorController) Run() error {
 	defer slog.Debug("[supervisor] controller stopped\r\n")
 
 	sr = newSupervisorRunner(s.ctx)
-	sm = newSessionManager()
+	ss = newSessionStore()
 
 	ctrlLn, err := sr.OpenSocketCtrl()
 	if err != nil {
@@ -108,9 +108,9 @@ func (s *SupervisorController) Run() error {
 		SocketIO:    "/home/inwx/.sbsh/run/sessions/" + sessionID + "/io.sock",
 	}
 
-	session := supervisorstore.NewSupervisedSession(sessionSpec)
-	if err := sm.Add(session); err != nil {
-		return fmt.Errorf("%w:%w", ErrSessionManager, err)
+	session := sessionstore.NewSupervisedSession(sessionSpec)
+	if err := ss.Add(session); err != nil {
+		return fmt.Errorf("%w:%w", ErrSessionStore, err)
 	}
 
 	if err := sr.StartSupervisor(s.ctx, eventsCh, session); err != nil {
@@ -170,7 +170,7 @@ func (s *SupervisorController) onClosed(_ api.SessionID, err error) {
 }
 
 func (s *SupervisorController) SetCurrentSession(id api.SessionID) error {
-	if err := sm.SetCurrent(id); err != nil {
+	if err := ss.SetCurrent(id); err != nil {
 		log.Fatalf("failed to set current session: %v", err)
 		return err
 	}

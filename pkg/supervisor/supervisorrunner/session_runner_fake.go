@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net"
 	"sbsh/pkg/api"
+	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
-	"sbsh/pkg/supervisor/supervisorstore"
 )
 
 // ErrFuncNotSet is returned when a test function has not been stubbed
@@ -89,7 +89,7 @@ func (t *SupervisorRunnerTest) SetCurrentSession(id api.SessionID) error {
 	return ErrFuncNotSet
 }
 
-func (t *SupervisorRunnerTest) StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *supervisorstore.SupervisedSession) error {
+func (t *SupervisorRunnerTest) StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *sessionstore.SupervisedSession) error {
 	if t.StartSupervisorFunc != nil {
 		return t.StartSupervisorFunc(ctx, evCh)
 	}
