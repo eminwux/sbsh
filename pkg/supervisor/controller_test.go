@@ -40,11 +40,11 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: spec.Ctx,
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
+			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
-				return nil, fmt.Errorf("force socket fail")
+				return fmt.Errorf("force socket fail")
 			},
-			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
@@ -103,11 +103,11 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: spec.Ctx,
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
+			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
-				return nil, nil
+				return nil
 			},
-			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- fmt.Errorf("force server fail"):
@@ -165,11 +165,11 @@ func Test_ErrStartSession(t *testing.T) {
 	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: spec.Ctx,
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
+			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
-				return nil, nil
+				return nil
 			},
-			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
@@ -232,11 +232,11 @@ func Test_ErrContextDone(t *testing.T) {
 	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
+			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
-				return nil, nil
+				return nil
 			},
-			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
@@ -305,11 +305,11 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: spec.Ctx,
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
+			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
-				return nil, nil
+				return nil
 			},
-			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
@@ -378,11 +378,11 @@ func Test_ErrSessionExists(t *testing.T) {
 	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: spec.Ctx,
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
+			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
-				return nil, nil
+				return nil
 			},
-			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
@@ -451,11 +451,11 @@ func Test_ErrCloseReq(t *testing.T) {
 	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: spec.Ctx,
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
+			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
-				return nil, nil
+				return nil
 			},
-			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
@@ -524,11 +524,11 @@ func Test_ErrSessionStore(t *testing.T) {
 	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: spec.Ctx,
-			OpenSocketCtrlFunc: func() (net.Listener, error) {
+			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
-				return nil, nil
+				return nil
 			},
-			StartServerFunc: func(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:

@@ -28,8 +28,8 @@ type SupervisorRunnerTest struct {
 	LastResize     api.ResizeArgs
 
 	// Stub functions
-	OpenSocketCtrlFunc    func() (net.Listener, error)
-	StartServerFunc       func(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error)
+	OpenSocketCtrlFunc    func() error
+	StartServerFunc       func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error)
 	StartSessionFunc      func(ctx context.Context, evCh chan<- SupervisorRunnerEvent) error
 	IDFunc                func() api.ID
 	CloseFunc             func(reason error) error
@@ -45,19 +45,18 @@ func NewSupervisorRunnerTest(spec *api.SupervisorSpec) *SupervisorRunnerTest {
 	}
 }
 
-func (t *SupervisorRunnerTest) OpenSocketCtrl() (net.Listener, error) {
+func (t *SupervisorRunnerTest) OpenSocketCtrl() error {
 	if t.OpenSocketCtrlFunc != nil {
 		return t.OpenSocketCtrlFunc()
 	}
-	return nil, ErrFuncNotSet
+	return ErrFuncNotSet
 }
 
-func (t *SupervisorRunnerTest) StartServer(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error) {
+func (t *SupervisorRunnerTest) StartServer(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error) {
 	t.LastCtx = ctx
-	t.LastListener = ln
 	t.LastController = sc
 	if t.StartServerFunc != nil {
-		t.StartServerFunc(ctx, ln, sc, readyCh, doneCh)
+		t.StartServerFunc(ctx, sc, readyCh, doneCh)
 	}
 }
 

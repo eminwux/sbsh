@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"net"
 	"os"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
@@ -23,10 +22,6 @@ type SupervisorController struct {
 	exit    chan struct{}
 	closed  chan struct{}
 	closing chan error
-
-	// TODO move to SupervisorRunner
-	listenerCtrl net.Listener
-
 	runPath string
 }
 
@@ -74,7 +69,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	sr = newSupervisorRunner(spec)
 	ss = newSessionStore()
 
-	ctrlLn, err := sr.OpenSocketCtrl()
+	err := sr.OpenSocketCtrl()
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not open control socket: %v", err))
 		if err := s.Close(err); err != nil {
@@ -83,10 +78,8 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		return fmt.Errorf("%w:%w", errdefs.ErrOpenSocketCtrl, err)
 	}
 
-	s.listenerCtrl = ctrlLn
-
 	rpc := &supervisorrpc.SupervisorControllerRPC{Core: s}
-	go sr.StartServer(s.ctx, s.listenerCtrl, rpc, rpcReadyCh, rpcDoneCh)
+	go sr.StartServer(s.ctx, rpc, rpcReadyCh, rpcDoneCh)
 	// Wait for startup result
 	if err := <-rpcReadyCh; err != nil {
 		// failed to start — handle and return

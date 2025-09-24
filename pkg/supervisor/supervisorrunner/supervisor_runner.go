@@ -26,8 +26,8 @@ import (
 )
 
 type SupervisorRunner interface {
-	OpenSocketCtrl() (net.Listener, error)
-	StartServer(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error)
+	OpenSocketCtrl() error
+	StartServer(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error)
 	StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *sessionstore.SupervisedSession) error
 	ID() api.ID
 	Close(reason error) error
@@ -46,6 +46,7 @@ type SupervisorRunnerExec struct {
 	lastTermState        *term.State
 	Mgr                  *sessionstore.SessionStoreExec
 	supervisorSockerCtrl string
+	lnCtrl               net.Listener
 }
 
 type SupervisorRunnerEvent struct {
@@ -80,11 +81,11 @@ func NewSupervisorRunnerExec(spec *api.SupervisorSpec) SupervisorRunner {
 	}
 }
 
-func (s *SupervisorRunnerExec) OpenSocketCtrl() (net.Listener, error) {
+func (s *SupervisorRunnerExec) OpenSocketCtrl() error {
 
 	supervisorsDir := filepath.Join(s.runPath, string(s.id))
 	if err := os.MkdirAll(supervisorsDir, 0o700); err != nil {
-		return nil, fmt.Errorf("mkdir session dir: %w", err)
+		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
 	s.supervisorSockerCtrl = filepath.Join(supervisorsDir, "ctrl.sock")
@@ -98,14 +99,22 @@ func (s *SupervisorRunnerExec) OpenSocketCtrl() (net.Listener, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return ln, nil
+
+	s.lnCtrl = ln
+
+	return nil
 }
 
-func (s *SupervisorRunnerExec) StartServer(ctx context.Context, ln net.Listener, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error) {
-	// Immediately signal that the server is ready
+func (s *SupervisorRunnerExec) StartServer(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error) {
+	// Ensure ln is closed and no leaks on exit
 	defer func() {
-		// Ensure ln is closed and no leaks on exit
-		_ = ln.Close()
+		_ = s.lnCtrl.Close()
+	}()
+
+	// stop accepting when ctx is canceled.
+	go func() {
+		<-ctx.Done()
+		_ = s.lnCtrl.Close()
 	}()
 
 	srv := rpc.NewServer()
@@ -127,14 +136,8 @@ func (s *SupervisorRunnerExec) StartServer(ctx context.Context, ln net.Listener,
 	readyCh <- nil
 	close(readyCh)
 
-	// stop accepting when ctx is canceled.
-	go func() {
-		<-ctx.Done()
-		_ = ln.Close()
-	}()
-
 	for {
-		conn, err := ln.Accept()
+		conn, err := s.lnCtrl.Accept()
 		if err != nil {
 			// Normal path: listener closed by ctx cancel
 			if errors.Is(err, net.ErrClosed) || ctx.Err() != nil {

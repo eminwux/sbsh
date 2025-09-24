@@ -85,8 +85,6 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		return fmt.Errorf("%w:%w", errdefs.ErrOpenSocketCtrl, err)
 	}
 
-	// c.listenerCtrl = ctrlLn
-
 	rpc := &sessionrpc.SessionControllerRPC{Core: c}
 	go sr.StartServer(c.ctx, rpc, rpcReadyCh)
 	// Wait for startup result
