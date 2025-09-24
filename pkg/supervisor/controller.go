@@ -93,14 +93,19 @@ func (s *SupervisorController) Run() error {
 
 	sessionID := common.RandomID()
 
-	exe := "/home/inwx/projects/sbsh/sbsh-session"
-	args := []string{"--id", sessionID}
+	// exe := "/home/inwx/projects/sbsh/sbsh-session"
+	args := []string{"run", "--id", sessionID}
+
+	execPath, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
 
 	sessionSpec := &api.SessionSpec{
 		ID:          api.SessionID(sessionID),
 		Kind:        api.SessLocal,
 		Label:       "default",
-		Command:     exe,
+		Command:     execPath,
 		CommandArgs: args,
 		Env:         os.Environ(),
 		LogDir:      "/tmp/sbsh-logs/s0",
