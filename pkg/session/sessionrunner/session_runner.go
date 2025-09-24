@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sbsh/pkg/api"
-	"sbsh/pkg/common"
 	"sbsh/pkg/session/sessionrpc"
 	"sync"
 	"syscall"
@@ -41,9 +40,10 @@ type SessionRunnerExec struct {
 	spec api.SessionSpec
 
 	// runtime (owned by Session)
-	cmd   *exec.Cmd
-	pty   *os.File // master
-	state api.SessionState
+	cmd     *exec.Cmd
+	pty     *os.File // master
+	state   api.SessionState
+	runPath string
 
 	gates struct {
 		StdinOpen bool
@@ -101,9 +101,10 @@ func NewSessionRunnerExec(spec *api.SessionSpec) SessionRunner {
 		spec: *spec,
 
 		// runtime (initialized but inactive)
-		cmd:   nil,
-		pty:   nil,
-		state: api.SessBash, // default logical state before start
+		cmd:     nil,
+		pty:     nil,
+		state:   api.SessBash, // default logical state before start
+		runPath: spec.RunPath + "/sessions",
 
 		gates: struct {
 			StdinOpen bool
@@ -131,13 +132,7 @@ func (sr *SessionRunnerExec) ID() api.SessionID {
 
 func (sr *SessionRunnerExec) OpenSocketCtrl() (net.Listener, error) {
 
-	// Set up sockets
-	base, err := common.RuntimeBaseSessions()
-	if err != nil {
-		return nil, err
-	}
-
-	runPath := filepath.Join(base, string(sr.id))
+	runPath := filepath.Join(sr.runPath, string(sr.id))
 	if err := os.MkdirAll(runPath, 0o700); err != nil {
 		return nil, fmt.Errorf("mkdir session dir: %w", err)
 	}
@@ -254,13 +249,7 @@ func (sr *SessionRunnerExec) Resize(args api.ResizeArgs) {
 
 func (s *SessionRunnerExec) openSocketIO() error {
 
-	// Set up sockets
-	base, err := common.RuntimeBaseSessions()
-	if err != nil {
-		return err
-	}
-
-	runPath := filepath.Join(base, string(s.id))
+	runPath := filepath.Join(s.runPath, string(s.id))
 	if err := os.MkdirAll(runPath, 0o700); err != nil {
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}

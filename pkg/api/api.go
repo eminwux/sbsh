@@ -55,6 +55,7 @@ type SessionSpec struct {
 	SockerCtrl  string
 	SocketIO    string
 	Pid         int
+	RunPath     string
 }
 
 type SessionEventType int
