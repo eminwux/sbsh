@@ -5,7 +5,6 @@ Copyright © 2025 Emiliano Spinella (eminwux)
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"log/slog"
@@ -47,21 +46,17 @@ var rootCmd = &cobra.Command{
 		slog.SetDefault(slog.New(h))
 		return nil
 	},
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 
 		err := LoadConfig()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Config error:", err)
 			os.Exit(1)
 		}
-		run()
+
+		return cmd.Help()
 
 	},
-}
-
-func run() {
-	_, cancel := context.WithCancel(context.Background())
-	defer cancel()
 }
 
 ///////////////////////////////////////////////
