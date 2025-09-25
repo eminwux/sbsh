@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
+	"sbsh/pkg/env"
 	"sbsh/pkg/session/sessionrpc"
 	"sync"
 	"syscall"
@@ -298,7 +299,12 @@ func (s *SessionRunnerExec) prepareSessionCommand() error {
 	} else {
 		cmd.Env = os.Environ()
 	}
-
+	cmd.Env = append(cmd.Env,
+		env.KV(env.SES_SOCKET_CTRL, s.socketCtrl),
+		env.KV(env.SES_SOCKET_IO, s.socketIO),
+		env.KV(env.SES_ID, string(s.spec.ID)),
+		env.KV(env.SES_NAME, s.spec.Name),
+	)
 	// Start the process in a new session so it has its own process group
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setctty: true, // make the child the controlling TTY
