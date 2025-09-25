@@ -46,11 +46,11 @@ const (
 type SessionSpec struct {
 	ID          ID                `json:"id"`
 	Kind        SessionKind       `json:"kind"`
-	Label       string            `json:"label"`
+	Name        string            `json:"name"`
 	Command     string            `json:"command"`
 	CommandArgs []string          `json:"commandArgs"`
 	Env         []string          `json:"env"`
-	Context     map[string]string `json:"context"`
+	Labels      map[string]string `json:"context"`
 	LogDir      string            `json:"logDir"`
 	SockerCtrl  string            `json:"socketCtrl"`
 	SocketIO    string            `json:"socketIO"`
@@ -61,9 +61,9 @@ type SessionSpec struct {
 type SupervisorSpec struct {
 	ID         ID                `json:"id"`
 	Kind       SessionKind       `json:"kind"`
-	Label      string            `json:"label"`
+	Name       string            `json:"name"`
 	Env        []string          `json:"env"`
-	Context    map[string]string `json:"context"`
+	Labels     map[string]string `json:"context"`
 	LogDir     string            `json:"logDir"`
 	SockerCtrl string            `json:"socketCtrl"`
 	Pid        int               `json:"pid"`

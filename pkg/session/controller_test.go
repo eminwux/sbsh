@@ -38,7 +38,7 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
-		Label:       "default",
+		Name:        "default",
 		Command:     "",
 		CommandArgs: nil,
 		Env:         os.Environ(),
@@ -80,7 +80,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
-		Label:       "default",
+		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
@@ -122,7 +122,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
-		Label:       "default",
+		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
@@ -167,7 +167,7 @@ func Test_ErrStartSession(t *testing.T) {
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
-		Label:       "default",
+		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
@@ -221,7 +221,7 @@ func Test_ErrContextDone(t *testing.T) {
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
-		Label:       "default",
+		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
@@ -279,7 +279,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
-		Label:       "default",
+		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
@@ -335,7 +335,7 @@ func Test_WaitReady(t *testing.T) {
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
-		Label:       "default",
+		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
@@ -397,7 +397,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
-		Label:       "default",
+		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
@@ -459,7 +459,7 @@ func Test_HandleEvent_EvError(t *testing.T) {
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
 		Kind:        api.SessLocal,
-		Label:       "default",
+		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),

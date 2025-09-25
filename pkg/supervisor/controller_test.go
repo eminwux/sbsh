@@ -83,7 +83,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
-		Label:   "default",
+		Name:    "default",
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
@@ -149,7 +149,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
-		Label:   "default",
+		Name:    "default",
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
@@ -217,7 +217,7 @@ func Test_ErrStartSession(t *testing.T) {
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
-		Label:   "default",
+		Name:    "default",
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
@@ -291,7 +291,7 @@ func Test_ErrContextDone(t *testing.T) {
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
-		Label:   "default",
+		Name:    "default",
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
@@ -369,7 +369,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
-		Label:   "default",
+		Name:    "default",
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
@@ -443,7 +443,7 @@ func Test_ErrSessionExists(t *testing.T) {
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
-		Label:   "default",
+		Name:    "default",
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
@@ -519,7 +519,7 @@ func Test_ErrCloseReq(t *testing.T) {
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
-		Label:   "default",
+		Name:    "default",
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
@@ -621,7 +621,7 @@ func Test_ErrSessionStore(t *testing.T) {
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
-		Label:   "default",
+		Name:    "default",
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),

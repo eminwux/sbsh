@@ -77,7 +77,7 @@ func runSupervisor() error {
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
-		Label:   "default",
+		Name:    "default",
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),

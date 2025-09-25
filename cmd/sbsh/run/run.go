@@ -75,7 +75,7 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
 	spec := api.SessionSpec{
 		ID:          api.ID(sessionID),
 		Kind:        api.SessLocal,
-		Label:       "default",
+		Name:        "default",
 		Command:     sessionCmd,
 		CommandArgs: cmdArgs,
 		Env:         os.Environ(),

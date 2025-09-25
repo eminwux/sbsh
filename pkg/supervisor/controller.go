@@ -112,7 +112,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	sessionSpec := &api.SessionSpec{
 		ID:          api.ID(sessionID),
 		Kind:        api.SessLocal,
-		Label:       "default",
+		Name:        "default",
 		Command:     execPath,
 		CommandArgs: args,
 		Env:         os.Environ(),

@@ -26,7 +26,7 @@ type SessionStoreExec struct {
 type SupervisedSession struct {
 	Id               api.ID
 	Kind             api.SessionKind
-	Label            string // user-friendly name
+	Name             string // user-friendly name
 	Command          string
 	CommandArgs      []string          // for local: ["bash","-i"]; for ssh: ["ssh","-tt","user@host"]
 	Env              []string          // TERM, COLORTERM, etc.
@@ -48,7 +48,7 @@ func NewSupervisedSession(spec *api.SessionSpec) *SupervisedSession {
 	return &SupervisedSession{
 		Id:          spec.ID,
 		Kind:        spec.Kind,
-		Label:       spec.Label,
+		Name:        spec.Name,
 		Command:     spec.Command,
 		CommandArgs: spec.CommandArgs,
 		Env:         spec.Env,
