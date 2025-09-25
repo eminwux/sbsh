@@ -4,10 +4,13 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package sessions
 
 import (
-	"fmt"
+	"context"
 	"log/slog"
+	"os"
+	"sbsh/pkg/discovery"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // sessionsCmd represents the sessions command
@@ -21,20 +24,17 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		run()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		slog.Debug("-> sessions list")
+
+		// get env SBSH_RUN_DIR
+		// scan run dir for existing sessions
+		// read status file
+		// return results
+
+		ctx := context.Background()
+		return discovery.ScanAndPrintSessions(ctx, viper.GetString("global.runPath"), os.Stdout)
 	},
-}
-
-func run() {
-	fmt.Println("sessions list called")
-	slog.Debug("-> sessions list")
-
-	// get env SBSH_RUN_DIR
-	// scan run dir for existing sessions
-	// read status file
-	// return results
-
 }
 
 func init() {
