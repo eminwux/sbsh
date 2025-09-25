@@ -6,11 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"sbsh/pkg/api"
 	"sbsh/pkg/errdefs"
+	"sbsh/pkg/naming"
 	"sbsh/pkg/session"
 	"testing"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 func TestRunSession_ErrContextCancelled(t *testing.T) {
@@ -26,9 +30,20 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 	}
 	t.Cleanup(func() { newSessionController = orig })
 
+	spec := api.SessionSpec{
+		ID:          api.ID(sessionID),
+		Kind:        api.SessLocal,
+		Name:        naming.RandomSessionName(),
+		Command:     "/bin/bash",
+		CommandArgs: []string{},
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString("global.runPath"),
+	}
+
 	done := make(chan error)
 	go func() {
-		done <- runSession("s-ctx", "/bin/true", nil) // will block until ctx.Done()
+		done <- runSession(&spec) // will block until ctx.Done()
 	}()
 
 	// Give Run() time to set ready, then signal the process (NotifyContext listens to SIGTERM/INT)
@@ -63,7 +78,18 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	if err := runSession("s-wre", "/bin/true", nil); err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
+	spec := api.SessionSpec{
+		ID:          api.ID(sessionID),
+		Kind:        api.SessLocal,
+		Name:        naming.RandomSessionName(),
+		Command:     "/bin/bash",
+		CommandArgs: []string{},
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString("global.runPath"),
+	}
+
+	if err := runSession(&spec); err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrWaitOnReady, err)
 
 	}
@@ -86,10 +112,20 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	exitCh := make(chan error)
+	spec := api.SessionSpec{
+		ID:          api.ID(sessionID),
+		Kind:        api.SessLocal,
+		Name:        naming.RandomSessionName(),
+		Command:     "/bin/bash",
+		CommandArgs: []string{},
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString("global.runPath"),
+	}
 
+	exitCh := make(chan error)
 	go func(exitCh chan error) {
-		exitCh <- runSession("s-wre", "/bin/true", nil)
+		exitCh <- runSession(&spec)
 	}(exitCh)
 
 	time.Sleep(20 * time.Millisecond)

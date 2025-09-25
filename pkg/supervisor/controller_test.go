@@ -9,8 +9,8 @@ import (
 	"net"
 	"os"
 	"sbsh/pkg/api"
-	"sbsh/pkg/common"
 	"sbsh/pkg/errdefs"
+	"sbsh/pkg/naming"
 	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
 	"sbsh/pkg/supervisor/supervisorrunner"
@@ -79,7 +79,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 
 	closeReqCh = make(chan error, 1)
 
-	supervisorID := common.RandomID()
+	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
@@ -145,7 +145,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 
 	closeReqCh = make(chan error, 1)
 
-	supervisorID := common.RandomID()
+	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
@@ -213,7 +213,7 @@ func Test_ErrStartSession(t *testing.T) {
 
 	closeReqCh = make(chan error, 1)
 
-	supervisorID := common.RandomID()
+	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
@@ -287,7 +287,7 @@ func Test_ErrContextDone(t *testing.T) {
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
 	ctrlReady = make(chan struct{}, 1)
 
-	supervisorID := common.RandomID()
+	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
@@ -365,7 +365,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 
 	exitCh := make(chan error)
 
-	supervisorID := common.RandomID()
+	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
@@ -439,7 +439,7 @@ func Test_ErrSessionExists(t *testing.T) {
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
 	ctrlReady = make(chan struct{}, 1)
 
-	supervisorID := common.RandomID()
+	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
@@ -515,7 +515,7 @@ func Test_ErrCloseReq(t *testing.T) {
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
 	ctrlReady = make(chan struct{}, 1)
 
-	supervisorID := common.RandomID()
+	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
@@ -617,7 +617,7 @@ func Test_ErrSessionStore(t *testing.T) {
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
 	ctrlReady = make(chan struct{}, 1)
 
-	supervisorID := common.RandomID()
+	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),

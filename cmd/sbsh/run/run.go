@@ -13,8 +13,8 @@ import (
 	"os/signal"
 	"runtime"
 	"sbsh/pkg/api"
-	"sbsh/pkg/common"
 	"sbsh/pkg/errdefs"
+	"sbsh/pkg/naming"
 	"sbsh/pkg/session"
 	"syscall"
 
@@ -24,6 +24,7 @@ import (
 
 var (
 	sessionID            string
+	name                 string
 	sessionCmd           string
 	ctx                  context.Context
 	cancel               context.CancelFunc
@@ -43,7 +44,10 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		if sessionID == "" {
-			sessionID = common.RandomID()
+			sessionID = naming.RandomID()
+		}
+		if name == "" {
+			name = naming.RandomSessionName()
 		}
 		if sessionCmd == "" {
 			sessionCmd = "/bin/bash"
@@ -52,36 +56,37 @@ to quickly create a Cobra application.`,
 		// Split into args for exec
 		cmdArgs := []string{}
 
-		runSession(sessionID, sessionCmd, cmdArgs)
+		// Define a new Session
+		spec := api.SessionSpec{
+			ID:          api.ID(sessionID),
+			Kind:        api.SessLocal,
+			Name:        name,
+			Command:     sessionCmd,
+			CommandArgs: cmdArgs,
+			Env:         os.Environ(),
+			LogDir:      "/tmp/sbsh-logs/s0",
+			RunPath:     viper.GetString("global.runPath"),
+		}
+
+		runSession(&spec)
 
 	},
 }
 
 func init() {
 	RunCmd.Flags().StringVar(&sessionID, "id", "", "Optional session ID (random if omitted)")
-	RunCmd.Flags().StringVar(&sessionCmd, "command", "", "Optional command (default: bash -i)")
+	RunCmd.Flags().StringVar(&sessionCmd, "command", "", "Optional command (default: /bin/bash)")
+	RunCmd.Flags().StringVar(&name, "name", "", "Optional name for the session")
 
 }
 
-func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
+func runSession(spec *api.SessionSpec) error {
 	go http.ListenAndServe("127.0.0.1:6060", nil)
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
 	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	runtime.SetBlockProfileRate(1)     // sample ALL blocking events on chans/locks
 	runtime.SetMutexProfileFraction(1) // sample ALL mutex contention
 	defer cancel()
-
-	// Define a new Session
-	spec := api.SessionSpec{
-		ID:          api.ID(sessionID),
-		Kind:        api.SessLocal,
-		Name:        "default",
-		Command:     sessionCmd,
-		CommandArgs: cmdArgs,
-		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-	}
 
 	// Create a new Controller
 	var sessionCtrl api.SessionController
@@ -93,7 +98,7 @@ func runSession(sessionID string, sessionCmd string, cmdArgs []string) error {
 
 	// Run controller
 	go func() {
-		errCh <- sessionCtrl.Run(&spec) // Run should return when ctx is canceled
+		errCh <- sessionCtrl.Run(spec) // Run should return when ctx is canceled
 		slog.Debug("[sbsh] controller stopped\r\n")
 	}()
 

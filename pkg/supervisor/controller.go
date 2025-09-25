@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"sbsh/pkg/api"
-	"sbsh/pkg/common"
 	"sbsh/pkg/errdefs"
+	"sbsh/pkg/naming"
 	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
 	"sbsh/pkg/supervisor/supervisorrunner"
@@ -99,10 +99,11 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		return fmt.Errorf("%w:%w", errdefs.ErrStartRPCServer, err)
 	}
 
-	sessionID := common.RandomID()
+	sessionID := naming.RandomID()
+	sessionName := naming.RandomSessionName()
 
 	// exe := "/home/inwx/projects/sbsh/sbsh-session"
-	args := []string{"run", "--id", sessionID}
+	args := []string{"run", "--id", sessionID, "--name", sessionName}
 
 	execPath, err := os.Executable()
 	if err != nil {
@@ -112,7 +113,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	sessionSpec := &api.SessionSpec{
 		ID:          api.ID(sessionID),
 		Kind:        api.SessLocal,
-		Name:        "default",
+		Name:        sessionName,
 		Command:     execPath,
 		CommandArgs: args,
 		Env:         os.Environ(),

@@ -16,6 +16,7 @@ import (
 	"sbsh/cmd/sbsh/run"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
+	"sbsh/pkg/naming"
 	"sbsh/pkg/supervisor"
 	"syscall"
 
@@ -73,11 +74,11 @@ func runSupervisor() error {
 	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	supervisorID := common.RandomID()
+	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
-		Name:    "default",
+		Name:    naming.RandomSessionName(),
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
