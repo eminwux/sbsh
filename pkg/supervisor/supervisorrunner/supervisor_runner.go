@@ -47,7 +47,7 @@ type SupervisorRunnerExec struct {
 	events               chan<- SupervisorRunnerEvent
 	lastTermState        *term.State
 	Mgr                  *sessionstore.SessionStoreExec
-	supervisorSockerCtrl string
+	supervisorSocketCtrl string
 	lnCtrl               net.Listener
 }
 
@@ -98,14 +98,14 @@ func (s *SupervisorRunnerExec) getSupervisorsDir() string {
 
 func (s *SupervisorRunnerExec) OpenSocketCtrl() error {
 
-	s.supervisorSockerCtrl = filepath.Join(s.getSupervisorsDir(), "ctrl.sock")
-	slog.Debug(fmt.Sprintf("[supervisor] CTRL socket: %s", s.supervisorSockerCtrl))
+	s.supervisorSocketCtrl = filepath.Join(s.getSupervisorsDir(), "ctrl.sock")
+	slog.Debug(fmt.Sprintf("[supervisor] CTRL socket: %s", s.supervisorSocketCtrl))
 
 	// remove stale socket if it exists
-	if _, err := os.Stat(s.supervisorSockerCtrl); err == nil {
-		_ = os.Remove(s.supervisorSockerCtrl)
+	if _, err := os.Stat(s.supervisorSocketCtrl); err == nil {
+		_ = os.Remove(s.supervisorSocketCtrl)
 	}
-	ln, err := net.Listen("unix", s.supervisorSockerCtrl)
+	ln, err := net.Listen("unix", s.supervisorSocketCtrl)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -218,12 +218,12 @@ func (s *SupervisorRunnerExec) ID() api.ID {
 
 func (s *SupervisorRunnerExec) Close(reason error) error {
 	// remove sockets and dir
-	if err := os.Remove(s.supervisorSockerCtrl); err != nil {
-		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", s.supervisorSockerCtrl, err))
+	if err := os.Remove(s.supervisorSocketCtrl); err != nil {
+		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", s.supervisorSocketCtrl, err))
 	}
 
-	if err := os.RemoveAll(filepath.Dir(s.supervisorSockerCtrl)); err != nil {
-		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", s.supervisorSockerCtrl, err))
+	if err := os.RemoveAll(filepath.Dir(s.supervisorSocketCtrl)); err != nil {
+		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", s.supervisorSocketCtrl, err))
 	}
 	s.toExitShell()
 	return nil
