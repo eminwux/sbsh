@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
+	"sbsh/pkg/env"
 	"sbsh/pkg/errdefs"
 	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
@@ -178,7 +179,8 @@ func (s *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- 
 	cmd := exec.Command(session.Command, session.CommandArgs...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // detach from your pg/ctty
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = devNull, devNull, devNull
-	cmd.Env = os.Environ()
+
+	cmd.Env = append(session.Env, env.KV(env.SUP_SOCKET, s.supervisorSocketCtrl))
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("%w:%w", errdefs.ErrSessionCmdStart, err)
