@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sbsh/cmd/sb/sessions"
 	"sbsh/pkg/common"
+	"sbsh/pkg/env"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -99,11 +100,11 @@ func LoadConfig() error {
 	}
 	viper.AddConfigPath(filepath.Join(home, ".sbsh"))
 
-	viper.BindEnv("global.logLevel", "SBSH_LOG_LEVEL")
-	viper.BindEnv("global.runPath", "SBSH_RUN_PATH")
+	_ = env.RUN_PATH.BindEnv()
+	_ = env.LOG_LEVEL.BindEnv()
 
-	viper.SetDefault("global.logLevel", "info")
-	viper.SetDefault("global.runPath", filepath.Join(home, ".sbsh", "run"))
+	env.RUN_PATH.SetDefault(filepath.Join(home, ".sbsh", "run"))
+	env.LOG_LEVEL.SetDefault("info")
 
 	if err := viper.ReadInConfig(); err != nil {
 		// File not found is OK if ENV is set
