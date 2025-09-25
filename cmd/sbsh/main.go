@@ -77,7 +77,6 @@ func runSupervisor() error {
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
-		Ctx:     ctx,
 		Label:   "default",
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",

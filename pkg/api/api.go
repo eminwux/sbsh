@@ -50,7 +50,7 @@ type SessionSpec struct {
 	Command     string            `json:"command"`
 	CommandArgs []string          `json:"commandArgs"`
 	Env         []string          `json:"env"`
-	Context     map[string]string `json:"contex"`
+	Context     map[string]string `json:"context"`
 	LogDir      string            `json:"logDir"`
 	SockerCtrl  string            `json:"socketCtrl"`
 	SocketIO    string            `json:"socketIO"`
@@ -59,15 +59,15 @@ type SessionSpec struct {
 }
 
 type SupervisorSpec struct {
-	ID         ID
-	Ctx        context.Context
-	Label      string            // user-friendly name
-	Env        []string          // TERM, COLORTERM, etc.
-	Context    map[string]string // kubectl ns, cwd hint, etc.
-	LogDir     string
-	SockerCtrl string
-	Pid        int
-	RunPath    string
+	ID         ID                `json:"id"`
+	Kind       SessionKind       `json:"kind"`
+	Label      string            `json:"label"`
+	Env        []string          `json:"env"`
+	Context    map[string]string `json:"context"`
+	LogDir     string            `json:"logDir"`
+	SockerCtrl string            `json:"socketCtrl"`
+	Pid        int               `json:"pid"`
+	RunPath    string            `json:"runPath"`
 }
 type SessionEventType int
 

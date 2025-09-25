@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sbsh/pkg/api"
+	"sbsh/pkg/common"
 	"sbsh/pkg/errdefs"
 	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
@@ -33,6 +34,7 @@ type SupervisorRunner interface {
 	Close(reason error) error
 	Resize(args api.ResizeArgs)
 	SetCurrentSession(id api.ID) error
+	CreateMetadata() error
 }
 
 type SupervisorRunnerExec struct {
@@ -40,7 +42,7 @@ type SupervisorRunnerExec struct {
 	spec                 api.SupervisorSpec
 	runPath              string
 	session              *sessionstore.SupervisedSession
-	sessionCtx           context.Context
+	ctx                  context.Context
 	uiMode               UIMode
 	events               chan<- SupervisorRunnerEvent
 	lastTermState        *term.State
@@ -72,23 +74,31 @@ const (
 	UIExitShell // Saved lastState restore
 )
 
-func NewSupervisorRunnerExec(spec *api.SupervisorSpec) SupervisorRunner {
+func NewSupervisorRunnerExec(ctx context.Context, spec *api.SupervisorSpec) SupervisorRunner {
 	return &SupervisorRunnerExec{
-		sessionCtx: spec.Ctx,
-		id:         spec.ID,
-		spec:       *spec,
-		runPath:    spec.RunPath + "/supervisors",
+		ctx:     ctx,
+		id:      spec.ID,
+		spec:    *spec,
+		runPath: spec.RunPath + "/supervisors",
 	}
+}
+
+func (s *SupervisorRunnerExec) CreateMetadata() error {
+
+	if err := os.MkdirAll(s.getSupervisorsDir(), 0o700); err != nil {
+		return fmt.Errorf("mkdir session dir: %w", err)
+	}
+
+	return common.WriteMetadata(s.ctx, s.spec, s.getSupervisorsDir())
+}
+
+func (s *SupervisorRunnerExec) getSupervisorsDir() string {
+	return filepath.Join(s.runPath, string(s.id))
 }
 
 func (s *SupervisorRunnerExec) OpenSocketCtrl() error {
 
-	supervisorsDir := filepath.Join(s.runPath, string(s.id))
-	if err := os.MkdirAll(supervisorsDir, 0o700); err != nil {
-		return fmt.Errorf("mkdir session dir: %w", err)
-	}
-
-	s.supervisorSockerCtrl = filepath.Join(supervisorsDir, "ctrl.sock")
+	s.supervisorSockerCtrl = filepath.Join(s.getSupervisorsDir(), "ctrl.sock")
 	slog.Debug(fmt.Sprintf("[supervisor] CTRL socket: %s", s.supervisorSockerCtrl))
 
 	// remove stale socket if it exists
@@ -348,12 +358,12 @@ func (s *SupervisorRunnerExec) attachIOSocket() error {
 	go func() error {
 		// Wait for either context cancel or one side finishing
 		select {
-		case <-s.sessionCtx.Done():
+		case <-s.ctx.Done():
 			slog.Debug("[supervisor-runner] context done\r\n")
 			_ = conn.Close() // unblock goroutines
 			<-errCh
 			<-errCh
-			return s.sessionCtx.Err()
+			return s.ctx.Err()
 		case e := <-errCh:
 			// one direction ended; close and wait for the other
 			_ = conn.Close()
@@ -384,7 +394,7 @@ func (s *SupervisorRunnerExec) attachAndForwardResize() error {
 		defer signal.Stop(ch)
 		for {
 			select {
-			case <-s.sessionCtx.Done():
+			case <-s.ctx.Done():
 				return
 			case <-ch:
 				// slog.Debug("[supervisor] window change\r\n")

@@ -66,10 +66,19 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 
 	s.runPath = spec.RunPath
 
-	sr = newSupervisorRunner(spec)
+	sr = newSupervisorRunner(s.ctx, spec)
 	ss = newSessionStore()
 
-	err := sr.OpenSocketCtrl()
+	err := sr.CreateMetadata()
+	if err != nil {
+		slog.Debug(fmt.Sprintf("could not write metadata file: %v", err))
+		if err := s.Close(err); err != nil {
+			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
+		}
+		return fmt.Errorf("%w:%w", errdefs.ErrWriteMetadata, err)
+	}
+
+	err = sr.OpenSocketCtrl()
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not open control socket: %v", err))
 		if err := s.Close(err); err != nil {

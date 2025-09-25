@@ -36,12 +36,13 @@ type SupervisorRunnerTest struct {
 	ResizeFunc            func(args api.ResizeArgs)
 	SetCurrentSessionFunc func(id api.ID) error
 	StartSupervisorFunc   func(ctx context.Context, evCh chan<- SupervisorRunnerEvent) error
+	CreateMetadataFunc    func() error
 }
 
 // NewSupervisorRunnerTest returns a new SupervisorRunnerTest instance
-func NewSupervisorRunnerTest(spec *api.SupervisorSpec) *SupervisorRunnerTest {
+func NewSupervisorRunnerTest(ctx context.Context, spec *api.SupervisorSpec) *SupervisorRunnerTest {
 	return &SupervisorRunnerTest{
-		Ctx: spec.Ctx,
+		Ctx: ctx,
 	}
 }
 
@@ -91,6 +92,12 @@ func (t *SupervisorRunnerTest) SetCurrentSession(id api.ID) error {
 func (t *SupervisorRunnerTest) StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *sessionstore.SupervisedSession) error {
 	if t.StartSupervisorFunc != nil {
 		return t.StartSupervisorFunc(ctx, evCh)
+	}
+	return ErrFuncNotSet
+}
+func (t *SupervisorRunnerTest) CreateMetadata() error {
+	if t.CreateMetadataFunc != nil {
+		return t.CreateMetadataFunc()
 	}
 	return ErrFuncNotSet
 }

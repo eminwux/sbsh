@@ -37,9 +37,9 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	// ctx, cancel := context.WithCancel(context.Background())
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: spec.Ctx,
+			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return fmt.Errorf("force socket fail")
@@ -65,6 +65,9 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 			},
 			ResizeFunc: func(args api.ResizeArgs) {
 				// default: no-op
+			},
+			CreateMetadataFunc: func() error {
+				return nil
 			},
 		}
 	}
@@ -100,9 +103,9 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	// ctx, cancel := context.WithCancel(context.Background())
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: spec.Ctx,
+			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -128,6 +131,9 @@ func Test_ErrStartRPCServer(t *testing.T) {
 			},
 			ResizeFunc: func(args api.ResizeArgs) {
 				// default: no-op
+			},
+			CreateMetadataFunc: func() error {
+				return nil
 			},
 		}
 	}
@@ -162,9 +168,9 @@ func Test_ErrStartRPCServer(t *testing.T) {
 func Test_ErrStartSession(t *testing.T) {
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: spec.Ctx,
+			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -193,6 +199,9 @@ func Test_ErrStartSession(t *testing.T) {
 			},
 			ResizeFunc: func(args api.ResizeArgs) {
 				// default: no-op
+			},
+			CreateMetadataFunc: func() error {
+				return nil
 			},
 		}
 	}
@@ -229,7 +238,7 @@ func Test_ErrContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	sessionCtrl := NewSupervisorController(ctx)
 
-	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
@@ -260,6 +269,9 @@ func Test_ErrContextDone(t *testing.T) {
 			},
 			ResizeFunc: func(args api.ResizeArgs) {
 				// default: no-op
+			},
+			CreateMetadataFunc: func() error {
+				return nil
 			},
 		}
 	}
@@ -302,9 +314,9 @@ func Test_ErrContextDone(t *testing.T) {
 func Test_ErrRPCServerExited(t *testing.T) {
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: spec.Ctx,
+			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -333,6 +345,9 @@ func Test_ErrRPCServerExited(t *testing.T) {
 			},
 			ResizeFunc: func(args api.ResizeArgs) {
 				// default: no-op
+			},
+			CreateMetadataFunc: func() error {
+				return nil
 			},
 		}
 	}
@@ -375,9 +390,9 @@ func Test_ErrRPCServerExited(t *testing.T) {
 func Test_ErrSessionExists(t *testing.T) {
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: spec.Ctx,
+			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -406,6 +421,9 @@ func Test_ErrSessionExists(t *testing.T) {
 			},
 			ResizeFunc: func(args api.ResizeArgs) {
 				// default: no-op
+			},
+			CreateMetadataFunc: func() error {
+				return nil
 			},
 		}
 	}
@@ -448,9 +466,9 @@ func Test_ErrSessionExists(t *testing.T) {
 func Test_ErrCloseReq(t *testing.T) {
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: spec.Ctx,
+			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -479,6 +497,9 @@ func Test_ErrCloseReq(t *testing.T) {
 			},
 			ResizeFunc: func(args api.ResizeArgs) {
 				// default: no-op
+			},
+			CreateMetadataFunc: func() error {
+				return nil
 			},
 		}
 	}
@@ -521,9 +542,9 @@ func Test_ErrCloseReq(t *testing.T) {
 func Test_ErrSessionStore(t *testing.T) {
 	sessionCtrl := NewSupervisorController(context.Background())
 
-	newSupervisorRunner = func(spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
+	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: spec.Ctx,
+			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -552,6 +573,9 @@ func Test_ErrSessionStore(t *testing.T) {
 			},
 			ResizeFunc: func(args api.ResizeArgs) {
 				// default: no-op
+			},
+			CreateMetadataFunc: func() error {
+				return nil
 			},
 		}
 	}
