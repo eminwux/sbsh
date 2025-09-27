@@ -72,6 +72,15 @@ type SessionRunnerExec struct {
 
 	closeReqCh chan error
 	closedCh   chan struct{}
+
+	ptyPipes *ptyPipes
+}
+type ptyPipes struct {
+	pipeInR   *os.File
+	pipeInW   *os.File
+	pipeOutR  *os.File
+	pipeOutW  *os.File
+	multiOutW io.Writer
 }
 type ioClient struct {
 	id       int
@@ -130,6 +139,7 @@ func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRun
 
 		closeReqCh: make(chan error),
 		closedCh:   make(chan struct{}),
+		ptyPipes:   &ptyPipes{},
 	}
 }
 
@@ -348,6 +358,19 @@ func (s *SessionRunnerExec) startPTY() error {
 
 	}()
 
+	// Open/prepare a rolling log file (example)
+	var logFile string
+	if s.spec.LogDir == "" {
+		logFile = filepath.Join(s.runPath, string(s.id), "session.log")
+	} else {
+		logFile = s.spec.LogDir
+	}
+
+	logf, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return fmt.Errorf("open log file: %w", err)
+	}
+
 	// StdIn
 	// PTY reads from pipeInR
 	// conn writes to pipeInW
@@ -366,20 +389,14 @@ func (s *SessionRunnerExec) startPTY() error {
 		return fmt.Errorf("error opening OUT pipe: %w", err)
 	}
 
-	// Open/prepare a rolling log file (example)
-	var logFile string
-	if s.spec.LogDir == "" {
-		logFile = filepath.Join(s.runPath, string(s.id), "session.log")
-	} else {
-		logFile = s.spec.LogDir
-	}
-	logf, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
-	if err != nil {
-		return fmt.Errorf("open log file: %w", err)
-	}
-
 	// ATTACHED: stream to client (pipeOutW) AND log file
 	multiOutW := io.MultiWriter(pipeOutW, logf)
+
+	s.ptyPipes.pipeInR = pipeInR
+	s.ptyPipes.pipeInW = pipeInW
+	s.ptyPipes.pipeOutR = pipeOutR
+	s.ptyPipes.pipeOutW = pipeOutW
+	s.ptyPipes.multiOutW = multiOutW
 
 	go s.terminalManager(pipeInR, multiOutW)
 
