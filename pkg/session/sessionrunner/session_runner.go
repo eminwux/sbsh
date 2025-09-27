@@ -99,6 +99,8 @@ type SessionRunnerEvent struct {
 	When  time.Time
 }
 
+const deleteSessionDir bool = false
+
 func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRunner {
 	return &SessionRunnerExec{
 		id:   spec.ID,
@@ -364,7 +366,22 @@ func (s *SessionRunnerExec) startPTY() error {
 		return fmt.Errorf("error opening OUT pipe: %w", err)
 	}
 
-	go s.terminalManager(pipeInR, pipeOutW)
+	// Open/prepare a rolling log file (example)
+	var logFile string
+	if s.spec.LogDir == "" {
+		logFile = filepath.Join(s.runPath, string(s.id), "session.log")
+	} else {
+		logFile = s.spec.LogDir
+	}
+	logf, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return fmt.Errorf("open log file: %w", err)
+	}
+
+	// ATTACHED: stream to client (pipeOutW) AND log file
+	multiOutW := io.MultiWriter(pipeOutW, logf)
+
+	go s.terminalManager(pipeInR, multiOutW)
 
 	go s.handleConnections(pipeInR, pipeInW, pipeOutR, pipeOutW)
 
@@ -382,17 +399,17 @@ func (s *SessionRunnerExec) waitOnSession() {
 
 }
 
-func (s *SessionRunnerExec) terminalManager(pipeInR *os.File, pipeOutW *os.File) error {
+func (s *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writer) error {
 	/*
 	 * PTY READER goroutine
 	 */
 
 	go func() {
-		s.terminalManagerReader(pipeOutW)
+		s.terminalManagerReader(multiOutW)
 	}()
 
 	/*
-	* PTY WRITER  routine
+	* PTY WRITER goroutine
 	 */
 	go func() {
 		s.terminalManagerWriter(pipeInR)
@@ -525,8 +542,10 @@ func (s *SessionRunnerExec) Close(reason error) error {
 		slog.Debug(fmt.Sprintf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", s.socketCtrl, err))
 	}
 
-	if err := os.RemoveAll(filepath.Dir(s.socketIO)); err != nil {
-		slog.Debug(fmt.Sprintf("[session] couldn't remove session directory '%s': %v\r\n", s.socketIO, err))
+	if deleteSessionDir {
+		if err := os.RemoveAll(filepath.Dir(s.socketIO)); err != nil {
+			slog.Debug(fmt.Sprintf("[session] couldn't remove session directory '%s': %v\r\n", s.socketIO, err))
+		}
 	}
 
 	close(s.closedCh)
@@ -534,12 +553,12 @@ func (s *SessionRunnerExec) Close(reason error) error {
 
 }
 
-func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File) error {
+func (s *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
 
 	go func() {
 		<-finishTermMgr
 		slog.Debug("[session-runner] finishing terminalManagerReader ")
-		_ = pipeOutW.Close()
+		// _ = pipeOutW.Close()
 		_ = s.pty.Close() // This unblocks s.pty.Read(...)
 		slog.Debug("[session-runner] FINISHED terminalManagerReader ")
 	}()
@@ -560,7 +579,7 @@ func (s *SessionRunnerExec) terminalManagerReader(pipeOutW *os.File) error {
 				// PTY writes to pipeOutW
 				slog.Debug(fmt.Sprintf("read from pty %q", buf[:n]))
 				slog.Debug("[session] writing to pipeOutW")
-				_, err := pipeOutW.Write(buf[:n])
+				_, err := multiOutW.Write(buf[:n])
 				if err != nil {
 					slog.Debug("[session] error writing raw data to client")
 					return ErrPipeWrite

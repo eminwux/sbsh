@@ -64,7 +64,6 @@ to quickly create a Cobra application.`,
 			Command:     sessionCmd,
 			CommandArgs: cmdArgs,
 			Env:         os.Environ(),
-			LogDir:      "/tmp/sbsh-logs/s0",
 			RunPath:     viper.GetString("global.runPath"),
 		}
 

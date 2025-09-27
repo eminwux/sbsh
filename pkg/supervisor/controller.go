@@ -121,7 +121,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		Command:     execPath,
 		CommandArgs: args,
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogDir:      s.runPath + "/sessions/" + sessionID + "/log",
 		SockerCtrl:  s.runPath + "/sessions/" + sessionID + "/ctrl.sock",
 		SocketIO:    s.runPath + "/sessions/" + sessionID + "/io.sock",
 	}
