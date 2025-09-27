@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net"
 	"net/rpc"
@@ -242,17 +241,17 @@ func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error 
 	sr.evCh = evCh
 
 	if err := sr.openSocketIO(); err != nil {
-		log.Fatalf("failed to open IO socket for session %s: %v", sr.id, err)
+		err = fmt.Errorf("failed to open IO socket for session %s: %w", sr.id, err)
 		return err
 	}
 
 	if err := sr.prepareSessionCommand(); err != nil {
-		log.Fatalf("failed to run session command for session %s: %v", sr.id, err)
+		err = fmt.Errorf("failed to run session command for session %s: %v", sr.id, err)
 		return err
 	}
 
 	if err := sr.startPTY(); err != nil {
-		log.Fatalf("failed to start PTY for session %s: %v", sr.id, err)
+		err = fmt.Errorf("failed to start PTY for session %s: %v", sr.id, err)
 		return err
 	}
 
