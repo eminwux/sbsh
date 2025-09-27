@@ -84,6 +84,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		if err := s.Close(err); err != nil {
 			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
 		}
+		close(ctrlReady)
 		return fmt.Errorf("%w:%w", errdefs.ErrOpenSocketCtrl, err)
 	}
 
@@ -95,6 +96,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		if errC := s.Close(err); errC != nil {
 			err = fmt.Errorf("%w:%w:%w", err, errdefs.ErrOnClose, errC)
 		}
+		close(ctrlReady)
 		slog.Debug(fmt.Sprintf("failed to start server: %v", err))
 		return fmt.Errorf("%w:%w", errdefs.ErrStartRPCServer, err)
 	}
@@ -107,7 +109,9 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 
 	execPath, err := os.Executable()
 	if err != nil {
-		panic(err)
+		close(ctrlReady)
+		slog.Debug(fmt.Sprintf("failed to start cmd: %v", err))
+		return fmt.Errorf("%w:%w", errdefs.ErrStartCmd, err)
 	}
 
 	sessionSpec := &api.SessionSpec{
@@ -124,6 +128,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 
 	session := sessionstore.NewSupervisedSession(sessionSpec)
 	if err := ss.Add(session); err != nil {
+		close(ctrlReady)
 		return fmt.Errorf("%w:%w", errdefs.ErrSessionStore, err)
 	}
 
@@ -132,7 +137,8 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		if err := s.Close(err); err != nil {
 			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
 		}
-		return fmt.Errorf("%w:%w", errdefs.ErrStartSession, err)
+		close(ctrlReady)
+		return fmt.Errorf("%w:%w", errdefs.ErrStartSupervisor, err)
 	}
 	close(ctrlReady)
 
@@ -212,4 +218,8 @@ func (s *SupervisorController) WaitClose() error {
 		slog.Debug(fmt.Sprintf("[supervisor] controller closing: %v\r\n", err))
 	}
 	return nil
+}
+
+func (s *SupervisorController) Detach() error {
+	return sr.Detach()
 }

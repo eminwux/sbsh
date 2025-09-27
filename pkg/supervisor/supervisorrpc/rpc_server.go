@@ -14,6 +14,10 @@ func (s *SupervisorControllerRPC) WaitReady(_ *api.Empty, _ *api.Empty) error {
 	return s.Core.WaitReady(context.Background())
 }
 
+func (s *SupervisorControllerRPC) Detach(_ *api.Empty, _ *api.Empty) error {
+	return s.Core.Detach()
+}
+
 // TODO
 // show current attach session
 // attach to a different session

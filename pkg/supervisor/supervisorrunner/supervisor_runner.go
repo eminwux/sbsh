@@ -18,6 +18,7 @@ import (
 	"sbsh/pkg/common"
 	"sbsh/pkg/env"
 	"sbsh/pkg/errdefs"
+	"sbsh/pkg/rpcclient/session"
 	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
 	"syscall"
@@ -36,6 +37,7 @@ type SupervisorRunner interface {
 	Resize(args api.ResizeArgs)
 	SetCurrentSession(id api.ID) error
 	CreateMetadata() error
+	Detach() error
 }
 
 type SupervisorRunnerExec struct {
@@ -50,6 +52,7 @@ type SupervisorRunnerExec struct {
 	Mgr                  *sessionstore.SessionStoreExec
 	supervisorSocketCtrl string
 	lnCtrl               net.Listener
+	sessionClient        session.Client
 }
 
 type SupervisorRunnerEvent struct {
@@ -129,7 +132,7 @@ func (s *SupervisorRunnerExec) StartServer(ctx context.Context, sc *supervisorrp
 	}()
 
 	srv := rpc.NewServer()
-	if err := srv.RegisterName("SessionController", sc); err != nil {
+	if err := srv.RegisterName("SupervisorController", sc); err != nil {
 
 		// startup failed
 		readyCh <- err
@@ -249,38 +252,20 @@ func (s *SupervisorRunnerExec) SetCurrentSession(id api.ID) error {
 
 func (s *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 
-	var conn net.Conn
-	var err error
-
 	slog.Debug(fmt.Sprintf("[supervisor] %s session on  %d trying to connect to %s\r\n", s.session.Id, s.session.Pid, s.session.SockerCtrl))
 
-	// Dial the Unix domain socket
-	for range 3 {
-		conn, err = net.Dial("unix", s.session.SockerCtrl)
-		if err == nil {
-			break // success
-		}
-		time.Sleep(200 * time.Millisecond)
+	s.sessionClient = session.NewUnix(s.session.SockerCtrl)
+	defer s.sessionClient.Close()
+
+	ctx, cancel := context.WithTimeout(s.ctx, 3*time.Second)
+	defer cancel()
+
+	var status api.SessionStatus
+	if err := s.sessionClient.Status(ctx, &status); err != nil {
+		return fmt.Errorf("status failed: %w", err)
 	}
 
-	if err != nil {
-		slog.Debug(fmt.Sprintf("[supervisor] session %s process has exited\r\n", s.session.Id))
-		log.Fatalf("failed to connect to ctrl.sock in '%s' after 3 retries: %v", s.session.SockerCtrl, err)
-	}
-
-	// Wrap the connection in a JSON-RPC client
-	s.session.SessionClientRPC = rpc.NewClientWithCodec(jsonrpc.NewClientCodec(conn))
-
-	// Example: call SessionController.Status (no args, returns SessionStatus)
-	var info api.SessionStatus
-
-	err = s.session.SessionClientRPC.Call("SessionController.Status", struct{}{}, &info)
-	if err != nil {
-		log.Fatalf("RPC call failed: %v", err)
-		return err
-	}
-
-	slog.Debug(fmt.Sprintf("[supervisor] rpc->session (Status): %+v\r\n", info))
+	slog.Debug(fmt.Sprintf("[supervisor] rpc->session (Status): %+v\r\n", status))
 
 	return nil
 
@@ -385,8 +370,14 @@ func (s *SupervisorRunnerExec) attachAndForwardResize() error {
 
 	// Send initial size once (use the supervisor's TTY: os.Stdin)
 	if rows, cols, err := pty.Getsize(os.Stdin); err == nil {
-		_ = s.session.SessionClientRPC.Call("Session.Resize",
-			api.ResizeArgs{Cols: int(cols), Rows: int(rows)}, &api.Empty{})
+
+		ctx, cancel := context.WithTimeout(s.ctx, 100*time.Millisecond)
+		defer cancel()
+
+		if err := s.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: int(cols), Rows: int(rows)}); err != nil {
+			return fmt.Errorf("status failed: %w", err)
+		}
+
 	}
 
 	ch := make(chan os.Signal, 1)
@@ -406,9 +397,9 @@ func (s *SupervisorRunnerExec) attachAndForwardResize() error {
 					// harmless: keep going; terminal may be detached briefly
 					continue
 				}
-				var reply api.Empty
-				if err := s.session.SessionClientRPC.Call("SessionController.Resize",
-					api.ResizeArgs{Cols: int(cols), Rows: int(rows)}, &reply); err != nil {
+				ctx, cancel := context.WithTimeout(s.ctx, 100*time.Millisecond)
+				defer cancel()
+				if err := s.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: int(cols), Rows: int(rows)}); err != nil {
 					// Don't kill the process on resize failure; just log
 					slog.Debug(fmt.Sprintf("resize RPC failed: %v\r\n", err))
 				}
@@ -434,15 +425,35 @@ func (s *SupervisorRunnerExec) toBashUIMode() error {
 
 // toSupervisorUIMode: set terminal to COOKED for your REPL
 func (s *SupervisorRunnerExec) toExitShell() error {
-	err := term.Restore(int(os.Stdin.Fd()), s.lastTermState)
-	if err != nil {
-		log.Fatalf("MakeRaw: %v", err)
-		return err
+	if s.lastTermState != nil {
+		err := term.Restore(int(os.Stdin.Fd()), s.lastTermState)
+		if err != nil {
+			log.Fatalf("MakeRaw: %v", err)
+			return err
+		}
 	}
 
 	s.uiMode = UIExitShell
 	return nil
 }
+func (s *SupervisorRunnerExec) Detach() error {
+
+	// tell session socket control to detach
+
+	ctx, cancel := context.WithTimeout(s.ctx, 3*time.Second)
+	defer cancel()
+
+	if err := s.sessionClient.Detach(ctx); err != nil {
+		return fmt.Errorf("status failed: %w", err)
+	}
+
+	// wait for confirmation from the session
+	// call close
+	// change to cooked mode again
+	// quit supervisor leaving session open
+	return nil
+}
+
 func toRawMode() (*term.State, error) {
 	state, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {

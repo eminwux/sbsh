@@ -12,6 +12,7 @@ var (
 	ErrOpenSocketCtrl  = errors.New("could not open ctrl socket")
 	ErrStartRPCServer  = errors.New("error starting RPC server")
 	ErrStartSession    = errors.New("error starting session")
+	ErrStartSupervisor = errors.New("error starting supervisor")
 	ErrRPCServerExited = errors.New("RPC Server exited with error")
 	ErrOnClose         = errors.New("error closing")
 	ErrCloseReq        = errors.New("close requested")
@@ -19,4 +20,5 @@ var (
 	ErrSessionCmdStart = errors.New("error in shell cmd")
 	ErrSessionExists   = errors.New("session id already exists in store")
 	ErrWriteMetadata   = errors.New("could not write metadata file")
+	ErrStartCmd        = errors.New("could not start cmd")
 )

@@ -32,6 +32,7 @@ type SessionRunner interface {
 	Close(reason error) error
 	Resize(args api.ResizeArgs)
 	CreateMetadata() error
+	Detach() error
 }
 
 type SessionRunnerExec struct {
@@ -182,7 +183,7 @@ func (sr *SessionRunnerExec) StartServer(sc *sessionrpc.SessionControllerRPC, re
 	}()
 
 	srv := rpc.NewServer()
-	if err := srv.RegisterName("SessionController", sc); err != nil {
+	if err := srv.RegisterName(api.SessionService, sc); err != nil {
 
 		// startup failed
 		readyCh <- err
@@ -631,6 +632,10 @@ func (s *SessionRunnerExec) removeClient(c *ioClient) {
 // Write writes bytes to the session PTY (used by controller or Smart executor).
 func (s *SessionRunnerExec) Write(p []byte) (int, error) {
 	return s.pty.Write(p)
+}
+
+func (s *SessionRunnerExec) Detach() error {
+	return nil
 }
 
 // helper: non-blocking event send so the PTY reader never stalls

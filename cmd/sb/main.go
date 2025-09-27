@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sbsh/cmd/sb/detach"
 	"sbsh/cmd/sb/sessions"
 	"sbsh/pkg/common"
 	"sbsh/pkg/env"
@@ -63,6 +64,7 @@ func Execute() {
 
 func init() {
 	rootCmd.AddCommand(sessions.SessionsCmd)
+	rootCmd.AddCommand(detach.DetachCmd)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sbsh/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
@@ -90,7 +92,8 @@ func LoadConfig() error {
 		log.Fatalf("err: %v", err)
 
 	}
-	viper.AddConfigPath(filepath.Join(home, ".sbsh"))
+	configFile := filepath.Join(home, ".sbsh")
+	viper.AddConfigPath(configFile)
 
 	_ = env.RUN_PATH.BindEnv()
 	_ = env.LOG_LEVEL.BindEnv()
@@ -101,9 +104,9 @@ func LoadConfig() error {
 	if err := viper.ReadInConfig(); err != nil {
 		// File not found is OK if ENV is set
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-
+			slog.Debug("no config file found")
 		} else {
-			return err // Config file was found but another error was produced
+			return err
 		}
 	}
 

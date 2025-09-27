@@ -3,6 +3,7 @@ package sessionrunner
 import (
 	"context"
 	"sbsh/pkg/api"
+	"sbsh/pkg/errdefs"
 	"sbsh/pkg/session/sessionrpc"
 )
 
@@ -14,6 +15,7 @@ type SessionRunnerTest struct {
 	ResizeFunc         func(args api.ResizeArgs)
 	IDFunc             func() api.ID
 	CreateMetadataFunc func() error
+	DetachFunc         func() error
 }
 
 func NewSessionRunnerTest(ctx context.Context) SessionRunner {
@@ -60,5 +62,15 @@ func (sr *SessionRunnerTest) Resize(args api.ResizeArgs) {
 }
 
 func (sr *SessionRunnerTest) CreateMetadata() error {
+	if sr.CreateMetadataFunc != nil {
+		sr.CreateMetadataFunc()
+	}
 	return nil
+}
+
+func (sr *SessionRunnerTest) Detach() error {
+	if sr.DetachFunc != nil {
+		sr.DetachFunc()
+	}
+	return errdefs.ErrFuncNotSet
 }

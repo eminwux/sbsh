@@ -26,6 +26,7 @@ type SupervisorControllerTest struct {
 	StartFunc           func() error
 	CloseFunc           func(reason error) error
 	WaitCloseFunc       func() error
+	DetachFunc          func() error
 }
 
 // (Optional) constructor with zeroed fields.
@@ -78,10 +79,23 @@ func (t *SupervisorControllerTest) Start() error {
 	}
 	return ErrFuncNotSet
 }
-func (s *SupervisorControllerTest) Close(reason error) error {
-	return nil
+func (t *SupervisorControllerTest) Close(reason error) error {
+	if t.CloseFunc != nil {
+		return t.CloseFunc(reason)
+	}
+	return ErrFuncNotSet
 }
 
-func (s *SupervisorControllerTest) WaitClose() error {
-	return nil
+func (t *SupervisorControllerTest) WaitClose() error {
+	if t.WaitCloseFunc != nil {
+		return t.WaitCloseFunc()
+	}
+	return ErrFuncNotSet
+}
+
+func (t *SupervisorControllerTest) Detach() error {
+	if t.DetachFunc != nil {
+		return t.DetachFunc()
+	}
+	return ErrFuncNotSet
 }

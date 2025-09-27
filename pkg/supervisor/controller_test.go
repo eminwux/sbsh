@@ -15,6 +15,7 @@ import (
 	"sbsh/pkg/supervisor/supervisorrpc"
 	"sbsh/pkg/supervisor/supervisorrunner"
 	"testing"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -74,6 +75,10 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	closeReqCh = make(chan error, 1)
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
+	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
+	ctrlReady = make(chan struct{})
 
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
@@ -85,10 +90,24 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 		RunPath: viper.GetString("global.runPath"),
 	}
 
+	readyReturn := make(chan error)
+	go func(chan error) {
+		readyReturn <- sessionCtrl.WaitReady(context.Background())
+	}(readyReturn)
+
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
+
+	select {
+	case err := <-readyReturn:
+		if err != nil {
+			t.Fatalf("expected 'nil'; got: '%v'", err)
+		}
+	case <-time.After(100 * time.Millisecond): // pick a sensible deadline
+		t.Fatalf("WaitReady timed out")
+	}
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrOpenSocketCtrl) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrOpenSocketCtrl, err)
@@ -136,6 +155,10 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	closeReqCh = make(chan error, 1)
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
+	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
+	ctrlReady = make(chan struct{})
 
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
@@ -146,10 +169,25 @@ func Test_ErrStartRPCServer(t *testing.T) {
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
 	}
+
+	readyReturn := make(chan error)
+	go func(chan error) {
+		readyReturn <- sessionCtrl.WaitReady(context.Background())
+	}(readyReturn)
+
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
+
+	select {
+	case err := <-readyReturn:
+		if err != nil {
+			t.Fatalf("expected 'nil'; got: '%v'", err)
+		}
+	case <-time.After(100 * time.Millisecond): // pick a sensible deadline
+		t.Fatalf("WaitReady timed out")
+	}
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartRPCServer) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartRPCServer, err)
@@ -157,7 +195,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 
 }
 
-func Test_ErrStartSession(t *testing.T) {
+func Test_ErrStartSupervisor(t *testing.T) {
 	sessionCtrl := NewSupervisorController(context.Background())
 
 	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec) supervisorrunner.SupervisorRunner {
@@ -200,6 +238,10 @@ func Test_ErrStartSession(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	closeReqCh = make(chan error, 1)
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
+	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
+	ctrlReady = make(chan struct{}, 1)
 
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
@@ -216,8 +258,8 @@ func Test_ErrStartSession(t *testing.T) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
-	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartSession) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartSession, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartSupervisor) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartSupervisor, err)
 	}
 
 }

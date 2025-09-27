@@ -17,6 +17,11 @@ func (s *SessionControllerRPC) Resize(args api.ResizeArgs, _ *api.Empty) error {
 	return nil
 }
 
+func (s *SessionControllerRPC) Detach(_ *api.Empty, _ *api.Empty) error {
+	s.Core.Detach()
+	return nil
+}
+
 // TODO
 // show session details, including attach status
 // attach, redirects pipe output/input to socket

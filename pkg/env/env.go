@@ -68,7 +68,7 @@ func KV(v Var, value string) string { return v.Key + "=" + value }
 var (
 	RUN_PATH        = DefineKV("RUN_PATH", "global.runPath")           // has viper key
 	LOG_LEVEL       = DefineKV("LOG_LEVEL", "global.logLevel", "info") // has viper key
-	SUP_SOCKET      = Define("SUP_SOCKET")                             // no viper key, no default
+	SUP_SOCKET      = DefineKV("SUP_SOCKET", "status.sup.socket")      // no viper key, no default
 	SES_SOCKET_CTRL = Define("SES_SOCKET_CTRL")
 	SES_SOCKET_IO   = Define("SES_SOCKET_IO")
 	SES_ID          = Define("SES_ID")

@@ -16,6 +16,7 @@ type FakeSessionController struct {
 	StatusFunc    func() string
 	CloseFunc     func(reason error) error
 	ResizeFunc    func()
+	DetachFunc    func() error
 }
 
 func (f *FakeSessionController) Run(spec *api.SessionSpec) error {
@@ -56,4 +57,11 @@ func (f *FakeSessionController) Resize(args api.ResizeArgs) {
 	if f.ResizeFunc != nil {
 		f.ResizeFunc()
 	}
+}
+
+func (f *FakeSessionController) Detach() error {
+	if f.DetachFunc() != nil {
+		return f.DetachFunc()
+	}
+	return errdefs.ErrFuncNotSet
 }

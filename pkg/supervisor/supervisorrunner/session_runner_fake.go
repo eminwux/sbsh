@@ -36,6 +36,7 @@ type SupervisorRunnerTest struct {
 	SetCurrentSessionFunc func(id api.ID) error
 	StartSupervisorFunc   func(ctx context.Context, evCh chan<- SupervisorRunnerEvent) error
 	CreateMetadataFunc    func() error
+	DetachFunc            func() error
 }
 
 // NewSupervisorRunnerTest returns a new SupervisorRunnerTest instance
@@ -97,6 +98,12 @@ func (t *SupervisorRunnerTest) StartSupervisor(ctx context.Context, evCh chan<- 
 func (t *SupervisorRunnerTest) CreateMetadata() error {
 	if t.CreateMetadataFunc != nil {
 		return t.CreateMetadataFunc()
+	}
+	return ErrFuncNotSet
+}
+func (t *SupervisorRunnerTest) Detach() error {
+	if t.DetachFunc != nil {
+		return t.DetachFunc()
 	}
 	return ErrFuncNotSet
 }

@@ -11,6 +11,7 @@ type SupervisorController interface {
 	SetCurrentSession(id ID) error
 	Close(reason error) error
 	WaitClose() error
+	Detach() error
 }
 
 /////////////// SESSION
@@ -22,6 +23,7 @@ type SessionController interface {
 	Status() string
 	Close(reason error) error
 	Resize(ResizeArgs)
+	Detach() error
 }
 
 // Identity & lifecycle
@@ -87,6 +89,14 @@ type SessionEvent struct {
 }
 
 // ////////////////// FOR RPC
+const SessionService = "SessionController"
+
+const (
+	SessionMethodResize = SessionService + ".Resize"
+	SessionMethodStatus = SessionService + ".Status"
+	SessionMethodDetach = SessionService + ".Detach"
+)
+
 type Empty struct{}
 
 type SessionIDArg struct {

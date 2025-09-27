@@ -182,3 +182,9 @@ func (c *SessionController) Resize(args api.ResizeArgs) {
 	sr.Resize(args)
 
 }
+
+func (c *SessionController) Detach() error {
+
+	return sr.Detach()
+
+}
