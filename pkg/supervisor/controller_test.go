@@ -51,10 +51,6 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 				default:
 				}
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
-				// default: do nothing and succeed
-				return nil
-			},
 			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
@@ -117,10 +113,6 @@ func Test_ErrStartRPCServer(t *testing.T) {
 				default:
 				}
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
-				// default: do nothing and succeed
-				return nil
-			},
 			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
@@ -181,10 +173,6 @@ func Test_ErrStartSession(t *testing.T) {
 				case readyCh <- nil:
 				default:
 				}
-			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
-				// default: do nothing and succeed
-				return nil
 			},
 			StartSupervisorFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
 				return fmt.Errorf("force session start fail")
@@ -251,10 +239,6 @@ func Test_ErrContextDone(t *testing.T) {
 				case readyCh <- nil:
 				default:
 				}
-			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
-				// default: do nothing and succeed
-				return nil
 			},
 			StartSupervisorFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
 				return nil
@@ -328,10 +312,6 @@ func Test_ErrRPCServerExited(t *testing.T) {
 				default:
 				}
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
-				// default: do nothing and succeed
-				return nil
-			},
 			StartSupervisorFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
 				return nil
 			},
@@ -403,10 +383,6 @@ func Test_ErrSessionExists(t *testing.T) {
 				case readyCh <- nil:
 				default:
 				}
-			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
-				// default: do nothing and succeed
-				return nil
 			},
 			StartSupervisorFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
 				return nil
@@ -480,10 +456,6 @@ func Test_ErrCloseReq(t *testing.T) {
 				default:
 				}
 			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
-				// default: do nothing and succeed
-				return nil
-			},
 			StartSupervisorFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
 				return nil
 			},
@@ -555,10 +527,6 @@ func Test_ErrSessionStore(t *testing.T) {
 				case readyCh <- nil:
 				default:
 				}
-			},
-			StartSessionFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
-				// default: do nothing and succeed
-				return nil
 			},
 			StartSupervisorFunc: func(ctx context.Context, evCh chan<- supervisorrunner.SupervisorRunnerEvent) error {
 				return nil

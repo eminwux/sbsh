@@ -30,7 +30,6 @@ type SupervisorRunnerTest struct {
 	// Stub functions
 	OpenSocketCtrlFunc    func() error
 	StartServerFunc       func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error)
-	StartSessionFunc      func(ctx context.Context, evCh chan<- SupervisorRunnerEvent) error
 	IDFunc                func() api.ID
 	CloseFunc             func(reason error) error
 	ResizeFunc            func(args api.ResizeArgs)
