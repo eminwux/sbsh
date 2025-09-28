@@ -61,14 +61,12 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 	if sr.listenerCtrl != nil {
 		if err := sr.listenerCtrl.Close(); err != nil {
 			slog.Debug(fmt.Sprintf("[session-runner] could not close IO listener: %v", err))
-			// return err
 		}
 	}
 	// stop accepting
 	if sr.listenerIO != nil {
 		if err := sr.listenerIO.Close(); err != nil {
 			slog.Debug(fmt.Sprintf("[session-runner] could not close IO listener: %v", err))
-			// return err
 		}
 	}
 
@@ -77,7 +75,6 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 	for _, c := range sr.clients {
 		if err := c.conn.Close(); err != nil {
 			slog.Debug(fmt.Sprintf("[session-runner] could not close connection: %v\r\n", err))
-			// return err
 		}
 	}
 
@@ -88,7 +85,6 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 	if sr.cmd != nil && sr.cmd.Process != nil {
 		if err := sr.cmd.Process.Kill(); err != nil {
 			slog.Debug(fmt.Sprintf("[sesion] could not kill cmd: %v\r\n", err))
-			// return err
 		}
 	}
 	if sr.pty != nil {
@@ -98,14 +94,12 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 		})
 		if err != nil {
 			slog.Debug(fmt.Sprintf("[sesion] could not close pty: %v\r\n", err))
-			// return err
 		}
 	}
 
 	// remove sockets and dir
 	if err := os.Remove(sr.socketIO); err != nil {
 		slog.Debug(fmt.Sprintf("[session] couldn't remove IO socket: %s: %v\r\n", sr.socketIO, err))
-		// return err
 	}
 
 	// remove Ctrl socket
