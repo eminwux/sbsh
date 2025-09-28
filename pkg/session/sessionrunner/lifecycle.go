@@ -11,6 +11,8 @@ import (
 	"github.com/creack/pty"
 )
 
+const deleteSessionDir bool = false
+
 func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error {
 
 	sr.evCh = evCh

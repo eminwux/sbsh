@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+const deleteSupervisorDir bool = false
+
 func (sr *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *sessionstore.SupervisedSession) error {
 	sr.events = evCh
 	sr.session = session
@@ -65,9 +67,12 @@ func (sr *SupervisorRunnerExec) Close(reason error) error {
 		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", sr.supervisorSocketCtrl, err))
 	}
 
-	if err := os.RemoveAll(filepath.Dir(sr.supervisorSocketCtrl)); err != nil {
-		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", sr.supervisorSocketCtrl, err))
+	if deleteSupervisorDir {
+		if err := os.RemoveAll(filepath.Dir(sr.supervisorSocketCtrl)); err != nil {
+			slog.Debug(fmt.Sprintf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", sr.supervisorSocketCtrl, err))
+		}
 	}
+
 	sr.toExitShell()
 	return nil
 }

@@ -70,8 +70,6 @@ type ioClient struct {
 	pipeOutW *os.File
 }
 
-const deleteSessionDir bool = false
-
 func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRunner {
 	newCtx, cancel := context.WithCancel(ctx)
 
