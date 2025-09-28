@@ -88,7 +88,7 @@ type SessionEvent struct {
 	When  time.Time
 }
 
-// ////////////////// FOR RPC
+// SESSION RPC
 const SessionService = "SessionController"
 
 const (
@@ -111,3 +111,10 @@ type ResizeArgs struct {
 	Cols int
 	Rows int
 }
+
+// SUPERVISOR RPC
+const SupervisorService = "SupervisorController"
+
+const (
+	SupervisorMethodDetach = SupervisorService + ".Detach"
+)

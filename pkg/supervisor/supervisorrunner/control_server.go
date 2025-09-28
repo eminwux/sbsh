@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
+	"sbsh/pkg/api"
 	"sbsh/pkg/supervisor/supervisorrpc"
 )
 
@@ -22,7 +23,7 @@ func (sr *SupervisorRunnerExec) StartServer(ctx context.Context, sc *supervisorr
 	}()
 
 	srv := rpc.NewServer()
-	if err := srv.RegisterName("SupervisorController", sc); err != nil {
+	if err := srv.RegisterName(api.SupervisorService, sc); err != nil {
 
 		// startup failed
 		readyCh <- err
