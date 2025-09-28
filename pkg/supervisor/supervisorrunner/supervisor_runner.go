@@ -19,6 +19,6 @@ type SupervisorRunner interface {
 	Detach() error
 }
 
-func (s *SupervisorRunnerExec) ID() api.ID {
-	return s.session.Id
+func (sr *SupervisorRunnerExec) ID() api.ID {
+	return sr.session.Id
 }

@@ -8,36 +8,36 @@ import (
 	"path/filepath"
 )
 
-func (s *SessionRunnerExec) openSocketIO() error {
+func (sr *SessionRunnerExec) openSocketIO() error {
 
-	runPath := filepath.Join(s.runPath, string(s.id))
+	runPath := filepath.Join(sr.runPath, string(sr.id))
 	if err := os.MkdirAll(runPath, 0o700); err != nil {
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
-	s.socketIO = filepath.Join(runPath, "io.sock")
-	slog.Debug(fmt.Sprintf("[session] IO socket: %s", s.socketIO))
+	sr.socketIO = filepath.Join(runPath, "io.sock")
+	slog.Debug(fmt.Sprintf("[session] IO socket: %s", sr.socketIO))
 
 	// Remove socket if already exists
-	if err := os.Remove(s.socketIO); err != nil {
-		slog.Debug(fmt.Sprintf("[session] couldn't remove stale IO socket: %s\r\n", s.socketIO))
+	if err := os.Remove(sr.socketIO); err != nil {
+		slog.Debug(fmt.Sprintf("[session] couldn't remove stale IO socket: %s\r\n", sr.socketIO))
 	}
 
 	// Listen to IO SOCKET
-	ioLn, err := net.Listen("unix", s.socketIO)
+	ioLn, err := net.Listen("unix", sr.socketIO)
 	if err != nil {
 		return fmt.Errorf("listen io: %w", err)
 	}
-	if err := os.Chmod(s.socketIO, 0o600); err != nil {
+	if err := os.Chmod(sr.socketIO, 0o600); err != nil {
 		_ = ioLn.Close()
 		return err
 	}
 
-	s.clientsMu.Lock()
-	s.clients = make(map[int]*ioClient)
-	s.clientsMu.Unlock()
+	sr.clientsMu.Lock()
+	sr.clients = make(map[int]*ioClient)
+	sr.clientsMu.Unlock()
 
-	s.listenerIO = ioLn
+	sr.listenerIO = ioLn
 
 	return nil
 }

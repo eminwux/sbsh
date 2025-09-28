@@ -9,21 +9,21 @@ import (
 	"path/filepath"
 )
 
-func (s *SupervisorRunnerExec) OpenSocketCtrl() error {
+func (sr *SupervisorRunnerExec) OpenSocketCtrl() error {
 
-	s.supervisorSocketCtrl = filepath.Join(s.getSupervisorsDir(), "ctrl.sock")
-	slog.Debug(fmt.Sprintf("[supervisor] CTRL socket: %s", s.supervisorSocketCtrl))
+	sr.supervisorSocketCtrl = filepath.Join(sr.getSupervisorsDir(), "ctrl.sock")
+	slog.Debug(fmt.Sprintf("[supervisor] CTRL socket: %s", sr.supervisorSocketCtrl))
 
 	// remove stale socket if it exists
-	if _, err := os.Stat(s.supervisorSocketCtrl); err == nil {
-		_ = os.Remove(s.supervisorSocketCtrl)
+	if _, err := os.Stat(sr.supervisorSocketCtrl); err == nil {
+		_ = os.Remove(sr.supervisorSocketCtrl)
 	}
-	ln, err := net.Listen("unix", s.supervisorSocketCtrl)
+	ln, err := net.Listen("unix", sr.supervisorSocketCtrl)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	s.lnCtrl = ln
+	sr.lnCtrl = ln
 
 	return nil
 }

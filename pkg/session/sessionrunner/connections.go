@@ -7,13 +7,13 @@ import (
 	"os"
 )
 
-func (s *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeOutW *os.File) error {
+func (sr *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeOutW *os.File) error {
 
 	cid := 0
 	for {
 		// New client connects
 		slog.Debug("[session] waiting for new connection...\r\n")
-		conn, err := s.listenerIO.Accept()
+		conn, err := sr.listenerIO.Accept()
 		if err != nil {
 			slog.Debug("[session] closing IO listener routine\r\n")
 			return err
@@ -22,12 +22,12 @@ func (s *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeOu
 		cid++
 		cl := &ioClient{id: cid, conn: conn, pipeInR: pipeInR, pipeInW: pipeInW, pipeOutR: pipeOutR, pipeOutW: pipeOutW}
 
-		s.addClient(cl)
-		go s.handleClient(cl)
+		sr.addClient(cl)
+		go sr.handleClient(cl)
 	}
 }
 
-func (s *SessionRunnerExec) handleClient(client *ioClient) {
+func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	defer client.conn.Close()
 	errCh := make(chan error, 2)
 
@@ -61,18 +61,18 @@ func (s *SessionRunnerExec) handleClient(client *ioClient) {
 	}
 	client.conn.Close()
 	close(errCh)
-	s.removeClient(client)
+	sr.removeClient(client)
 
 }
 
-func (s *SessionRunnerExec) addClient(c *ioClient) {
-	s.clientsMu.Lock()
-	s.clients[c.id] = c
-	s.clientsMu.Unlock()
+func (sr *SessionRunnerExec) addClient(c *ioClient) {
+	sr.clientsMu.Lock()
+	sr.clients[c.id] = c
+	sr.clientsMu.Unlock()
 }
 
-func (s *SessionRunnerExec) removeClient(c *ioClient) {
-	s.clientsMu.Lock()
-	delete(s.clients, c.id)
-	s.clientsMu.Unlock()
+func (sr *SessionRunnerExec) removeClient(c *ioClient) {
+	sr.clientsMu.Lock()
+	delete(sr.clients, c.id)
+	sr.clientsMu.Unlock()
 }

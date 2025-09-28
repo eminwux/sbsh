@@ -7,15 +7,15 @@ import (
 	"sbsh/pkg/common"
 )
 
-func (s *SupervisorRunnerExec) CreateMetadata() error {
+func (sr *SupervisorRunnerExec) CreateMetadata() error {
 
-	if err := os.MkdirAll(s.getSupervisorsDir(), 0o700); err != nil {
+	if err := os.MkdirAll(sr.getSupervisorsDir(), 0o700); err != nil {
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
-	return common.WriteMetadata(s.ctx, s.spec, s.getSupervisorsDir())
+	return common.WriteMetadata(sr.ctx, sr.spec, sr.getSupervisorsDir())
 }
 
-func (s *SupervisorRunnerExec) getSupervisorsDir() string {
-	return filepath.Join(s.runPath, string(s.id))
+func (sr *SupervisorRunnerExec) getSupervisorsDir() string {
+	return filepath.Join(sr.runPath, string(sr.id))
 }

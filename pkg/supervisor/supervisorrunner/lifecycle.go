@@ -15,16 +15,16 @@ import (
 	"time"
 )
 
-func (s *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *sessionstore.SupervisedSession) error {
-	s.events = evCh
-	s.session = session
+func (sr *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *sessionstore.SupervisedSession) error {
+	sr.events = evCh
+	sr.session = session
 
 	devNull, _ := os.OpenFile("/dev/null", os.O_RDWR, 0)
 	cmd := exec.Command(session.Command, session.CommandArgs...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // detach from your pg/ctty
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = devNull, devNull, devNull
 
-	cmd.Env = append(session.Env, env.KV(env.SUP_SOCKET, s.supervisorSocketCtrl))
+	cmd.Env = append(session.Env, env.KV(env.SUP_SOCKET, sr.supervisorSocketCtrl))
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("%w:%w", errdefs.ErrSessionCmdStart, err)
@@ -40,53 +40,53 @@ func (s *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- 
 		_ = cmd.Wait()
 		slog.Debug(fmt.Sprintf("[supervisor] session %s process has exited\r\n", session.Id))
 		err := fmt.Errorf("session %s process has exited", session.Id)
-		trySendEvent(s.events, SupervisorRunnerEvent{ID: api.ID(session.Id), Type: EvCmdExited, Err: err, When: time.Now()})
+		trySendEvent(sr.events, SupervisorRunnerEvent{ID: api.ID(session.Id), Type: EvCmdExited, Err: err, When: time.Now()})
 	}()
 
-	if err := s.dialSessionCtrlSocket(); err != nil {
+	if err := sr.dialSessionCtrlSocket(); err != nil {
 		return err
 	}
 
-	if err := s.attachAndForwardResize(); err != nil {
+	if err := sr.attachAndForwardResize(); err != nil {
 		return err
 	}
 
-	if err := s.attachIOSocket(); err != nil {
+	if err := sr.attachIOSocket(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *SupervisorRunnerExec) Close(reason error) error {
+func (sr *SupervisorRunnerExec) Close(reason error) error {
 	// remove sockets and dir
-	if err := os.Remove(s.supervisorSocketCtrl); err != nil {
-		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", s.supervisorSocketCtrl, err))
+	if err := os.Remove(sr.supervisorSocketCtrl); err != nil {
+		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", sr.supervisorSocketCtrl, err))
 	}
 
-	if err := os.RemoveAll(filepath.Dir(s.supervisorSocketCtrl)); err != nil {
-		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", s.supervisorSocketCtrl, err))
+	if err := os.RemoveAll(filepath.Dir(sr.supervisorSocketCtrl)); err != nil {
+		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", sr.supervisorSocketCtrl, err))
 	}
-	s.toExitShell()
+	sr.toExitShell()
 	return nil
 }
 
-func (s *SupervisorRunnerExec) WaitClose(reason error) error {
+func (sr *SupervisorRunnerExec) WaitClose(reason error) error {
 	return nil
 }
 
-func (s *SupervisorRunnerExec) Resize(args api.ResizeArgs) {
+func (sr *SupervisorRunnerExec) Resize(args api.ResizeArgs) {
 	// No-op
 }
 
-func (s *SupervisorRunnerExec) Detach() error {
+func (sr *SupervisorRunnerExec) Detach() error {
 
 	// tell session socket control to detach
 
-	ctx, cancel := context.WithTimeout(s.ctx, 3*time.Second)
+	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)
 	defer cancel()
 
-	if err := s.sessionClient.Detach(ctx); err != nil {
+	if err := sr.sessionClient.Detach(ctx); err != nil {
 		return fmt.Errorf("status failed: %w", err)
 	}
 
@@ -97,9 +97,9 @@ func (s *SupervisorRunnerExec) Detach() error {
 	return nil
 }
 
-func (s *SupervisorRunnerExec) SetCurrentSession(id api.ID) error {
+func (sr *SupervisorRunnerExec) SetCurrentSession(id api.ID) error {
 	// Initial terminal mode (bash passthrough)
-	if err := s.toBashUIMode(); err != nil {
+	if err := sr.toBashUIMode(); err != nil {
 		slog.Debug(fmt.Sprintf("[supervisor] initial raw mode failed: %v", err))
 	}
 	return nil

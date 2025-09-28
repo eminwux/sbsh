@@ -14,18 +14,18 @@ import (
 	"time"
 )
 
-func (s *SupervisorRunnerExec) dialSessionCtrlSocket() error {
+func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 
-	slog.Debug(fmt.Sprintf("[supervisor] %s session on  %d trying to connect to %s\r\n", s.session.Id, s.session.Pid, s.session.SockerCtrl))
+	slog.Debug(fmt.Sprintf("[supervisor] %s session on  %d trying to connect to %s\r\n", sr.session.Id, sr.session.Pid, sr.session.SockerCtrl))
 
-	s.sessionClient = session.NewUnix(s.session.SockerCtrl)
-	defer s.sessionClient.Close()
+	sr.sessionClient = session.NewUnix(sr.session.SockerCtrl)
+	defer sr.sessionClient.Close()
 
-	ctx, cancel := context.WithTimeout(s.ctx, 3*time.Second)
+	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)
 	defer cancel()
 
 	var status api.SessionStatus
-	if err := s.sessionClient.Status(ctx, &status); err != nil {
+	if err := sr.sessionClient.Status(ctx, &status); err != nil {
 		return fmt.Errorf("status failed: %w", err)
 	}
 
@@ -35,14 +35,14 @@ func (s *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 
 }
 
-func (s *SupervisorRunnerExec) attachIOSocket() error {
+func (sr *SupervisorRunnerExec) attachIOSocket() error {
 
 	var conn net.Conn
 	var err error
 
 	// Dial the Unix domain socket
 	for range 3 {
-		conn, err = net.Dial("unix", s.session.SocketIO)
+		conn, err = net.Dial("unix", sr.session.SocketIO)
 		if err == nil {
 			break // success
 		}
@@ -55,7 +55,7 @@ func (s *SupervisorRunnerExec) attachIOSocket() error {
 	}
 
 	// Connected, now we enable raw mode
-	if err := s.toBashUIMode(); err != nil {
+	if err := sr.toBashUIMode(); err != nil {
 		slog.Debug(fmt.Sprintf("[supervisor] initial raw mode failed: %v", err))
 	}
 
@@ -75,10 +75,10 @@ func (s *SupervisorRunnerExec) attachIOSocket() error {
 		// send event (EOF or error while copying stdin -> socket)
 		if e == io.EOF {
 			slog.Debug("[supervisor] stdin reached EOF\r\n")
-			trySendEvent(s.events, SupervisorRunnerEvent{ID: s.session.Id, Type: EvCmdExited, Err: err, When: time.Now()})
+			trySendEvent(sr.events, SupervisorRunnerEvent{ID: sr.session.Id, Type: EvCmdExited, Err: err, When: time.Now()})
 		} else if e != nil {
 			slog.Debug(fmt.Sprintf("[supervisor] stdin->socket error: %v\r\n", e))
-			trySendEvent(s.events, SupervisorRunnerEvent{ID: s.session.Id, Type: EvError, Err: err, When: time.Now()})
+			trySendEvent(sr.events, SupervisorRunnerEvent{ID: sr.session.Id, Type: EvError, Err: err, When: time.Now()})
 		}
 
 		errCh <- e
@@ -94,10 +94,10 @@ func (s *SupervisorRunnerExec) attachIOSocket() error {
 		// send event (EOF or error while copying socket -> stdout)
 		if e == io.EOF {
 			slog.Debug("[supervisor] socket closed (EOF)\r\n")
-			trySendEvent(s.events, SupervisorRunnerEvent{ID: s.session.Id, Type: EvCmdExited, Err: err, When: time.Now()})
+			trySendEvent(sr.events, SupervisorRunnerEvent{ID: sr.session.Id, Type: EvCmdExited, Err: err, When: time.Now()})
 		} else if e != nil {
 			slog.Debug(fmt.Sprintf("[supervisor] socket->stdout error: %v\r\n", e))
-			trySendEvent(s.events, SupervisorRunnerEvent{ID: s.session.Id, Type: EvError, Err: err, When: time.Now()})
+			trySendEvent(sr.events, SupervisorRunnerEvent{ID: sr.session.Id, Type: EvError, Err: err, When: time.Now()})
 		}
 
 		errCh <- e
@@ -109,12 +109,12 @@ func (s *SupervisorRunnerExec) attachIOSocket() error {
 	go func() error {
 		// Wait for either context cancel or one side finishing
 		select {
-		case <-s.ctx.Done():
+		case <-sr.ctx.Done():
 			slog.Debug("[supervisor-runner] context done\r\n")
 			_ = conn.Close() // unblock goroutines
 			<-errCh
 			<-errCh
-			return s.ctx.Err()
+			return sr.ctx.Err()
 		case e := <-errCh:
 			// one direction ended; close and wait for the other
 			_ = conn.Close()

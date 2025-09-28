@@ -12,9 +12,6 @@ import (
 // ErrFuncNotSet is returned when a test function has not been stubbed
 var ErrFuncNotSet = errors.New("test function not set")
 
-// SupervisorRunnerEvent is assumed to be defined elsewhere in your codebase
-// type SupervisorRunnerEvent struct { ... }
-
 // SupervisorRunnerTest is a test double for SupervisorRunner
 // It allows overriding behavior with function fields and
 // capturing arguments for assertions in unit tests.

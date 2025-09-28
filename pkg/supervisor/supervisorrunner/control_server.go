@@ -9,16 +9,16 @@ import (
 	"sbsh/pkg/supervisor/supervisorrpc"
 )
 
-func (s *SupervisorRunnerExec) StartServer(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error) {
+func (sr *SupervisorRunnerExec) StartServer(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error) {
 	// Ensure ln is closed and no leaks on exit
 	defer func() {
-		_ = s.lnCtrl.Close()
+		_ = sr.lnCtrl.Close()
 	}()
 
 	// stop accepting when ctx is canceled.
 	go func() {
 		<-ctx.Done()
-		_ = s.lnCtrl.Close()
+		_ = sr.lnCtrl.Close()
 	}()
 
 	srv := rpc.NewServer()
@@ -41,7 +41,7 @@ func (s *SupervisorRunnerExec) StartServer(ctx context.Context, sc *supervisorrp
 	close(readyCh)
 
 	for {
-		conn, err := s.lnCtrl.Accept()
+		conn, err := sr.lnCtrl.Accept()
 		if err != nil {
 			// Normal path: listener closed by ctx cancel
 			if errors.Is(err, net.ErrClosed) || ctx.Err() != nil {

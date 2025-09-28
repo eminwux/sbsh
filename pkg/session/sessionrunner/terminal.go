@@ -14,21 +14,21 @@ import (
 	"github.com/creack/pty"
 )
 
-func (s *SessionRunnerExec) prepareSessionCommand() error {
+func (sr *SessionRunnerExec) prepareSessionCommand() error {
 
 	// Build the child command with context (so ctx cancel can kill it)
-	cmd := exec.CommandContext(s.ctx, s.spec.Command, s.spec.CommandArgs...)
+	cmd := exec.CommandContext(sr.ctx, sr.spec.Command, sr.spec.CommandArgs...)
 	// Environment: use provided or inherit
-	if len(s.spec.Env) > 0 {
-		cmd.Env = s.spec.Env
+	if len(sr.spec.Env) > 0 {
+		cmd.Env = sr.spec.Env
 	} else {
 		cmd.Env = os.Environ()
 	}
 	cmd.Env = append(cmd.Env,
-		env.KV(env.SES_SOCKET_CTRL, s.socketCtrl),
-		env.KV(env.SES_SOCKET_IO, s.socketIO),
-		env.KV(env.SES_ID, string(s.spec.ID)),
-		env.KV(env.SES_NAME, s.spec.Name),
+		env.KV(env.SES_SOCKET_CTRL, sr.socketCtrl),
+		env.KV(env.SES_SOCKET_IO, sr.socketIO),
+		env.KV(env.SES_ID, string(sr.spec.ID)),
+		env.KV(env.SES_NAME, sr.spec.Name),
 	)
 	// Start the process in a new session so it has its own process group
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -48,34 +48,34 @@ func (s *SessionRunnerExec) prepareSessionCommand() error {
 		cmd.Env = append(cmd.Env, "TERM=xterm-256color", "COLORTERM=truecolor")
 	}
 
-	s.cmd = cmd
+	sr.cmd = cmd
 
 	return nil
 }
 
-func (s *SessionRunnerExec) startPTY() error {
+func (sr *SessionRunnerExec) startPTY() error {
 
 	// Start under a PTY and inherit current terminal size
-	ptmx, err := pty.Start(s.cmd)
+	ptmx, err := pty.Start(sr.cmd)
 	if err != nil {
 		return err
 	}
-	s.pty = ptmx
+	sr.pty = ptmx
 
 	go func() {
-		slog.Debug(fmt.Sprintf("[session] pid=%d, waiting on bash pid=%d\r\n", os.Getpid(), s.cmd.Process.Pid))
-		_ = s.cmd.Wait() // blocks until process exits
-		slog.Debug(fmt.Sprintf("[session] pid=%d, bash with pid=%d has exited\r\n", os.Getpid(), s.cmd.Process.Pid))
-		s.closeReqCh <- fmt.Errorf("the shell process has exited")
+		slog.Debug(fmt.Sprintf("[session] pid=%d, waiting on bash pid=%d\r\n", os.Getpid(), sr.cmd.Process.Pid))
+		_ = sr.cmd.Wait() // blocks until process exits
+		slog.Debug(fmt.Sprintf("[session] pid=%d, bash with pid=%d has exited\r\n", os.Getpid(), sr.cmd.Process.Pid))
+		sr.closeReqCh <- fmt.Errorf("the shell process has exited")
 
 	}()
 
 	// Open/prepare a rolling log file (example)
 	var logFile string
-	if s.spec.LogDir == "" {
-		logFile = filepath.Join(s.runPath, string(s.id), "session.log")
+	if sr.spec.LogDir == "" {
+		logFile = filepath.Join(sr.runPath, string(sr.id), "session.log")
 	} else {
-		logFile = s.spec.LogDir
+		logFile = sr.spec.LogDir
 	}
 
 	logf, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
@@ -104,36 +104,36 @@ func (s *SessionRunnerExec) startPTY() error {
 	// ATTACHED: stream to client (pipeOutW) AND log file
 	multiOutW := io.MultiWriter(pipeOutW, logf)
 
-	s.ptyPipes.pipeInR = pipeInR
-	s.ptyPipes.pipeInW = pipeInW
-	s.ptyPipes.pipeOutR = pipeOutR
-	s.ptyPipes.pipeOutW = pipeOutW
-	s.ptyPipes.multiOutW = multiOutW
+	sr.ptyPipes.pipeInR = pipeInR
+	sr.ptyPipes.pipeInW = pipeInW
+	sr.ptyPipes.pipeOutR = pipeOutR
+	sr.ptyPipes.pipeOutW = pipeOutW
+	sr.ptyPipes.multiOutW = multiOutW
 
-	go s.terminalManager(pipeInR, multiOutW)
+	go sr.terminalManager(pipeInR, multiOutW)
 
-	go s.handleConnections(pipeInR, pipeInW, pipeOutR, pipeOutW)
+	go sr.handleConnections(pipeInR, pipeInW, pipeOutR, pipeOutW)
 
 	return nil
 }
 
-func (s *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writer) error {
+func (sr *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writer) error {
 	/*
 	 * PTY READER goroutine
 	 */
 
 	go func() {
-		s.terminalManagerReader(multiOutW)
+		sr.terminalManagerReader(multiOutW)
 	}()
 
 	/*
 	* PTY WRITER goroutine
 	 */
 	go func() {
-		s.terminalManagerWriter(pipeInR)
+		sr.terminalManagerWriter(pipeInR)
 	}()
 
-	s.Write([]byte(`export PS1="(sbsh-` + s.id + `) $PS1"` + "\n"))
+	sr.Write([]byte(`export PS1="(sbsh-` + sr.id + `) $PS1"` + "\n"))
 	// s.pty.Write([]byte("echo 'Hello from Go!'\n"))
 	// s.pty.Write([]byte(`export PS1="(sbsh) $PS1"` + "\n"))
 	// s.pty.Write([]byte(`__sbsh_emit() { printf '\033]1337;sbsh\007'; }` + "\n"))
@@ -142,28 +142,28 @@ func (s *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Write
 	return nil
 }
 
-func (s *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
+func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
 
 	go func() {
 		<-finishTermMgr
 		slog.Debug("[session-runner] finishing terminalManagerReader ")
 		// _ = pipeOutW.Close()
-		_ = s.pty.Close() // This unblocks s.pty.Read(...)
+		_ = sr.pty.Close() // This unblocks s.pty.Read(...)
 		slog.Debug("[session-runner] FINISHED terminalManagerReader ")
 	}()
 
 	buf := make([]byte, 8192)
 	for {
 		// READ FROM PTY - WRITE TO PIPE
-		n, err := s.pty.Read(buf)
+		n, err := sr.pty.Read(buf)
 
 		// drain/emit data
 		if n > 0 {
-			s.lastRead = time.Now()
-			s.bytesOut += uint64(n)
+			sr.lastRead = time.Now()
+			sr.bytesOut += uint64(n)
 
 			// Render if output is enabled; otherwise we just drain
-			if s.gates.OutputOn {
+			if sr.gates.OutputOn {
 				//  WRITE TO PIPE
 				// PTY writes to pipeOutW
 				slog.Debug(fmt.Sprintf("read from pty %q", buf[:n]))
@@ -179,18 +179,18 @@ func (s *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
 		// Handle read end/error
 		if err != nil {
 			slog.Debug(fmt.Sprintf("[session] stdout err  %v:\r\n", err))
-			trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
+			trySendEvent(sr.evCh, SessionRunnerEvent{ID: sr.id, Type: EvError, Err: err, When: time.Now()})
 			return ErrTerminalRead
 		}
 	}
 }
 
-func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
+func (sr *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
 	go func() {
 		<-finishTermMgr
 		slog.Debug("[session-runner] finishing terminalManagerWriter ")
 		_ = pipeInR.Close()
-		_ = s.pty.Close() // This unblocks s.pty.Read(...)
+		_ = sr.pty.Close() // This unblocks s.pty.Read(...)
 		slog.Debug("[session-runner] FINISHED terminalManagerWriter ")
 	}()
 
@@ -204,12 +204,12 @@ func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
 		n, err := pipeInR.Read(buf)
 		slog.Debug(fmt.Sprintf("read from pipeInR %q", buf[:n])) // quoted, escapes control chars
 		if n > 0 {
-			if s.gates.StdinOpen {
+			if sr.gates.StdinOpen {
 				slog.Debug("[session] reading from pipeInR")
 				// if _, werr := s.pty.Write(buf[:n]); werr != nil {
 				// WRITE TO PIPE
-				if _, werr := s.pty.Write(buf[:n]); werr != nil {
-					trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: werr, When: time.Now()})
+				if _, werr := sr.pty.Write(buf[:n]); werr != nil {
+					trySendEvent(sr.evCh, SessionRunnerEvent{ID: sr.id, Type: EvError, Err: werr, When: time.Now()})
 					return ErrPipeRead
 				}
 			}
@@ -218,7 +218,7 @@ func (s *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
 
 		if err != nil {
 			slog.Debug(fmt.Sprintf("[session] stdin error: %v\r\n", err))
-			trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvError, Err: err, When: time.Now()})
+			trySendEvent(sr.evCh, SessionRunnerEvent{ID: sr.id, Type: EvError, Err: err, When: time.Now()})
 			return ErrTerminalWrite
 		}
 

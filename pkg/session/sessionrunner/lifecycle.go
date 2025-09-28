@@ -35,18 +35,18 @@ func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error 
 	return nil
 }
 
-func (s *SessionRunnerExec) waitOnSession() {
+func (sr *SessionRunnerExec) waitOnSession() {
 
 	select {
-	case err := <-s.closeReqCh:
+	case err := <-sr.closeReqCh:
 		slog.Debug("[session] sending EvSessionExited event\r\n")
-		trySendEvent(s.evCh, SessionRunnerEvent{ID: s.id, Type: EvCmdExited, Err: err, When: time.Now()})
+		trySendEvent(sr.evCh, SessionRunnerEvent{ID: sr.id, Type: EvCmdExited, Err: err, When: time.Now()})
 		return
 	}
 
 }
 
-func (s *SessionRunnerExec) Close(reason error) error {
+func (sr *SessionRunnerExec) Close(reason error) error {
 
 	slog.Debug(fmt.Sprintf("[session-runner] closing session-runner on request, reason: %v\r\n", reason))
 	slog.Debug("[session-runner] sent 'closingCh' signal\r\n")
@@ -56,64 +56,64 @@ func (s *SessionRunnerExec) Close(reason error) error {
 	slog.Debug("[session-runner] closed 'finishTermMgr' \r\n")
 
 	// stop accepting
-	if s.listenerCtrl != nil {
-		if err := s.listenerCtrl.Close(); err != nil {
+	if sr.listenerCtrl != nil {
+		if err := sr.listenerCtrl.Close(); err != nil {
 			slog.Debug(fmt.Sprintf("[session-runner] could not close IO listener: %v", err))
 			// return err
 		}
 	}
 	// stop accepting
-	if s.listenerIO != nil {
-		if err := s.listenerIO.Close(); err != nil {
+	if sr.listenerIO != nil {
+		if err := sr.listenerIO.Close(); err != nil {
 			slog.Debug(fmt.Sprintf("[session-runner] could not close IO listener: %v", err))
 			// return err
 		}
 	}
 
 	// close clients
-	s.clientsMu.Lock()
-	for _, c := range s.clients {
+	sr.clientsMu.Lock()
+	for _, c := range sr.clients {
 		if err := c.conn.Close(); err != nil {
 			slog.Debug(fmt.Sprintf("[session-runner] could not close connection: %v\r\n", err))
 			// return err
 		}
 	}
 
-	s.clients = nil
-	s.clientsMu.Unlock()
+	sr.clients = nil
+	sr.clientsMu.Unlock()
 
 	// kill PTY child and close PTY master as needed
-	if s.cmd != nil && s.cmd.Process != nil {
-		if err := s.cmd.Process.Kill(); err != nil {
+	if sr.cmd != nil && sr.cmd.Process != nil {
+		if err := sr.cmd.Process.Kill(); err != nil {
 			slog.Debug(fmt.Sprintf("[sesion] could not kill cmd: %v\r\n", err))
 			// return err
 		}
 	}
-	if s.pty != nil {
-		if err := s.pty.Close(); err != nil {
+	if sr.pty != nil {
+		if err := sr.pty.Close(); err != nil {
 			slog.Debug(fmt.Sprintf("[sesion] could not close pty: %v\r\n", err))
 			// return err
 		}
 	}
 
 	// remove sockets and dir
-	if err := os.Remove(s.socketIO); err != nil {
-		slog.Debug(fmt.Sprintf("[session] couldn't remove IO socket: %s: %v\r\n", s.socketIO, err))
+	if err := os.Remove(sr.socketIO); err != nil {
+		slog.Debug(fmt.Sprintf("[session] couldn't remove IO socket: %s: %v\r\n", sr.socketIO, err))
 		// return err
 	}
 
 	// remove Ctrl socket
-	if err := os.Remove(s.socketCtrl); err != nil {
-		slog.Debug(fmt.Sprintf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", s.socketCtrl, err))
+	if err := os.Remove(sr.socketCtrl); err != nil {
+		slog.Debug(fmt.Sprintf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", sr.socketCtrl, err))
 	}
 
 	if deleteSessionDir {
-		if err := os.RemoveAll(filepath.Dir(s.socketIO)); err != nil {
-			slog.Debug(fmt.Sprintf("[session] couldn't remove session directory '%s': %v\r\n", s.socketIO, err))
+		if err := os.RemoveAll(filepath.Dir(sr.socketIO)); err != nil {
+			slog.Debug(fmt.Sprintf("[session] couldn't remove session directory '%s': %v\r\n", sr.socketIO, err))
 		}
 	}
 
-	close(s.closedCh)
+	close(sr.closedCh)
 	return nil
 
 }
@@ -126,10 +126,10 @@ func (sr *SessionRunnerExec) Resize(args api.ResizeArgs) {
 }
 
 // Write writes bytes to the session PTY (used by controller or Smart executor).
-func (s *SessionRunnerExec) Write(p []byte) (int, error) {
-	return s.pty.Write(p)
+func (sr *SessionRunnerExec) Write(p []byte) (int, error) {
+	return sr.pty.Write(p)
 }
 
-func (s *SessionRunnerExec) Detach() error {
+func (sr *SessionRunnerExec) Detach() error {
 	return nil
 }
