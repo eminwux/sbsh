@@ -51,9 +51,9 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 	slog.Debug(fmt.Sprintf("[session-runner] closing session-runner on request, reason: %v\r\n", reason))
 	slog.Debug("[session-runner] sent 'closingCh' signal\r\n")
 
-	// stop terminalManager, 2 messages needed, one for writer/reader
-	close(finishTermMgr)
-	slog.Debug("[session-runner] closed 'finishTermMgr' \r\n")
+	sr.ctxCancel()
+
+	slog.Debug("[session-runner] closed \r\n")
 
 	// stop accepting
 	if sr.listenerCtrl != nil {

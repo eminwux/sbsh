@@ -8,11 +8,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sbsh/pkg/env"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/creack/pty"
 )
+
+var closePTY sync.Once
 
 func (sr *SessionRunnerExec) prepareSessionCommand() error {
 
@@ -145,10 +148,9 @@ func (sr *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writ
 func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
 
 	go func() {
-		<-finishTermMgr
+		<-sr.ctx.Done()
 		slog.Debug("[session-runner] finishing terminalManagerReader ")
-		// _ = pipeOutW.Close()
-		_ = sr.pty.Close() // This unblocks s.pty.Read(...)
+		closePTY.Do(func() { _ = sr.pty.Close() }) // unblocks Read
 		slog.Debug("[session-runner] FINISHED terminalManagerReader ")
 	}()
 
@@ -188,10 +190,10 @@ func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
 func (sr *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
 
 	go func() {
-		<-finishTermMgr
+		<-sr.ctx.Done()
 		slog.Debug("[session-runner] finishing terminalManagerWriter ")
+		closePTY.Do(func() { _ = sr.pty.Close() }) // unblocks Read
 		_ = pipeInR.Close()
-		_ = sr.pty.Close() // This unblocks s.pty.Read(...)
 		slog.Debug("[session-runner] FINISHED terminalManagerWriter ")
 	}()
 

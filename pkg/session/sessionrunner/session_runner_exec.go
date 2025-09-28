@@ -72,8 +72,6 @@ type ioClient struct {
 
 const deleteSessionDir bool = false
 
-var finishTermMgr chan struct{} = make(chan struct{}, 2)
-
 func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRunner {
 	newCtx, cancel := context.WithCancel(ctx)
 

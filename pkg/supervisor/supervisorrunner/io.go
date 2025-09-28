@@ -13,6 +13,11 @@ import (
 	"github.com/creack/pty"
 )
 
+const (
+	// in milliseconds
+	resizeTimeOut = 100
+)
+
 func (sr *SupervisorRunnerExec) attachAndForwardResize() error {
 
 	// Send initial size once (use the supervisor's TTY: os.Stdin)
@@ -44,7 +49,7 @@ func (sr *SupervisorRunnerExec) attachAndForwardResize() error {
 					// harmless: keep going; terminal may be detached briefly
 					continue
 				}
-				ctx, cancel := context.WithTimeout(sr.ctx, 100*time.Millisecond)
+				ctx, cancel := context.WithTimeout(sr.ctx, resizeTimeOut*time.Millisecond)
 				defer cancel()
 				if err := sr.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: int(cols), Rows: int(rows)}); err != nil {
 					// Don't kill the process on resize failure; just log

@@ -59,6 +59,7 @@ func (sr *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<-
 }
 
 func (sr *SupervisorRunnerExec) Close(reason error) error {
+	sr.ctxCancel()
 	// remove sockets and dir
 	if err := os.Remove(sr.supervisorSocketCtrl); err != nil {
 		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", sr.supervisorSocketCtrl, err))
