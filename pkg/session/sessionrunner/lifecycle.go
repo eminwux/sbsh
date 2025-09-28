@@ -92,7 +92,11 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 		}
 	}
 	if sr.pty != nil {
-		if err := sr.pty.Close(); err != nil {
+		var err error
+		closePTY.Do(func() {
+			err = sr.pty.Close()
+		})
+		if err != nil {
 			slog.Debug(fmt.Sprintf("[sesion] could not close pty: %v\r\n", err))
 			// return err
 		}
