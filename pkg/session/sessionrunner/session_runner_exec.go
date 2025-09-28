@@ -12,7 +12,8 @@ import (
 )
 
 type SessionRunnerExec struct {
-	ctx context.Context
+	ctx       context.Context
+	ctxCancel context.CancelFunc
 
 	// immutable
 	id   api.ID
@@ -74,10 +75,14 @@ const deleteSessionDir bool = false
 var finishTermMgr chan struct{} = make(chan struct{}, 2)
 
 func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRunner {
+	newCtx, cancel := context.WithCancel(ctx)
+
 	return &SessionRunnerExec{
 		id:   spec.ID,
 		spec: *spec,
-		ctx:  ctx,
+
+		ctx:       newCtx,
+		ctxCancel: cancel,
 
 		// runtime (initialized but inactive)
 		cmd:     nil,

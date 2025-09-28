@@ -11,18 +11,24 @@ import (
 )
 
 type SupervisorRunnerExec struct {
-	id                   api.ID
-	spec                 api.SupervisorSpec
+	id   api.ID
+	spec api.SupervisorSpec
+
+	ctx       context.Context
+	ctxCancel context.CancelFunc
+
 	runPath              string
-	session              *sessionstore.SupervisedSession
-	ctx                  context.Context
-	uiMode               UIMode
-	events               chan<- SupervisorRunnerEvent
-	lastTermState        *term.State
-	Mgr                  *sessionstore.SessionStoreExec
 	supervisorSocketCtrl string
-	lnCtrl               net.Listener
-	sessionClient        session.Client
+
+	uiMode        UIMode
+	lastTermState *term.State
+
+	events  chan<- SupervisorRunnerEvent
+	session *sessionstore.SupervisedSession
+	Mgr     *sessionstore.SessionStoreExec
+
+	lnCtrl        net.Listener
+	sessionClient session.Client
 }
 
 type UIMode int
@@ -34,10 +40,15 @@ const (
 )
 
 func NewSupervisorRunnerExec(ctx context.Context, spec *api.SupervisorSpec) SupervisorRunner {
+	newCtx, cancel := context.WithCancel(ctx)
+
 	return &SupervisorRunnerExec{
-		ctx:     ctx,
-		id:      spec.ID,
-		spec:    *spec,
+		id:   spec.ID,
+		spec: *spec,
+
+		ctx:       newCtx,
+		ctxCancel: cancel,
+
 		runPath: spec.RunPath + "/supervisors",
 	}
 }

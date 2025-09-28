@@ -186,6 +186,7 @@ func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
 }
 
 func (sr *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
+
 	go func() {
 		<-finishTermMgr
 		slog.Debug("[session-runner] finishing terminalManagerWriter ")
