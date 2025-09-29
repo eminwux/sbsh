@@ -15,7 +15,11 @@ import (
 	"time"
 )
 
-const deleteSupervisorDir bool = false
+const (
+	deleteSupervisorDir bool = false
+	// timeout in milliseconds
+	rpcTimeout = 1000
+)
 
 func (sr *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *sessionstore.SupervisedSession) error {
 	sr.events = evCh
@@ -87,19 +91,13 @@ func (sr *SupervisorRunnerExec) Resize(args api.ResizeArgs) {
 
 func (sr *SupervisorRunnerExec) Detach() error {
 
-	// tell session socket control to detach
-
-	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)
+	ctx, cancel := context.WithTimeout(sr.ctx, rpcTimeout*time.Millisecond)
 	defer cancel()
 
 	if err := sr.sessionClient.Detach(ctx); err != nil {
-		return fmt.Errorf("status failed: %w", err)
+		return fmt.Errorf("%w: %w", errdefs.ErrDetachSession, err)
 	}
 
-	// wait for confirmation from the session
-	// call close
-	// change to cooked mode again
-	// quit supervisor leaving session open
 	return nil
 }
 

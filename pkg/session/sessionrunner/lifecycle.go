@@ -131,5 +131,5 @@ func (sr *SessionRunnerExec) Write(p []byte) (int, error) {
 }
 
 func (sr *SessionRunnerExec) Detach() error {
-	return nil
+	return fmt.Errorf("error detaching")
 }

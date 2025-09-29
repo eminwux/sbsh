@@ -6,7 +6,7 @@ import (
 )
 
 type Client interface {
-	Status(ctx context.Context, status *api.SessionStatus) error
+	Status(ctx context.Context, status *api.SessionStatusMessage) error
 	Resize(ctx context.Context, args *api.ResizeArgs) error
 	Detach(ctx context.Context) error
 	// add more RPCs as you expose them:

@@ -59,7 +59,7 @@ func (c *client) call(ctx context.Context, method string, in, out any) error {
 
 func (c *client) Close() error { return nil } // no long-lived conn
 
-func (c *client) Status(ctx context.Context, status *api.SessionStatus) error {
+func (c *client) Status(ctx context.Context, status *api.SessionStatusMessage) error {
 	return c.call(ctx, api.SessionMethodStatus, &api.Empty{}, status)
 }
 

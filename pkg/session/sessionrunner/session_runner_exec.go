@@ -16,8 +16,9 @@ type SessionRunnerExec struct {
 	ctxCancel context.CancelFunc
 
 	// immutable
-	id   api.ID
-	spec api.SessionSpec
+	id     api.ID
+	spec   api.SessionSpec
+	status api.SessionStatus
 
 	// runtime (owned by Session)
 	cmd     *exec.Cmd
@@ -74,8 +75,9 @@ func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRun
 	newCtx, cancel := context.WithCancel(ctx)
 
 	return &SessionRunnerExec{
-		id:   spec.ID,
-		spec: *spec,
+		id:     spec.ID,
+		spec:   *spec,
+		status: api.SessionStatus{State: api.SessionStatusNew},
 
 		ctx:       newCtx,
 		ctxCancel: cancel,

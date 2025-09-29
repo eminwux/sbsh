@@ -24,7 +24,7 @@ func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)
 	defer cancel()
 
-	var status api.SessionStatus
+	var status api.SessionStatusMessage
 	if err := sr.sessionClient.Status(ctx, &status); err != nil {
 		return fmt.Errorf("status failed: %w", err)
 	}

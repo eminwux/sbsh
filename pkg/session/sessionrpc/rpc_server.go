@@ -8,8 +8,8 @@ type SessionControllerRPC struct {
 	Core api.SessionController
 }
 
-func (r *SessionControllerRPC) Status(_ *api.Empty, out *api.SessionStatus) error {
-	*out = api.SessionStatus{Message: r.Core.Status()}
+func (r *SessionControllerRPC) Status(_ *api.Empty, out *api.SessionStatusMessage) error {
+	*out = api.SessionStatusMessage{Message: r.Core.Status()}
 	return nil
 }
 func (s *SessionControllerRPC) Resize(args api.ResizeArgs, _ *api.Empty) error {
@@ -18,8 +18,7 @@ func (s *SessionControllerRPC) Resize(args api.ResizeArgs, _ *api.Empty) error {
 }
 
 func (s *SessionControllerRPC) Detach(_ *api.Empty, _ *api.Empty) error {
-	s.Core.Detach()
-	return nil
+	return s.Core.Detach()
 }
 
 // TODO

@@ -52,13 +52,33 @@ type SessionSpec struct {
 	Command     string            `json:"command"`
 	CommandArgs []string          `json:"commandArgs"`
 	Env         []string          `json:"env"`
-	Labels      map[string]string `json:"context"`
+	Labels      map[string]string `json:"labels"`
 	LogDir      string            `json:"logDir"`
 	SockerCtrl  string            `json:"socketCtrl"`
 	SocketIO    string            `json:"socketIO"`
-	Pid         int               `json:"pid"`
 	RunPath     string            `json:"runPath"`
 }
+
+type SessionStatus struct {
+	Pid   int               `json:"pid"`
+	State SessionStatusMode `json:"state"`
+}
+
+type SessionStatusMode int
+
+const (
+	SessionStatusNew SessionStatusMode = iota
+	SessionStatusInitializing
+	SessionStatusAttached
+	SessionStatusDetached
+)
+
+type SessionMetadata struct {
+	Spec   *SessionSpec   `json:"spec"`
+	Status *SessionStatus `json:"status"`
+}
+
+////////////////////////////////////
 
 type SupervisorSpec struct {
 	ID         ID                `json:"id"`
@@ -103,7 +123,7 @@ type SessionIDArg struct {
 	ID ID
 }
 
-type SessionStatus struct {
+type SessionStatusMessage struct {
 	Message string
 }
 

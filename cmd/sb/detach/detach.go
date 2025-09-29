@@ -50,7 +50,6 @@ to quickly create a Cobra application.`,
 		if err := sup.Detach(ctx); err != nil {
 			fmt.Fprintf(os.Stderr, "detach failed: %v\r\n", err)
 			os.Exit(1)
-
 		}
 
 		return nil

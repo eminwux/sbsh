@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sbsh/pkg/api"
 )
 
 func (sr *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeOutW *os.File) error {
@@ -29,6 +30,8 @@ func (sr *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeO
 
 func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	defer client.conn.Close()
+	sr.status.State = api.SessionStatusAttached
+	_ = sr.updateMetadata()
 	errCh := make(chan error, 2)
 
 	// READ FROM CONN, WRITE TO PTY STDIN

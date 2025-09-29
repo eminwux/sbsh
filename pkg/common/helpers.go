@@ -41,10 +41,11 @@ func ParseLevel(lvl string) slog.Level {
 	}
 }
 
-func WriteMetadata(ctx context.Context, spec any, dir string) error {
+func WriteMetadata(ctx context.Context, metadata any, dir string) error {
 
 	dst := filepath.Join(dir, "metadata.json")
-	data, err := json.MarshalIndent(spec, "", "  ")
+	var data []byte
+	data, err := json.MarshalIndent(metadata, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal %s: %w", dir, err)
 	}

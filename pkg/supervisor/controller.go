@@ -221,5 +221,11 @@ func (s *SupervisorController) WaitClose() error {
 }
 
 func (s *SupervisorController) Detach() error {
-	return sr.Detach()
+	// Request detach to sesssion
+	if err := sr.Detach(); err != nil {
+		return fmt.Errorf("%w:%w", errdefs.ErrDetachSession, err)
+	}
+
+	// sr.Close(fmt.Errorf("session detached"))
+	return nil
 }
