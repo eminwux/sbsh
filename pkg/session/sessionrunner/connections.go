@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"sbsh/pkg/api"
 )
 
@@ -31,6 +32,12 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	defer client.conn.Close()
 	sr.status.State = api.SessionStatusAttached
 	_ = sr.updateMetadata()
+
+	pipeOutR, pipeOutW, _ := os.Pipe()
+	sr.ptyPipes.multiOutW.Add(pipeOutW)
+
+	log, _ := readFileBytes(sr.spec.LogFilename)
+
 	errCh := make(chan error, 2)
 
 	// READ FROM CONN, WRITE TO PTY STDIN
@@ -47,8 +54,9 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 
 	// READ FROM PTY STDOUT, WRITE TO CONN
 	go func(chan error) {
+		client.conn.Write(log)
 		// conn reads from pipeOutR
-		w, err := io.Copy(client.conn, sr.ptyPipes.pipeOutR)
+		w, err := io.Copy(client.conn, pipeOutR)
 		if err != nil {
 			errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", err)
 		}

@@ -37,7 +37,7 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFilename: "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 	}
 
@@ -85,7 +85,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFilename: "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 	}
 
@@ -119,7 +119,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFilename: "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 	}
 

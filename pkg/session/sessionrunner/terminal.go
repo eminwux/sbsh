@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sbsh/pkg/env"
 	"sync"
 	"syscall"
@@ -73,15 +72,7 @@ func (sr *SessionRunnerExec) startPTY() error {
 
 	}()
 
-	// Open/prepare a rolling log file (example)
-	var logFile string
-	if sr.spec.LogDir == "" {
-		logFile = filepath.Join(sr.runPath, string(sr.id), "session.log")
-	} else {
-		logFile = sr.spec.LogDir
-	}
-
-	logf, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	logf, err := os.OpenFile(sr.spec.LogFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
 	}
@@ -105,7 +96,7 @@ func (sr *SessionRunnerExec) startPTY() error {
 	}
 
 	// ATTACHED: stream to client (pipeOutW) AND log file
-	multiOutW := io.MultiWriter(pipeOutW, logf)
+	multiOutW := NewDynamicMultiWriter(pipeOutW, logf)
 
 	sr.ptyPipes.pipeInR = pipeInR
 	sr.ptyPipes.pipeInW = pipeInW

@@ -53,7 +53,7 @@ type SessionSpec struct {
 	CommandArgs []string          `json:"commandArgs"`
 	Env         []string          `json:"env"`
 	Labels      map[string]string `json:"labels"`
-	LogDir      string            `json:"logDir"`
+	LogFilename string            `json:"logFile"`
 	SockerCtrl  string            `json:"socketCtrl"`
 	SocketIO    string            `json:"socketIO"`
 	RunPath     string            `json:"runPath"`

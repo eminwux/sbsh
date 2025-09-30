@@ -2,7 +2,6 @@ package sessionrunner
 
 import (
 	"context"
-	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -59,7 +58,7 @@ type ptyPipes struct {
 	pipeInW   *os.File
 	pipeOutR  *os.File
 	pipeOutW  *os.File
-	multiOutW io.Writer
+	multiOutW *DynamicMultiWriter
 }
 
 type ioClient struct {

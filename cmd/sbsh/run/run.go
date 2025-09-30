@@ -7,10 +7,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"sbsh/pkg/api"
 	"sbsh/pkg/errdefs"
@@ -26,6 +28,7 @@ var (
 	sessionID            string
 	name                 string
 	sessionCmd           string
+	logFilename          string
 	ctx                  context.Context
 	cancel               context.CancelFunc
 	newSessionController = session.NewSessionController
@@ -53,6 +56,10 @@ to quickly create a Cobra application.`,
 			sessionCmd = "/bin/bash"
 		}
 
+		if logFilename == "" {
+			logFilename = filepath.Join(viper.GetString("global.runPath"), "sessions", string(sessionID), "session.log")
+		}
+
 		// Split into args for exec
 		cmdArgs := []string{}
 
@@ -65,6 +72,7 @@ to quickly create a Cobra application.`,
 			CommandArgs: cmdArgs,
 			Env:         os.Environ(),
 			RunPath:     viper.GetString("global.runPath"),
+			LogFilename: logFilename,
 		}
 
 		runSession(&spec)
@@ -76,7 +84,11 @@ func init() {
 	RunCmd.Flags().StringVar(&sessionID, "id", "", "Optional session ID (random if omitted)")
 	RunCmd.Flags().StringVar(&sessionCmd, "command", "", "Optional command (default: /bin/bash)")
 	RunCmd.Flags().StringVar(&name, "name", "", "Optional name for the session")
+	RunCmd.Flags().StringVar(&logFilename, "log-filename", "", "Optional filename for the session log")
 
+	if err := viper.BindPFlag("session.logFilename", RunCmd.Flags().Lookup("log-filename")); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func runSession(spec *api.SessionSpec) error {

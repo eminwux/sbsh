@@ -31,7 +31,7 @@ type SupervisedSession struct {
 	CommandArgs      []string          // for local: ["bash","-i"]; for ssh: ["ssh","-tt","user@host"]
 	Env              []string          // TERM, COLORTERM, etc.
 	Context          map[string]string // kubectl ns, cwd hint, etc.
-	LogDir           string
+	LogFilename      string
 	SockerCtrl       string
 	SocketIO         string
 	Pid              int
@@ -52,7 +52,7 @@ func NewSupervisedSession(spec *api.SessionSpec) *SupervisedSession {
 		Command:     spec.Command,
 		CommandArgs: spec.CommandArgs,
 		Env:         spec.Env,
-		LogDir:      spec.LogDir,
+		LogFilename: spec.LogFilename,
 		SockerCtrl:  spec.SockerCtrl,
 		SocketIO:    spec.SocketIO,
 	}
