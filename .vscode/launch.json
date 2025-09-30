@@ -13,26 +13,29 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Debug sbsh-session",
+            "name": "Debug sbsh run",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "cmd/sbsh-session/",
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Debug Tests in cmd/sbsh-session",
-            "type": "go",
-            "request": "launch",
-            "mode": "test",
-            "program": "${workspaceFolder}/cmd/sbsh-session", // or ./pkg/session if you want that package
+            "program": "cmd/sbsh",
             "console": "integratedTerminal",
             "args": [
-                "-test.v" // show each test function executed
+                "run"
             ]
         },
         {
-            "name": "Debug Tests in pkg/sbsh-session",
+            "name": "Debug Tests in cmd/sbsh run",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/cmd/sbsh", // or ./pkg/session if you want that package
+            "console": "integratedTerminal",
+            "args": [
+                "run -test.v" // show each test function executed
+            ]
+        },
+        {
+            "name": "Debug Tests in pkg/session",
             "type": "go",
             "request": "launch",
             "mode": "test",
