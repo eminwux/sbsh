@@ -63,12 +63,8 @@ type ptyPipes struct {
 }
 
 type ioClient struct {
-	id       int
-	conn     net.Conn
-	pipeInR  *os.File
-	pipeInW  *os.File
-	pipeOutR *os.File
-	pipeOutW *os.File
+	id   int
+	conn net.Conn
 }
 
 func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRunner {

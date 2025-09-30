@@ -32,6 +32,8 @@ func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error 
 		return err
 	}
 
+	go sr.handleConnections()
+
 	go sr.waitOnSession()
 
 	return nil
@@ -131,5 +133,9 @@ func (sr *SessionRunnerExec) Write(p []byte) (int, error) {
 }
 
 func (sr *SessionRunnerExec) Detach() error {
+	// remove client pipe from multiwriterR
+	// remove client pipe from stdin
+	// close connection and clean-up
+
 	return fmt.Errorf("error detaching")
 }

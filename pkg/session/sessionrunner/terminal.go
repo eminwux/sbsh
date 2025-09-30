@@ -115,8 +115,6 @@ func (sr *SessionRunnerExec) startPTY() error {
 
 	go sr.terminalManager(pipeInR, multiOutW)
 
-	go sr.handleConnections(pipeInR, pipeInW, pipeOutR, pipeOutW)
-
 	return nil
 }
 

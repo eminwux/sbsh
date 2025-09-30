@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"sbsh/pkg/api"
 )
 
-func (sr *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeOutW *os.File) error {
+func (sr *SessionRunnerExec) handleConnections() error {
 
 	cid := 0
 	for {
@@ -21,7 +20,7 @@ func (sr *SessionRunnerExec) handleConnections(pipeInR, pipeInW, pipeOutR, pipeO
 		}
 		slog.Debug("[session] client connected!\r\n")
 		cid++
-		cl := &ioClient{id: cid, conn: conn, pipeInR: pipeInR, pipeInW: pipeInW, pipeOutR: pipeOutR, pipeOutW: pipeOutW}
+		cl := &ioClient{id: cid, conn: conn}
 
 		sr.addClient(cl)
 		go sr.handleClient(cl)
@@ -37,7 +36,7 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	// READ FROM CONN, WRITE TO PTY STDIN
 	go func(chan error) {
 		// conn writes to pipeInW
-		w, err := io.Copy(client.pipeInW, client.conn)
+		w, err := io.Copy(sr.ptyPipes.pipeInW, client.conn)
 		if err != nil {
 			errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", err)
 		}
@@ -49,7 +48,7 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	// READ FROM PTY STDOUT, WRITE TO CONN
 	go func(chan error) {
 		// conn reads from pipeOutR
-		w, err := io.Copy(client.conn, client.pipeOutR)
+		w, err := io.Copy(client.conn, sr.ptyPipes.pipeOutR)
 		if err != nil {
 			errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", err)
 		}
