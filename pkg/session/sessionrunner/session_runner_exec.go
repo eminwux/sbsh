@@ -56,14 +56,14 @@ type SessionRunnerExec struct {
 type ptyPipes struct {
 	pipeInR   *os.File
 	pipeInW   *os.File
-	pipeOutR  *os.File
-	pipeOutW  *os.File
 	multiOutW *DynamicMultiWriter
 }
 
 type ioClient struct {
-	id   int
-	conn net.Conn
+	id       int
+	conn     net.Conn
+	pipeOutR *os.File
+	pipeOutW *os.File
 }
 
 func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRunner {

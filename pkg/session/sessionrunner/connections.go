@@ -33,35 +33,86 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	sr.status.State = api.SessionStatusAttached
 	_ = sr.updateMetadata()
 
-	pipeOutR, pipeOutW, _ := os.Pipe()
-	sr.ptyPipes.multiOutW.Add(pipeOutW)
+	client.pipeOutR, client.pipeOutW, _ = os.Pipe()
+	sr.ptyPipes.multiOutW.Add(client.pipeOutW)
 
 	log, _ := readFileBytes(sr.spec.LogFilename)
 
 	errCh := make(chan error, 2)
 
 	// READ FROM CONN, WRITE TO PTY STDIN
-	go func(chan error) {
-		// conn writes to pipeInW
-		w, err := io.Copy(sr.ptyPipes.pipeInW, client.conn)
-		if err != nil {
-			errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", err)
-		}
-		if w == 0 {
-			errCh <- fmt.Errorf("EOF in conn->pty copy pipe: %w", err)
+	go func(errCh chan error) {
+		buf := make([]byte, 32*1024) // 32 KiB buffer, same as io.Copy
+		var total int64
+
+		for {
+			slog.Debug("conn->pty pre-read")
+			n, rerr := client.conn.Read(buf)
+			slog.Debug(fmt.Sprintf("conn->pty post-read: %d", n))
+			if n > 0 {
+				written := 0
+				for written < n {
+					slog.Debug("conn->pty pre-write")
+					m, werr := sr.ptyPipes.pipeInW.Write(buf[written:n])
+					slog.Debug(fmt.Sprintf("conn->pty post-write: %d", m))
+					if werr != nil {
+						errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", werr)
+						return
+					}
+					written += m
+					total += int64(m)
+				}
+			}
+
+			if rerr != nil {
+				if rerr != io.EOF {
+					errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", rerr)
+				} else if total == 0 {
+					errCh <- fmt.Errorf("EOF in conn->pty copy pipe")
+				}
+				return
+			}
 		}
 	}(errCh)
 
 	// READ FROM PTY STDOUT, WRITE TO CONN
-	go func(chan error) {
-		client.conn.Write(log)
-		// conn reads from pipeOutR
-		w, err := io.Copy(client.conn, pipeOutR)
-		if err != nil {
-			errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", err)
+	go func(errCh chan error) {
+		// optional initial write
+		if _, err := client.conn.Write(log); err != nil {
+			errCh <- fmt.Errorf("error in pty->conn initial write: %w", err)
+			return
 		}
-		if w == 0 {
-			errCh <- fmt.Errorf("EOF in pty->conn copy pipe: %w", err)
+
+		buf := make([]byte, 32*1024) // similar buffer size to io.Copy
+		var total int64
+
+		for {
+			slog.Debug("pty->conn pre-read")
+			n, rerr := client.pipeOutR.Read(buf)
+			slog.Debug(fmt.Sprintf("pty->conn post-read: %d", n))
+			if n > 0 {
+				written := 0
+				for written < n {
+					slog.Debug("pty->conn pre-write")
+					m, werr := client.conn.Write(buf[written:n])
+					slog.Debug(fmt.Sprintf("pty->conn post-write: %d", m))
+					if werr != nil {
+						errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", werr)
+						return
+					}
+					written += m
+					total += int64(m)
+				}
+			}
+
+			if rerr != nil {
+				if rerr != io.EOF {
+					errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", rerr)
+				} else if total == 0 {
+					errCh <- fmt.Errorf("EOF in pty->conn copy pipe")
+				}
+				return
+			}
 		}
 	}(errCh)
 

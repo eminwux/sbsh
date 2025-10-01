@@ -87,21 +87,11 @@ func (sr *SessionRunnerExec) startPTY() error {
 	}
 
 	// StdOut
-	// conn reads from pipeOutR
-	// PTY writes to pipeOutW
-	pipeOutR, pipeOutW, err := os.Pipe()
-	if err != nil {
-		slog.Debug(fmt.Sprintf("[session] error opening OUT pipe: %v\r\n", err))
-		return fmt.Errorf("error opening OUT pipe: %w", err)
-	}
-
 	// ATTACHED: stream to client (pipeOutW) AND log file
-	multiOutW := NewDynamicMultiWriter(pipeOutW, logf)
+	multiOutW := NewDynamicMultiWriter(logf)
 
 	sr.ptyPipes.pipeInR = pipeInR
 	sr.ptyPipes.pipeInW = pipeInW
-	sr.ptyPipes.pipeOutR = pipeOutR
-	sr.ptyPipes.pipeOutW = pipeOutW
 	sr.ptyPipes.multiOutW = multiOutW
 
 	go sr.terminalManager(pipeInR, multiOutW)
@@ -158,8 +148,9 @@ func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
 				//  WRITE TO PIPE
 				// PTY writes to pipeOutW
 				slog.Debug(fmt.Sprintf("read from pty %q", buf[:n]))
-				slog.Debug("[session] writing to pipeOutW")
+				slog.Debug("[session] writing to multiOutW")
 				_, err := multiOutW.Write(buf[:n])
+				slog.Debug("[session] writing to multiOutW -> DONE")
 				if err != nil {
 					slog.Debug("[session] error writing raw data to client")
 					return ErrPipeWrite

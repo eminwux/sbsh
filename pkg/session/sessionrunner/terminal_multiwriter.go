@@ -1,7 +1,9 @@
 package sessionrunner
 
 import (
+	"fmt"
 	"io"
+	"log/slog"
 	"sync"
 )
 
@@ -14,15 +16,19 @@ func NewDynamicMultiWriter(writers ...io.Writer) *DynamicMultiWriter {
 	return &DynamicMultiWriter{writers: writers}
 }
 
-func (dmw *DynamicMultiWriter) Write(p []byte) (n int, err error) {
+func (dmw *DynamicMultiWriter) Write(p []byte) (int, error) {
+	slog.Debug("pre-lock")
 	dmw.mu.RLock()
-	defer dmw.mu.RUnlock()
+	ws := append([]io.Writer(nil), dmw.writers...)
+	dmw.mu.RUnlock()
+	slog.Debug("post-lock")
 
-	for _, w := range dmw.writers {
-		n, err = w.Write(p)
-		if err != nil {
-			return n, err
+	for i, w := range ws {
+		slog.Debug(fmt.Sprintf("pre-write to %d: %d", i, len(p)))
+		if _, err := w.Write(p); err != nil {
+			return 0, err
 		}
+		slog.Debug("post-write")
 	}
 	return len(p), nil
 }
