@@ -80,18 +80,18 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not write metadata file: %v", err))
 		if err := c.Close(err); err != nil {
-			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
+			err = fmt.Errorf("%w: %v", errdefs.ErrOnClose, err)
 		}
-		return fmt.Errorf("%w:%w", errdefs.ErrWriteMetadata, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrWriteMetadata, err)
 	}
 
 	err = sr.OpenSocketCtrl()
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not open control socket: %v", err))
 		if err := c.Close(err); err != nil {
-			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
+			err = fmt.Errorf("%w: %v", errdefs.ErrOnClose, err)
 		}
-		return fmt.Errorf("%w:%w", errdefs.ErrOpenSocketCtrl, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrOpenSocketCtrl, err)
 	}
 
 	rpc := &sessionrpc.SessionControllerRPC{Core: c}
@@ -100,15 +100,15 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 	if err := <-rpcReadyCh; err != nil {
 		// failed to start — handle and return
 		slog.Debug(fmt.Sprintf("failed to start server: %v", err))
-		return fmt.Errorf("%w:%w", errdefs.ErrStartRPCServer, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrStartRPCServer, err)
 	}
 
 	if err := sr.StartSession(eventsCh); err != nil {
 		slog.Debug(fmt.Sprintf("failed to start session: %v", err))
 		if err := c.Close(err); err != nil {
-			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
+			err = fmt.Errorf("%w: %v", errdefs.ErrOnClose, err)
 		}
-		return fmt.Errorf("%w:%w", errdefs.ErrStartSession, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrStartSession, err)
 	}
 
 	ctrlReady <- struct{}{}
@@ -119,9 +119,9 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 			var err error
 			slog.Debug("[supervisor] parent context channel has been closed\r\n")
 			if errC := c.Close(c.ctx.Err()); errC != nil {
-				err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, errC)
+				err = fmt.Errorf("%w: %v", errdefs.ErrOnClose, errC)
 			}
-			return fmt.Errorf("%w:%w", errdefs.ErrContextDone, err)
+			return fmt.Errorf("%w: %v", errdefs.ErrContextDone, err)
 
 		case ev := <-eventsCh:
 			slog.Debug(fmt.Sprintf("[sessionCtrl] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano)))
@@ -130,13 +130,13 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		case err := <-rpcDoneCh:
 			slog.Debug(fmt.Sprintf("[sessionCtrl] rpc server has failed: %v\r\n", err))
 			if err := c.Close(err); err != nil {
-				err = fmt.Errorf("%w:%w:%w", err, errdefs.ErrOnClose, err)
+				err = fmt.Errorf("%v: %w: %v", err, errdefs.ErrOnClose, err)
 			}
-			return fmt.Errorf("%w:%w", errdefs.ErrRPCServerExited, err)
+			return fmt.Errorf("%w: %v", errdefs.ErrRPCServerExited, err)
 
 		case err := <-closeReqCh:
 			slog.Debug(fmt.Sprintf("[sessionCtrl] close request received: %v\r\n", err))
-			return fmt.Errorf("%w:%w", errdefs.ErrCloseReq, err)
+			return fmt.Errorf("%w: %v", errdefs.ErrCloseReq, err)
 		}
 	}
 

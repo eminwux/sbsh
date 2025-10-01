@@ -101,7 +101,7 @@ func runSupervisor() error {
 	// block until controller is ready (or ctx cancels)
 	if err := ctrl.WaitReady(ctx); err != nil {
 		slog.Debug(fmt.Sprintf("controller not ready: %s", err))
-		return fmt.Errorf("%w: %w", ErrWaitOnReady, err)
+		return fmt.Errorf("%w: %v", ErrWaitOnReady, err)
 	}
 
 	select {
@@ -109,17 +109,17 @@ func runSupervisor() error {
 		var err error
 		slog.Debug("[sbsh] context canceled, waiting on sessionCtrl to exit\r\n")
 		if e := ctrl.WaitClose(); e != nil {
-			err = fmt.Errorf("%w: %w", ErrWaitOnClose, e)
+			err = fmt.Errorf("%w: %v", ErrWaitOnClose, e)
 		}
 		slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
-		return fmt.Errorf("%w: %w", ErrContextDone, err)
+		return fmt.Errorf("%w: %v", ErrContextDone, err)
 
 	case err := <-errCh:
 		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
 		if err != nil && !errors.Is(err, context.Canceled) {
-			err = fmt.Errorf("%w: %w", ErrChildExit, err)
+			err = fmt.Errorf("%w: %v", ErrChildExit, err)
 			if err := ctrl.WaitClose(); err != nil {
-				err = fmt.Errorf("%w: %w", ErrWaitOnClose, err)
+				err = fmt.Errorf("%w: %v", ErrWaitOnClose, err)
 			}
 			slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
 			return err

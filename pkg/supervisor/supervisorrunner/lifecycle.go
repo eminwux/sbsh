@@ -33,7 +33,7 @@ func (sr *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<-
 	cmd.Env = append(session.Env, env.KV(env.SUP_SOCKET, sr.supervisorSocketCtrl))
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("%w:%w", errdefs.ErrSessionCmdStart, err)
+		return fmt.Errorf("%w :%v", errdefs.ErrSessionCmdStart, err)
 	}
 
 	// you can return cmd.Process.Pid to record in meta.json
@@ -95,7 +95,7 @@ func (sr *SupervisorRunnerExec) Detach() error {
 	defer cancel()
 
 	if err := sr.sessionClient.Detach(ctx); err != nil {
-		return fmt.Errorf("%w: %w", errdefs.ErrDetachSession, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrDetachSession, err)
 	}
 
 	return nil

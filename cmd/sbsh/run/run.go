@@ -116,13 +116,13 @@ func runSession(spec *api.SessionSpec) error {
 	// block until controller is ready (or ctx cancels)
 	if err := sessionCtrl.WaitReady(); err != nil {
 		slog.Debug(fmt.Sprintf("controller not ready: %s\r\n", err))
-		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrWaitOnReady, err)
 	}
 	select {
 	case <-ctx.Done():
 		slog.Debug("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
 		if err := sessionCtrl.WaitClose(); err != nil {
-			return fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, err)
+			return fmt.Errorf("%w: %v", errdefs.ErrWaitOnClose, err)
 		}
 		slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
 
@@ -131,10 +131,10 @@ func runSession(spec *api.SessionSpec) error {
 		slog.Debug(fmt.Sprintf("[sbsh-sesion] controller stopped with error: %v\r\n", err))
 		if err != nil && !errors.Is(err, context.Canceled) {
 			if err := sessionCtrl.WaitClose(); err != nil {
-				return fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, err)
+				return fmt.Errorf("%w: %v", errdefs.ErrWaitOnClose, err)
 			}
 			slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
-			return fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
+			return fmt.Errorf("%w: %v", errdefs.ErrChildExit, err)
 		}
 	}
 	return nil

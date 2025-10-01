@@ -73,19 +73,19 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not write metadata file: %v", err))
 		if err := s.Close(err); err != nil {
-			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
+			err = fmt.Errorf("%w: %v", errdefs.ErrOnClose, err)
 		}
-		return fmt.Errorf("%w:%w", errdefs.ErrWriteMetadata, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrWriteMetadata, err)
 	}
 
 	err = sr.OpenSocketCtrl()
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not open control socket: %v", err))
 		if err := s.Close(err); err != nil {
-			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
+			err = fmt.Errorf("%w: %v", errdefs.ErrOnClose, err)
 		}
 		close(ctrlReady)
-		return fmt.Errorf("%w:%w", errdefs.ErrOpenSocketCtrl, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrOpenSocketCtrl, err)
 	}
 
 	rpc := &supervisorrpc.SupervisorControllerRPC{Core: s}
@@ -94,11 +94,11 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	if err := <-rpcReadyCh; err != nil {
 		// failed to start — handle and return
 		if errC := s.Close(err); errC != nil {
-			err = fmt.Errorf("%w:%w:%w", err, errdefs.ErrOnClose, errC)
+			err = fmt.Errorf("%v: %w: %v", err, errdefs.ErrOnClose, errC)
 		}
 		close(ctrlReady)
 		slog.Debug(fmt.Sprintf("failed to start server: %v", err))
-		return fmt.Errorf("%w:%w", errdefs.ErrStartRPCServer, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrStartRPCServer, err)
 	}
 
 	sessionID := naming.RandomID()
@@ -111,7 +111,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	if err != nil {
 		close(ctrlReady)
 		slog.Debug(fmt.Sprintf("failed to start cmd: %v", err))
-		return fmt.Errorf("%w:%w", errdefs.ErrStartCmd, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrStartCmd, err)
 	}
 
 	sessionSpec := &api.SessionSpec{
@@ -129,16 +129,16 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	session := sessionstore.NewSupervisedSession(sessionSpec)
 	if err := ss.Add(session); err != nil {
 		close(ctrlReady)
-		return fmt.Errorf("%w:%w", errdefs.ErrSessionStore, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrSessionStore, err)
 	}
 
 	if err := sr.StartSupervisor(s.ctx, eventsCh, session); err != nil {
 		slog.Debug(fmt.Sprintf("failed to start session: %v", err))
 		if err := s.Close(err); err != nil {
-			err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, err)
+			err = fmt.Errorf("%w: %v", errdefs.ErrOnClose, err)
 		}
 		close(ctrlReady)
-		return fmt.Errorf("%w:%w", errdefs.ErrStartSupervisor, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrStartSupervisor, err)
 	}
 	close(ctrlReady)
 
@@ -148,9 +148,9 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 			var err error
 			slog.Debug("[supervisor] parent context channel has been closed\r\n")
 			if errC := s.Close(s.ctx.Err()); errC != nil {
-				err = fmt.Errorf("%w:%w", errdefs.ErrOnClose, errC)
+				err = fmt.Errorf("%w: %v", errdefs.ErrOnClose, errC)
 			}
-			return fmt.Errorf("%w:%w", errdefs.ErrContextDone, err)
+			return fmt.Errorf("%w: %v", errdefs.ErrContextDone, err)
 
 		case ev := <-eventsCh:
 			slog.Debug(fmt.Sprintf("[supervisor] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano)))
@@ -159,13 +159,13 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		case err := <-rpcDoneCh:
 			slog.Debug(fmt.Sprintf("[supervisor] rpc server has failed: %v\r\n", err))
 			if err := s.Close(err); err != nil {
-				err = fmt.Errorf("%w:%w:%w", err, errdefs.ErrOnClose, err)
+				err = fmt.Errorf("%v:%w:%v", err, errdefs.ErrOnClose, err)
 			}
-			return fmt.Errorf("%w:%w", errdefs.ErrRPCServerExited, err)
+			return fmt.Errorf("%w: %v", errdefs.ErrRPCServerExited, err)
 
 		case err := <-closeReqCh:
 			slog.Debug(fmt.Sprintf("[supervisor] close request received: %v\r\n", err))
-			return fmt.Errorf("%w:%w", errdefs.ErrCloseReq, err)
+			return fmt.Errorf("%w: %v", errdefs.ErrCloseReq, err)
 		}
 	}
 }
@@ -223,7 +223,7 @@ func (s *SupervisorController) WaitClose() error {
 func (s *SupervisorController) Detach() error {
 	// Request detach to sesssion
 	if err := sr.Detach(); err != nil {
-		return fmt.Errorf("%w:%w", errdefs.ErrDetachSession, err)
+		return fmt.Errorf("%w: %v", errdefs.ErrDetachSession, err)
 	}
 
 	// sr.Close(fmt.Errorf("session detached"))
