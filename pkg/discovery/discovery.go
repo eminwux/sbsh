@@ -23,14 +23,14 @@ func ScanAndPrintSessions(ctx context.Context, runPath string, w io.Writer) erro
 	return printSessions(w, sessions)
 }
 
-func scanSessions(ctx context.Context, runPath string) ([]api.SessionSpec, error) {
+func scanSessions(ctx context.Context, runPath string) ([]api.SessionMetadata, error) {
 	pattern := filepath.Join(runPath, "sessions", "*", "metadata.json")
 	paths, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, fmt.Errorf("glob %q: %w", pattern, err)
 	}
 
-	out := make([]api.SessionSpec, 0, len(paths))
+	out := make([]api.SessionMetadata, 0, len(paths))
 	for _, p := range paths {
 		select {
 		case <-ctx.Done():
@@ -41,7 +41,7 @@ func scanSessions(ctx context.Context, runPath string) ([]api.SessionSpec, error
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", p, err)
 		}
-		var s api.SessionSpec
+		var s api.SessionMetadata
 		if err := json.Unmarshal(b, &s); err != nil {
 			return nil, fmt.Errorf("decode %s: %w", p, err)
 		}
@@ -60,7 +60,7 @@ func scanSessions(ctx context.Context, runPath string) ([]api.SessionSpec, error
 	return out, nil
 }
 
-func printSessions(w io.Writer, sessions []api.SessionSpec) error {
+func printSessions(w io.Writer, sessions []api.SessionMetadata) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	if len(sessions) == 0 {
 		fmt.Fprintf(tw, "no active sessions found\n")
@@ -81,27 +81,27 @@ func printSessions(w io.Writer, sessions []api.SessionSpec) error {
 
 // --- helpers (adjust to your api.SessionSpec fields if needed) ---
 
-func sessionID(s api.SessionSpec) string {
+func sessionID(s api.SessionMetadata) string {
 	// If your type uses Id instead of ID, change to: return s.Id
-	return string(s.ID)
+	return string(s.Spec.ID)
 }
 
-func sessionName(s api.SessionSpec) string {
-	return s.Name
+func sessionName(s api.SessionMetadata) string {
+	return s.Spec.Name
 }
 
-func sessionCmd(s api.SessionSpec) string {
-	parts := make([]string, 0, 1+len(s.CommandArgs))
-	if s.Command != "" {
-		parts = append(parts, s.Command)
+func sessionCmd(s api.SessionMetadata) string {
+	parts := make([]string, 0, 1+len(s.Spec.CommandArgs))
+	if s.Spec.Command != "" {
+		parts = append(parts, s.Spec.Command)
 	}
-	parts = append(parts, s.CommandArgs...)
+	parts = append(parts, s.Spec.CommandArgs...)
 	return strings.Join(parts, " ")
 }
 
-func sessionLabels(s api.SessionSpec) map[string]string {
-	if len(s.Labels) != 0 {
-		return s.Labels
+func sessionLabels(s api.SessionMetadata) map[string]string {
+	if len(s.Spec.Labels) != 0 {
+		return s.Spec.Labels
 	}
 	return map[string]string{}
 }
