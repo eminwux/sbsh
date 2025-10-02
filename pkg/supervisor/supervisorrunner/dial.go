@@ -73,19 +73,59 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 
 	// WRITER stdin -> socket
 	go func() {
-		_, e := io.Copy(conn, os.Stdin)
+		buf := make([]byte, 32*1024) // 32 KiB buffer, like io.Copy
+		var total int64
+		var e error
+
+		for {
+			slog.Debug("stdin->socket pre-read")
+			n, rerr := os.Stdin.Read(buf)
+			slog.Debug(fmt.Sprintf("stdin->socket post-read: %d", n))
+
+			if n > 0 {
+				written := 0
+				for written < n {
+					slog.Debug("stdin->socket pre-write")
+					m, werr := conn.Write(buf[written:n])
+					slog.Debug(fmt.Sprintf("stdin->socket post-write: %d", m))
+					if werr != nil {
+						e = werr
+						goto done
+					}
+					written += m
+					total += int64(m)
+				}
+			}
+
+			if rerr != nil {
+				e = rerr
+				break
+			}
+		}
+
+	done:
 		// tell peer we're done sending (but still willing to read)
 		if uc != nil {
 			_ = uc.CloseWrite()
-
 		}
+
 		// send event (EOF or error while copying stdin -> socket)
 		if e == io.EOF {
 			slog.Debug("[supervisor] stdin reached EOF\r\n")
-			trySendEvent(sr.events, SupervisorRunnerEvent{ID: sr.session.Id, Type: EvCmdExited, Err: err, When: time.Now()})
+			trySendEvent(sr.events, SupervisorRunnerEvent{
+				ID:   sr.session.Id,
+				Type: EvCmdExited,
+				Err:  e,
+				When: time.Now(),
+			})
 		} else if e != nil {
 			slog.Debug(fmt.Sprintf("[supervisor] stdin->socket error: %v\r\n", e))
-			trySendEvent(sr.events, SupervisorRunnerEvent{ID: sr.session.Id, Type: EvError, Err: err, When: time.Now()})
+			trySendEvent(sr.events, SupervisorRunnerEvent{
+				ID:   sr.session.Id,
+				Type: EvError,
+				Err:  e,
+				When: time.Now(),
+			})
 		}
 
 		errCh <- e
@@ -93,18 +133,59 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 
 	// READER socket -> stdout
 	go func() {
-		_, e := io.Copy(os.Stdout, conn)
+		buf := make([]byte, 32*1024) // 32 KiB buffer like io.Copy
+		var total int64
+		var e error
+
+		for {
+			slog.Debug("socket->stdout pre-read")
+			n, rerr := conn.Read(buf)
+			slog.Debug(fmt.Sprintf("socket->stdout post-read: %d", n))
+
+			if n > 0 {
+				written := 0
+				for written < n {
+					slog.Debug("socket->stdout pre-write")
+					m, werr := os.Stdout.Write(buf[written:n])
+					slog.Debug(fmt.Sprintf("socket->stdout post-write: %d", m))
+					if werr != nil {
+						e = werr
+						goto done
+					}
+					written += m
+					total += int64(m)
+				}
+			}
+
+			if rerr != nil {
+				e = rerr
+				break
+			}
+		}
+
+	done:
 		// we won't read further; let the other goroutine finish
 		if uc != nil {
 			_ = uc.CloseRead()
 		}
+
 		// send event (EOF or error while copying socket -> stdout)
 		if e == io.EOF {
 			slog.Debug("[supervisor] socket closed (EOF)\r\n")
-			trySendEvent(sr.events, SupervisorRunnerEvent{ID: sr.session.Id, Type: EvCmdExited, Err: err, When: time.Now()})
+			trySendEvent(sr.events, SupervisorRunnerEvent{
+				ID:   sr.session.Id,
+				Type: EvCmdExited,
+				Err:  e,
+				When: time.Now(),
+			})
 		} else if e != nil {
 			slog.Debug(fmt.Sprintf("[supervisor] socket->stdout error: %v\r\n", e))
-			trySendEvent(sr.events, SupervisorRunnerEvent{ID: sr.session.Id, Type: EvError, Err: err, When: time.Now()})
+			trySendEvent(sr.events, SupervisorRunnerEvent{
+				ID:   sr.session.Id,
+				Type: EvError,
+				Err:  e,
+				When: time.Now(),
+			})
 		}
 
 		errCh <- e
