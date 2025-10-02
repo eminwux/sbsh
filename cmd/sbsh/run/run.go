@@ -66,7 +66,7 @@ to quickly create a Cobra application.`,
 		// Define a new Session
 		spec := api.SessionSpec{
 			ID:          api.ID(sessionID),
-			Kind:        api.SessLocal,
+			Kind:        api.SessionLocal,
 			Name:        name,
 			Command:     sessionCmd,
 			CommandArgs: cmdArgs,

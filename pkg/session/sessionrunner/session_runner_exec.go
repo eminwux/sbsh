@@ -80,7 +80,7 @@ func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRun
 		// runtime (initialized but inactive)
 		cmd:     nil,
 		pty:     nil,
-		state:   api.SessBash, // default logical state before start
+		state:   api.SessionBash, // default logical state before start
 		runPath: spec.RunPath + "/sessions",
 
 		gates: struct {

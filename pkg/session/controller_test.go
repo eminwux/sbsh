@@ -37,7 +37,7 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 	// Define a new Session
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        "default",
 		Command:     "",
 		CommandArgs: nil,
@@ -79,7 +79,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	// Define a new Session
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
@@ -121,7 +121,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	// Define a new Session
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
@@ -166,7 +166,7 @@ func Test_ErrStartSession(t *testing.T) {
 	// Define a new Session
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
@@ -220,7 +220,7 @@ func Test_ErrContextDone(t *testing.T) {
 	// Define a new Session
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
@@ -278,7 +278,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	// Define a new Session
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
@@ -334,7 +334,7 @@ func Test_WaitReady(t *testing.T) {
 	// Define a new Session
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
@@ -396,7 +396,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 	// Define a new Session
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,
@@ -458,7 +458,7 @@ func Test_HandleEvent_EvError(t *testing.T) {
 	// Define a new Session
 	spec := api.SessionSpec{
 		ID:          api.ID("abcdef"),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        "default",
 		Command:     "/bin/bash",
 		CommandArgs: nil,

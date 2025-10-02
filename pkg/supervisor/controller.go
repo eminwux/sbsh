@@ -221,7 +221,7 @@ func (s *SupervisorController) CreateRunNewSession() (*api.SupervisedSession, er
 
 	sessionSpec := &api.SessionSpec{
 		ID:          api.ID(sessionID),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        sessionName,
 		Command:     execPath,
 		CommandArgs: args,

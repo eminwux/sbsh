@@ -32,7 +32,7 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 
 	spec := api.SessionSpec{
 		ID:          api.ID(sessionID),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        naming.RandomSessionName(),
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
@@ -80,7 +80,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 
 	spec := api.SessionSpec{
 		ID:          api.ID(sessionID),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        naming.RandomSessionName(),
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
@@ -114,7 +114,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 
 	spec := api.SessionSpec{
 		ID:          api.ID(sessionID),
-		Kind:        api.SessLocal,
+		Kind:        api.SessionLocal,
 		Name:        naming.RandomSessionName(),
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
