@@ -19,18 +19,18 @@ var closePTY sync.Once
 func (sr *SessionRunnerExec) prepareSessionCommand() error {
 
 	// Build the child command with context (so ctx cancel can kill it)
-	cmd := exec.CommandContext(sr.ctx, sr.spec.Command, sr.spec.CommandArgs...)
+	cmd := exec.CommandContext(sr.ctx, sr.metadata.Spec.Command, sr.metadata.Spec.CommandArgs...)
 	// Environment: use provided or inherit
-	if len(sr.spec.Env) > 0 {
-		cmd.Env = sr.spec.Env
+	if len(sr.metadata.Spec.Env) > 0 {
+		cmd.Env = sr.metadata.Spec.Env
 	} else {
 		cmd.Env = os.Environ()
 	}
 	cmd.Env = append(cmd.Env,
 		env.KV(env.SES_SOCKET_CTRL, sr.socketCtrl),
 		env.KV(env.SES_SOCKET_IO, sr.socketIO),
-		env.KV(env.SES_ID, string(sr.spec.ID)),
-		env.KV(env.SES_NAME, sr.spec.Name),
+		env.KV(env.SES_ID, string(sr.metadata.Spec.ID)),
+		env.KV(env.SES_NAME, sr.metadata.Spec.Name),
 	)
 	// Start the process in a new session so it has its own process group
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -72,7 +72,7 @@ func (sr *SessionRunnerExec) startPTY() error {
 
 	}()
 
-	logf, err := os.OpenFile(sr.spec.LogFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	logf, err := os.OpenFile(sr.metadata.Spec.LogFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
 	}

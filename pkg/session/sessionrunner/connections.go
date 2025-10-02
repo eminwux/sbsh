@@ -30,13 +30,13 @@ func (sr *SessionRunnerExec) handleConnections() error {
 
 func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	defer client.conn.Close()
-	sr.status.State = api.SessionStatusAttached
+	sr.metadata.Status.State = api.SessionStatusAttached
 	_ = sr.updateMetadata()
 
 	client.pipeOutR, client.pipeOutW, _ = os.Pipe()
 	sr.ptyPipes.multiOutW.Add(client.pipeOutW)
 
-	log, _ := readFileBytes(sr.spec.LogFilename)
+	log, _ := readFileBytes(sr.metadata.Spec.LogFilename)
 
 	errCh := make(chan error, 2)
 

@@ -67,12 +67,13 @@ func printSessions(w io.Writer, sessions []api.SessionMetadata) error {
 		return tw.Flush()
 	}
 
-	fmt.Fprintln(tw, "ID\tNAME\tCMD\tLABELS")
+	fmt.Fprintln(tw, "ID\tNAME\tCMD\tSTATUS\tLABELS")
 	for _, s := range sessions {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
 			sessionID(s),
 			sessionName(s),
 			sessionCmd(s),
+			s.Status.State.String(),
 			joinLabels(sessionLabels(s)),
 		)
 	}

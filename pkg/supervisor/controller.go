@@ -197,7 +197,7 @@ func (s *SupervisorController) CreateAttachSession(spec *api.SupervisorSpec) (*a
 			return nil, fmt.Errorf("coult not find session by Name")
 		}
 	}
-	session := sessionstore.NewSupervisedSession(metadata.Spec)
+	session := sessionstore.NewSupervisedSession(&metadata.Spec)
 	if err := ss.Add(session); err != nil {
 		return nil, fmt.Errorf("%w: %v", errdefs.ErrSessionStore, err)
 	}

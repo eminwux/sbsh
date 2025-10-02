@@ -53,7 +53,9 @@ func (sr *SessionRunnerExec) waitOnSession() {
 func (sr *SessionRunnerExec) Close(reason error) error {
 
 	slog.Debug(fmt.Sprintf("[session-runner] closing session-runner on request, reason: %v\r\n", reason))
-	slog.Debug("[session-runner] sent 'closingCh' signal\r\n")
+
+	sr.metadata.Status.State = api.SessionStatusExited
+	sr.updateMetadata()
 
 	sr.ctxCancel()
 

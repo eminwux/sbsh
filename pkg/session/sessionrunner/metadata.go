@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sbsh/pkg/api"
 	"sbsh/pkg/common"
 )
 
@@ -22,9 +21,5 @@ func (sr *SessionRunnerExec) getSessionDir() string {
 }
 
 func (sr *SessionRunnerExec) updateMetadata() error {
-	metadata := api.SessionMetadata{
-		Spec:   &sr.spec,
-		Status: &sr.status,
-	}
-	return common.WriteMetadata(sr.ctx, metadata, sr.getSessionDir())
+	return common.WriteMetadata(sr.ctx, sr.metadata, sr.getSessionDir())
 }

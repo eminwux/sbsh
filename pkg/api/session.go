@@ -46,15 +46,27 @@ type SessionStatus struct {
 type SessionStatusMode int
 
 const (
-	SessionStatusNew SessionStatusMode = iota
-	SessionStatusInitializing
+	SessionStatusDetached SessionStatusMode = iota
 	SessionStatusAttached
-	SessionStatusDetached
+	SessionStatusExited
 )
 
+func (s SessionStatusMode) String() string {
+	switch s {
+	case SessionStatusAttached:
+		return "Attached"
+	case SessionStatusDetached:
+		return "Detached"
+	case SessionStatusExited:
+		return "Exited"
+	default:
+		return "Unknown"
+	}
+}
+
 type SessionMetadata struct {
-	Spec   *SessionSpec   `json:"spec"`
-	Status *SessionStatus `json:"status"`
+	Spec   SessionSpec   `json:"spec"`
+	Status SessionStatus `json:"status"`
 }
 
 // SESSION RPC

@@ -127,6 +127,11 @@ func run(id string, name string) error {
 				return fmt.Errorf("%w: %v", errdefs.ErrWaitOnClose, err)
 			}
 			slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
+
+			if errors.Is(err, errdefs.ErrAttach) {
+				fmt.Printf("%v\n", err)
+			}
+
 			return fmt.Errorf("%w: %v", errdefs.ErrChildExit, err)
 		}
 	}
