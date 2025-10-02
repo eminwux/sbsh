@@ -14,6 +14,10 @@ import (
 	"time"
 )
 
+const (
+	socketIOMaxRetries int = 3
+)
+
 func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 
 	slog.Debug(fmt.Sprintf("[supervisor] %s session on  %d trying to connect to %s\r\n",
@@ -44,7 +48,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 	var err error
 
 	// Dial the Unix domain socket
-	for range 3 {
+	for range socketIOMaxRetries {
 		conn, err = net.Dial("unix", sr.session.SocketIO)
 		if err == nil {
 			break // success
