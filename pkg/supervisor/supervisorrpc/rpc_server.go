@@ -1,7 +1,6 @@
 package supervisorrpc
 
 import (
-	"context"
 	"sbsh/pkg/api"
 )
 
@@ -11,7 +10,7 @@ type SupervisorControllerRPC struct {
 
 // Optional: usually you don’t expose Run over RPC because it blocks.
 func (s *SupervisorControllerRPC) WaitReady(_ *api.Empty, _ *api.Empty) error {
-	return s.Core.WaitReady(context.Background())
+	return s.Core.WaitReady()
 }
 
 func (s *SupervisorControllerRPC) Detach(_ *api.Empty, _ *api.Empty) error {

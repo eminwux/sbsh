@@ -92,9 +92,9 @@ func init() {
 }
 
 func runSession(spec *api.SessionSpec) error {
-	go http.ListenAndServe("127.0.0.1:6060", nil)
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
 	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	go http.ListenAndServe("127.0.0.1:6060", nil)
 	runtime.SetBlockProfileRate(1)     // sample ALL blocking events on chans/locks
 	runtime.SetMutexProfileFraction(1) // sample ALL mutex contention
 	defer cancel()
@@ -128,7 +128,7 @@ func runSession(spec *api.SessionSpec) error {
 
 		return errdefs.ErrContextDone
 	case err := <-errCh:
-		slog.Debug(fmt.Sprintf("[sbsh-sesion] controller stopped with error: %v\r\n", err))
+		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
 		if err != nil && !errors.Is(err, context.Canceled) {
 			if err := sessionCtrl.WaitClose(); err != nil {
 				return fmt.Errorf("%w: %v", errdefs.ErrWaitOnClose, err)

@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sbsh/cmd/sbsh/attach"
 	"sbsh/cmd/sbsh/run"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
@@ -78,6 +79,7 @@ func runSupervisor() error {
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
+		Kind:    api.RunNewSession,
 		ID:      api.ID(supervisorID),
 		Name:    naming.RandomSessionName(),
 		Env:     os.Environ(),
@@ -99,7 +101,7 @@ func runSupervisor() error {
 	}()
 
 	// block until controller is ready (or ctx cancels)
-	if err := ctrl.WaitReady(ctx); err != nil {
+	if err := ctrl.WaitReady(); err != nil {
 		slog.Debug(fmt.Sprintf("controller not ready: %s", err))
 		return fmt.Errorf("%w: %v", ErrWaitOnReady, err)
 	}
@@ -138,6 +140,7 @@ func Execute() {
 
 func init() {
 	rootCmd.AddCommand(run.RunCmd)
+	rootCmd.AddCommand(attach.AttachCmd)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sbsh/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")

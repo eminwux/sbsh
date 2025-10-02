@@ -17,6 +17,8 @@ func (sr *SessionRunnerExec) openSocketIO() error {
 
 	sr.socketIO = filepath.Join(runPath, "io.sock")
 	slog.Debug(fmt.Sprintf("[session] IO socket: %s", sr.socketIO))
+	sr.spec.SocketIO = sr.socketIO
+	sr.updateMetadata()
 
 	// Remove socket if already exists
 	if err := os.Remove(sr.socketIO); err != nil {
@@ -46,6 +48,8 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() error {
 
 	sr.socketCtrl = filepath.Join(sr.getSessionDir(), "ctrl.sock")
 	slog.Debug(fmt.Sprintf("[sessionCtrl] CTRL socket: %s", sr.socketCtrl))
+	sr.spec.SockerCtrl = sr.socketCtrl
+	sr.updateMetadata()
 
 	// Remove sockets if they already exist
 	// remove sockets and dir

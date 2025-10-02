@@ -24,7 +24,7 @@ type SupervisorRunnerExec struct {
 	lastTermState *term.State
 
 	events  chan<- SupervisorRunnerEvent
-	session *sessionstore.SupervisedSession
+	session *api.SupervisedSession
 	Mgr     *sessionstore.SessionStoreExec
 
 	lnCtrl        net.Listener
@@ -39,13 +39,14 @@ const (
 	UIExitShell // Saved lastState restore
 )
 
-func NewSupervisorRunnerExec(ctx context.Context, spec *api.SupervisorSpec) SupervisorRunner {
+func NewSupervisorRunnerExec(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- SupervisorRunnerEvent) SupervisorRunner {
 	newCtx, cancel := context.WithCancel(ctx)
 
 	return &SupervisorRunnerExec{
 		id:   spec.ID,
 		spec: *spec,
 
+		events:    evCh,
 		ctx:       newCtx,
 		ctxCancel: cancel,
 

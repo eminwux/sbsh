@@ -16,14 +16,14 @@ import (
 // ScanAndPrintSessions finds all metadata.json under runPath/sessions/*,
 // unmarshals them into api.SessionSpec, and prints a table to w.
 func ScanAndPrintSessions(ctx context.Context, runPath string, w io.Writer) error {
-	sessions, err := scanSessions(ctx, runPath)
+	sessions, err := ScanSessions(ctx, runPath)
 	if err != nil {
 		return err
 	}
 	return printSessions(w, sessions)
 }
 
-func scanSessions(ctx context.Context, runPath string) ([]api.SessionMetadata, error) {
+func ScanSessions(ctx context.Context, runPath string) ([]api.SessionMetadata, error) {
 	pattern := filepath.Join(runPath, "sessions", "*", "metadata.json")
 	paths, err := filepath.Glob(pattern)
 	if err != nil {
@@ -120,4 +120,37 @@ func joinLabels(m map[string]string) string {
 		parts = append(parts, fmt.Sprintf("%s=%s", k, m[k]))
 	}
 	return strings.Join(parts, ",")
+}
+
+// FindSessionByID scans runPath/sessions/*/metadata.json and returns
+// the session whose Spec.ID matches the given id. If not found, returns nil.
+func FindSessionByID(ctx context.Context, runPath string, id string) (*api.SessionMetadata, error) {
+	sessions, err := ScanSessions(ctx, runPath)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range sessions {
+		if string(s.Spec.ID) == id {
+			// return a copy to avoid referencing the loop variable
+			ss := s
+			return &ss, nil
+		}
+	}
+	return nil, fmt.Errorf("session %q not found", id)
+}
+
+// FindSessionByName scans runPath/sessions/*/metadata.json and returns
+// the session whose Spec.Name matches the given name. If not found, returns nil.
+func FindSessionByName(ctx context.Context, runPath string, name string) (*api.SessionMetadata, error) {
+	sessions, err := ScanSessions(ctx, runPath)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range sessions {
+		if sessionName(s) == name {
+			ss := s // copy to avoid referencing loop variable
+			return &ss, nil
+		}
+	}
+	return nil, fmt.Errorf("session with name %q not found", name)
 }

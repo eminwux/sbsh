@@ -2,15 +2,14 @@ package sessionstore
 
 import (
 	"errors"
-	"net/rpc"
 	"sbsh/pkg/api"
 	"sbsh/pkg/errdefs"
 	"sync"
 )
 
 type SessionStore interface {
-	Add(s *SupervisedSession) error
-	Get(id api.ID) (*SupervisedSession, bool)
+	Add(s *api.SupervisedSession) error
+	Get(id api.ID) (*api.SupervisedSession, bool)
 	ListLive() []api.ID
 	Remove(id api.ID)
 	Current() api.ID
@@ -19,33 +18,18 @@ type SessionStore interface {
 
 type SessionStoreExec struct {
 	mu       sync.RWMutex
-	sessions map[api.ID]*SupervisedSession
+	sessions map[api.ID]*api.SupervisedSession
 	current  api.ID
-}
-
-type SupervisedSession struct {
-	Id               api.ID
-	Kind             api.SessionKind
-	Name             string // user-friendly name
-	Command          string
-	CommandArgs      []string          // for local: ["bash","-i"]; for ssh: ["ssh","-tt","user@host"]
-	Env              []string          // TERM, COLORTERM, etc.
-	Context          map[string]string // kubectl ns, cwd hint, etc.
-	LogFilename      string
-	SockerCtrl       string
-	SocketIO         string
-	Pid              int
-	SessionClientRPC *rpc.Client
 }
 
 func NewSessionStoreExec() SessionStore {
 	return &SessionStoreExec{
-		sessions: make(map[api.ID]*SupervisedSession),
+		sessions: make(map[api.ID]*api.SupervisedSession),
 	}
 }
 
-func NewSupervisedSession(spec *api.SessionSpec) *SupervisedSession {
-	return &SupervisedSession{
+func NewSupervisedSession(spec *api.SessionSpec) *api.SupervisedSession {
+	return &api.SupervisedSession{
 		Id:          spec.ID,
 		Kind:        spec.Kind,
 		Name:        spec.Name,
@@ -53,14 +37,14 @@ func NewSupervisedSession(spec *api.SessionSpec) *SupervisedSession {
 		CommandArgs: spec.CommandArgs,
 		Env:         spec.Env,
 		LogFilename: spec.LogFilename,
-		SockerCtrl:  spec.SockerCtrl,
+		SocketCtrl:  spec.SockerCtrl,
 		SocketIO:    spec.SocketIO,
 	}
 }
 
 /* Basic ops */
 
-func (m *SessionStoreExec) Add(s *SupervisedSession) error {
+func (m *SessionStoreExec) Add(s *api.SupervisedSession) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.sessions[s.Id] != nil {
@@ -73,7 +57,7 @@ func (m *SessionStoreExec) Add(s *SupervisedSession) error {
 	return nil
 }
 
-func (m *SessionStoreExec) Get(id api.ID) (*SupervisedSession, bool) {
+func (m *SessionStoreExec) Get(id api.ID) (*api.SupervisedSession, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	s, ok := m.sessions[id]

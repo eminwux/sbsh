@@ -8,7 +8,7 @@ import (
 
 type SessionStoreTest struct {
 	// Last-call trackers (useful for assertions)
-	LastAdded        *SupervisedSession
+	LastAdded        *api.SupervisedSession
 	LastGetID        api.ID
 	LastRemovedID    api.ID
 	LastSetCurrentID api.ID
@@ -17,8 +17,8 @@ type SessionStoreTest struct {
 	CurrentID api.ID
 
 	// Stub functions (set these in tests to control behavior)
-	AddFunc        func(s *SupervisedSession) error
-	GetFunc        func(id api.ID) (*SupervisedSession, bool)
+	AddFunc        func(s *api.SupervisedSession) error
+	GetFunc        func(id api.ID) (*api.SupervisedSession, bool)
 	ListLiveFunc   func() []api.ID
 	RemoveFunc     func(id api.ID)
 	CurrentFunc    func() api.ID
@@ -27,17 +27,17 @@ type SessionStoreTest struct {
 
 func NewSessionStoreTest() *SessionStoreTest {
 	return &SessionStoreTest{
-		AddFunc: func(s *SupervisedSession) error {
+		AddFunc: func(s *api.SupervisedSession) error {
 			if s == nil {
 				return errors.New("nil session")
 			}
 			return nil
 		},
-		GetFunc: func(id api.ID) (*SupervisedSession, bool) {
+		GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
 			if id == "" {
 				return nil, false
 			}
-			return &SupervisedSession{Id: id}, true
+			return &api.SupervisedSession{Id: id}, true
 		},
 		ListLiveFunc: func() []api.ID {
 			return []api.ID{"sess-1", "sess-2"}
@@ -57,7 +57,7 @@ func NewSessionStoreTest() *SessionStoreTest {
 	}
 }
 
-func (t *SessionStoreTest) Add(s *SupervisedSession) error {
+func (t *SessionStoreTest) Add(s *api.SupervisedSession) error {
 	t.LastAdded = s
 	if t.AddFunc != nil {
 		return t.AddFunc(s)
@@ -65,7 +65,7 @@ func (t *SessionStoreTest) Add(s *SupervisedSession) error {
 	return errdefs.ErrFuncNotSet
 }
 
-func (t *SessionStoreTest) Get(id api.ID) (*SupervisedSession, bool) {
+func (t *SessionStoreTest) Get(id api.ID) (*api.SupervisedSession, bool) {
 	t.LastGetID = id
 	if t.GetFunc != nil {
 		return t.GetFunc(id)

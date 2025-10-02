@@ -2,7 +2,6 @@ package supervisorrunner
 
 import (
 	"fmt"
-	"log"
 	"log/slog"
 	"net"
 	"os"
@@ -20,7 +19,8 @@ func (sr *SupervisorRunnerExec) OpenSocketCtrl() error {
 	}
 	ln, err := net.Listen("unix", sr.supervisorSocketCtrl)
 	if err != nil {
-		log.Fatal(err)
+		slog.Debug(fmt.Sprintf("[supervisor] cannot listen: %v", err))
+		return fmt.Errorf("cannot listen: %v", err)
 	}
 
 	sr.lnCtrl = ln

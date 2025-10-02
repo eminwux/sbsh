@@ -10,7 +10,6 @@ import (
 	"sbsh/pkg/api"
 	"sbsh/pkg/env"
 	"sbsh/pkg/errdefs"
-	"sbsh/pkg/supervisor/sessionstore"
 	"syscall"
 	"time"
 )
@@ -21,9 +20,7 @@ const (
 	rpcTimeout = 1000
 )
 
-func (sr *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *sessionstore.SupervisedSession) error {
-	sr.events = evCh
-	sr.session = session
+func (sr *SupervisorRunnerExec) StartSessionCmd(session *api.SupervisedSession) error {
 
 	devNull, _ := os.OpenFile("/dev/null", os.O_RDWR, 0)
 	cmd := exec.Command(session.Command, session.CommandArgs...)
@@ -48,6 +45,12 @@ func (sr *SupervisorRunnerExec) StartSupervisor(ctx context.Context, evCh chan<-
 		err := fmt.Errorf("session %s process has exited", session.Id)
 		trySendEvent(sr.events, SupervisorRunnerEvent{ID: api.ID(session.Id), Type: EvCmdExited, Err: err, When: time.Now()})
 	}()
+
+	return nil
+}
+
+func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
+	sr.session = session
 
 	if err := sr.dialSessionCtrlSocket(); err != nil {
 		return err

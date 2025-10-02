@@ -21,7 +21,7 @@ type SupervisorControllerTest struct {
 
 	// Stub functions (set these in tests)
 	RunFunc             func(spec *api.SupervisorSpec) error
-	WaitReadyFunc       func(ctx context.Context) error
+	WaitReadyFunc       func() error
 	SetCurrentSessionFn func(id api.ID) error
 	StartFunc           func() error
 	CloseFunc           func(reason error) error
@@ -36,7 +36,7 @@ func NewSupervisorControllerTest() *SupervisorControllerTest {
 			// default: succeed without doing anything
 			return nil
 		},
-		WaitReadyFunc: func(ctx context.Context) error {
+		WaitReadyFunc: func() error {
 			// default: succeed immediately
 			return nil
 		},
@@ -58,9 +58,9 @@ func (t *SupervisorControllerTest) Run(spec *api.SupervisorSpec) error {
 	return ErrFuncNotSet
 }
 
-func (t *SupervisorControllerTest) WaitReady(ctx context.Context) error {
+func (t *SupervisorControllerTest) WaitReady() error {
 	if t.WaitReadyFunc != nil {
-		return t.WaitReadyFunc(ctx)
+		return t.WaitReadyFunc()
 	}
 	return ErrFuncNotSet
 }

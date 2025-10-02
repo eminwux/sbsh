@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"sbsh/pkg/api"
-	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
 )
 
@@ -31,9 +30,10 @@ type SupervisorRunnerTest struct {
 	CloseFunc             func(reason error) error
 	ResizeFunc            func(args api.ResizeArgs)
 	SetCurrentSessionFunc func(id api.ID) error
-	StartSupervisorFunc   func(ctx context.Context, evCh chan<- SupervisorRunnerEvent) error
+	AttachFunc            func(session *api.SupervisedSession) error
 	CreateMetadataFunc    func() error
 	DetachFunc            func() error
+	StartSessionCmdFunc   func(session *api.SupervisedSession) error
 }
 
 // NewSupervisorRunnerTest returns a new SupervisorRunnerTest instance
@@ -79,6 +79,7 @@ func (t *SupervisorRunnerTest) Resize(args api.ResizeArgs) {
 		t.ResizeFunc(args)
 	}
 }
+
 func (t *SupervisorRunnerTest) SetCurrentSession(id api.ID) error {
 	if t.SetCurrentSessionFunc != nil {
 		return t.SetCurrentSessionFunc(id)
@@ -86,21 +87,30 @@ func (t *SupervisorRunnerTest) SetCurrentSession(id api.ID) error {
 	return ErrFuncNotSet
 }
 
-func (t *SupervisorRunnerTest) StartSupervisor(ctx context.Context, evCh chan<- SupervisorRunnerEvent, session *sessionstore.SupervisedSession) error {
-	if t.StartSupervisorFunc != nil {
-		return t.StartSupervisorFunc(ctx, evCh)
+func (t *SupervisorRunnerTest) Attach(session *api.SupervisedSession) error {
+	if t.AttachFunc != nil {
+		return t.AttachFunc(session)
 	}
 	return ErrFuncNotSet
 }
+
 func (t *SupervisorRunnerTest) CreateMetadata() error {
 	if t.CreateMetadataFunc != nil {
 		return t.CreateMetadataFunc()
 	}
 	return ErrFuncNotSet
 }
+
 func (t *SupervisorRunnerTest) Detach() error {
 	if t.DetachFunc != nil {
 		return t.DetachFunc()
+	}
+	return ErrFuncNotSet
+}
+
+func (t *SupervisorRunnerTest) StartSessionCmd(session *api.SupervisedSession) error {
+	if t.StartSessionCmdFunc != nil {
+		return t.StartSessionCmdFunc(session)
 	}
 	return ErrFuncNotSet
 }

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"sbsh/pkg/api"
+	"sbsh/pkg/discovery"
 	"sbsh/pkg/errdefs"
 	"sbsh/pkg/naming"
 	"sbsh/pkg/supervisor/sessionstore"
@@ -49,12 +50,12 @@ func NewSupervisorController(ctx context.Context) api.SupervisorController {
 	return c
 }
 
-func (s *SupervisorController) WaitReady(ctx context.Context) error {
+func (s *SupervisorController) WaitReady() error {
 	select {
 	case <-ctrlReady:
 		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-s.ctx.Done():
+		return s.ctx.Err()
 	}
 }
 
@@ -66,7 +67,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 
 	s.runPath = spec.RunPath
 
-	sr = newSupervisorRunner(s.ctx, spec)
+	sr = newSupervisorRunner(s.ctx, spec, eventsCh)
 	ss = newSessionStore()
 
 	err := sr.CreateMetadata()
@@ -101,45 +102,53 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		return fmt.Errorf("%w: %v", errdefs.ErrStartRPCServer, err)
 	}
 
-	sessionID := naming.RandomID()
-	sessionName := naming.RandomSessionName()
+	var session *api.SupervisedSession
+	switch spec.Kind {
+	case api.RunNewSession:
+		session, err = s.CreateRunNewSession()
+		if err != nil {
+			if errC := s.Close(err); errC != nil {
+				err = fmt.Errorf("%w: %v: %v", err, errdefs.ErrOnClose, errC)
+			}
+			close(ctrlReady)
+			return err
+		}
 
-	// exe := "/home/inwx/projects/sbsh/sbsh-session"
-	args := []string{"run", "--id", sessionID, "--name", sessionName}
+		if err := sr.StartSessionCmd(session); err != nil {
+			slog.Debug(fmt.Sprintf("failed to start session cmd: %v", err))
+			if errC := s.Close(err); errC != nil {
+				err = fmt.Errorf("%v: %v: %v", err, errdefs.ErrOnClose, errC)
+			}
+			close(ctrlReady)
+			return fmt.Errorf("%w: %v", errdefs.ErrStartSessionCmd, err)
+		}
+	case api.AttachToSession:
+		session, err = s.CreateAttachSession(spec)
+		if err != nil {
+			if errC := s.Close(err); errC != nil {
+				err = fmt.Errorf("%w: %v: %v", err, errdefs.ErrOnClose, errC)
+			}
+			close(ctrlReady)
+			return err
+		}
 
-	execPath, err := os.Executable()
-	if err != nil {
-		close(ctrlReady)
-		slog.Debug(fmt.Sprintf("failed to start cmd: %v", err))
-		return fmt.Errorf("%w: %v", errdefs.ErrStartCmd, err)
-	}
-
-	sessionSpec := &api.SessionSpec{
-		ID:          api.ID(sessionID),
-		Kind:        api.SessLocal,
-		Name:        sessionName,
-		Command:     execPath,
-		CommandArgs: args,
-		Env:         os.Environ(),
-		LogFilename: s.runPath + "/sessions/" + sessionID + "/log",
-		SockerCtrl:  s.runPath + "/sessions/" + sessionID + "/ctrl.sock",
-		SocketIO:    s.runPath + "/sessions/" + sessionID + "/io.sock",
-	}
-
-	session := sessionstore.NewSupervisedSession(sessionSpec)
-	if err := ss.Add(session); err != nil {
-		close(ctrlReady)
-		return fmt.Errorf("%w: %v", errdefs.ErrSessionStore, err)
-	}
-
-	if err := sr.StartSupervisor(s.ctx, eventsCh, session); err != nil {
-		slog.Debug(fmt.Sprintf("failed to start session: %v", err))
+	default:
 		if err := s.Close(err); err != nil {
 			err = fmt.Errorf("%w: %v", errdefs.ErrOnClose, err)
 		}
 		close(ctrlReady)
-		return fmt.Errorf("%w: %v", errdefs.ErrStartSupervisor, err)
+		return errdefs.ErrSupervisorKind
 	}
+
+	if err := sr.Attach(session); err != nil {
+		slog.Debug(fmt.Sprintf("failed to attach: %v", err))
+		if err := s.Close(err); err != nil {
+			err = fmt.Errorf("%w: %v", errdefs.ErrOnClose, err)
+		}
+		close(ctrlReady)
+		return fmt.Errorf("%w: %v", errdefs.ErrAttach, err)
+	}
+
 	close(ctrlReady)
 
 	for {
@@ -168,6 +177,66 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 			return fmt.Errorf("%w: %v", errdefs.ErrCloseReq, err)
 		}
 	}
+}
+
+func (s *SupervisorController) CreateAttachSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
+
+	// read from metadata
+
+	var metadata *api.SessionMetadata
+	var err error
+	if spec.AttachID != "" {
+		metadata, err = discovery.FindSessionByID(s.ctx, spec.RunPath, string(spec.AttachID))
+		if err != nil {
+			return nil, fmt.Errorf("coult not find session by ID")
+		}
+
+	} else if spec.AttachName != "" {
+		metadata, err = discovery.FindSessionByName(s.ctx, spec.RunPath, spec.AttachName)
+		if err != nil {
+			return nil, fmt.Errorf("coult not find session by Name")
+		}
+	}
+	session := sessionstore.NewSupervisedSession(metadata.Spec)
+	if err := ss.Add(session); err != nil {
+		return nil, fmt.Errorf("%w: %v", errdefs.ErrSessionStore, err)
+	}
+
+	return session, nil
+}
+
+func (s *SupervisorController) CreateRunNewSession() (*api.SupervisedSession, error) {
+
+	sessionID := naming.RandomID()
+	sessionName := naming.RandomSessionName()
+
+	// exe := "/home/inwx/projects/sbsh/sbsh-session"
+	args := []string{"run", "--id", sessionID, "--name", sessionName}
+
+	execPath, err := os.Executable()
+	if err != nil {
+
+		return nil, fmt.Errorf("%w: %v", errdefs.ErrStartCmd, err)
+	}
+
+	sessionSpec := &api.SessionSpec{
+		ID:          api.ID(sessionID),
+		Kind:        api.SessLocal,
+		Name:        sessionName,
+		Command:     execPath,
+		CommandArgs: args,
+		Env:         os.Environ(),
+		LogFilename: s.runPath + "/sessions/" + sessionID + "/log",
+		SockerCtrl:  s.runPath + "/sessions/" + sessionID + "/ctrl.sock",
+		SocketIO:    s.runPath + "/sessions/" + sessionID + "/io.sock",
+	}
+
+	session := sessionstore.NewSupervisedSession(sessionSpec)
+	if err := ss.Add(session); err != nil {
+		return nil, fmt.Errorf("%w: %v", errdefs.ErrSessionStore, err)
+	}
+
+	return session, nil
 }
 
 /* ---------- Event handlers ---------- */

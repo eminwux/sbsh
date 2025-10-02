@@ -22,7 +22,7 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 				// default: succeed without doing anything
 				return nil
 			},
-			WaitReadyFunc: func(ctx context.Context) error {
+			WaitReadyFunc: func() error {
 				// default: succeed immediately
 				return nil
 			},
@@ -69,7 +69,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 				// default: succeed without doing anything
 				return nil
 			},
-			WaitReadyFunc: func(ctx context.Context) error {
+			WaitReadyFunc: func() error {
 				return fmt.Errorf("not ready")
 			},
 			WaitCloseFunc: func() error {
@@ -110,7 +110,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 				// default: succeed without doing anything
 				return nil
 			},
-			WaitReadyFunc: func(ctx context.Context) error {
+			WaitReadyFunc: func() error {
 				return nil
 			},
 			WaitCloseFunc: func() error {
@@ -150,7 +150,7 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 				// default: succeed without doing anything
 				return fmt.Errorf("force child exit")
 			},
-			WaitReadyFunc: func(ctx context.Context) error {
+			WaitReadyFunc: func() error {
 				return nil
 			},
 			WaitCloseFunc: func() error {

@@ -16,9 +16,12 @@ import (
 
 func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 
-	slog.Debug(fmt.Sprintf("[supervisor] %s session on  %d trying to connect to %s\r\n", sr.session.Id, sr.session.Pid, sr.session.SockerCtrl))
+	slog.Debug(fmt.Sprintf("[supervisor] %s session on  %d trying to connect to %s\r\n",
+		sr.session.Id,
+		sr.session.Pid,
+		sr.session.SocketCtrl))
 
-	sr.sessionClient = session.NewUnix(sr.session.SockerCtrl)
+	sr.sessionClient = session.NewUnix(sr.session.SocketCtrl)
 	defer sr.sessionClient.Close()
 
 	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)
