@@ -184,5 +184,8 @@ func (sr *SessionRunnerExec) Detach(id *api.ID) error {
 		_ = conn.Close()
 	}()
 
+	sr.metadata.Status.State = api.SessionStatusDetached
+	_ = sr.updateMetadata()
+
 	return nil
 }
