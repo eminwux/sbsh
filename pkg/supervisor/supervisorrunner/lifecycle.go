@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sbsh/pkg/api"
-	"sbsh/pkg/env"
 	"sbsh/pkg/errdefs"
 	"syscall"
 	"time"
@@ -26,7 +25,7 @@ func (sr *SupervisorRunnerExec) StartSessionCmd(session *api.SupervisedSession) 
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // detach from your pg/ctty
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = devNull, devNull, devNull
 
-	cmd.Env = append(session.Env, env.KV(env.SUP_SOCKET, sr.supervisorSocketCtrl))
+	cmd.Env = session.Env
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("%w :%v", errdefs.ErrSessionCmdStart, err)
@@ -65,6 +64,10 @@ func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
 	}
 
 	if err := sr.attachIOSocket(conn); err != nil {
+		return err
+	}
+
+	if err := sr.initTerminal(conn); err != nil {
 		return err
 	}
 

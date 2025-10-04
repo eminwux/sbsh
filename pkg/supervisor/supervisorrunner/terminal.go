@@ -2,6 +2,7 @@ package supervisorrunner
 
 import (
 	"log"
+	"net"
 	"os"
 
 	"golang.org/x/term"
@@ -33,6 +34,21 @@ func (sr *SupervisorRunnerExec) toExitShell() error {
 
 	sr.uiMode = UIExitShell
 	return nil
+}
+
+func (sr *SupervisorRunnerExec) initTerminal(conn net.Conn) error {
+	if err := writeterminal(conn, "export SBSH_SUP_SOCKET="+sr.supervisorSocketCtrl+"\n"); err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func writeterminal(conn net.Conn, input string) error {
+	_, err := conn.Write([]byte(input))
+
+	return err
 }
 
 func toRawMode() (*term.State, error) {
