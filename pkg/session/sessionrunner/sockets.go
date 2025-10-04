@@ -6,6 +6,9 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sbsh/pkg/api"
+
+	"golang.org/x/sys/unix"
 )
 
 func (sr *SessionRunnerExec) openSocketIO() error {
@@ -36,7 +39,7 @@ func (sr *SessionRunnerExec) openSocketIO() error {
 	}
 
 	sr.clientsMu.Lock()
-	sr.clients = make(map[int]*ioClient)
+	sr.clients = make(map[string]*ioClient)
 	sr.clientsMu.Unlock()
 
 	sr.listenerIO = ioLn
@@ -73,4 +76,33 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() error {
 	// keep references for Close()
 
 	return nil
+}
+
+func (sr *SessionRunnerExec) CreateNewClient(id *api.ID) (int, error) {
+	var sv [2]int
+	var err error
+
+	sv, err = unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|unix.SOCK_CLOEXEC, 0)
+	if err != nil {
+		return -1, err
+	}
+
+	srvFD := sv[0]
+	cliFD := sv[1]
+
+	f := os.NewFile(uintptr(srvFD), "session-io")
+
+	ioConn, err := net.FileConn(f)
+	if err != nil {
+		return -1, fmt.Errorf("FileConn: %w", err)
+	}
+	f.Close() // release the duplicate, keep using ioConn
+	fmt.Printf("%d", ioConn)
+
+	cl := &ioClient{id: string(*id), conn: ioConn}
+
+	sr.addClient(cl)
+	go sr.handleClient(cl)
+
+	return cliFD, nil
 }

@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"net"
 	"sbsh/pkg/api"
 )
 
@@ -11,6 +12,6 @@ type Client interface {
 	Detach(ctx context.Context) error
 	// add more RPCs as you expose them:
 	// List(ctx context.Context) ([]api.Session, error)
-	// Attach(ctx context.Context, id api.ID) error
+	Attach(ctx context.Context, id *api.ID, response any) (net.Conn, error)
 	Close() error
 }

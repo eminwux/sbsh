@@ -15,6 +15,7 @@ type SessionRunnerTest struct {
 	ResizeFunc         func(args api.ResizeArgs)
 	IDFunc             func() api.ID
 	CreateMetadataFunc func() error
+	AttachFunc         func(id *api.ID, response *api.ResponseWithFD) error
 	DetachFunc         func() error
 }
 
@@ -66,6 +67,13 @@ func (sr *SessionRunnerTest) CreateMetadata() error {
 		sr.CreateMetadataFunc()
 	}
 	return nil
+}
+
+func (sr *SessionRunnerTest) Attach(id *api.ID, response *api.ResponseWithFD) error {
+	if sr.AttachFunc != nil {
+		return sr.AttachFunc(id, response)
+	}
+	return errdefs.ErrFuncNotSet
 }
 
 func (sr *SessionRunnerTest) Detach() error {

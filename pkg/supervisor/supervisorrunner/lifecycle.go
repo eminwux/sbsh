@@ -56,11 +56,16 @@ func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
 		return err
 	}
 
-	if err := sr.attachAndForwardResize(); err != nil {
+	conn, err := sr.attach()
+	if err != nil {
 		return err
 	}
 
-	if err := sr.attachIOSocket(); err != nil {
+	if err := sr.forwardResize(); err != nil {
+		return err
+	}
+
+	if err := sr.attachIOSocket2(conn); err != nil {
 		return err
 	}
 

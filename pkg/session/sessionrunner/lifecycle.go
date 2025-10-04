@@ -134,6 +134,32 @@ func (sr *SessionRunnerExec) Write(p []byte) (int, error) {
 	return sr.pty.Write(p)
 }
 
+func (sr *SessionRunnerExec) Attach(id *api.ID, response *api.ResponseWithFD) error {
+	cliFD, err := sr.CreateNewClient(id)
+
+	if err != nil {
+		return err
+	}
+
+	payload := struct {
+		OK bool `json:"ok"`
+	}{OK: true}
+
+	fds := []int{cliFD}
+
+	slog.Debug("[session] Attach response",
+		"ok", payload.OK,
+		"fds", fds,
+	)
+
+	response.JSON = payload
+	response.FDs = fds
+
+	// Inline FDCarrier via closure:
+	return nil
+
+}
+
 func (sr *SessionRunnerExec) Detach() error {
 	// remove client pipe from multiwriterR
 	// remove client pipe from stdin

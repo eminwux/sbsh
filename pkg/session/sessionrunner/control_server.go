@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/rpc"
-	"net/rpc/jsonrpc"
 	"sbsh/pkg/api"
 	"sbsh/pkg/session/sessionrpc"
 )
@@ -55,6 +54,9 @@ func (sr *SessionRunnerExec) StartServer(sc *sessionrpc.SessionControllerRPC, re
 
 			return
 		}
-		go srv.ServeCodec(jsonrpc.NewServerCodec(conn))
+		// go srv.ServeCodec(jsonrpc.NewServerCodec(conn))
+		uconn := conn.(*net.UnixConn)
+		go srv.ServeCodec(sessionrpc.NewUnixJSONServerCodec(uconn))
+
 	}
 }

@@ -46,7 +46,7 @@ type SessionRunnerExec struct {
 	metadataFile string
 
 	clientsMu sync.RWMutex
-	clients   map[int]*ioClient
+	clients   map[string]*ioClient
 
 	closeReqCh chan error
 	closedCh   chan struct{}
@@ -61,7 +61,7 @@ type ptyPipes struct {
 }
 
 type ioClient struct {
-	id       int
+	id       string
 	conn     net.Conn
 	pipeOutR *os.File
 	pipeOutW *os.File

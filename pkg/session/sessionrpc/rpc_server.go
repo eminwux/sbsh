@@ -21,6 +21,10 @@ func (s *SessionControllerRPC) Detach(_ *api.Empty, _ *api.Empty) error {
 	return s.Core.Detach()
 }
 
+func (s *SessionControllerRPC) Attach(id *api.ID, response *api.ResponseWithFD) error {
+	return s.Core.Attach(id, response)
+}
+
 // TODO
 // show session details, including attach status
 // attach, redirects pipe output/input to socket

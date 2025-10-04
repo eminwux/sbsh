@@ -8,6 +8,7 @@ type SessionController interface {
 	Close(reason error) error
 	Resize(ResizeArgs)
 	Detach() error
+	Attach(id *ID, reply *ResponseWithFD) error
 }
 
 type SessionState int
@@ -75,6 +76,7 @@ const SessionService = "SessionController"
 const (
 	SessionMethodResize = SessionService + ".Resize"
 	SessionMethodStatus = SessionService + ".Status"
+	SessionMethodAttach = SessionService + ".Attach"
 	SessionMethodDetach = SessionService + ".Detach"
 )
 
@@ -85,4 +87,10 @@ type SessionStatusMessage struct {
 type ResizeArgs struct {
 	Cols int
 	Rows int
+}
+
+// ResponseWithFD carries a normal JSON result plus OOB file descriptors.
+type ResponseWithFD struct {
+	JSON any   // what to JSON-encode into "result"
+	FDs  []int // file descriptors to pass via SCM_RIGHTS
 }

@@ -14,4 +14,5 @@ type SessionRunner interface {
 	Resize(args api.ResizeArgs)
 	CreateMetadata() error
 	Detach() error
+	Attach(id *api.ID, response *api.ResponseWithFD) error
 }

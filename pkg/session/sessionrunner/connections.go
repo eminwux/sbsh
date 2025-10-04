@@ -21,7 +21,7 @@ func (sr *SessionRunnerExec) handleConnections() error {
 		}
 		slog.Debug("[session] client connected!\r\n")
 		cid++
-		cl := &ioClient{id: cid, conn: conn}
+		cl := &ioClient{id: string(rune(cid)), conn: conn}
 
 		sr.addClient(cl)
 		go sr.handleClient(cl)

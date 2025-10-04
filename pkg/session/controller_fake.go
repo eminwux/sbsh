@@ -16,6 +16,7 @@ type FakeSessionController struct {
 	StatusFunc    func() string
 	CloseFunc     func(reason error) error
 	ResizeFunc    func()
+	AttachFunc    func(id *api.ID, response *api.ResponseWithFD) error
 	DetachFunc    func() error
 }
 
@@ -57,6 +58,13 @@ func (f *FakeSessionController) Resize(args api.ResizeArgs) {
 	if f.ResizeFunc != nil {
 		f.ResizeFunc()
 	}
+}
+
+func (f *FakeSessionController) Attach(id *api.ID, response *api.ResponseWithFD) error {
+	if f.AttachFunc != nil {
+		return f.AttachFunc(id, response)
+	}
+	return errdefs.ErrFuncNotSet
 }
 
 func (f *FakeSessionController) Detach() error {

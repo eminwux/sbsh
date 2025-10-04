@@ -183,6 +183,21 @@ func (c *SessionController) Resize(args api.ResizeArgs) {
 
 }
 
+func (c *SessionController) Attach(id *api.ID, response *api.ResponseWithFD) error {
+	var err error
+	err = sr.Attach(id, response)
+	if err != nil {
+		return err
+	}
+
+	slog.Debug("[session] Attach controller response",
+		"ok", response.JSON,
+		"fds", response.FDs,
+	)
+
+	return nil
+}
+
 func (c *SessionController) Detach() error {
 
 	return sr.Detach()
