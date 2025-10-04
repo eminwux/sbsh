@@ -1,3 +1,19 @@
+// Copyright 2025 Emiliano Spinella (eminwux)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package sessionrunner
 
 import (
@@ -6,16 +22,15 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"sbsh/pkg/api"
 	"time"
 
 	"github.com/creack/pty"
+	"sbsh/pkg/api"
 )
 
 const deleteSessionDir bool = false
 
 func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error {
-
 	sr.evCh = evCh
 
 	if err := sr.openSocketIO(); err != nil {
@@ -39,18 +54,15 @@ func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error 
 }
 
 func (sr *SessionRunnerExec) waitOnSession() {
-
 	select {
 	case err := <-sr.closeReqCh:
 		slog.Debug("[session] sending EvSessionExited event\r\n")
 		trySendEvent(sr.evCh, SessionRunnerEvent{ID: sr.id, Type: EvCmdExited, Err: err, When: time.Now()})
 		return
 	}
-
 }
 
 func (sr *SessionRunnerExec) Close(reason error) error {
-
 	slog.Debug(fmt.Sprintf("[session-runner] closing session-runner on request, reason: %v\r\n", reason))
 
 	sr.metadata.Status.State = api.SessionStatusExited
@@ -118,7 +130,6 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 
 	close(sr.closedCh)
 	return nil
-
 }
 
 func (sr *SessionRunnerExec) Resize(args api.ResizeArgs) {
@@ -135,7 +146,6 @@ func (sr *SessionRunnerExec) Write(p []byte) (int, error) {
 
 func (sr *SessionRunnerExec) Attach(id *api.ID, response *api.ResponseWithFD) error {
 	cliFD, err := sr.CreateNewClient(id)
-
 	if err != nil {
 		return err
 	}
@@ -155,8 +165,8 @@ func (sr *SessionRunnerExec) Attach(id *api.ID, response *api.ResponseWithFD) er
 	response.FDs = fds
 
 	return nil
-
 }
+
 func (sr *SessionRunnerExec) Detach(id *api.ID) error {
 	// 1) Lookup
 	ioClient, ok := sr.getClient(*id)

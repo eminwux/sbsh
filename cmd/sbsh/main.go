@@ -1,6 +1,18 @@
-/*
-Copyright © 2025 Emiliano Spinella (eminwux)
-*/
+// Copyright 2025 Emiliano Spinella (eminwux)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
 
 package main
 
@@ -13,6 +25,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"syscall"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"sbsh/cmd/sbsh/attach"
 	"sbsh/cmd/sbsh/run"
 	"sbsh/pkg/api"
@@ -20,15 +36,13 @@ import (
 	"sbsh/pkg/env"
 	"sbsh/pkg/naming"
 	"sbsh/pkg/supervisor"
-	"syscall"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-var newSupervisorController = supervisor.NewSupervisorController
-var ctx context.Context
-var cancel context.CancelFunc
+var (
+	newSupervisorController = supervisor.NewSupervisorController
+	ctx                     context.Context
+	cancel                  context.CancelFunc
+)
 
 var (
 	logLevel string
@@ -46,9 +60,7 @@ var rootCmd = &cobra.Command{
 	Short: "A brief description of your application",
 	Long:  `A longer description ...`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-
 		err := LoadConfig()
-
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Config error:", err)
 			os.Exit(1)
@@ -61,14 +73,12 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-
 		err := LoadConfig()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Config error:", err)
 			os.Exit(1)
 		}
 		runSupervisor()
-
 	},
 }
 
@@ -166,7 +176,6 @@ func LoadConfig() error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatalf("err: %v", err)
-
 	}
 	viper.AddConfigPath(filepath.Join(home, ".sbsh"))
 
@@ -179,7 +188,6 @@ func LoadConfig() error {
 	if err := viper.ReadInConfig(); err != nil {
 		// File not found is OK if ENV is set
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-
 		} else {
 			return err // Config file was found but another error was produced
 		}
