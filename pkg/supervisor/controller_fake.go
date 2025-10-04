@@ -20,13 +20,12 @@ type SupervisorControllerTest struct {
 	LastID  api.ID
 
 	// Stub functions (set these in tests)
-	RunFunc             func(spec *api.SupervisorSpec) error
-	WaitReadyFunc       func() error
-	SetCurrentSessionFn func(id api.ID) error
-	StartFunc           func() error
-	CloseFunc           func(reason error) error
-	WaitCloseFunc       func() error
-	DetachFunc          func() error
+	RunFunc       func(spec *api.SupervisorSpec) error
+	WaitReadyFunc func() error
+	StartFunc     func() error
+	CloseFunc     func(reason error) error
+	WaitCloseFunc func() error
+	DetachFunc    func() error
 }
 
 // (Optional) constructor with zeroed fields.
@@ -38,10 +37,6 @@ func NewSupervisorControllerTest() *SupervisorControllerTest {
 		},
 		WaitReadyFunc: func() error {
 			// default: succeed immediately
-			return nil
-		},
-		SetCurrentSessionFn: func(id api.ID) error {
-			// default: just accept the ID
 			return nil
 		},
 		StartFunc: func() error {
@@ -61,14 +56,6 @@ func (t *SupervisorControllerTest) Run(spec *api.SupervisorSpec) error {
 func (t *SupervisorControllerTest) WaitReady() error {
 	if t.WaitReadyFunc != nil {
 		return t.WaitReadyFunc()
-	}
-	return ErrFuncNotSet
-}
-
-func (t *SupervisorControllerTest) SetCurrentSession(id api.ID) error {
-	t.LastID = id
-	if t.SetCurrentSessionFn != nil {
-		return t.SetCurrentSessionFn(id)
 	}
 	return ErrFuncNotSet
 }

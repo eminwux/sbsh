@@ -29,10 +29,6 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 			WaitCloseFunc: func() error {
 				return nil
 			},
-			SetCurrentSessionFn: func(id api.ID) error {
-				// default: just accept the ID
-				return nil
-			},
 			StartFunc: func() error {
 				// default: succeed immediately
 				return nil
@@ -75,10 +71,6 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 			WaitCloseFunc: func() error {
 				return nil
 			},
-			SetCurrentSessionFn: func(id api.ID) error {
-				// default: just accept the ID
-				return nil
-			},
 			StartFunc: func() error {
 				// default: succeed immediately
 				return nil
@@ -116,10 +108,6 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 			WaitCloseFunc: func() error {
 				return fmt.Errorf("not closed")
 			},
-			SetCurrentSessionFn: func(id api.ID) error {
-				// default: just accept the ID
-				return nil
-			},
 			StartFunc: func() error {
 				// default: succeed immediately
 				return nil
@@ -154,10 +142,6 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 				return nil
 			},
 			WaitCloseFunc: func() error {
-				return nil
-			},
-			SetCurrentSessionFn: func(id api.ID) error {
-				// default: just accept the ID
 				return nil
 			},
 			StartFunc: func() error {

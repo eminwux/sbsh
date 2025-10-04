@@ -13,7 +13,6 @@ type SupervisorRunner interface {
 	ID() api.ID
 	Close(reason error) error
 	Resize(args api.ResizeArgs)
-	SetCurrentSession(id api.ID) error
 	CreateMetadata() error
 	Detach() error
 	StartSessionCmd(session *api.SupervisedSession) error

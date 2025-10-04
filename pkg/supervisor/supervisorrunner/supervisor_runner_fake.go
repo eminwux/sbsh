@@ -24,16 +24,20 @@ type SupervisorRunnerTest struct {
 	LastResize     api.ResizeArgs
 
 	// Stub functions
-	OpenSocketCtrlFunc    func() error
-	StartServerFunc       func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error)
-	IDFunc                func() api.ID
-	CloseFunc             func(reason error) error
-	ResizeFunc            func(args api.ResizeArgs)
-	SetCurrentSessionFunc func(id api.ID) error
-	AttachFunc            func(session *api.SupervisedSession) error
-	CreateMetadataFunc    func() error
-	DetachFunc            func() error
-	StartSessionCmdFunc   func(session *api.SupervisedSession) error
+	OpenSocketCtrlFunc func() error
+	StartServerFunc    func(
+		ctx context.Context,
+		sc *supervisorrpc.SupervisorControllerRPC,
+		readyCh chan error,
+		doneCh chan error,
+	)
+	IDFunc              func() api.ID
+	CloseFunc           func(reason error) error
+	ResizeFunc          func(args api.ResizeArgs)
+	AttachFunc          func(session *api.SupervisedSession) error
+	CreateMetadataFunc  func() error
+	DetachFunc          func() error
+	StartSessionCmdFunc func(session *api.SupervisedSession) error
 }
 
 // NewSupervisorRunnerTest returns a new SupervisorRunnerTest instance
@@ -78,13 +82,6 @@ func (t *SupervisorRunnerTest) Resize(args api.ResizeArgs) {
 	if t.ResizeFunc != nil {
 		t.ResizeFunc(args)
 	}
-}
-
-func (t *SupervisorRunnerTest) SetCurrentSession(id api.ID) error {
-	if t.SetCurrentSessionFunc != nil {
-		return t.SetCurrentSessionFunc(id)
-	}
-	return ErrFuncNotSet
 }
 
 func (t *SupervisorRunnerTest) Attach(session *api.SupervisedSession) error {

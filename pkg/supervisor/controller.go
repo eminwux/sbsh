@@ -3,7 +3,6 @@ package supervisor
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"sbsh/pkg/api"
@@ -258,14 +257,6 @@ func (s *SupervisorController) onClosed(_ api.ID, err error) {
 	s.Close(err)
 }
 
-func (s *SupervisorController) SetCurrentSession(id api.ID) error {
-	if err := ss.SetCurrent(id); err != nil {
-		log.Fatalf("failed to set current session: %v", err)
-		return err
-	}
-	return nil
-
-}
 func (s *SupervisorController) Close(reason error) error {
 	slog.Debug(fmt.Sprintf("[supervisor] Close called: %v\r\n", reason))
 	s.closing <- reason

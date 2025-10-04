@@ -14,8 +14,6 @@ import (
 
 const (
 	deleteSupervisorDir bool = false
-	// timeout in milliseconds
-	rpcTimeout = 1000
 )
 
 func (sr *SupervisorRunnerExec) StartSessionCmd(session *api.SupervisedSession) error {
@@ -104,13 +102,5 @@ func (sr *SupervisorRunnerExec) Detach() error {
 		return err
 	}
 
-	return nil
-}
-
-func (sr *SupervisorRunnerExec) SetCurrentSession(id api.ID) error {
-	// Initial terminal mode (bash passthrough)
-	if err := sr.toBashUIMode(); err != nil {
-		slog.Debug(fmt.Sprintf("[supervisor] initial raw mode failed: %v", err))
-	}
 	return nil
 }

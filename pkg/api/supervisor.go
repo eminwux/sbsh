@@ -3,7 +3,6 @@ package api
 type SupervisorController interface {
 	Run(spec *SupervisorSpec) error
 	WaitReady() error
-	SetCurrentSession(id ID) error
 	Close(reason error) error
 	WaitClose() error
 	Detach() error
