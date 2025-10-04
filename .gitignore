@@ -4,3 +4,4 @@
 /sbsh-session
 /TODO
 **/__debug_bin*
+/node_modules/**
