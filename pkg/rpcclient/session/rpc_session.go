@@ -134,8 +134,8 @@ func (c *client) Resize(ctx context.Context, args *api.ResizeArgs) error {
 	return c.call(ctx, api.SessionMethodResize, args, &api.Empty{})
 }
 
-func (c *client) Detach(ctx context.Context) error {
-	return c.call(ctx, api.SessionMethodDetach, &api.Empty{}, &api.Empty{})
+func (c *client) Detach(ctx context.Context, id *api.ID) error {
+	return c.call(ctx, api.SessionMethodDetach, id, &api.Empty{})
 }
 
 // --- Attach (uses FD-aware codec) ---

@@ -1,7 +1,6 @@
 package supervisorrunner
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -51,7 +50,7 @@ func (sr *SupervisorRunnerExec) StartSessionCmd(session *api.SupervisedSession) 
 
 func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
 	sr.session = session
-
+	var err error
 	if err := sr.dialSessionCtrlSocket(); err != nil {
 		return err
 	}
@@ -65,7 +64,7 @@ func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
 		return err
 	}
 
-	if err := sr.attachIOSocket2(conn); err != nil {
+	if err := sr.attachIOSocket(conn); err != nil {
 		return err
 	}
 
@@ -98,12 +97,8 @@ func (sr *SupervisorRunnerExec) Resize(args api.ResizeArgs) {
 }
 
 func (sr *SupervisorRunnerExec) Detach() error {
-
-	ctx, cancel := context.WithTimeout(sr.ctx, rpcTimeout*time.Millisecond)
-	defer cancel()
-
-	if err := sr.sessionClient.Detach(ctx); err != nil {
-		return fmt.Errorf("%w: %v", errdefs.ErrDetachSession, err)
+	if err := sr.sessionClient.Detach(sr.ctx, &sr.id); err != nil {
+		return err
 	}
 
 	return nil

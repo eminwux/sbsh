@@ -43,7 +43,7 @@ to quickly create a Cobra application.`,
 
 		fmt.Fprintf(os.Stdout, "attaching..\r\n")
 		if err := sup.Detach(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "detach failed: %v\r\n", err)
+			fmt.Fprintf(os.Stderr, "attach failed: %v\r\n", err)
 			os.Exit(1)
 		}
 

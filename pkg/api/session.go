@@ -7,7 +7,7 @@ type SessionController interface {
 	Status() string
 	Close(reason error) error
 	Resize(ResizeArgs)
-	Detach() error
+	Detach(id *ID) error
 	Attach(id *ID, reply *ResponseWithFD) error
 }
 

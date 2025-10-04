@@ -16,7 +16,7 @@ type SessionRunnerTest struct {
 	IDFunc             func() api.ID
 	CreateMetadataFunc func() error
 	AttachFunc         func(id *api.ID, response *api.ResponseWithFD) error
-	DetachFunc         func() error
+	DetachFunc         func(id *api.ID) error
 }
 
 func NewSessionRunnerTest(ctx context.Context) SessionRunner {
@@ -76,9 +76,9 @@ func (sr *SessionRunnerTest) Attach(id *api.ID, response *api.ResponseWithFD) er
 	return errdefs.ErrFuncNotSet
 }
 
-func (sr *SessionRunnerTest) Detach() error {
+func (sr *SessionRunnerTest) Detach(id *api.ID) error {
 	if sr.DetachFunc != nil {
-		sr.DetachFunc()
+		sr.DetachFunc(id)
 	}
 	return errdefs.ErrFuncNotSet
 }

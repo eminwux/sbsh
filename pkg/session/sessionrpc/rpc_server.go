@@ -17,8 +17,8 @@ func (s *SessionControllerRPC) Resize(args api.ResizeArgs, _ *api.Empty) error {
 	return nil
 }
 
-func (s *SessionControllerRPC) Detach(_ *api.Empty, _ *api.Empty) error {
-	return s.Core.Detach()
+func (s *SessionControllerRPC) Detach(id *api.ID, _ *api.Empty) error {
+	return s.Core.Detach(id)
 }
 
 func (s *SessionControllerRPC) Attach(id *api.ID, response *api.ResponseWithFD) error {

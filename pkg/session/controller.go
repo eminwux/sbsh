@@ -198,8 +198,8 @@ func (c *SessionController) Attach(id *api.ID, response *api.ResponseWithFD) err
 	return nil
 }
 
-func (c *SessionController) Detach() error {
+func (c *SessionController) Detach(id *api.ID) error {
 
-	return sr.Detach()
+	return sr.Detach(id)
 
 }

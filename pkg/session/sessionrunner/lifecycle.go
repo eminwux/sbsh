@@ -3,6 +3,7 @@ package sessionrunner
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"sbsh/pkg/api"
@@ -31,8 +32,6 @@ func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error 
 		err = fmt.Errorf("failed to start PTY for session %s: %v", sr.id, err)
 		return err
 	}
-
-	go sr.handleConnections()
 
 	go sr.waitOnSession()
 
@@ -155,15 +154,35 @@ func (sr *SessionRunnerExec) Attach(id *api.ID, response *api.ResponseWithFD) er
 	response.JSON = payload
 	response.FDs = fds
 
-	// Inline FDCarrier via closure:
 	return nil
 
 }
+func (sr *SessionRunnerExec) Detach(id *api.ID) error {
+	// 1) Lookup
+	ioClient, ok := sr.getClient(*id)
+	if !ok {
+		return fmt.Errorf("supervisor %s not found among clients", *id)
+	}
 
-func (sr *SessionRunnerExec) Detach() error {
-	// remove client pipe from multiwriterR
-	// remove client pipe from stdin
-	// close connection and clean-up
+	// 2) Remove from fan-out paths first so no more writes target it
+	sr.ptyPipes.multiOutW.Remove(ioClient.pipeOutW)
+	// TODO: remove from stdin fan-in if you have that side too
+	// sr.ptyPipes.multiInR.Remove(ioClient.pipeInR)
 
-	return fmt.Errorf("error detaching")
+	// 3) Drop from the registry so it’s no longer discoverable
+	sr.removeClient(ioClient)
+
+	// 4) Close the conn asynchronously after a short grace period
+	conn := ioClient.conn
+	go func() {
+		time.Sleep(100 * time.Millisecond)     // allow `sb detach` to finish
+		_ = conn.SetDeadline(time.Now())       // unblock any Read/Write
+		if u, ok := conn.(*net.UnixConn); ok { // optional: half-close to flush
+			_ = u.CloseWrite()
+			_ = u.CloseRead()
+		}
+		_ = conn.Close()
+	}()
+
+	return nil
 }

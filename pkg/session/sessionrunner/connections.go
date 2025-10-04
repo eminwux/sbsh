@@ -8,26 +8,6 @@ import (
 	"sbsh/pkg/api"
 )
 
-func (sr *SessionRunnerExec) handleConnections() error {
-
-	cid := 0
-	for {
-		// New client connects
-		slog.Debug("[session] waiting for new connection...\r\n")
-		conn, err := sr.listenerIO.Accept()
-		if err != nil {
-			slog.Debug("[session] closing IO listener routine\r\n")
-			return err
-		}
-		slog.Debug("[session] client connected!\r\n")
-		cid++
-		cl := &ioClient{id: string(rune(cid)), conn: conn}
-
-		sr.addClient(cl)
-		go sr.handleClient(cl)
-	}
-}
-
 func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	defer client.conn.Close()
 	sr.metadata.Status.State = api.SessionStatusAttached
@@ -128,12 +108,20 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 
 func (sr *SessionRunnerExec) addClient(c *ioClient) {
 	sr.clientsMu.Lock()
-	sr.clients[c.id] = c
+	sr.clients[*c.id] = c
 	sr.clientsMu.Unlock()
 }
 
 func (sr *SessionRunnerExec) removeClient(c *ioClient) {
 	sr.clientsMu.Lock()
-	delete(sr.clients, c.id)
+	delete(sr.clients, *c.id)
 	sr.clientsMu.Unlock()
+}
+
+func (sr *SessionRunnerExec) getClient(id api.ID) (*ioClient, bool) {
+	sr.clientsMu.RLock()
+	defer sr.clientsMu.RUnlock()
+
+	c, ok := sr.clients[id]
+	return c, ok
 }

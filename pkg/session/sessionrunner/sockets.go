@@ -39,7 +39,7 @@ func (sr *SessionRunnerExec) openSocketIO() error {
 	}
 
 	sr.clientsMu.Lock()
-	sr.clients = make(map[string]*ioClient)
+	sr.clients = make(map[api.ID]*ioClient)
 	sr.clientsMu.Unlock()
 
 	sr.listenerIO = ioLn
@@ -99,7 +99,7 @@ func (sr *SessionRunnerExec) CreateNewClient(id *api.ID) (int, error) {
 	f.Close() // release the duplicate, keep using ioConn
 	fmt.Printf("%d", ioConn)
 
-	cl := &ioClient{id: string(*id), conn: ioConn}
+	cl := &ioClient{id: id, conn: ioConn}
 
 	sr.addClient(cl)
 	go sr.handleClient(cl)

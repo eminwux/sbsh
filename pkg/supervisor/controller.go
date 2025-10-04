@@ -295,6 +295,5 @@ func (s *SupervisorController) Detach() error {
 		return fmt.Errorf("%w: %v", errdefs.ErrDetachSession, err)
 	}
 
-	// sr.Close(fmt.Errorf("session detached"))
 	return nil
 }
