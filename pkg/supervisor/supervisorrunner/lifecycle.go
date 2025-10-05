@@ -22,10 +22,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sbsh/pkg/api"
-	"sbsh/pkg/errdefs"
 	"syscall"
 	"time"
+
+	"sbsh/pkg/api"
+	"sbsh/pkg/errdefs"
 )
 
 const (
@@ -33,7 +34,6 @@ const (
 )
 
 func (sr *SupervisorRunnerExec) StartSessionCmd(session *api.SupervisedSession) error {
-
 	devNull, _ := os.OpenFile("/dev/null", os.O_RDWR, 0)
 	cmd := exec.Command(session.Command, session.CommandArgs...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // detach from your pg/ctty
@@ -55,7 +55,10 @@ func (sr *SupervisorRunnerExec) StartSessionCmd(session *api.SupervisedSession) 
 		_ = cmd.Wait()
 		slog.Debug(fmt.Sprintf("[supervisor] session %s process has exited\r\n", session.Id))
 		err := fmt.Errorf("session %s process has exited", session.Id)
-		trySendEvent(sr.events, SupervisorRunnerEvent{ID: api.ID(session.Id), Type: EvCmdExited, Err: err, When: time.Now()})
+		trySendEvent(
+			sr.events,
+			SupervisorRunnerEvent{ID: api.ID(session.Id), Type: EvCmdExited, Err: err, When: time.Now()},
+		)
 	}()
 
 	return nil
@@ -63,13 +66,12 @@ func (sr *SupervisorRunnerExec) StartSessionCmd(session *api.SupervisedSession) 
 
 func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
 	sr.session = session
-	var err error
+
 	if err := sr.dialSessionCtrlSocket(); err != nil {
 		return err
 	}
 
-	conn, err := sr.attach()
-	if err != nil {
+	if err := sr.attach(); err != nil {
 		return err
 	}
 
@@ -77,11 +79,11 @@ func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
 		return err
 	}
 
-	if err := sr.attachIOSocket(conn); err != nil {
+	if err := sr.attachIOSocket(); err != nil {
 		return err
 	}
 
-	if err := sr.initTerminal(conn); err != nil {
+	if err := sr.initTerminal(); err != nil {
 		return err
 	}
 
@@ -97,7 +99,9 @@ func (sr *SupervisorRunnerExec) Close(reason error) error {
 
 	if deleteSupervisorDir {
 		if err := os.RemoveAll(filepath.Dir(sr.supervisorSocketCtrl)); err != nil {
-			slog.Debug(fmt.Sprintf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", sr.supervisorSocketCtrl, err))
+			slog.Debug(
+				fmt.Sprintf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", sr.supervisorSocketCtrl, err),
+			)
 		}
 	}
 

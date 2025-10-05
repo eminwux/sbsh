@@ -18,8 +18,8 @@ package supervisorrunner
 
 import (
 	"log"
-	"net"
 	"os"
+	"time"
 
 	"golang.org/x/term"
 )
@@ -52,26 +52,29 @@ func (sr *SupervisorRunnerExec) toExitShell() error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) initTerminal(conn net.Conn) error {
-	if err := writeterminal(conn, "export SBSH_SUP_SOCKET="+sr.supervisorSocketCtrl+"\n"); err != nil {
+func (sr *SupervisorRunnerExec) initTerminal() error {
+	if err := sr.writeTerminal("export SBSH_SUP_SOCKET=" + sr.supervisorSocketCtrl + "\n"); err != nil {
 		return err
 	}
 
 	return nil
-
 }
 
-func writeterminal(conn net.Conn, input string) error {
-	_, err := conn.Write([]byte(input))
-
-	return err
+func (sr *SupervisorRunnerExec) writeTerminal(input string) error {
+	for i := range len(input) {
+		_, err := sr.ioConn.Write([]byte{input[i]})
+		if err != nil {
+			return err
+		}
+		time.Sleep(time.Microsecond)
+	}
+	return nil
 }
 
 func toRawMode() (*term.State, error) {
 	state, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
 		log.Fatalf("[supervisor] MakeRaw terminal: %v", err)
-
 	}
 
 	return state, nil

@@ -141,7 +141,14 @@ func (sr *SessionRunnerExec) Resize(args api.ResizeArgs) {
 
 // Write writes bytes to the session PTY (used by controller or Smart executor).
 func (sr *SessionRunnerExec) Write(p []byte) (int, error) {
-	return sr.pty.Write(p)
+	for i := range p {
+		_, err := sr.pty.Write([]byte{p[i]})
+		if err != nil {
+			return i, err
+		}
+		time.Sleep(time.Microsecond)
+	}
+	return len(p), nil
 }
 
 func (sr *SessionRunnerExec) Attach(id *api.ID, response *api.ResponseWithFD) error {

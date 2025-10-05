@@ -24,12 +24,12 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"sbsh/pkg/api"
-	"sbsh/pkg/rpcclient/session"
 	"syscall"
 	"time"
 
 	"github.com/creack/pty"
+	"sbsh/pkg/api"
+	"sbsh/pkg/rpcclient/session"
 )
 
 const (
@@ -38,7 +38,6 @@ const (
 )
 
 func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
-
 	slog.Debug(fmt.Sprintf("[supervisor] %s session on  %d trying to connect to %s\r\n",
 		sr.session.Id,
 		sr.session.Pid,
@@ -58,18 +57,16 @@ func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 	slog.Debug(fmt.Sprintf("[supervisor] rpc->session (Status): %+v\r\n", status))
 
 	return nil
-
 }
 
-func (sr *SupervisorRunnerExec) attachIOSocket(conn net.Conn) error {
-
+func (sr *SupervisorRunnerExec) attachIOSocket() error {
 	// Connected, now we enable raw mode
 	if err := sr.toBashUIMode(); err != nil {
 		slog.Debug(fmt.Sprintf("[supervisor] initial raw mode failed: %v", err))
 	}
 
 	// We want half-closes; UnixConn exposes CloseRead/CloseWrite
-	uc, _ := conn.(*net.UnixConn)
+	uc, _ := sr.ioConn.(*net.UnixConn)
 
 	errCh := make(chan error, 2)
 
@@ -88,7 +85,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket(conn net.Conn) error {
 				written := 0
 				for written < n {
 					slog.Debug("stdin->socket pre-write")
-					m, werr := conn.Write(buf[written:n])
+					m, werr := sr.ioConn.Write(buf[written:n])
 					slog.Debug(fmt.Sprintf("stdin->socket post-write: %d", m))
 					if werr != nil {
 						e = werr
@@ -141,7 +138,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket(conn net.Conn) error {
 
 		for {
 			slog.Debug("socket->stdout pre-read")
-			n, rerr := conn.Read(buf)
+			n, rerr := sr.ioConn.Read(buf)
 			slog.Debug(fmt.Sprintf("socket->stdout post-read: %d", n))
 
 			if n > 0 {
@@ -201,13 +198,13 @@ func (sr *SupervisorRunnerExec) attachIOSocket(conn net.Conn) error {
 		select {
 		case <-sr.ctx.Done():
 			slog.Debug("[supervisor-runner] context done\r\n")
-			_ = conn.Close() // unblock goroutines
+			_ = sr.ioConn.Close() // unblock goroutines
 			<-errCh
 			<-errCh
 			return sr.ctx.Err()
 		case e := <-errCh:
 			// one direction ended; close and wait for the other
-			_ = conn.Close()
+			_ = sr.ioConn.Close()
 			<-errCh
 			// treat EOF as normal detach
 			if e == io.EOF || e == nil {
@@ -220,23 +217,22 @@ func (sr *SupervisorRunnerExec) attachIOSocket(conn net.Conn) error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) attach() (net.Conn, error) {
+func (sr *SupervisorRunnerExec) attach() error {
 	var response struct{}
 	var conn net.Conn
 	var err error
 	conn, err = sr.sessionClient.Attach(sr.ctx, &sr.id, &response)
-
+	if err != nil {
+		return err
+	}
 	slog.Debug("[supervisor] Received connection")
 
-	if err != nil {
-		return nil, err
-	}
+	sr.ioConn = conn
 
-	return conn, nil
+	return nil
 }
 
 func (sr *SupervisorRunnerExec) forwardResize() error {
-
 	// Send initial size once (use the supervisor's TTY: os.Stdin)
 	if rows, cols, err := pty.Getsize(os.Stdin); err == nil {
 

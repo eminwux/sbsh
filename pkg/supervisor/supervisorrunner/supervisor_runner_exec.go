@@ -19,11 +19,11 @@ package supervisorrunner
 import (
 	"context"
 	"net"
+
+	"golang.org/x/term"
 	"sbsh/pkg/api"
 	"sbsh/pkg/rpcclient/session"
 	"sbsh/pkg/supervisor/sessionstore"
-
-	"golang.org/x/term"
 )
 
 type SupervisorRunnerExec struct {
@@ -43,8 +43,10 @@ type SupervisorRunnerExec struct {
 	session *api.SupervisedSession
 	Mgr     *sessionstore.SessionStoreExec
 
-	lnCtrl        net.Listener
+	lnCtrl net.Listener
+
 	sessionClient session.Client
+	ioConn        net.Conn
 }
 
 type UIMode int
@@ -55,7 +57,11 @@ const (
 	UIExitShell // Saved lastState restore
 )
 
-func NewSupervisorRunnerExec(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- SupervisorRunnerEvent) SupervisorRunner {
+func NewSupervisorRunnerExec(
+	ctx context.Context,
+	spec *api.SupervisorSpec,
+	evCh chan<- SupervisorRunnerEvent,
+) SupervisorRunner {
 	newCtx, cancel := context.WithCancel(ctx)
 
 	return &SupervisorRunnerExec{
