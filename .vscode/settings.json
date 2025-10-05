@@ -14,8 +14,11 @@
   "go.toolsManagement.autoUpdate": true,
   "go.vetOnSave": "package",
 
-  "go.lintTool": "golangci-lint-v2",
+  "go.lintTool": "golangci-lint",
   "go.lintFlags": ["--path-mode=abs", "--fast-only"],
-  "go.formatTool": "goimports",
+  "go.formatTool": "custom",
+  "go.alternateTools": {
+    "customFormatter": "golangci-lint"
+  },
   "go.formatFlags": ["fmt", "--stdin"]
 }
