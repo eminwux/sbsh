@@ -54,5 +54,6 @@ repos:
     rev: v1.2.0
     hooks:
       - id: addlicense
+        files: \.go$
         args:
           ["-c", "Emiliano Spinella (eminwux)", "-l", "apache", "-s", "*.go"]

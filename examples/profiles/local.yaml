@@ -1,0 +1,121 @@
+apiVersion: sbsh/v1beta1
+kind: SessionProfile
+metadata:
+  name: default
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~"
+    cmd: /bin/bash
+    cmdArgs: []
+    env:
+      LANG: en_US.UTF-8
+      EDITOR: vim
+      HISTSIZE: "5000"
+    prompt: "[sbsh]\\u@\\h:\\w$ "
+  stages:
+    preAttach:
+      - cmd: echo $TEST
+        cmdArgs: ["$TEST"]
+        cwd: "~"
+        env:
+          TEST: "hola mundo"
+---
+apiVersion: sbsh/v1beta1
+kind: SessionProfile
+metadata:
+  name: work-kubectl-prd
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~"
+    cmd: /bin/bash
+    cmdArgs: []
+    env:
+      KUBE_CONFIG: "$HOME/.kube/config"
+      KUBE_CONTEXT: company-prd
+      HISTSIZE: "5000"
+    prompt: "[sbsh-$SBSH_SESSION_ID][PRD]\\u@\\h:\\w$ "
+  stages:
+    preAttach:
+      - cmd: kubectl
+        cmdArgs: ["-n", "$KUBE_NAMESPACE", "get", "pods"]
+        cwd: "~"
+        env:
+          KUBE_NAMESPACE: prd
+---
+apiVersion: sbsh/v1beta1
+kind: SessionProfile
+metadata:
+  name: work-tf-prd-plan
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /bin/bash
+    cmdArgs: []
+    env:
+      HISTSIZE: "5000"
+    prompt: "[sbsh-$SBSH_SESSION_ID][PRD]\\u@\\h:\\w$ "
+  stages:
+    preAttach:
+      - cmd: terraform
+        cmdArgs: ["workspace", "use", "$TF_VAR_environment"]
+        cwd: "~/project/terraform"
+        env:
+          TF_VAR_environment: "prd"
+      - cmd: terraform
+        cmdArgs: ["plan"]
+        cwd: "~/project/terraform"
+        env:
+          TF_VAR_environment: "prd"
+---
+apiVersion: sbsh/v1beta1
+kind: SessionProfile
+metadata:
+  name: work-tf-prd-apply
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /bin/bash
+    cmdArgs: []
+    env:
+      HISTSIZE: "5000"
+    prompt: "[sbsh-$SBSH_SESSION_ID][PRD]\\u@\\h:\\w$ "
+  stages:
+    preAttach:
+      - cmd: terraform
+        cmdArgs: ["workspace", "use", "$TF_VAR_environment"]
+        cwd: "~/project/terraform"
+        env:
+          TF_VAR_environment: "prd"
+      - cmd: terraform
+        cmdArgs: ["plan", "-out", "tfplan"]
+        cwd: "~/project/terraform"
+        env:
+          TF_VAR_environment: "prd"
+      - cmd: terraform
+        cmdArgs: ["apply", "tfplan"]
+      - cmd: rm
+        cmdArgs: ["tfplan"]
+        cwd: "~/project/terraform"
+---
+apiVersion: sbsh/v1beta1
+kind: SessionProfile
+metadata:
+  name: diag-pod-prd
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /bin/kubectl
+    cmdArgs: ["-n prd run -ti --rm --image debian:latest diag-pod"]
+    env:
+      KUBECONFIG: "~/.kube/config"
+      KUBE_CONTEXT: "prd"

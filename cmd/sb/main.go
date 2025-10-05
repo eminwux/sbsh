@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"sbsh/cmd/sb/detach"
+	"sbsh/cmd/sb/profiles"
 	"sbsh/cmd/sb/sessions"
 	"sbsh/pkg/common"
 	"sbsh/pkg/env"
@@ -76,6 +77,7 @@ func Execute() {
 func init() {
 	rootCmd.AddCommand(sessions.SessionsCmd)
 	rootCmd.AddCommand(detach.DetachCmd)
+	rootCmd.AddCommand(profiles.ProfilesCmd)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sbsh/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
