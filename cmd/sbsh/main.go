@@ -149,6 +149,9 @@ func Execute() {
 }
 
 func init() {
+	// go http.ListenAndServe("127.0.0.1:6060", nil)
+	// runtime.SetBlockProfileRate(1)     // sample ALL blocking events on chans/locks
+	// runtime.SetMutexProfileFraction(1) // sample ALL mutex contention
 	rootCmd.AddCommand(run.RunCmd)
 	rootCmd.AddCommand(attach.AttachCmd)
 

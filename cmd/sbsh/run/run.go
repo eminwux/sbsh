@@ -22,11 +22,9 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -105,9 +103,6 @@ func init() {
 func runSession(spec *api.SessionSpec) error {
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
 	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	go http.ListenAndServe("127.0.0.1:6060", nil)
-	runtime.SetBlockProfileRate(1)     // sample ALL blocking events on chans/locks
-	runtime.SetMutexProfileFraction(1) // sample ALL mutex contention
 	defer cancel()
 
 	// Create a new Controller
