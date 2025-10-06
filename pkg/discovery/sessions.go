@@ -23,10 +23,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sbsh/pkg/api"
 	"sort"
 	"strings"
 	"text/tabwriter"
+
+	"sbsh/pkg/api"
 )
 
 // ScanAndPrintSessions finds all metadata.json under runPath/sessions/*,
@@ -170,4 +171,42 @@ func FindSessionByName(ctx context.Context, runPath string, name string) (*api.S
 		}
 	}
 	return nil, fmt.Errorf("session with name %q not found", name)
+}
+
+func PrintSessionSpec(s *api.SessionSpec, w io.Writer) error {
+	if s == nil {
+		fmt.Fprintln(w, "nil session spec")
+		return nil
+	}
+
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+
+	fmt.Fprintf(tw, "NAME:\t%s\n", s.Name)
+	fmt.Fprintf(tw, "KIND:\t%s\n", s.Kind)
+	fmt.Fprintf(tw, "COMMAND:\t%s %s\n", s.Command, strings.Join(s.CommandArgs, " "))
+	fmt.Fprintf(tw, "RUN PATH:\t%s\n", s.RunPath)
+	fmt.Fprintf(tw, "LOG FILE:\t%s\n", s.LogFilename)
+	fmt.Fprintf(tw, "SOCKET CTRL:\t%s\n", s.SockerCtrl)
+	fmt.Fprintf(tw, "SOCKET IO:\t%s\n", s.SocketIO)
+
+	if len(s.Env) > 0 {
+		fmt.Fprintln(tw, "ENVIRONMENT:")
+		for _, e := range s.Env {
+			fmt.Fprintf(tw, "\t%s\n", e)
+		}
+	}
+
+	if len(s.Labels) > 0 {
+		fmt.Fprintln(tw, "LABELS:")
+		keys := make([]string, 0, len(s.Labels))
+		for k := range s.Labels {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Fprintf(tw, "\t%s=%s\n", k, s.Labels[k])
+		}
+	}
+
+	return tw.Flush()
 }

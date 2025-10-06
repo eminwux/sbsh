@@ -47,7 +47,7 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 	t.Cleanup(func() { newSessionController = orig })
 
 	spec := api.SessionSpec{
-		ID:          api.ID(sessionID),
+		ID:          api.ID(sessionIDInput),
 		Kind:        api.SessionLocal,
 		Name:        naming.RandomSessionName(),
 		Command:     "/bin/bash",
@@ -95,7 +95,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	spec := api.SessionSpec{
-		ID:          api.ID(sessionID),
+		ID:          api.ID(sessionIDInput),
 		Kind:        api.SessionLocal,
 		Name:        naming.RandomSessionName(),
 		Command:     "/bin/bash",
@@ -129,7 +129,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	spec := api.SessionSpec{
-		ID:          api.ID(sessionID),
+		ID:          api.ID(sessionIDInput),
 		Kind:        api.SessionLocal,
 		Name:        naming.RandomSessionName(),
 		Command:     "/bin/bash",

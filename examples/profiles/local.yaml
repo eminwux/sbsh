@@ -119,3 +119,18 @@ spec:
     env:
       KUBECONFIG: "~/.kube/config"
       KUBE_CONTEXT: "prd"
+---
+apiVersion: sbsh/v1beta1
+kind: SessionProfile
+metadata:
+  name: diag-docker
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/docker
+    cmdArgs: ["run", "--rm", "-ti", "debian:latest", "/bin/bash"]
+    env:
+      KUBECONFIG: "~/.kube/config"
+      KUBE_CONTEXT: "prd"

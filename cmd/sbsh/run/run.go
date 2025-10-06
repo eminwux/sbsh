@@ -30,22 +30,26 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"sbsh/pkg/api"
+	"sbsh/pkg/discovery"
+	"sbsh/pkg/env"
 	"sbsh/pkg/errdefs"
 	"sbsh/pkg/naming"
+	"sbsh/pkg/profile"
 	"sbsh/pkg/session"
 )
 
 var (
-	sessionID            string
-	name                 string
-	sessionCmd           string
-	logFilename          string
+	sessionIDInput       string
+	sessionNameInput     string
+	sessionCmdInput      string
+	logFilenameInput     string
+	profileNameInput     string
 	ctx                  context.Context
 	cancel               context.CancelFunc
 	newSessionController = session.NewSessionController
 )
 
-// runCmd represents the run command
+// RunCmd represents the run command.
 var RunCmd = &cobra.Command{
 	Use:   "run",
 	Short: "A brief description of your command",
@@ -56,44 +60,69 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if sessionID == "" {
-			sessionID = naming.RandomID()
-		}
-		if name == "" {
-			name = naming.RandomSessionName()
-		}
-		if sessionCmd == "" {
-			sessionCmd = "/bin/bash"
+		if sessionIDInput == "" {
+			sessionIDInput = naming.RandomID()
 		}
 
-		if logFilename == "" {
-			logFilename = filepath.Join(viper.GetString("global.runPath"), "sessions", string(sessionID), "session.log")
+		if sessionNameInput == "" {
+			sessionNameInput = naming.RandomSessionName()
 		}
 
-		// Split into args for exec
-		cmdArgs := []string{}
-
-		// Define a new Session
-		spec := api.SessionSpec{
-			ID:          api.ID(sessionID),
-			Kind:        api.SessionLocal,
-			Name:        name,
-			Command:     sessionCmd,
-			CommandArgs: cmdArgs,
-			Env:         os.Environ(),
-			RunPath:     viper.GetString("global.runPath"),
-			LogFilename: logFilename,
+		if sessionCmdInput == "" {
+			sessionCmdInput = "/bin/bash"
 		}
 
-		runSession(&spec)
+		if logFilenameInput == "" {
+			logFilenameInput = filepath.Join(
+				viper.GetString(env.RUN_PATH.ViperKey),
+				"sessions",
+				string(sessionIDInput),
+				"session.log",
+			)
+		}
+
+		var sessionSpec *api.SessionSpec
+		if profileNameInput == "" {
+			// Split into args for exec
+			cmdArgs := []string{}
+
+			// Define a new Session
+			sessionSpec = &api.SessionSpec{
+				ID:          api.ID(sessionIDInput),
+				Kind:        api.SessionLocal,
+				Name:        sessionNameInput,
+				Command:     sessionCmdInput,
+				CommandArgs: cmdArgs,
+				Env:         os.Environ(),
+				RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+				LogFilename: logFilenameInput,
+			}
+		} else {
+			profileSpec, err := discovery.FindProfileByName(ctx, viper.GetString(env.PROFILES_FILE.ViperKey), profileNameInput)
+			if err != nil {
+				log.Fatal(err)
+			}
+			sessionSpec, err = profile.CreateSessionFromProfile(profileSpec)
+			sessionSpec.ID = api.ID(sessionIDInput)
+			sessionSpec.RunPath = viper.GetString(env.RUN_PATH.ViperKey)
+			sessionSpec.LogFilename = logFilenameInput
+			sessionSpec.Env = append(sessionSpec.Env, os.Environ()...)
+
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		discovery.PrintSessionSpec(sessionSpec, os.Stdout)
+		runSession(sessionSpec)
 	},
 }
 
 func init() {
-	RunCmd.Flags().StringVar(&sessionID, "id", "", "Optional session ID (random if omitted)")
-	RunCmd.Flags().StringVar(&sessionCmd, "command", "", "Optional command (default: /bin/bash)")
-	RunCmd.Flags().StringVar(&name, "name", "", "Optional name for the session")
-	RunCmd.Flags().StringVar(&logFilename, "log-filename", "", "Optional filename for the session log")
+	RunCmd.Flags().StringVar(&sessionIDInput, "id", "", "Optional session ID (random if omitted)")
+	RunCmd.Flags().StringVar(&sessionCmdInput, "command", "", "Optional command (default: /bin/bash)")
+	RunCmd.Flags().StringVar(&sessionNameInput, "name", "", "Optional name for the session")
+	RunCmd.Flags().StringVar(&logFilenameInput, "log-filename", "", "Optional filename for the session log")
+	RunCmd.Flags().StringVar(&profileNameInput, "profile", "", "Optional profile for the session")
 
 	if err := viper.BindPFlag("session.logFilename", RunCmd.Flags().Lookup("log-filename")); err != nil {
 		log.Fatal(err)

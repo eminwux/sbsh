@@ -22,13 +22,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"sbsh/pkg/api"
 
 	"golang.org/x/sys/unix"
+	"sbsh/pkg/api"
 )
 
 func (sr *SessionRunnerExec) openSocketIO() error {
-
 	runPath := filepath.Join(sr.runPath, string(sr.id))
 	if err := os.MkdirAll(runPath, 0o700); err != nil {
 		return fmt.Errorf("mkdir session dir: %w", err)
@@ -64,7 +63,6 @@ func (sr *SessionRunnerExec) openSocketIO() error {
 }
 
 func (sr *SessionRunnerExec) OpenSocketCtrl() error {
-
 	sr.socketCtrl = filepath.Join(sr.getSessionDir(), "ctrl.sock")
 	slog.Debug(fmt.Sprintf("[sessionCtrl] CTRL socket: %s", sr.socketCtrl))
 	sr.metadata.Spec.SockerCtrl = sr.socketCtrl
@@ -113,7 +111,6 @@ func (sr *SessionRunnerExec) CreateNewClient(id *api.ID) (int, error) {
 		return -1, fmt.Errorf("FileConn: %w", err)
 	}
 	f.Close() // release the duplicate, keep using ioConn
-	fmt.Printf("%d", ioConn)
 
 	cl := &ioClient{id: id, conn: ioConn}
 
