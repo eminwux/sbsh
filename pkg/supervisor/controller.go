@@ -258,7 +258,6 @@ func (s *SupervisorController) CreateRunNewSession(spec *api.SupervisorSpec) (*a
 	}
 	spec.Session.Command = execPath
 	spec.Session.CommandArgs = args
-	spec.Session.Env = os.Environ()
 	spec.Session.LogFilename = s.runPath + "/sessions/" + string(spec.Session.ID) + "/log"
 	spec.Session.SockerCtrl = s.runPath + "/sessions/" + string(spec.Session.ID) + "/ctrl.sock"
 	spec.Session.SocketIO = s.runPath + "/sessions/" + string(spec.Session.ID) + "/io.sock"
