@@ -263,18 +263,6 @@ func (s *SupervisorController) CreateRunNewSession(spec *api.SupervisorSpec) (*a
 	spec.Session.SockerCtrl = s.runPath + "/sessions/" + string(spec.Session.ID) + "/ctrl.sock"
 	spec.Session.SocketIO = s.runPath + "/sessions/" + string(spec.Session.ID) + "/io.sock"
 
-	// sessionSpec := &api.SessionSpec{
-	// 	ID:          api.ID(sessionID),
-	// 	Kind:        api.SessionLocal,
-	// 	Name:        sessionName,
-	// 	Command:     execPath,
-	// 	CommandArgs: args,
-	// 	Env:         os.Environ(),
-	// 	LogFilename: s.runPath + "/sessions/" + sessionID + "/log",
-	// 	SockerCtrl:  s.runPath + "/sessions/" + sessionID + "/ctrl.sock",
-	// 	SocketIO:    s.runPath + "/sessions/" + sessionID + "/io.sock",
-	// }
-
 	session := sessionstore.NewSupervisedSession(spec.Session)
 	if err := ss.Add(session); err != nil {
 		return nil, fmt.Errorf("%w: %v", errdefs.ErrSessionStore, err)
