@@ -33,8 +33,10 @@ import (
 	"sbsh/cmd/sbsh/run"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
+	"sbsh/pkg/discovery"
 	"sbsh/pkg/env"
 	"sbsh/pkg/naming"
+	"sbsh/pkg/profile"
 	"sbsh/pkg/supervisor"
 )
 
@@ -49,6 +51,11 @@ var (
 	runPathInput      string
 	cfgFileInput      string
 	profilesFileInput string
+	profileNameInput  string
+	sessionIDInput    string
+	sessionNameInput  string
+	sessionCmdInput   string
+	logFilenameInput  string
 )
 
 func main() {
@@ -74,29 +81,61 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		err := LoadConfig()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Config error:", err)
-			os.Exit(1)
+		if sessionIDInput == "" {
+			sessionIDInput = naming.RandomID()
 		}
-		runSupervisor()
+
+		if sessionNameInput == "" {
+			sessionNameInput = naming.RandomSessionName()
+		}
+
+		if sessionCmdInput == "" {
+			sessionCmdInput = "/bin/bash"
+		}
+
+		if logFilenameInput == "" {
+			logFilenameInput = filepath.Join(
+				viper.GetString(env.RUN_PATH.ViperKey),
+				"sessions",
+				string(sessionIDInput),
+				"session.log",
+			)
+		}
+
+		sessionSpec, err := profile.BuildSessionSpec(
+			profileNameInput, sessionIDInput, sessionNameInput, sessionCmdInput, logFilenameInput, ctx)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Define a new Supervisor
+		spec := &api.SupervisorSpec{
+			Kind:    api.RunNewSession,
+			ID:      api.ID(naming.RandomID()),
+			Name:    naming.RandomSessionName(),
+			Env:     os.Environ(),
+			LogDir:  "/tmp/sbsh-logs/s0",
+			RunPath: viper.GetString(env.RUN_PATH.ViperKey),
+			Session: sessionSpec,
+		}
+
+		if profileNameInput != "" {
+			env.SES_PROFILE.Set(profileNameInput)
+			_ = env.SES_PROFILE.BindEnv()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		discovery.PrintSessionSpec(sessionSpec, os.Stdout)
+		runSupervisor(spec)
 	},
 }
 
-func runSupervisor() error {
+func runSupervisor(spec *api.SupervisorSpec) error {
 	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	supervisorID := naming.RandomID()
-	// Define a new Supervisor
-	spec := api.SupervisorSpec{
-		Kind:    api.RunNewSession,
-		ID:      api.ID(supervisorID),
-		Name:    naming.RandomSessionName(),
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-		RunPath: viper.GetString(env.RUN_PATH.ViperKey),
-	}
 	// Create a new Controller
 	var ctrl api.SupervisorController
 
@@ -107,7 +146,7 @@ func runSupervisor() error {
 
 	// Run controller
 	go func() {
-		errCh <- ctrl.Run(&spec) // Run should return when ctx is canceled
+		errCh <- ctrl.Run(spec) // Run should return when ctx is canceled
 		slog.Debug("[sbsh] controller stopped\r\n")
 	}()
 
@@ -156,6 +195,7 @@ func init() {
 	rootCmd.AddCommand(run.RunCmd)
 	rootCmd.AddCommand(attach.AttachCmd)
 
+	// Persistent flags
 	rootCmd.PersistentFlags().StringVar(&cfgFileInput, "config", "", "config file (default is $HOME/.sbsh/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&logLevelInput, "log-level", "info", "Log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().
@@ -177,6 +217,16 @@ func init() {
 	}
 
 	if err := viper.BindPFlag(env.PROFILES_FILE.ViperKey, rootCmd.PersistentFlags().Lookup("profiles")); err != nil {
+		log.Fatal(err)
+	}
+	// Non-persistent flags
+	rootCmd.Flags().StringVar(&sessionIDInput, "session-id", "", "Optional session ID (random if omitted)")
+	rootCmd.Flags().StringVar(&sessionCmdInput, "session-command", "/bin/bash", "Optional command (default: /bin/bash)")
+	rootCmd.Flags().StringVar(&sessionNameInput, "session-name", "", "Optional name for the session")
+	rootCmd.Flags().StringVar(&logFilenameInput, "session-log-filename", "", "Optional filename for the session log")
+	rootCmd.Flags().StringVar(&profileNameInput, "session-profile", "", "Optional profile for the session")
+
+	if err := viper.BindPFlag("session.logFilename", rootCmd.Flags().Lookup("session-log-filename")); err != nil {
 		log.Fatal(err)
 	}
 }

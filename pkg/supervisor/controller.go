@@ -18,17 +18,18 @@ package supervisor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
+
 	"sbsh/pkg/api"
 	"sbsh/pkg/discovery"
 	"sbsh/pkg/errdefs"
-	"sbsh/pkg/naming"
 	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
 	"sbsh/pkg/supervisor/supervisorrunner"
-	"time"
 )
 
 /* ---------- Controller ---------- */
@@ -41,17 +42,23 @@ type SupervisorController struct {
 	runPath string
 }
 
-var newSupervisorRunner = supervisorrunner.NewSupervisorRunnerExec
-var sr supervisorrunner.SupervisorRunner
+var (
+	newSupervisorRunner = supervisorrunner.NewSupervisorRunnerExec
+	sr                  supervisorrunner.SupervisorRunner
+)
 
-var newSessionStore = sessionstore.NewSessionStoreExec
-var ss sessionstore.SessionStore
+var (
+	newSessionStore = sessionstore.NewSessionStoreExec
+	ss              sessionstore.SessionStore
+)
 
-var ctrlReady chan struct{} = make(chan struct{})
-var rpcReadyCh chan error = make(chan error)
-var rpcDoneCh chan error = make(chan error)
-var closeReqCh chan error = make(chan error, 1)
-var eventsCh chan supervisorrunner.SupervisorRunnerEvent = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
+var (
+	ctrlReady  chan struct{}                               = make(chan struct{})
+	rpcReadyCh chan error                                  = make(chan error)
+	rpcDoneCh  chan error                                  = make(chan error)
+	closeReqCh chan error                                  = make(chan error, 1)
+	eventsCh   chan supervisorrunner.SupervisorRunnerEvent = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
+)
 
 // NewSupervisorController wires the manager and the shared event channel from sessions.
 func NewSupervisorController(ctx context.Context) api.SupervisorController {
@@ -120,7 +127,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	var session *api.SupervisedSession
 	switch spec.Kind {
 	case api.RunNewSession:
-		session, err = s.CreateRunNewSession()
+		session, err = s.CreateRunNewSession(spec)
 		if err != nil {
 			if errC := s.Close(err); errC != nil {
 				err = fmt.Errorf("%w: %v: %v", err, errdefs.ErrOnClose, errC)
@@ -177,7 +184,15 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 			return fmt.Errorf("%w: %v", errdefs.ErrContextDone, err)
 
 		case ev := <-eventsCh:
-			slog.Debug(fmt.Sprintf("[supervisor] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano)))
+			slog.Debug(
+				fmt.Sprintf(
+					"[supervisor] received event: id=%s type=%v err=%v when=%s\r\n",
+					ev.ID,
+					ev.Type,
+					ev.Err,
+					ev.When.Format(time.RFC3339Nano),
+				),
+			)
 			s.handleEvent(ev)
 
 		case err := <-rpcDoneCh:
@@ -195,7 +210,6 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 }
 
 func (s *SupervisorController) CreateAttachSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
-
 	// read from metadata
 
 	var metadata *api.SessionMetadata
@@ -205,13 +219,17 @@ func (s *SupervisorController) CreateAttachSession(spec *api.SupervisorSpec) (*a
 		if err != nil {
 			return nil, fmt.Errorf("coult not find session by ID")
 		}
-
 	} else if spec.AttachName != "" {
 		metadata, err = discovery.FindSessionByName(s.ctx, spec.RunPath, spec.AttachName)
 		if err != nil {
 			return nil, fmt.Errorf("coult not find session by Name")
 		}
 	}
+
+	if metadata == nil {
+		return nil, errdefs.ErrAttach
+	}
+
 	session := sessionstore.NewSupervisedSession(&metadata.Spec)
 	if err := ss.Add(session); err != nil {
 		return nil, fmt.Errorf("%w: %v", errdefs.ErrSessionStore, err)
@@ -220,33 +238,44 @@ func (s *SupervisorController) CreateAttachSession(spec *api.SupervisorSpec) (*a
 	return session, nil
 }
 
-func (s *SupervisorController) CreateRunNewSession() (*api.SupervisedSession, error) {
+func (s *SupervisorController) CreateRunNewSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
+	// sessionID := naming.RandomID()
+	// sessionName := naming.RandomSessionName()
 
-	sessionID := naming.RandomID()
-	sessionName := naming.RandomSessionName()
-
-	// exe := "/home/inwx/projects/sbsh/sbsh-session"
-	args := []string{"run", "--id", sessionID, "--name", sessionName}
+	if spec.Session == nil {
+		return nil, errors.New("no session spec found")
+	}
+	// args := []string{"run", "--id", sessionID, "--name", sessionName}
+	args := []string{
+		"run", "--id",
+		string(spec.Session.ID), "--name",
+		spec.Session.Name,
+	}
 
 	execPath, err := os.Executable()
 	if err != nil {
-
 		return nil, fmt.Errorf("%w: %v", errdefs.ErrStartCmd, err)
 	}
+	spec.Session.Command = execPath
+	spec.Session.CommandArgs = args
+	spec.Session.Env = os.Environ()
+	spec.Session.LogFilename = s.runPath + "/sessions/" + string(spec.Session.ID) + "/log"
+	spec.Session.SockerCtrl = s.runPath + "/sessions/" + string(spec.Session.ID) + "/ctrl.sock"
+	spec.Session.SocketIO = s.runPath + "/sessions/" + string(spec.Session.ID) + "/io.sock"
 
-	sessionSpec := &api.SessionSpec{
-		ID:          api.ID(sessionID),
-		Kind:        api.SessionLocal,
-		Name:        sessionName,
-		Command:     execPath,
-		CommandArgs: args,
-		Env:         os.Environ(),
-		LogFilename: s.runPath + "/sessions/" + sessionID + "/log",
-		SockerCtrl:  s.runPath + "/sessions/" + sessionID + "/ctrl.sock",
-		SocketIO:    s.runPath + "/sessions/" + sessionID + "/io.sock",
-	}
+	// sessionSpec := &api.SessionSpec{
+	// 	ID:          api.ID(sessionID),
+	// 	Kind:        api.SessionLocal,
+	// 	Name:        sessionName,
+	// 	Command:     execPath,
+	// 	CommandArgs: args,
+	// 	Env:         os.Environ(),
+	// 	LogFilename: s.runPath + "/sessions/" + sessionID + "/log",
+	// 	SockerCtrl:  s.runPath + "/sessions/" + sessionID + "/ctrl.sock",
+	// 	SocketIO:    s.runPath + "/sessions/" + sessionID + "/io.sock",
+	// }
 
-	session := sessionstore.NewSupervisedSession(sessionSpec)
+	session := sessionstore.NewSupervisedSession(spec.Session)
 	if err := ss.Add(session); err != nil {
 		return nil, fmt.Errorf("%w: %v", errdefs.ErrSessionStore, err)
 	}
@@ -285,7 +314,6 @@ func (s *SupervisorController) Close(reason error) error {
 }
 
 func (s *SupervisorController) WaitClose() error {
-
 	select {
 	case <-s.closed:
 		slog.Debug("[supervisor] controller exited\r\n")

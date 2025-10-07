@@ -181,6 +181,7 @@ func PrintSessionSpec(s *api.SessionSpec, w io.Writer) error {
 
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 
+	fmt.Fprintf(tw, "ID:\t%s\n", s.ID)
 	fmt.Fprintf(tw, "NAME:\t%s\n", s.Name)
 	fmt.Fprintf(tw, "KIND:\t%s\n", s.Kind)
 	fmt.Fprintf(tw, "COMMAND:\t%s %s\n", s.Command, strings.Join(s.CommandArgs, " "))
@@ -188,6 +189,7 @@ func PrintSessionSpec(s *api.SessionSpec, w io.Writer) error {
 	fmt.Fprintf(tw, "LOG FILE:\t%s\n", s.LogFilename)
 	fmt.Fprintf(tw, "SOCKET CTRL:\t%s\n", s.SockerCtrl)
 	fmt.Fprintf(tw, "SOCKET IO:\t%s\n", s.SocketIO)
+	fmt.Fprintf(tw, "PROMPT:\t%s\n", s.Prompt)
 
 	if len(s.Env) > 0 {
 		fmt.Fprintln(tw, "ENVIRONMENT:")

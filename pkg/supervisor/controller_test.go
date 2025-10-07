@@ -24,16 +24,16 @@ import (
 	"log"
 	"net"
 	"os"
+	"testing"
+	"time"
+
+	"github.com/spf13/viper"
 	"sbsh/pkg/api"
 	"sbsh/pkg/errdefs"
 	"sbsh/pkg/naming"
 	"sbsh/pkg/supervisor/sessionstore"
 	"sbsh/pkg/supervisor/supervisorrpc"
 	"sbsh/pkg/supervisor/supervisorrunner"
-	"testing"
-	"time"
-
-	"github.com/spf13/viper"
 )
 
 type fakeListener struct{}
@@ -128,8 +128,8 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrOpenSocketCtrl) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrOpenSocketCtrl, err)
 	}
-
 }
+
 func Test_ErrStartRPCServer(t *testing.T) {
 	// ctx, cancel := context.WithCancel(context.Background())
 	sessionCtrl := NewSupervisorController(context.Background())
@@ -208,7 +208,6 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartRPCServer) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartRPCServer, err)
 	}
-
 }
 
 func Test_ErrAttach(t *testing.T) {
@@ -251,6 +250,31 @@ func Test_ErrAttach(t *testing.T) {
 		}
 	}
 
+	newSessionStore = func() sessionstore.SessionStore {
+		return &sessionstore.SessionStoreTest{
+			AddFunc: func(s *api.SupervisedSession) error {
+				return fmt.Errorf("force add fail")
+			},
+			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+				return nil, false
+			},
+			ListLiveFunc: func() []api.ID {
+				return []api.ID{}
+			},
+			RemoveFunc: func(id api.ID) {
+			},
+			CurrentFunc: func() api.ID {
+				return "sess-1"
+			},
+			SetCurrentFunc: func(id api.ID) error {
+				if id == "" {
+					return errors.New("empty id not allowed")
+				}
+				return nil
+			},
+		}
+	}
+
 	var buf bytes.Buffer
 	old := log.Writer()
 	log.SetOutput(&buf)
@@ -270,6 +294,7 @@ func Test_ErrAttach(t *testing.T) {
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
+		Kind:    api.AttachToSession,
 	}
 
 	exitCh := make(chan error)
@@ -280,7 +305,6 @@ func Test_ErrAttach(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrAttach) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrAttach, err)
 	}
-
 }
 
 func Test_ErrContextDone(t *testing.T) {
@@ -324,6 +348,30 @@ func Test_ErrContextDone(t *testing.T) {
 		}
 	}
 
+	newSessionStore = func() sessionstore.SessionStore {
+		return &sessionstore.SessionStoreTest{
+			AddFunc: func(s *api.SupervisedSession) error {
+				return nil
+			},
+			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+				return nil, false
+			},
+			ListLiveFunc: func() []api.ID {
+				return []api.ID{}
+			},
+			RemoveFunc: func(id api.ID) {
+			},
+			CurrentFunc: func() api.ID {
+				return "sess-1"
+			},
+			SetCurrentFunc: func(id api.ID) error {
+				if id == "" {
+					return errors.New("empty id not allowed")
+				}
+				return nil
+			},
+		}
+	}
 	var buf bytes.Buffer
 	old := log.Writer()
 	log.SetOutput(&buf)
@@ -343,6 +391,7 @@ func Test_ErrContextDone(t *testing.T) {
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
+		Session: &api.SessionSpec{},
 	}
 
 	exitCh := make(chan error)
@@ -351,12 +400,12 @@ func Test_ErrContextDone(t *testing.T) {
 	}(exitCh)
 
 	<-ctrlReady
+	time.Sleep(10 * time.Millisecond)
 	cancel()
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrContextDone) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrContextDone, err)
 	}
-
 }
 
 func Test_ErrRPCServerExited(t *testing.T) {
@@ -399,6 +448,31 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		}
 	}
 
+	newSessionStore = func() sessionstore.SessionStore {
+		return &sessionstore.SessionStoreTest{
+			AddFunc: func(s *api.SupervisedSession) error {
+				return nil
+			},
+			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+				return nil, false
+			},
+			ListLiveFunc: func() []api.ID {
+				return []api.ID{}
+			},
+			RemoveFunc: func(id api.ID) {
+			},
+			CurrentFunc: func() api.ID {
+				return "sess-1"
+			},
+			SetCurrentFunc: func(id api.ID) error {
+				if id == "" {
+					return errors.New("empty id not allowed")
+				}
+				return nil
+			},
+		}
+	}
+
 	var buf bytes.Buffer
 	old := log.Writer()
 	log.SetOutput(&buf)
@@ -420,6 +494,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
+		Session: &api.SessionSpec{},
 	}
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
@@ -431,7 +506,6 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrRPCServerExited) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrRPCServerExited, err)
 	}
-
 }
 
 func Test_ErrSessionExists(t *testing.T) {
@@ -473,6 +547,30 @@ func Test_ErrSessionExists(t *testing.T) {
 			},
 		}
 	}
+	newSessionStore = func() sessionstore.SessionStore {
+		return &sessionstore.SessionStoreTest{
+			AddFunc: func(s *api.SupervisedSession) error {
+				return nil
+			},
+			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+				return nil, false
+			},
+			ListLiveFunc: func() []api.ID {
+				return []api.ID{}
+			},
+			RemoveFunc: func(id api.ID) {
+			},
+			CurrentFunc: func() api.ID {
+				return "sess-1"
+			},
+			SetCurrentFunc: func(id api.ID) error {
+				if id == "" {
+					return errors.New("empty id not allowed")
+				}
+				return nil
+			},
+		}
+	}
 
 	var buf bytes.Buffer
 	old := log.Writer()
@@ -493,6 +591,7 @@ func Test_ErrSessionExists(t *testing.T) {
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
+		Session: &api.SessionSpec{},
 	}
 
 	exitCh := make(chan error)
@@ -506,7 +605,6 @@ func Test_ErrSessionExists(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrCloseReq) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrCloseReq, err)
 	}
-
 }
 
 func Test_ErrCloseReq(t *testing.T) {
@@ -549,6 +647,31 @@ func Test_ErrCloseReq(t *testing.T) {
 		}
 	}
 
+	newSessionStore = func() sessionstore.SessionStore {
+		return &sessionstore.SessionStoreTest{
+			AddFunc: func(s *api.SupervisedSession) error {
+				return nil
+			},
+			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+				return nil, false
+			},
+			ListLiveFunc: func() []api.ID {
+				return []api.ID{}
+			},
+			RemoveFunc: func(id api.ID) {
+			},
+			CurrentFunc: func() api.ID {
+				return "sess-1"
+			},
+			SetCurrentFunc: func(id api.ID) error {
+				if id == "" {
+					return errors.New("empty id not allowed")
+				}
+				return nil
+			},
+		}
+	}
+
 	var buf bytes.Buffer
 	old := log.Writer()
 	log.SetOutput(&buf)
@@ -568,6 +691,7 @@ func Test_ErrCloseReq(t *testing.T) {
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
+		Session: &api.SessionSpec{},
 	}
 
 	exitCh := make(chan error)
@@ -581,7 +705,6 @@ func Test_ErrCloseReq(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrCloseReq) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrCloseReq, err)
 	}
-
 }
 
 func Test_ErrStartSessionCmd(t *testing.T) {
@@ -624,6 +747,31 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 		}
 	}
 
+	newSessionStore = func() sessionstore.SessionStore {
+		return &sessionstore.SessionStoreTest{
+			AddFunc: func(s *api.SupervisedSession) error {
+				return nil
+			},
+			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+				return nil, false
+			},
+			ListLiveFunc: func() []api.ID {
+				return []api.ID{}
+			},
+			RemoveFunc: func(id api.ID) {
+			},
+			CurrentFunc: func() api.ID {
+				return "sess-1"
+			},
+			SetCurrentFunc: func(id api.ID) error {
+				if id == "" {
+					return errors.New("empty id not allowed")
+				}
+				return nil
+			},
+		}
+	}
+
 	var buf bytes.Buffer
 	old := log.Writer()
 	log.SetOutput(&buf)
@@ -643,6 +791,7 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
+		Session: &api.SessionSpec{},
 	}
 
 	exitCh := make(chan error)
@@ -655,7 +804,6 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartSessionCmd) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartSessionCmd, err)
 	}
-
 }
 
 func Test_ErrSessionStore(t *testing.T) {
@@ -697,7 +845,6 @@ func Test_ErrSessionStore(t *testing.T) {
 	newSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
 			AddFunc: func(s *api.SupervisedSession) error {
-
 				return fmt.Errorf("force add fail")
 			},
 			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
@@ -718,7 +865,6 @@ func Test_ErrSessionStore(t *testing.T) {
 				return nil
 			},
 		}
-
 	}
 
 	var buf bytes.Buffer
@@ -740,6 +886,7 @@ func Test_ErrSessionStore(t *testing.T) {
 		Env:     os.Environ(),
 		LogDir:  "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
+		Session: &api.SessionSpec{},
 	}
 
 	exitCh := make(chan error)
@@ -750,5 +897,4 @@ func Test_ErrSessionStore(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrSessionStore) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrSessionStore, err)
 	}
-
 }

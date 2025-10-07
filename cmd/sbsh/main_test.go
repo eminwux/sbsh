@@ -20,10 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/spf13/viper"
 	"sbsh/pkg/api"
+	"sbsh/pkg/env"
+	"sbsh/pkg/naming"
 	"sbsh/pkg/supervisor"
 )
 
@@ -50,9 +54,20 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 	}
 	t.Cleanup(func() { newSupervisorController = orig })
 
+	// Define a new Supervisor
+	spec := &api.SupervisorSpec{
+		Kind:    api.RunNewSession,
+		ID:      api.ID(naming.RandomID()),
+		Name:    naming.RandomSessionName(),
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString(env.RUN_PATH.ViperKey),
+		Session: nil,
+	}
+
 	done := make(chan error)
 	go func() {
-		done <- runSupervisor() // will block until ctx.Done()
+		done <- runSupervisor(spec) // will block until ctx.Done()
 	}()
 
 	// Give Run() time to set ready, then signal the process (NotifyContext listens to SIGTERM/INT)
@@ -91,9 +106,19 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	}
 	t.Cleanup(func() { newSupervisorController = orig })
 
+	// Define a new Supervisor
+	spec := &api.SupervisorSpec{
+		Kind:    api.RunNewSession,
+		ID:      api.ID(naming.RandomID()),
+		Name:    naming.RandomSessionName(),
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString(env.RUN_PATH.ViperKey),
+		Session: nil,
+	}
 	done := make(chan error)
 	go func() {
-		done <- runSupervisor() // will block until ctx.Done()
+		done <- runSupervisor(spec) // will block until ctx.Done()
 	}()
 
 	select {
@@ -128,9 +153,20 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	}
 	t.Cleanup(func() { newSupervisorController = orig })
 
+	// Define a new Supervisor
+	spec := &api.SupervisorSpec{
+		Kind:    api.RunNewSession,
+		ID:      api.ID(naming.RandomID()),
+		Name:    naming.RandomSessionName(),
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString(env.RUN_PATH.ViperKey),
+		Session: nil,
+	}
+
 	done := make(chan error)
 	go func() {
-		done <- runSupervisor() // will block until ctx.Done()
+		done <- runSupervisor(spec) // will block until ctx.Done()
 	}()
 
 	time.Sleep(20 * time.Millisecond)
@@ -164,9 +200,20 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 	}
 	t.Cleanup(func() { newSupervisorController = orig })
 
+	// Define a new Supervisor
+	spec := &api.SupervisorSpec{
+		Kind:    api.RunNewSession,
+		ID:      api.ID(naming.RandomID()),
+		Name:    naming.RandomSessionName(),
+		Env:     os.Environ(),
+		LogDir:  "/tmp/sbsh-logs/s0",
+		RunPath: viper.GetString(env.RUN_PATH.ViperKey),
+		Session: nil,
+	}
+
 	done := make(chan error)
 	go func() {
-		done <- runSupervisor() // will block until ctx.Done()
+		done <- runSupervisor(spec) // will block until ctx.Done()
 	}()
 
 	time.Sleep(20 * time.Millisecond)

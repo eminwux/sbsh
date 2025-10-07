@@ -38,6 +38,8 @@ type SupervisorSpec struct {
 	// Only valid when Kind == AttachToSession
 	AttachID   ID     `json:"attachId,omitempty"`
 	AttachName string `json:"attachName,omitempty"`
+
+	Session *SessionSpec `json:"sesion,omitempty"`
 }
 
 type SupervisorKind int

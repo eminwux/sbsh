@@ -17,11 +17,16 @@
 package profile
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 
+	"github.com/spf13/viper"
 	"sbsh/pkg/api"
+	"sbsh/pkg/discovery"
+	"sbsh/pkg/env"
 )
 
 // CreateSessionFromProfile converts a SessionProfileDoc (profile YAML) into a SessionSpec
@@ -94,4 +99,50 @@ func copyStringMap(in map[string]string) map[string]string {
 		out[k] = v
 	}
 	return out
+}
+
+func BuildSessionSpec(
+	profileNameInput, sessionIDInput, sessionNameInput, sessionCmdInput, logFilenameInput string,
+	ctx context.Context,
+) (*api.SessionSpec, error) {
+	var sessionSpec *api.SessionSpec
+	if profileNameInput == "" {
+		// Split into args for exec
+		cmdArgs := []string{}
+
+		// Define a new Session
+		sessionSpec = &api.SessionSpec{
+			ID:          api.ID(sessionIDInput),
+			Kind:        api.SessionLocal,
+			Name:        sessionNameInput,
+			Command:     sessionCmdInput,
+			CommandArgs: cmdArgs,
+			Env:         os.Environ(),
+			RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+			LogFilename: logFilenameInput,
+			// Prompt:      "(sbsh-$SBSH_SES_ID) $PS1",
+			Prompt: "pepe>",
+		}
+	} else {
+		profileSpec, err := discovery.FindProfileByName(ctx, viper.GetString(env.PROFILES_FILE.ViperKey), profileNameInput)
+		if err != nil {
+			return nil, err
+		}
+		sessionSpec, err = CreateSessionFromProfile(profileSpec)
+		if err != nil {
+			return nil, err
+		}
+		sessionSpec.ID = api.ID(sessionIDInput)
+		sessionSpec.RunPath = viper.GetString(env.RUN_PATH.ViperKey)
+		sessionSpec.LogFilename = logFilenameInput
+		sessionSpec.Env = append(sessionSpec.Env, os.Environ()...)
+
+		env.SES_PROFILE.Set(profileNameInput)
+
+		err = env.SES_PROFILE.BindEnv()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return sessionSpec, nil
 }
