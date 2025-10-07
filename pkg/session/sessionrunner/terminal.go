@@ -22,18 +22,17 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"sbsh/pkg/env"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/creack/pty"
+	"sbsh/pkg/env"
 )
 
 var closePTY sync.Once
 
 func (sr *SessionRunnerExec) prepareSessionCommand() error {
-
 	// Build the child command with context (so ctx cancel can kill it)
 	cmd := exec.CommandContext(sr.ctx, sr.metadata.Spec.Command, sr.metadata.Spec.CommandArgs...)
 	// Environment: use provided or inherit
@@ -47,6 +46,7 @@ func (sr *SessionRunnerExec) prepareSessionCommand() error {
 		env.KV(env.SES_SOCKET_IO, sr.socketIO),
 		env.KV(env.SES_ID, string(sr.metadata.Spec.ID)),
 		env.KV(env.SES_NAME, sr.metadata.Spec.Name),
+		env.KV(env.SES_PROFILE, sr.metadata.Spec.ProfileName),
 	)
 	// Start the process in a new session so it has its own process group
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -72,7 +72,6 @@ func (sr *SessionRunnerExec) prepareSessionCommand() error {
 }
 
 func (sr *SessionRunnerExec) startPTY() error {
-
 	// Start under a PTY and inherit current terminal size
 	ptmx, err := pty.Start(sr.cmd)
 	if err != nil {
@@ -85,7 +84,6 @@ func (sr *SessionRunnerExec) startPTY() error {
 		_ = sr.cmd.Wait() // blocks until process exits
 		slog.Debug(fmt.Sprintf("[session] pid=%d, bash with pid=%d has exited\r\n", os.Getpid(), sr.cmd.Process.Pid))
 		sr.closeReqCh <- fmt.Errorf("the shell process has exited")
-
 	}()
 
 	logf, err := os.OpenFile(sr.metadata.Spec.LogFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
@@ -131,7 +129,7 @@ func (sr *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writ
 		sr.terminalManagerWriter(pipeInR)
 	}()
 
-	sr.Write([]byte(`export PS1="(sbsh-` + sr.id + `) $PS1"` + "\n"))
+	// sr.Write([]byte(`export PS1="(sbsh-` + sr.id + `) $PS1"` + "\n"))
 	// s.pty.Write([]byte("echo 'Hello from Go!'\n"))
 	// s.pty.Write([]byte(`export PS1="(sbsh) $PS1"` + "\n"))
 	// s.pty.Write([]byte(`__sbsh_emit() { printf '\033]1337;sbsh\007'; }` + "\n"))
@@ -141,7 +139,6 @@ func (sr *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writ
 }
 
 func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
-
 	go func() {
 		<-sr.ctx.Done()
 		slog.Debug("[session-runner] finishing terminalManagerReader ")
@@ -184,7 +181,6 @@ func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
 }
 
 func (sr *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
-
 	go func() {
 		<-sr.ctx.Done()
 		slog.Debug("[session-runner] finishing terminalManagerWriter ")

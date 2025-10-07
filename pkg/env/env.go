@@ -91,4 +91,5 @@ var (
 	SES_SOCKET_IO   = Define("SES_SOCKET_IO")
 	SES_ID          = Define("SES_ID")
 	SES_NAME        = Define("SES_NAME")
+	SES_PROFILE     = Define("SES_PROFILE")
 )

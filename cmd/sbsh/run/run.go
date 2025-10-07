@@ -108,6 +108,9 @@ to quickly create a Cobra application.`,
 			sessionSpec.LogFilename = logFilenameInput
 			sessionSpec.Env = append(sessionSpec.Env, os.Environ()...)
 
+			env.SES_PROFILE.Set(profileNameInput)
+			_ = env.SES_PROFILE.BindEnv()
+
 			if err != nil {
 				log.Fatal(err)
 			}

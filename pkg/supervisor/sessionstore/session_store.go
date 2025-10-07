@@ -18,9 +18,10 @@ package sessionstore
 
 import (
 	"errors"
+	"sync"
+
 	"sbsh/pkg/api"
 	"sbsh/pkg/errdefs"
-	"sync"
 )
 
 type SessionStore interface {
@@ -55,6 +56,7 @@ func NewSupervisedSession(spec *api.SessionSpec) *api.SupervisedSession {
 		LogFilename: spec.LogFilename,
 		SocketCtrl:  spec.SockerCtrl,
 		SocketIO:    spec.SocketIO,
+		Prompt:      spec.Prompt,
 	}
 }
 

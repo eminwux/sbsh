@@ -17,7 +17,9 @@
 package supervisorrunner
 
 import (
+	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -53,6 +55,15 @@ func (sr *SupervisorRunnerExec) toExitShell() error {
 }
 
 func (sr *SupervisorRunnerExec) initTerminal() error {
+	// sr.Write([]byte(`export PS1="(sbsh-` + sr.id + `) $PS1"` + "\n"))
+
+	slog.Debug(
+		fmt.Sprintf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!![supervisor] setting prompt to: %s", sr.session.Prompt),
+	)
+	if err := sr.writeTerminal(`export PS1="` + sr.session.Prompt + `"` + "\n"); err != nil {
+		return err
+	}
+
 	if err := sr.writeTerminal("export SBSH_SUP_SOCKET=" + sr.supervisorSocketCtrl + "\n"); err != nil {
 		return err
 	}

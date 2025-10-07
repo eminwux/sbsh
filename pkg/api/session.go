@@ -53,6 +53,8 @@ type SessionSpec struct {
 	SockerCtrl  string            `json:"socketCtrl"`
 	SocketIO    string            `json:"socketIO"`
 	RunPath     string            `json:"runPath"`
+	ProfileName string            `json:"profileName"`
+	Prompt      string            `json:"prompt"`
 }
 
 type SessionStatus struct {

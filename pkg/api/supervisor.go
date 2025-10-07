@@ -59,6 +59,7 @@ type SupervisedSession struct {
 	SocketCtrl  string
 	SocketIO    string
 	Pid         int
+	Prompt      string
 }
 
 // SUPERVISOR RPC

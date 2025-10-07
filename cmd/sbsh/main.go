@@ -226,7 +226,7 @@ func LoadConfig() error {
 	if err := viper.ReadInConfig(); err != nil {
 		// File not found is OK if ENV is set
 		var configFileNotFoundError viper.ConfigFileNotFoundError
-		if errors.As(err, &configFileNotFoundError) {
+		if !errors.As(err, &configFileNotFoundError) {
 			return err // Config file was found but another error was produced
 		}
 	}
