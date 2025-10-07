@@ -10,6 +10,15 @@
       "console": "integratedTerminal"
     },
     {
+      "name": "Debug sbsh -p",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "cmd/sbsh/",
+      "console": "integratedTerminal",
+      "args": ["--session-profile", "prod"]
+    },
+    {
       "name": "Debug sbsh run",
       "type": "go",
       "request": "launch",
