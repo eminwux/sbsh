@@ -33,7 +33,6 @@ import (
 	"sbsh/cmd/sbsh/run"
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
-	"sbsh/pkg/discovery"
 	"sbsh/pkg/env"
 	"sbsh/pkg/naming"
 	"sbsh/pkg/profile"
@@ -47,15 +46,17 @@ var (
 )
 
 var (
-	logLevelInput     string
-	runPathInput      string
-	cfgFileInput      string
-	profilesFileInput string
-	profileNameInput  string
-	sessionIDInput    string
-	sessionNameInput  string
-	sessionCmdInput   string
-	logFilenameInput  string
+	logLevelInput           string
+	runPathInput            string
+	cfgFileInput            string
+	profilesFileInput       string
+	sessionProfileNameInput string
+	sessionIDInput          string
+	sessionNameInput        string
+	sessionCmdInput         string
+	sessionLogFilenameInput string
+	socketFileInput         string
+	sessionSocketFileInput  string
 )
 
 func main() {
@@ -81,53 +82,67 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		if sessionIDInput == "" {
-			sessionIDInput = naming.RandomID()
-		}
-
-		if sessionNameInput == "" {
-			sessionNameInput = naming.RandomSessionName()
-		}
-
-		if sessionCmdInput == "" {
-			sessionCmdInput = "/bin/bash"
-		}
-
-		if logFilenameInput == "" {
-			logFilenameInput = filepath.Join(
-				viper.GetString(env.RUN_PATH.ViperKey),
-				"sessions",
-				string(sessionIDInput),
-				"session.log",
-			)
-		}
-
+		// Build SessionSpec from command-line inputs and profile (if given)
 		sessionSpec, err := profile.BuildSessionSpec(
-			profileNameInput, sessionIDInput, sessionNameInput, sessionCmdInput, logFilenameInput, ctx)
+			viper.GetString(env.RUN_PATH.ViperKey),
+			viper.GetString(env.PROFILES_FILE.ViperKey),
+			sessionProfileNameInput,
+			sessionIDInput,
+			sessionNameInput,
+			sessionCmdInput,
+			sessionLogFilenameInput,
+			sessionSocketFileInput,
+			os.Environ(),
+			ctx,
+		)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		// Define a new Supervisor
-		spec := &api.SupervisorSpec{
-			Kind:    api.RunNewSession,
-			ID:      api.ID(naming.RandomID()),
-			Name:    naming.RandomSessionName(),
-			Env:     os.Environ(),
-			LogDir:  "/tmp/sbsh-logs/s0",
-			RunPath: viper.GetString(env.RUN_PATH.ViperKey),
-			Session: sessionSpec,
-		}
-
-		if profileNameInput != "" {
-			env.SES_PROFILE.Set(profileNameInput)
-			_ = env.SES_PROFILE.BindEnv()
-			if err != nil {
+		// If a profile name was given, set the SBSH_SES_PROFILE env var
+		if sessionProfileNameInput != "" {
+			if err := env.SES_PROFILE.Set(sessionProfileNameInput); err != nil {
+				log.Fatal(err)
+			}
+			if env.SES_PROFILE.BindEnv() != nil {
 				log.Fatal(err)
 			}
 		}
 
-		discovery.PrintSessionSpec(sessionSpec, os.Stdout)
+		supervisorID := naming.RandomID()
+		supervisorName := naming.RandomName()
+
+		if socketFileInput == "" {
+			socketFileInput = filepath.Join(
+				viper.GetString(env.RUN_PATH.ViperKey),
+				"supervisors",
+				supervisorID,
+				"socket",
+			)
+		}
+
+		// Define a new SupervisorSpec
+		spec := &api.SupervisorSpec{
+			Kind:        api.RunNewSession,
+			ID:          api.ID(supervisorID),
+			Name:        supervisorName,
+			Env:         os.Environ(),
+			RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+			SockerCtrl:  socketFileInput,
+			SessionSpec: sessionSpec,
+		}
+
+		slog.Debug("SupervisorSpec values",
+			"Kind", spec.Kind,
+			"ID", spec.ID,
+			"Name", spec.Name,
+			"Env", spec.Env,
+			"RunPath", spec.RunPath,
+			"SockerCtrl", spec.SockerCtrl,
+			"SessionSpec", spec.SessionSpec,
+		)
+
+		// discovery.PrintSessionSpec(sessionSpec, os.Stdout)
 		runSupervisor(spec)
 	},
 }
@@ -196,14 +211,16 @@ func init() {
 	rootCmd.AddCommand(attach.AttachCmd)
 
 	// Persistent flags
+	rootCmd.PersistentFlags().StringVar(&runPathInput, "run-path", "", "Optional run path for the supervisor")
 	rootCmd.PersistentFlags().StringVar(&cfgFileInput, "config", "", "config file (default is $HOME/.sbsh/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&logLevelInput, "log-level", "info", "Log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().
-		StringVar(&runPathInput, "run-path", "", "Log level (debug, info, warn, error)")
-	rootCmd.PersistentFlags().
 		StringVar(&profilesFileInput, "profiles", "", "profiles manifests file")
 
-	// Bind flag to Viper
+	if err := viper.BindPFlag(env.RUN_PATH.ViperKey, rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
+		log.Fatal(err)
+	}
+
 	if err := viper.BindPFlag(env.CONFIG_FILE.ViperKey, rootCmd.PersistentFlags().Lookup("config")); err != nil {
 		log.Fatal(err)
 	}
@@ -212,19 +229,21 @@ func init() {
 		log.Fatal(err)
 	}
 
-	if err := viper.BindPFlag(env.RUN_PATH.ViperKey, rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
-		log.Fatal(err)
-	}
-
 	if err := viper.BindPFlag(env.PROFILES_FILE.ViperKey, rootCmd.PersistentFlags().Lookup("profiles")); err != nil {
 		log.Fatal(err)
 	}
-	// Non-persistent flags
+
+	// Bind Non-persistent Flags to Viper
+	// Supervisor flags
+	rootCmd.Flags().StringVar(&socketFileInput, "socket", "", "Optional socket file for the session")
+	// Session flags
 	rootCmd.Flags().StringVar(&sessionIDInput, "session-id", "", "Optional session ID (random if omitted)")
 	rootCmd.Flags().StringVar(&sessionCmdInput, "session-command", "/bin/bash", "Optional command (default: /bin/bash)")
 	rootCmd.Flags().StringVar(&sessionNameInput, "session-name", "", "Optional name for the session")
-	rootCmd.Flags().StringVar(&logFilenameInput, "session-log-filename", "", "Optional filename for the session log")
-	rootCmd.Flags().StringVar(&profileNameInput, "session-profile", "", "Optional profile for the session")
+	rootCmd.Flags().
+		StringVar(&sessionLogFilenameInput, "session-log-filename", "", "Optional filename for the session log")
+	rootCmd.Flags().StringVar(&sessionProfileNameInput, "session-profile", "", "Optional profile for the session")
+	rootCmd.Flags().StringVar(&sessionSocketFileInput, "session-socket", "", "Optional socket file for the session")
 
 	if err := viper.BindPFlag("session.logFilename", rootCmd.Flags().Lookup("session-log-filename")); err != nil {
 		log.Fatal(err)

@@ -24,7 +24,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -32,7 +31,6 @@ import (
 	"sbsh/pkg/api"
 	"sbsh/pkg/env"
 	"sbsh/pkg/errdefs"
-	"sbsh/pkg/naming"
 	"sbsh/pkg/profile"
 	"sbsh/pkg/session"
 )
@@ -43,6 +41,7 @@ var (
 	sessionCmdInput      string
 	logFilenameInput     string
 	profileNameInput     string
+	socketFileInput      string
 	ctx                  context.Context
 	cancel               context.CancelFunc
 	newSessionController = session.NewSessionController
@@ -51,44 +50,44 @@ var (
 // RunCmd represents the run command.
 var RunCmd = &cobra.Command{
 	Use:   "run",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Run a new sbsh session",
+	Long: `Run a new sbsh session.
+The session can be customized via command-line options or by specifying a profile.
+If no profile is specified, a default profile is used with the provided command or /bin/bash.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Examples:
+  sbsh run --name mysession --command "/bin/zsh"
+  sbsh run --profile devprofile
+  sbsh run --profile devprofile --name customname --command "/usr/bin/fish"
+
+If no session name is provided, a random name will be generated.
+If no command is provided, /bin/bash will be used by default.
+If no log filename is provided, a default path under the run directory will be used.
+`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if sessionIDInput == "" {
-			sessionIDInput = naming.RandomID()
-		}
-
-		if sessionNameInput == "" {
-			sessionNameInput = naming.RandomSessionName()
-		}
-
-		if sessionCmdInput == "" {
-			sessionCmdInput = "/bin/bash"
-		}
-
-		if logFilenameInput == "" {
-			logFilenameInput = filepath.Join(
-				viper.GetString(env.RUN_PATH.ViperKey),
-				"sessions",
-				string(sessionIDInput),
-				"session.log",
-			)
-		}
 		sessionSpec, err := profile.BuildSessionSpec(
-			profileNameInput, sessionIDInput, sessionNameInput, sessionCmdInput, logFilenameInput, ctx)
+			viper.GetString(env.RUN_PATH.ViperKey),
+			viper.GetString(env.PROFILES_FILE.ViperKey),
+			profileNameInput,
+			sessionIDInput,
+			sessionNameInput,
+			sessionCmdInput,
+			logFilenameInput,
+			socketFileInput,
+			os.Environ(),
+			ctx,
+		)
 		if err != nil {
 			log.Fatal(err)
 		}
 
+		// If a profile name was given, set the SBSH_SES_PROFILE env var
 		if profileNameInput != "" {
 			env.SES_PROFILE.Set(profileNameInput)
-			_ = env.SES_PROFILE.BindEnv()
-			if err != nil {
+			if env.SES_PROFILE.BindEnv() != nil {
+				log.Fatal(err)
+			}
+			if env.SES_PROFILE.Set(profileNameInput) != nil {
 				log.Fatal(err)
 			}
 		}
@@ -104,6 +103,7 @@ func init() {
 	RunCmd.Flags().StringVar(&sessionNameInput, "name", "", "Optional name for the session")
 	RunCmd.Flags().StringVar(&logFilenameInput, "log-filename", "", "Optional filename for the session log")
 	RunCmd.Flags().StringVar(&profileNameInput, "profile", "", "Optional profile for the session")
+	RunCmd.Flags().StringVar(&socketFileInput, "socket", "", "Optional socket file for the session")
 
 	if err := viper.BindPFlag("session.logFilename", RunCmd.Flags().Lookup("log-filename")); err != nil {
 		log.Fatal(err)

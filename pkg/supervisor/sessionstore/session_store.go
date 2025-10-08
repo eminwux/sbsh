@@ -54,8 +54,7 @@ func NewSupervisedSession(spec *api.SessionSpec) *api.SupervisedSession {
 		CommandArgs: spec.CommandArgs,
 		Env:         spec.Env,
 		LogFilename: spec.LogFilename,
-		SocketCtrl:  spec.SockerCtrl,
-		SocketIO:    spec.SocketIO,
+		SocketFile:  spec.SocketFile,
 		Prompt:      spec.Prompt,
 	}
 }

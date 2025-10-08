@@ -21,9 +21,10 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"sbsh/pkg/api"
 	"sync"
 	"time"
+
+	"sbsh/pkg/api"
 )
 
 type SessionRunnerExec struct {
@@ -33,14 +34,11 @@ type SessionRunnerExec struct {
 	// immutable
 	id       api.ID
 	metadata api.SessionMetadata
-	// spec     api.SessionSpec
-	// status   api.SessionStatus
 
 	// runtime (owned by Session)
-	cmd     *exec.Cmd
-	pty     *os.File // master
-	state   api.SessionState
-	runPath string
+	cmd   *exec.Cmd
+	pty   *os.File // master
+	state api.SessionState
 
 	gates struct {
 		StdinOpen bool
@@ -56,10 +54,6 @@ type SessionRunnerExec struct {
 
 	listenerIO   net.Listener
 	listenerCtrl net.Listener
-
-	socketIO     string
-	socketCtrl   string
-	metadataFile string
 
 	clientsMu sync.RWMutex
 	clients   map[api.ID]*ioClient
@@ -97,10 +91,11 @@ func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRun
 		ctxCancel: cancel,
 
 		// runtime (initialized but inactive)
-		cmd:     nil,
-		pty:     nil,
-		state:   api.SessionBash, // default logical state before start
-		runPath: spec.RunPath + "/sessions",
+		cmd:   nil,
+		pty:   nil,
+		state: api.SessionBash, // default logical state before start
+
+		clients: make(map[api.ID]*ioClient),
 
 		gates: struct {
 			StdinOpen bool

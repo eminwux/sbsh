@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"sbsh/pkg/discovery"
+	"sbsh/pkg/env"
 )
 
 var (
@@ -41,15 +42,10 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			slog.Debug("-> sessions list")
-
-			// get env SBSH_RUN_DIR
-			// scan run dir for existing sessions
-			// read status file
-			// return results
+			slog.Debug("sessions list", "runPath", viper.GetString(env.RUN_PATH.ViperKey), "listAll", listAllInput)
 
 			ctx := context.Background()
-			return discovery.ScanAndPrintSessions(ctx, viper.GetString("global.runPath"), os.Stdout, listAllInput)
+			return discovery.ScanAndPrintSessions(ctx, viper.GetString(env.RUN_PATH.ViperKey), os.Stdout, listAllInput)
 		},
 	}
 )

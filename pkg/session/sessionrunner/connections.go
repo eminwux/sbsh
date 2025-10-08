@@ -21,6 +21,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+
 	"sbsh/pkg/api"
 )
 
@@ -32,7 +33,7 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	client.pipeOutR, client.pipeOutW, _ = os.Pipe()
 	sr.ptyPipes.multiOutW.Add(client.pipeOutW)
 
-	log, _ := readFileBytes(sr.metadata.Spec.LogFilename)
+	log, _ := readFileBytes(sr.metadata.Status.LogFilename)
 
 	errCh := make(chan error, 2)
 
@@ -119,7 +120,6 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	client.conn.Close()
 	close(errCh)
 	sr.removeClient(client)
-
 }
 
 func (sr *SessionRunnerExec) addClient(c *ioClient) {

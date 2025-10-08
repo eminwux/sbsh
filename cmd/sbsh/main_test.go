@@ -56,13 +56,13 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
-		Kind:    api.RunNewSession,
-		ID:      api.ID(naming.RandomID()),
-		Name:    naming.RandomSessionName(),
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-		RunPath: viper.GetString(env.RUN_PATH.ViperKey),
-		Session: nil,
+		Kind:        api.RunNewSession,
+		ID:          api.ID(naming.RandomID()),
+		Name:        naming.RandomName(),
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+		SessionSpec: nil,
 	}
 
 	done := make(chan error)
@@ -108,13 +108,13 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
-		Kind:    api.RunNewSession,
-		ID:      api.ID(naming.RandomID()),
-		Name:    naming.RandomSessionName(),
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-		RunPath: viper.GetString(env.RUN_PATH.ViperKey),
-		Session: nil,
+		Kind:        api.RunNewSession,
+		ID:          api.ID(naming.RandomID()),
+		Name:        naming.RandomName(),
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+		SessionSpec: nil,
 	}
 	done := make(chan error)
 	go func() {
@@ -155,13 +155,13 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
-		Kind:    api.RunNewSession,
-		ID:      api.ID(naming.RandomID()),
-		Name:    naming.RandomSessionName(),
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-		RunPath: viper.GetString(env.RUN_PATH.ViperKey),
-		Session: nil,
+		Kind:        api.RunNewSession,
+		ID:          api.ID(naming.RandomID()),
+		Name:        naming.RandomName(),
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+		SessionSpec: nil,
 	}
 
 	done := make(chan error)
@@ -202,13 +202,13 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
-		Kind:    api.RunNewSession,
-		ID:      api.ID(naming.RandomID()),
-		Name:    naming.RandomSessionName(),
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-		RunPath: viper.GetString(env.RUN_PATH.ViperKey),
-		Session: nil,
+		Kind:        api.RunNewSession,
+		ID:          api.ID(naming.RandomID()),
+		Name:        naming.RandomName(),
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+		SessionSpec: nil,
 	}
 
 	done := make(chan error)

@@ -21,12 +21,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 
-	"github.com/spf13/viper"
 	"sbsh/pkg/api"
 	"sbsh/pkg/discovery"
-	"sbsh/pkg/env"
+	"sbsh/pkg/naming"
 )
 
 // CreateSessionFromProfile converts a SessionProfileDoc (profile YAML) into a SessionSpec
@@ -37,15 +37,19 @@ func CreateSessionFromProfile(profile *api.SessionProfileDoc) (*api.SessionSpec,
 	if profile == nil {
 		return nil, errors.New("profile is nil")
 	}
+
 	if profile.APIVersion == "" || profile.Kind == "" {
 		return nil, errors.New("invalid profile: missing apiVersion/kind")
 	}
+
 	if profile.Kind != api.KindSessionProfile {
 		return nil, fmt.Errorf("invalid kind %q (expected %q)", profile.Kind, api.KindSessionProfile)
 	}
+
 	if profile.Metadata.Name == "" {
 		return nil, errors.New("invalid profile: metadata.name is required")
 	}
+
 	if profile.Spec.Shell.Cmd == "" {
 		return nil, fmt.Errorf("invalid profile %q: shell.cmd is required", profile.Metadata.Name)
 	}
@@ -102,13 +106,65 @@ func copyStringMap(in map[string]string) map[string]string {
 }
 
 func BuildSessionSpec(
-	profileNameInput, sessionIDInput, sessionNameInput, sessionCmdInput, logFilenameInput string,
+	runPath,
+	profilesFilename,
+	profileNameInput,
+	sessionIDInput,
+	sessionNameInput,
+	sessionCmdInput,
+	logFilenameInput,
+	socketFileInput string,
+	envVars []string,
 	ctx context.Context,
 ) (*api.SessionSpec, error) {
+	if sessionIDInput == "" {
+		// Default session ID to a random one
+		sessionIDInput = naming.RandomID()
+	}
+
+	if profilesFilename == "" {
+		// Default profilesFilename to $RUN_PATH/profiles.yaml
+		profilesFilename = filepath.Join(runPath, ".sbsh", "profiles.yaml")
+	}
+
+	if runPath == "" {
+		// Default runPath to $HOME/.sbsh
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("cannot determine home directory: %w", err)
+		}
+		runPath = filepath.Join(homeDir, ".sbsh", "run")
+	}
+
+	if sessionNameInput == "" {
+		sessionNameInput = naming.RandomName()
+	}
+
+	if sessionCmdInput == "" {
+		sessionCmdInput = "/bin/bash"
+	}
+
+	if logFilenameInput == "" {
+		logFilenameInput = filepath.Join(
+			runPath,
+			"sessions",
+			sessionIDInput,
+			"session.log",
+		)
+	}
+
+	if socketFileInput == "" {
+		socketFileInput = filepath.Join(
+			runPath,
+			"sessions",
+			sessionIDInput,
+			"socket",
+		)
+	}
+
 	var sessionSpec *api.SessionSpec
 	if profileNameInput == "" {
-		// Split into args for exec
-		cmdArgs := []string{}
+		// No profile: build a SessionSpec from command-line inputs only.
 
 		// Define a new Session
 		sessionSpec = &api.SessionSpec{
@@ -116,15 +172,16 @@ func BuildSessionSpec(
 			Kind:        api.SessionLocal,
 			Name:        sessionNameInput,
 			Command:     sessionCmdInput,
-			CommandArgs: cmdArgs,
+			CommandArgs: []string{},
 			Env:         os.Environ(),
-			RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+			Prompt:      "(sbsh-$SBSH_SES_ID) $PS1",
+			RunPath:     runPath,
 			LogFilename: logFilenameInput,
-			// Prompt:      "(sbsh-$SBSH_SES_ID) $PS1",
-			Prompt: "pepe>",
+			SocketFile:  socketFileInput,
 		}
 	} else {
-		profileSpec, err := discovery.FindProfileByName(ctx, viper.GetString(env.PROFILES_FILE.ViperKey), profileNameInput)
+		// Profile given: load profiles file, find profile by name, and build SessionSpec from it.
+		profileSpec, err := discovery.FindProfileByName(ctx, profilesFilename, profileNameInput)
 		if err != nil {
 			return nil, err
 		}
@@ -133,16 +190,9 @@ func BuildSessionSpec(
 			return nil, err
 		}
 		sessionSpec.ID = api.ID(sessionIDInput)
-		sessionSpec.RunPath = viper.GetString(env.RUN_PATH.ViperKey)
+		sessionSpec.RunPath = runPath
 		sessionSpec.LogFilename = logFilenameInput
-		sessionSpec.Env = append(sessionSpec.Env, os.Environ()...)
-
-		env.SES_PROFILE.Set(profileNameInput)
-
-		err = env.SES_PROFILE.BindEnv()
-		if err != nil {
-			return nil, err
-		}
+		sessionSpec.Env = append(sessionSpec.Env, envVars...)
 	}
 	return sessionSpec, nil
 }

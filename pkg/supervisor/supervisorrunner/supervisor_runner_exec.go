@@ -27,14 +27,11 @@ import (
 )
 
 type SupervisorRunnerExec struct {
-	id   api.ID
-	spec api.SupervisorSpec
+	id       api.ID
+	metadata api.SupervisorMetadata
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
-
-	runPath              string
-	supervisorSocketCtrl string
 
 	uiMode        UIMode
 	lastTermState *term.State
@@ -65,13 +62,13 @@ func NewSupervisorRunnerExec(
 	newCtx, cancel := context.WithCancel(ctx)
 
 	return &SupervisorRunnerExec{
-		id:   spec.ID,
-		spec: *spec,
+		id: spec.ID,
+		metadata: api.SupervisorMetadata{
+			Spec: *spec,
+		},
 
 		events:    evCh,
 		ctx:       newCtx,
 		ctxCancel: cancel,
-
-		runPath: spec.RunPath + "/supervisors",
 	}
 }

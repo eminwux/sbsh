@@ -39,7 +39,6 @@ type SupervisorController struct {
 	exit    chan struct{}
 	closed  chan struct{}
 	closing chan error
-	runPath string
 }
 
 var (
@@ -84,10 +83,8 @@ func (s *SupervisorController) WaitReady() error {
 // Run is the main orchestration loop. It owns all mode transitions.
 func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	s.exit = make(chan struct{})
-	slog.Debug("[supervisor] Starting controller loop")
+	slog.Debug("[supervisor] starting controller loop")
 	defer slog.Debug("[supervisor] controller stopped\r\n")
-
-	s.runPath = spec.RunPath
 
 	sr = newSupervisorRunner(s.ctx, spec, eventsCh)
 	ss = newSessionStore()
@@ -242,27 +239,30 @@ func (s *SupervisorController) CreateRunNewSession(spec *api.SupervisorSpec) (*a
 	// sessionID := naming.RandomID()
 	// sessionName := naming.RandomSessionName()
 
-	if spec.Session == nil {
+	if spec.SessionSpec == nil {
 		return nil, errors.New("no session spec found")
 	}
 	// args := []string{"run", "--id", sessionID, "--name", sessionName}
 	args := []string{
 		"run", "--id",
-		string(spec.Session.ID), "--name",
-		spec.Session.Name,
+		string(spec.SessionSpec.ID), "--name",
+		spec.SessionSpec.Name,
 	}
 
 	execPath, err := os.Executable()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", errdefs.ErrStartCmd, err)
 	}
-	spec.Session.Command = execPath
-	spec.Session.CommandArgs = args
-	spec.Session.LogFilename = s.runPath + "/sessions/" + string(spec.Session.ID) + "/log"
-	spec.Session.SockerCtrl = s.runPath + "/sessions/" + string(spec.Session.ID) + "/ctrl.sock"
-	spec.Session.SocketIO = s.runPath + "/sessions/" + string(spec.Session.ID) + "/io.sock"
+	spec.SessionSpec.Command = execPath
+	spec.SessionSpec.CommandArgs = args
 
-	session := sessionstore.NewSupervisedSession(spec.Session)
+	// spec.SessionMetadata.Spec.LogFilename = s.runPath + "/sessions/" + string(spec.SessionMetadata.Spec.ID) + "/log"
+	// spec.SessionMetadata.Spec.SockerCtrl = s.runPath + "/sessions/" + string(
+	// 	spec.SessionMetadata.Spec.ID,
+	// ) + "/ctrl.sock"
+	// spec.SessionMetadata.Spec.SocketIO = s.runPath + "/sessions/" + string(spec.SessionMetadata.Spec.ID) + "/io.sock"
+
+	session := sessionstore.NewSupervisedSession(spec.SessionSpec)
 	if err := ss.Add(session); err != nil {
 		return nil, fmt.Errorf("%w: %v", errdefs.ErrSessionStore, err)
 	}

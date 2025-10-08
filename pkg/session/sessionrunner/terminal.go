@@ -42,8 +42,7 @@ func (sr *SessionRunnerExec) prepareSessionCommand() error {
 		cmd.Env = os.Environ()
 	}
 	cmd.Env = append(cmd.Env,
-		env.KV(env.SES_SOCKET_CTRL, sr.socketCtrl),
-		env.KV(env.SES_SOCKET_IO, sr.socketIO),
+		env.KV(env.SES_SOCKET_CTRL, sr.metadata.Status.SocketFile),
 		env.KV(env.SES_ID, string(sr.metadata.Spec.ID)),
 		env.KV(env.SES_NAME, sr.metadata.Spec.Name),
 		env.KV(env.SES_PROFILE, sr.metadata.Spec.ProfileName),
@@ -89,6 +88,10 @@ func (sr *SessionRunnerExec) startPTY() error {
 	logf, err := os.OpenFile(sr.metadata.Spec.LogFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
+	}
+
+	if err := sr.updateMetadata(); err != nil {
+		return fmt.Errorf("update metadata: %w", err)
 	}
 
 	// StdIn

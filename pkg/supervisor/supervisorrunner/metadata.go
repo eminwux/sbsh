@@ -18,20 +18,30 @@ package supervisorrunner
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
+
 	"sbsh/pkg/common"
 )
 
 func (sr *SupervisorRunnerExec) CreateMetadata() error {
-
-	if err := os.MkdirAll(sr.getSupervisorsDir(), 0o700); err != nil {
+	slog.Debug("[supervisor] creating metadata", "runPath", sr.getSupervisorDir())
+	if err := os.MkdirAll(sr.getSupervisorDir(), 0o700); err != nil {
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
-	return common.WriteMetadata(sr.ctx, sr.spec, sr.getSupervisorsDir())
+	sr.metadata.Status.Pid = os.Getpid()
+	sr.metadata.Status.BaseRunPath = sr.metadata.Spec.RunPath
+	sr.metadata.Status.SupervisorRunPath = sr.getSupervisorDir()
+
+	return sr.updateMetadata()
 }
 
-func (sr *SupervisorRunnerExec) getSupervisorsDir() string {
-	return filepath.Join(sr.runPath, string(sr.id))
+func (sr *SupervisorRunnerExec) getSupervisorDir() string {
+	return filepath.Join(sr.metadata.Spec.RunPath, "supervisors", string(sr.id))
+}
+
+func (sr *SupervisorRunnerExec) updateMetadata() error {
+	return common.WriteMetadata(sr.ctx, sr.metadata, sr.getSupervisorDir())
 }

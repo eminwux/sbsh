@@ -33,11 +33,6 @@ const deleteSessionDir bool = false
 func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error {
 	sr.evCh = evCh
 
-	if err := sr.openSocketIO(); err != nil {
-		err = fmt.Errorf("failed to open IO socket for session %s: %w", sr.id, err)
-		return err
-	}
-
 	if err := sr.prepareSessionCommand(); err != nil {
 		err = fmt.Errorf("failed to run session command for session %s: %v", sr.id, err)
 		return err
@@ -112,19 +107,22 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 		}
 	}
 
-	// remove sockets and dir
-	if err := os.Remove(sr.socketIO); err != nil {
-		slog.Debug(fmt.Sprintf("[session] couldn't remove IO socket: %s: %v\r\n", sr.socketIO, err))
-	}
-
 	// remove Ctrl socket
-	if err := os.Remove(sr.socketCtrl); err != nil {
-		slog.Debug(fmt.Sprintf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", sr.socketCtrl, err))
+	if err := os.Remove(sr.metadata.Status.SocketFile); err != nil {
+		slog.Debug(
+			fmt.Sprintf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", sr.metadata.Status.SocketFile, err),
+		)
 	}
 
 	if deleteSessionDir {
-		if err := os.RemoveAll(filepath.Dir(sr.socketIO)); err != nil {
-			slog.Debug(fmt.Sprintf("[session] couldn't remove session directory '%s': %v\r\n", sr.socketIO, err))
+		if err := os.RemoveAll(filepath.Dir(sr.metadata.Status.SessionRunPath)); err != nil {
+			slog.Debug(
+				fmt.Sprintf(
+					"[session] couldn't remove session directory '%s': %v\r\n",
+					sr.metadata.Status.SessionRunPath,
+					err,
+				),
+			)
 		}
 	}
 

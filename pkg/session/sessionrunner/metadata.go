@@ -20,20 +20,24 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
 	"sbsh/pkg/common"
 )
 
 func (sr *SessionRunnerExec) CreateMetadata() error {
-
 	if err := os.MkdirAll(sr.getSessionDir(), 0o700); err != nil {
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
+
+	sr.metadata.Status.Pid = os.Getpid()
+	sr.metadata.Status.BaseRunPath = sr.metadata.Spec.RunPath
+	sr.metadata.Status.SessionRunPath = sr.getSessionDir()
 
 	return sr.updateMetadata()
 }
 
 func (sr *SessionRunnerExec) getSessionDir() string {
-	return filepath.Join(sr.runPath, string(sr.id))
+	return filepath.Join(sr.metadata.Spec.RunPath, "sessions", string(sr.id))
 }
 
 func (sr *SessionRunnerExec) updateMetadata() error {

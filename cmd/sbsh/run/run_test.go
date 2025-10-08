@@ -23,14 +23,14 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sbsh/pkg/api"
-	"sbsh/pkg/errdefs"
-	"sbsh/pkg/naming"
-	"sbsh/pkg/session"
 	"testing"
 	"time"
 
 	"github.com/spf13/viper"
+	"sbsh/pkg/api"
+	"sbsh/pkg/errdefs"
+	"sbsh/pkg/naming"
+	"sbsh/pkg/session"
 )
 
 func TestRunSession_ErrContextCancelled(t *testing.T) {
@@ -49,11 +49,10 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 	spec := api.SessionSpec{
 		ID:          api.ID(sessionIDInput),
 		Kind:        api.SessionLocal,
-		Name:        naming.RandomSessionName(),
+		Name:        naming.RandomName(),
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
 		Env:         os.Environ(),
-		LogFilename: "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 	}
 
@@ -74,7 +73,6 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for runSession to return after SIGTERM")
 	}
-
 }
 
 func TestRunSession_ErrWaitOnReady(t *testing.T) {
@@ -97,17 +95,15 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	spec := api.SessionSpec{
 		ID:          api.ID(sessionIDInput),
 		Kind:        api.SessionLocal,
-		Name:        naming.RandomSessionName(),
+		Name:        naming.RandomName(),
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
 		Env:         os.Environ(),
-		LogFilename: "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 	}
 
 	if err := runSession(&spec); err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrWaitOnReady, err)
-
 	}
 }
 
@@ -131,11 +127,10 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	spec := api.SessionSpec{
 		ID:          api.ID(sessionIDInput),
 		Kind:        api.SessionLocal,
-		Name:        naming.RandomSessionName(),
+		Name:        naming.RandomName(),
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
 		Env:         os.Environ(),
-		LogFilename: "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 	}
 

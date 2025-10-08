@@ -386,12 +386,12 @@ func Test_ErrContextDone(t *testing.T) {
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
-		ID:      api.ID(supervisorID),
-		Name:    "default",
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-		RunPath: viper.GetString("global.runPath"),
-		Session: &api.SessionSpec{},
+		ID:          api.ID(supervisorID),
+		Name:        "default",
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString("global.runPath"),
+		SessionSpec: &api.SessionSpec{},
 	}
 
 	exitCh := make(chan error)
@@ -489,12 +489,12 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
-		ID:      api.ID(supervisorID),
-		Name:    "default",
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-		RunPath: viper.GetString("global.runPath"),
-		Session: &api.SessionSpec{},
+		ID:          api.ID(supervisorID),
+		Name:        "default",
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString("global.runPath"),
+		SessionSpec: &api.SessionSpec{},
 	}
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
@@ -586,12 +586,12 @@ func Test_ErrSessionExists(t *testing.T) {
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
-		ID:      api.ID(supervisorID),
-		Name:    "default",
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-		RunPath: viper.GetString("global.runPath"),
-		Session: &api.SessionSpec{},
+		ID:          api.ID(supervisorID),
+		Name:        "default",
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString("global.runPath"),
+		SessionSpec: &api.SessionSpec{},
 	}
 
 	exitCh := make(chan error)
@@ -686,12 +686,12 @@ func Test_ErrCloseReq(t *testing.T) {
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
-		ID:      api.ID(supervisorID),
-		Name:    "default",
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-		RunPath: viper.GetString("global.runPath"),
-		Session: &api.SessionSpec{},
+		ID:          api.ID(supervisorID),
+		Name:        "default",
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString("global.runPath"),
+		SessionSpec: &api.SessionSpec{},
 	}
 
 	exitCh := make(chan error)
@@ -786,12 +786,12 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
-		ID:      api.ID(supervisorID),
-		Name:    "default",
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-		RunPath: viper.GetString("global.runPath"),
-		Session: &api.SessionSpec{},
+		ID:          api.ID(supervisorID),
+		Name:        "default",
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString("global.runPath"),
+		SessionSpec: &api.SessionSpec{},
 	}
 
 	exitCh := make(chan error)
@@ -881,12 +881,12 @@ func Test_ErrSessionStore(t *testing.T) {
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
-		ID:      api.ID(supervisorID),
-		Name:    "default",
-		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
-		RunPath: viper.GetString("global.runPath"),
-		Session: &api.SessionSpec{},
+		ID:          api.ID(supervisorID),
+		Name:        "default",
+		Env:         os.Environ(),
+		LogDir:      "/tmp/sbsh-logs/s0",
+		RunPath:     viper.GetString("global.runPath"),
+		SessionSpec: &api.SessionSpec{},
 	}
 
 	exitCh := make(chan error)

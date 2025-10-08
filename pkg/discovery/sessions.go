@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -38,6 +39,32 @@ func ScanAndPrintSessions(ctx context.Context, runPath string, w io.Writer, prin
 		return err
 	}
 	return printSessions(w, sessions, printAll)
+}
+
+// ScanAndPruneSessions finds all metadata.json under runPath/sessions/*,
+// unmarshals them into api.SessionSpec, and removes the session folders
+// for sessions that are in Exited state.
+func ScanAndPruneSessions(ctx context.Context, runPath string, w io.Writer) error {
+	sessions, err := ScanSessions(ctx, runPath)
+	if err != nil {
+		return err
+	}
+	for _, s := range sessions {
+		if s.Status.State == api.SessionStatusExited {
+			if err := PruneSession(&s); err != nil {
+				return fmt.Errorf("prune session %s: %w", sessionID(s), err)
+			}
+			if w != nil {
+				fmt.Fprintf(w, "Pruned session %s (%s)\n", sessionID(s), sessionName(s))
+			}
+		}
+	}
+	return nil
+}
+
+func PruneSession(metadata *api.SessionMetadata) error {
+	slog.Debug("pruning session folder", "path", metadata.Status.BaseRunPath)
+	return os.RemoveAll(metadata.Status.SessionRunPath)
 }
 
 func ScanSessions(ctx context.Context, runPath string) ([]api.SessionMetadata, error) {
@@ -79,9 +106,28 @@ func ScanSessions(ctx context.Context, runPath string) ([]api.SessionMetadata, e
 
 func printSessions(w io.Writer, sessions []api.SessionMetadata, printAll bool) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	activeCount := 0
+	for _, s := range sessions {
+		if s.Status.State != api.SessionStatusExited {
+			activeCount++
+		}
+	}
+
 	if len(sessions) == 0 {
-		fmt.Fprintf(tw, "no active sessions found\n")
+		fmt.Fprintln(tw, "no active or inactive sessions found")
 		return tw.Flush()
+	}
+
+	if printAll {
+		if len(sessions) == 0 {
+			fmt.Fprintln(tw, "no active or inactive sessions found")
+			return tw.Flush()
+		}
+	} else {
+		if activeCount == 0 {
+			fmt.Fprintln(tw, "no active sessions found")
+			return tw.Flush()
+		}
 	}
 
 	fmt.Fprintln(tw, "ID\tNAME\tCMD\tSTATUS\tLABELS")
@@ -187,11 +233,19 @@ func PrintSessionSpec(s *api.SessionSpec, w io.Writer) error {
 	fmt.Fprintf(tw, "NAME:\t%s\n", s.Name)
 	fmt.Fprintf(tw, "KIND:\t%s\n", s.Kind)
 	fmt.Fprintf(tw, "COMMAND:\t%s %s\n", s.Command, strings.Join(s.CommandArgs, " "))
-	fmt.Fprintf(tw, "RUN PATH:\t%s\n", s.RunPath)
-	fmt.Fprintf(tw, "LOG FILE:\t%s\n", s.LogFilename)
-	fmt.Fprintf(tw, "SOCKET CTRL:\t%s\n", s.SockerCtrl)
-	fmt.Fprintf(tw, "SOCKET IO:\t%s\n", s.SocketIO)
 	fmt.Fprintf(tw, "PROMPT:\t%s\n", s.Prompt)
+
+	if s.RunPath != "" {
+		fmt.Fprintf(tw, "RUN PATH:\t%s\n", s.RunPath)
+	}
+
+	if s.LogFilename != "" {
+		fmt.Fprintf(tw, "LOG FILE:\t%s\n", s.LogFilename)
+	}
+
+	if s.SocketFile != "" {
+		fmt.Fprintf(tw, "SOCKET CTRL:\t%s\n", s.SocketFile)
+	}
 
 	if len(s.Env) > 0 {
 		fmt.Fprintln(tw, "ENVIRONMENT:")

@@ -21,73 +21,40 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"path/filepath"
 
 	"golang.org/x/sys/unix"
 	"sbsh/pkg/api"
 )
 
-func (sr *SessionRunnerExec) openSocketIO() error {
-	runPath := filepath.Join(sr.runPath, string(sr.id))
-	if err := os.MkdirAll(runPath, 0o700); err != nil {
-		return fmt.Errorf("mkdir session dir: %w", err)
-	}
-
-	sr.socketIO = filepath.Join(runPath, "io.sock")
-	slog.Debug(fmt.Sprintf("[session] IO socket: %s", sr.socketIO))
-	sr.metadata.Spec.SocketIO = sr.socketIO
-	sr.updateMetadata()
-
-	// Remove socket if already exists
-	if err := os.Remove(sr.socketIO); err != nil {
-		slog.Debug(fmt.Sprintf("[session] couldn't remove stale IO socket: %s\r\n", sr.socketIO))
-	}
-
-	// Listen to IO SOCKET
-	ioLn, err := net.Listen("unix", sr.socketIO)
-	if err != nil {
-		return fmt.Errorf("listen io: %w", err)
-	}
-	if err := os.Chmod(sr.socketIO, 0o600); err != nil {
-		_ = ioLn.Close()
-		return err
-	}
-
-	sr.clientsMu.Lock()
-	sr.clients = make(map[api.ID]*ioClient)
-	sr.clientsMu.Unlock()
-
-	sr.listenerIO = ioLn
-
-	return nil
-}
-
 func (sr *SessionRunnerExec) OpenSocketCtrl() error {
-	sr.socketCtrl = filepath.Join(sr.getSessionDir(), "ctrl.sock")
-	slog.Debug(fmt.Sprintf("[sessionCtrl] CTRL socket: %s", sr.socketCtrl))
-	sr.metadata.Spec.SockerCtrl = sr.socketCtrl
+	slog.Debug(fmt.Sprintf("[sessionCtrl] socket: %s", sr.metadata.Spec.SocketFile))
+	sr.metadata.Status.SocketFile = sr.metadata.Spec.SocketFile
 	sr.updateMetadata()
 
 	// Remove sockets if they already exist
 	// remove sockets and dir
-	if err := os.Remove(sr.socketCtrl); err != nil {
-		slog.Debug(fmt.Sprintf("[sessionCtrl] couldn't remove stale CTRL socket: %s\r\n", sr.socketCtrl))
+	if err := os.Remove(sr.metadata.Spec.SocketFile); err != nil {
+		slog.Debug(fmt.Sprintf("[sessionCtrl] couldn't remove stale CTRL socket: %s\r\n", sr.metadata.Spec.SocketFile))
 	}
 
 	// Listen to CONTROL SOCKET
-	ctrlLn, err := net.Listen("unix", sr.socketCtrl)
+	var lc net.ListenConfig
+	ctrlLn, err := lc.Listen(sr.ctx, "unix", sr.metadata.Spec.SocketFile)
 	if err != nil {
 		return fmt.Errorf("listen ctrl: %w", err)
 	}
 
+	// keep references for Close()
 	sr.listenerCtrl = ctrlLn
 
-	if err := os.Chmod(sr.socketCtrl, 0o600); err != nil {
+	if err := os.Chmod(sr.metadata.Spec.SocketFile, 0o600); err != nil {
 		ctrlLn.Close()
 		return err
 	}
 
-	// keep references for Close()
+	// update metadata with socket file path
+	sr.metadata.Status.SocketFile = sr.metadata.Spec.SocketFile
+	sr.updateMetadata()
 
 	return nil
 }

@@ -58,7 +58,6 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 		Command:     "",
 		CommandArgs: nil,
 		Env:         os.Environ(),
-		LogFilename: "/tmp/sbsh-logs/s0",
 	}
 
 	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
@@ -100,7 +99,6 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
-		LogFilename: "/tmp/sbsh-logs/s0",
 	}
 
 	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
@@ -142,7 +140,6 @@ func Test_ErrStartRPCServer(t *testing.T) {
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
-		LogFilename: "/tmp/sbsh-logs/s0",
 	}
 
 	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
@@ -187,7 +184,6 @@ func Test_ErrStartSession(t *testing.T) {
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
-		LogFilename: "/tmp/sbsh-logs/s0",
 	}
 
 	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
@@ -241,7 +237,6 @@ func Test_ErrContextDone(t *testing.T) {
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
-		LogFilename: "/tmp/sbsh-logs/s0",
 	}
 
 	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
@@ -299,7 +294,6 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
-		LogFilename: "/tmp/sbsh-logs/s0",
 	}
 
 	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
@@ -355,7 +349,6 @@ func Test_WaitReady(t *testing.T) {
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
-		LogFilename: "/tmp/sbsh-logs/s0",
 	}
 
 	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
@@ -417,7 +410,6 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
-		LogFilename: "/tmp/sbsh-logs/s0",
 	}
 
 	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
@@ -479,7 +471,6 @@ func Test_HandleEvent_EvError(t *testing.T) {
 		Command:     "/bin/bash",
 		CommandArgs: nil,
 		Env:         os.Environ(),
-		LogFilename: "/tmp/sbsh-logs/s0",
 	}
 
 	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {

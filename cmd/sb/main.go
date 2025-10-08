@@ -17,6 +17,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -37,9 +38,9 @@ func main() {
 }
 
 var (
-	logLevel string
-	runPath  string
-	cfgFile  string
+	logLevelInput string
+	runPathInput  string
+	cfgFileInput  string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -79,9 +80,9 @@ func init() {
 	rootCmd.AddCommand(detach.DetachCmd)
 	rootCmd.AddCommand(profiles.ProfilesCmd)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sbsh/config.yaml)")
-	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
-	rootCmd.PersistentFlags().StringVar(&runPath, "run-path", "$HOME/.sbsh/run", "Log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().StringVar(&cfgFileInput, "config", "", "config file (default is $HOME/.sbsh/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&logLevelInput, "log-level", "", "Log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().StringVar(&runPathInput, "run-path", "", "Log level (debug, info, warn, error)")
 
 	// Bind flag to Viper
 	if err := viper.BindPFlag("global.config", rootCmd.PersistentFlags().Lookup("config")); err != nil {
@@ -95,30 +96,54 @@ func init() {
 	}
 }
 
-// LoadConfig loads config.yaml from the given path or HOME/.sbsh
 func LoadConfig() error {
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("err: %v", err)
+	var configFile string
+	if viper.GetString(env.CONFIG_FILE.ViperKey) == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("err: %v", err)
+		}
+		configPath := filepath.Join(home, ".sbsh")
+		configFile = filepath.Join(configPath, "config.yaml")
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath(configFile)
 	}
-	configFile := filepath.Join(home, ".sbsh")
-	viper.AddConfigPath(configFile)
+	_ = env.CONFIG_FILE.BindEnv()
+	if err := env.CONFIG_FILE.Set(configFile); err != nil {
+		return fmt.Errorf("failed to set config file: %w", err)
+	}
 
+	var runPath string
+	if viper.GetString(env.RUN_PATH.ViperKey) == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("err: %v", err)
+		}
+		runPath = filepath.Join(home, ".sbsh", "run")
+	}
 	_ = env.RUN_PATH.BindEnv()
-	_ = env.LOG_LEVEL.BindEnv()
+	env.RUN_PATH.SetDefault(runPath)
 
-	env.RUN_PATH.SetDefault(filepath.Join(home, ".sbsh", "run"))
+	var profilesFile string
+	if viper.GetString(env.PROFILES_FILE.ViperKey) == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("err: %v", err)
+		}
+		profilesFile = filepath.Join(home, ".sbsh", "profiles.yaml")
+	}
+	_ = env.PROFILES_FILE.BindEnv()
+	env.PROFILES_FILE.SetDefault(profilesFile)
+
+	_ = env.LOG_LEVEL.BindEnv()
 	env.LOG_LEVEL.SetDefault("info")
 
 	if err := viper.ReadInConfig(); err != nil {
 		// File not found is OK if ENV is set
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			slog.Debug("no config file found")
-		} else {
-			return err
+		var configFileNotFoundError viper.ConfigFileNotFoundError
+		if !errors.As(err, &configFileNotFoundError) {
+			return err // Config file was found but another error was produced
 		}
 	}
 

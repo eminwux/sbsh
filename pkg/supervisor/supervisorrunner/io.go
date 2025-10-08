@@ -41,9 +41,9 @@ func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 	slog.Debug(fmt.Sprintf("[supervisor] %s session on  %d trying to connect to %s\r\n",
 		sr.session.Id,
 		sr.session.Pid,
-		sr.session.SocketCtrl))
+		sr.session.SocketFile))
 
-	sr.sessionClient = session.NewUnix(sr.session.SocketCtrl)
+	sr.sessionClient = session.NewUnix(sr.session.SocketFile)
 	defer sr.sessionClient.Close()
 
 	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)

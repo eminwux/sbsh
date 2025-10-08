@@ -17,30 +17,27 @@
 package sessions
 
 import (
-	"fmt"
+	"context"
 	"log/slog"
+	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"sbsh/pkg/discovery"
+	"sbsh/pkg/env"
 )
 
-// sessionsCmd represents the sessions command
-var SessionsCmd = &cobra.Command{
-	Use:     "sessions",
-	Aliases: []string{"session", "s"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+// sessionsPruneCmd represents the sessions command.
+var sessionsPruneCmd = &cobra.Command{
+	Use:     "prune",
+	Aliases: []string{"p"},
+	Short:   "Prune dead or exited sessions",
+	Long: `Prune dead or exited sessions.
+This will remove all session files for sessions that are not running anymore.`,
+	RunE: func(_ *cobra.Command, args []string) error {
+		slog.Debug("sessions prune")
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("sessions called")
-		slog.Debug("-> sessions")
+		ctx := context.Background()
+		return discovery.ScanAndPruneSessions(ctx, viper.GetString(env.RUN_PATH.ViperKey), os.Stdout)
 	},
-}
-
-func init() {
-	SessionsCmd.AddCommand(sessionsListCmd)
-	SessionsCmd.AddCommand(sessionsPruneCmd)
 }

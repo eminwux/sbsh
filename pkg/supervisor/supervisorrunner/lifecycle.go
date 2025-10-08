@@ -93,14 +93,20 @@ func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
 func (sr *SupervisorRunnerExec) Close(reason error) error {
 	sr.ctxCancel()
 	// remove sockets and dir
-	if err := os.Remove(sr.supervisorSocketCtrl); err != nil {
-		slog.Debug(fmt.Sprintf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", sr.supervisorSocketCtrl, err))
+	if err := os.Remove(sr.metadata.Spec.SockerCtrl); err != nil {
+		slog.Debug(
+			fmt.Sprintf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", sr.metadata.Spec.SockerCtrl, err),
+		)
 	}
 
 	if deleteSupervisorDir {
-		if err := os.RemoveAll(filepath.Dir(sr.supervisorSocketCtrl)); err != nil {
+		if err := os.RemoveAll(filepath.Dir(sr.metadata.Spec.SockerCtrl)); err != nil {
 			slog.Debug(
-				fmt.Sprintf("[supervisor] couldn't remove socket Directory '%s': %v\r\n", sr.supervisorSocketCtrl, err),
+				fmt.Sprintf(
+					"[supervisor] couldn't remove socket Directory '%s': %v\r\n",
+					sr.metadata.Spec.SockerCtrl,
+					err,
+				),
 			)
 		}
 	}

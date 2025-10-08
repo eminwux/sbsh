@@ -49,7 +49,7 @@ var right = []string{
 	"khazaddum", "caradhras", "amonhen", "amonsul", "fornost", "weathertop", "bucklebury", "hobbiton", "bywater", "bagend",
 }
 
-func RandomSessionName() string {
+func RandomName() string {
 	r := mrand.New(mrand.NewSource(randSeed()))
 	l := left[r.Intn(len(left))]
 	rn := right[r.Intn(len(right))]
@@ -64,6 +64,7 @@ func randSeed() int64 {
 	}
 	return mrand.Int63()
 }
+
 func RandomID() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)

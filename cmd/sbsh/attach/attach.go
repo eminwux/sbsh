@@ -23,19 +23,23 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"sbsh/pkg/api"
-	"sbsh/pkg/errdefs"
-	"sbsh/pkg/naming"
-	"sbsh/pkg/supervisor"
+	"path/filepath"
 	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"sbsh/pkg/api"
+	"sbsh/pkg/env"
+	"sbsh/pkg/errdefs"
+	"sbsh/pkg/naming"
+	"sbsh/pkg/supervisor"
 )
 
 var (
 	sessionID               string
 	sessionName             string
+	socketFileInput         string
+	runPathInput            string
 	ctx                     context.Context
 	cancel                  context.CancelFunc
 	newSupervisorController = supervisor.NewSupervisorController
@@ -53,7 +57,6 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-
 		if sessionID == "" && sessionName == "" {
 			fmt.Println("Either --id or --name must be defined")
 			os.Exit(1)
@@ -71,13 +74,14 @@ to quickly create a Cobra application.`,
 		}
 
 		return nil
-
 	},
 }
 
 func init() {
 	AttachCmd.Flags().StringVar(&sessionID, "id", "", "Session ID, cannot be set together with --name")
 	AttachCmd.Flags().StringVar(&sessionName, "name", "", "Optional session name, cannot be set together with --id")
+	AttachCmd.Flags().StringVar(&socketFileInput, "socket", "", "Optional socket file for the session")
+	AttachCmd.Flags().StringVar(&runPathInput, "run-path", "", "Optional socket file for the session")
 }
 
 func run(id string, name string) error {
@@ -90,27 +94,64 @@ func run(id string, name string) error {
 
 	supCtrl = newSupervisorController(ctx)
 
+	supervisorID := naming.RandomID()
+	supervisorName := naming.RandomName()
+
+	if socketFileInput == "" {
+		socketFileInput = filepath.Join(
+			runPathInput,
+			"socket",
+		)
+	}
 	var spec *api.SupervisorSpec
 	if id != "" && name == "" {
 		spec = &api.SupervisorSpec{
-			Kind:     api.AttachToSession,
-			ID:       api.ID(naming.RandomID()),
-			Name:     naming.RandomSessionName(),
-			LogDir:   "/tmp/sbsh-logs/s0",
-			RunPath:  viper.GetString("global.runPath"),
-			AttachID: api.ID(id),
+			Kind:       api.AttachToSession,
+			ID:         api.ID(supervisorID),
+			Name:       supervisorName,
+			RunPath:    viper.GetString(env.RUN_PATH.ViperKey),
+			SockerCtrl: socketFileInput,
+			AttachID:   api.ID(id),
+			SessionSpec: &api.SessionSpec{
+				ID: api.ID(id),
+			},
 		}
+		slog.Debug("Attach spec created",
+			"Kind", spec.Kind,
+			"ID", spec.ID,
+			"Name", spec.Name,
+			"RunPath", spec.RunPath,
+			"AttachID", spec.AttachID,
+			"SessionSpec.ID", spec.SessionSpec.ID,
+		)
 	}
 
 	if id == "" && name != "" {
 		spec = &api.SupervisorSpec{
 			Kind:       api.AttachToSession,
 			ID:         api.ID(naming.RandomID()),
-			Name:       naming.RandomSessionName(),
+			Name:       naming.RandomName(),
 			LogDir:     "/tmp/sbsh-logs/s0",
-			RunPath:    viper.GetString("global.runPath"),
-			AttachName: name,
+			RunPath:    viper.GetString(env.RUN_PATH.ViperKey),
+			SockerCtrl: socketFileInput,
+			SessionSpec: &api.SessionSpec{
+				Name: name,
+			},
 		}
+		slog.Debug("Attach spec created",
+			"Kind", spec.Kind,
+			"ID", spec.ID,
+			"Name", spec.Name,
+			"LogDir", spec.LogDir,
+			"RunPath", spec.RunPath,
+			"SessionMetadata.Spec.Name", spec.SessionSpec.Name,
+		)
+	}
+
+	if socketFileInput != "" {
+		spec.SessionSpec.SocketFile = socketFileInput
+	} else {
+		spec.SessionSpec.SocketFile = filepath.Join(viper.GetString("global.runPath"), ".sbsh", "sessions", string(spec.SessionSpec.ID), "socket")
 	}
 
 	// Create error channel

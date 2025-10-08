@@ -50,16 +50,20 @@ type SessionSpec struct {
 	Env         []string          `json:"env"`
 	Labels      map[string]string `json:"labels"`
 	LogFilename string            `json:"logFile"`
-	SockerCtrl  string            `json:"socketCtrl"`
-	SocketIO    string            `json:"socketIO"`
+	SocketFile  string            `json:"socketIO"`
 	RunPath     string            `json:"runPath"`
 	ProfileName string            `json:"profileName"`
 	Prompt      string            `json:"prompt"`
+	// SockerCtrl  string            `json:"socketCtrl"`
 }
 
 type SessionStatus struct {
-	Pid   int               `json:"pid"`
-	State SessionStatusMode `json:"state"`
+	Pid            int               `json:"pid"`
+	State          SessionStatusMode `json:"state"`
+	LogFilename    string            `json:"logFile"`
+	SocketFile     string            `json:"socketCtrl"`
+	BaseRunPath    string            `json:"baseRunPath"`
+	SessionRunPath string            `json:"sessionRunPath"`
 }
 
 type SessionStatusMode int

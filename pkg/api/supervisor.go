@@ -32,14 +32,25 @@ type SupervisorSpec struct {
 	Labels     map[string]string `json:"context"`
 	LogDir     string            `json:"logDir"`
 	SockerCtrl string            `json:"socketCtrl"`
-	Pid        int               `json:"pid"`
 	RunPath    string            `json:"runPath"`
+
+	// Only valid when Kind == RunNewSession
+	SessionSpec *SessionSpec `json:"sesion,omitempty"`
 
 	// Only valid when Kind == AttachToSession
 	AttachID   ID     `json:"attachId,omitempty"`
 	AttachName string `json:"attachName,omitempty"`
+}
 
-	Session *SessionSpec `json:"sesion,omitempty"`
+type SupervisorStatus struct {
+	Pid               int    `json:"pid"`
+	BaseRunPath       string `json:"baseRunPath"`
+	SupervisorRunPath string `json:"supervisorRunPath"`
+}
+
+type SupervisorMetadata struct {
+	Spec   SupervisorSpec   `json:"spec"`
+	Status SupervisorStatus `json:"status"`
 }
 
 type SupervisorKind int
@@ -58,13 +69,11 @@ type SupervisedSession struct {
 	Env         []string          // TERM, COLORTERM, etc.
 	Context     map[string]string // kubectl ns, cwd hint, etc.
 	LogFilename string
-	SocketCtrl  string
-	SocketIO    string
+	SocketFile  string
 	Pid         int
 	Prompt      string
 }
 
-// SUPERVISOR RPC
 const SupervisorService = "SupervisorController"
 
 const (

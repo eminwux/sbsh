@@ -21,19 +21,17 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"path/filepath"
 )
 
 func (sr *SupervisorRunnerExec) OpenSocketCtrl() error {
-
-	sr.supervisorSocketCtrl = filepath.Join(sr.getSupervisorsDir(), "ctrl.sock")
-	slog.Debug(fmt.Sprintf("[supervisor] CTRL socket: %s", sr.supervisorSocketCtrl))
+	slog.Debug(fmt.Sprintf("[supervisor] sr.spec.SockerCtrl: %s", sr.metadata.Spec.SockerCtrl))
 
 	// remove stale socket if it exists
-	if _, err := os.Stat(sr.supervisorSocketCtrl); err == nil {
-		_ = os.Remove(sr.supervisorSocketCtrl)
+	if _, err := os.Stat(sr.metadata.Spec.SockerCtrl); err == nil {
+		_ = os.Remove(sr.metadata.Spec.SockerCtrl)
 	}
-	ln, err := net.Listen("unix", sr.supervisorSocketCtrl)
+	lnCfg := net.ListenConfig{}
+	ln, err := lnCfg.Listen(sr.ctx, "unix", sr.metadata.Spec.SockerCtrl)
 	if err != nil {
 		slog.Debug(fmt.Sprintf("[supervisor] cannot listen: %v", err))
 		return fmt.Errorf("cannot listen: %v", err)
