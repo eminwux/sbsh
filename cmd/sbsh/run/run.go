@@ -85,34 +85,6 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 
-		// var sessionSpec *api.SessionSpec
-		// if profileNameInput == "" {
-		// 	// Split into args for exec
-		// 	cmdArgs := []string{}
-
-		// 	// Define a new Session
-		// 	sessionSpec = &api.SessionSpec{
-		// 		ID:          api.ID(sessionIDInput),
-		// 		Kind:        api.SessionLocal,
-		// 		Name:        sessionNameInput,
-		// 		Command:     sessionCmdInput,
-		// 		CommandArgs: cmdArgs,
-		// 		Env:         os.Environ(),
-		// 		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
-		// 		LogFilename: logFilenameInput,
-		// 	}
-		// } else {
-		// 	profileSpec, err := discovery.FindProfileByName(ctx, viper.GetString(env.PROFILES_FILE.ViperKey), profileNameInput)
-		// 	if err != nil {
-		// 		log.Fatal(err)
-		// 	}
-		// 	sessionSpec, err = profile.CreateSessionFromProfile(profileSpec)
-		// 	sessionSpec.ID = api.ID(sessionIDInput)
-		// 	sessionSpec.RunPath = viper.GetString(env.RUN_PATH.ViperKey)
-		// 	sessionSpec.LogFilename = logFilenameInput
-		// 	sessionSpec.Env = append(sessionSpec.Env, os.Environ()...)
-		// }
-
 		if profileNameInput != "" {
 			env.SES_PROFILE.Set(profileNameInput)
 			_ = env.SES_PROFILE.BindEnv()
