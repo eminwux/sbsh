@@ -26,38 +26,34 @@ import (
 	"sbsh/pkg/discovery"
 )
 
-// sessionsCmd represents the sessions command
-var sessionsListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"l"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
+var (
+	listAllInput bool
+
+	// sessionsCmd represents the sessions command
+	sessionsListCmd = &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"l"},
+		Short:   "A brief description of your command",
+		Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		slog.Debug("-> sessions list")
+		RunE: func(cmd *cobra.Command, args []string) error {
+			slog.Debug("-> sessions list")
 
-		// get env SBSH_RUN_DIR
-		// scan run dir for existing sessions
-		// read status file
-		// return results
+			// get env SBSH_RUN_DIR
+			// scan run dir for existing sessions
+			// read status file
+			// return results
 
-		ctx := context.Background()
-		return discovery.ScanAndPrintSessions(ctx, viper.GetString("global.runPath"), os.Stdout)
-	},
-}
+			ctx := context.Background()
+			return discovery.ScanAndPrintSessions(ctx, viper.GetString("global.runPath"), os.Stdout, listAllInput)
+		},
+	}
+)
 
 func init() {
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// sessionsCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// sessionsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	sessionsListCmd.Flags().BoolVarP(&listAllInput, "all", "a", false, "List all sessions, including Exited")
 }

@@ -32,12 +32,12 @@ import (
 
 // ScanAndPrintSessions finds all metadata.json under runPath/sessions/*,
 // unmarshals them into api.SessionSpec, and prints a table to w.
-func ScanAndPrintSessions(ctx context.Context, runPath string, w io.Writer) error {
+func ScanAndPrintSessions(ctx context.Context, runPath string, w io.Writer, printAll bool) error {
 	sessions, err := ScanSessions(ctx, runPath)
 	if err != nil {
 		return err
 	}
-	return printSessions(w, sessions)
+	return printSessions(w, sessions, printAll)
 }
 
 func ScanSessions(ctx context.Context, runPath string) ([]api.SessionMetadata, error) {
@@ -77,7 +77,7 @@ func ScanSessions(ctx context.Context, runPath string) ([]api.SessionMetadata, e
 	return out, nil
 }
 
-func printSessions(w io.Writer, sessions []api.SessionMetadata) error {
+func printSessions(w io.Writer, sessions []api.SessionMetadata, printAll bool) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	if len(sessions) == 0 {
 		fmt.Fprintf(tw, "no active sessions found\n")
@@ -86,13 +86,15 @@ func printSessions(w io.Writer, sessions []api.SessionMetadata) error {
 
 	fmt.Fprintln(tw, "ID\tNAME\tCMD\tSTATUS\tLABELS")
 	for _, s := range sessions {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
-			sessionID(s),
-			sessionName(s),
-			sessionCmd(s),
-			s.Status.State.String(),
-			joinLabels(sessionLabels(s)),
-		)
+		if s.Status.State != api.SessionStatusExited || (printAll && s.Status.State == api.SessionStatusExited) {
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+				sessionID(s),
+				sessionName(s),
+				sessionCmd(s),
+				s.Status.State.String(),
+				joinLabels(sessionLabels(s)),
+			)
+		}
 	}
 	return tw.Flush()
 }
