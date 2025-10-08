@@ -38,7 +38,7 @@ spec:
       KUBE_CONTEXT: company-prd
       JAPON: pepe
       HISTSIZE: "5000"
-    prompt: '\[\e[1;31m\][PRD]  sbsh-$SBSH_SES_ID\[\e[0m\] \[\e[1;33m\]\u@\h\[\e[0m\]:\w\$ ' 
+    prompt: '\[\e[1;31m\][PRD]  sbsh-$SBSH_SES_ID\[\e[0m\] \[\e[1;33m\]\u@\h\[\e[0m\]:\w\$ '
   stages:
     preAttach:
       - cmd: kubectl
