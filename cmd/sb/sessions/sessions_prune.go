@@ -27,17 +27,25 @@ import (
 	"sbsh/pkg/env"
 )
 
-// sessionsPruneCmd represents the sessions command.
-var sessionsPruneCmd = &cobra.Command{
-	Use:     "prune",
-	Aliases: []string{"p"},
-	Short:   "Prune dead or exited sessions",
-	Long: `Prune dead or exited sessions.
+func NewSessionsPruneCmd() *cobra.Command {
+	// sessionsPruneCmd represents the sessions command.
+	sessionsPruneCmd := &cobra.Command{
+		Use:     "prune",
+		Aliases: []string{"p"},
+		Short:   "Prune dead or exited sessions",
+		Long: `Prune dead or exited sessions.
 This will remove all session files for sessions that are not running anymore.`,
-	RunE: func(_ *cobra.Command, args []string) error {
-		slog.Debug("sessions prune")
+		RunE: func(_ *cobra.Command, args []string) error {
+			slog.Debug("sessions prune")
 
-		ctx := context.Background()
-		return discovery.ScanAndPruneSessions(ctx, viper.GetString(env.RUN_PATH.ViperKey), os.Stdout)
-	},
+			ctx := context.Background()
+			return discovery.ScanAndPruneSessions(ctx, viper.GetString(env.RUN_PATH.ViperKey), os.Stdout)
+		},
+	}
+
+	setupSessionsPruneCmd(sessionsPruneCmd)
+	return sessionsPruneCmd
+}
+
+func setupSessionsPruneCmd(sessionsPruneCmd *cobra.Command) {
 }

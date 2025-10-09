@@ -21,26 +21,36 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"sbsh/pkg/env"
-	"sbsh/pkg/rpcclient/supervisor"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"sbsh/pkg/env"
+	"sbsh/pkg/rpcclient/supervisor"
 )
 
-// sessionsCmd represents the sessions command
+// AttachCmd represents the attach command.
 var AttachCmd = &cobra.Command{
 	Use:     "attach",
 	Aliases: []string{"a"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-    fmt.Fprintln(os.Stderr, "no supervisor socket found")
-    os.Exit(1)
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short:   "Attach to a running supervisor",
+	Long: `Attach to a running supervisor
+This command connects to a running supervisor instance and attaches to its console.
+It requires the SBSH_SUP_SOCKET environment variable to be set, pointing to the supervisor's socket file.
+
+Examples:
+  # Attach using environment variable
+  sb attach
+
+  # Attach specifying a socket file
+  sb attach --socket /tmp/sbsh.sock
+
+  # Attach to a supervisor by id
+  sb attach --id 1234
+
+  # Attach to a supervisor by name
+  sb attach --name my-supervisor
+`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		slog.Debug("-> attach")
 
@@ -65,8 +75,4 @@ to quickly create a Cobra application.`,
 
 		return nil
 	},
-}
-
-func init() {
-
 }

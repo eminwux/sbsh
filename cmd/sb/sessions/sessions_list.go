@@ -27,20 +27,17 @@ import (
 	"sbsh/pkg/env"
 )
 
-var (
-	listAllInput bool
+var listAllInput bool
 
-	// sessionsCmd represents the sessions command
-	sessionsListCmd = &cobra.Command{
+func NewSessionListCmd() *cobra.Command {
+	// sessionsListCmd represents the sessions command.
+	sessionsListCmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"l"},
-		Short:   "A brief description of your command",
-		Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+		Short:   "List sessions",
+		Long: `List sessions.
+This command scans and lists all sessions in the specified run path.
+By default, it lists only running sessions. Use the --all flag to include exited sessions.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			slog.Debug("sessions list", "runPath", viper.GetString(env.RUN_PATH.ViperKey), "listAll", listAllInput)
 
@@ -48,8 +45,11 @@ to quickly create a Cobra application.`,
 			return discovery.ScanAndPrintSessions(ctx, viper.GetString(env.RUN_PATH.ViperKey), os.Stdout, listAllInput)
 		},
 	}
-)
 
-func init() {
+	setupSessionsListCmd(sessionsListCmd)
+	return sessionsListCmd
+}
+
+func setupSessionsListCmd(sessionsListCmd *cobra.Command) {
 	sessionsListCmd.Flags().BoolVarP(&listAllInput, "all", "a", false, "List all sessions, including Exited")
 }

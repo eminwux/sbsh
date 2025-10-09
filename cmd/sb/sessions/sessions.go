@@ -17,30 +17,27 @@
 package sessions
 
 import (
-	"fmt"
-	"log/slog"
-
 	"github.com/spf13/cobra"
 )
 
-// sessionsCmd represents the sessions command
-var SessionsCmd = &cobra.Command{
-	Use:     "sessions",
-	Aliases: []string{"session", "s"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+func NewSessionsCmd() *cobra.Command {
+	// sessionsCmd represents the sessions command
+	sessionsCmd := &cobra.Command{
+		Use:     "sessions",
+		Aliases: []string{"session", "s"},
+		Short:   "Manage sbsh sessions (category, not a final command)",
+		Long: `This is a category command for managing sbsh profiles.
+See 'sb profiles --help' for available subcommands.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("sessions called")
-		slog.Debug("-> sessions")
-	},
+	setupSessionsCmd(sessionsCmd)
+	return sessionsCmd
 }
 
-func init() {
-	SessionsCmd.AddCommand(sessionsListCmd)
-	SessionsCmd.AddCommand(sessionsPruneCmd)
+func setupSessionsCmd(sessionsCmd *cobra.Command) {
+	sessionsCmd.AddCommand(NewSessionListCmd())
+	sessionsCmd.AddCommand(NewSessionsPruneCmd())
 }

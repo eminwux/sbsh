@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"sbsh/pkg/discovery"
 )
 
@@ -29,18 +30,16 @@ import (
 var profilesListCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"l"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short:   "List available profiles",
+	Long: `List available profiles.
+This command scans and lists all available profiles in the specified configuration file.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		slog.Debug("-> profiles list")
 
 		ctx := context.Background()
-		// return profiles.ScanAndPrintProfiles(ctx, viper.GetString("global.runPath"), os.Stdout)
+		if slog.Default().Enabled(ctx, slog.LevelDebug) {
+			discovery.ScanAndPrintProfiles(ctx, viper.GetString("global.runPath"), os.Stdout)
+		}
 		return discovery.ScanAndPrintProfiles(ctx, "/home/inwx/.sbsh/profiles.yaml", os.Stdout)
 	},
 }

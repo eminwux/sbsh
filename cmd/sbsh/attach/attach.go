@@ -35,6 +35,11 @@ import (
 	"sbsh/pkg/supervisor"
 )
 
+const (
+	Command      string = "attach"
+	CommandAlias string = "a"
+)
+
 var (
 	sessionID               string
 	sessionName             string
@@ -45,43 +50,48 @@ var (
 	newSupervisorController = supervisor.NewSupervisorController
 )
 
-// runCmd represents the run command
-var AttachCmd = &cobra.Command{
-	Use:     "attach",
-	Aliases: []string{"a"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
+func NewAttachCmd() *cobra.Command {
+	// runCmd represents the run command
+	attachCmd := &cobra.Command{
+		Use:     Command,
+		Aliases: []string{CommandAlias},
+		Short:   "A brief description of your command",
+		Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if sessionID == "" && sessionName == "" {
-			fmt.Println("Either --id or --name must be defined")
-			os.Exit(1)
-		}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if sessionID == "" && sessionName == "" {
+				fmt.Println("Either --id or --name must be defined")
+				os.Exit(1)
+			}
 
-		if sessionID != "" && sessionName != "" {
-			fmt.Println("Only --id or --name must be defined")
-			os.Exit(1)
-		}
+			if sessionID != "" && sessionName != "" {
+				fmt.Println("Only --id or --name must be defined")
+				os.Exit(1)
+			}
 
-		if sessionID != "" {
-			run(sessionID, "")
-		} else {
-			run("", sessionName)
-		}
+			if sessionID != "" {
+				run(sessionID, "")
+			} else {
+				run("", sessionName)
+			}
 
-		return nil
-	},
+			return nil
+		},
+	}
+
+	setupAttachCmdFlags(attachCmd)
+	return attachCmd
 }
 
-func init() {
-	AttachCmd.Flags().StringVar(&sessionID, "id", "", "Session ID, cannot be set together with --name")
-	AttachCmd.Flags().StringVar(&sessionName, "name", "", "Optional session name, cannot be set together with --id")
-	AttachCmd.Flags().StringVar(&socketFileInput, "socket", "", "Optional socket file for the session")
-	AttachCmd.Flags().StringVar(&runPathInput, "run-path", "", "Optional socket file for the session")
+func setupAttachCmdFlags(attachCmd *cobra.Command) {
+	attachCmd.Flags().StringVar(&sessionID, "id", "", "Session ID, cannot be set together with --name")
+	attachCmd.Flags().StringVar(&sessionName, "name", "", "Optional session name, cannot be set together with --id")
+	attachCmd.Flags().StringVar(&socketFileInput, "socket", "", "Optional socket file for the session")
+	attachCmd.Flags().StringVar(&runPathInput, "run-path", "", "Optional socket file for the session")
 }
 
 func run(id string, name string) error {
@@ -90,9 +100,7 @@ func run(id string, name string) error {
 	defer cancel()
 
 	// Create a new Controller
-	var supCtrl api.SupervisorController
-
-	supCtrl = newSupervisorController(ctx)
+	supCtrl := newSupervisorController(ctx)
 
 	supervisorID := naming.RandomID()
 	supervisorName := naming.RandomName()
@@ -154,10 +162,8 @@ func run(id string, name string) error {
 		spec.SessionSpec.SocketFile = filepath.Join(viper.GetString("global.runPath"), ".sbsh", "sessions", string(spec.SessionSpec.ID), "socket")
 	}
 
-	// Create error channel
-	errCh := make(chan error, 1)
-
 	// Run controller
+	errCh := make(chan error, 1)
 	go func() {
 		errCh <- supCtrl.Run(spec) // Run should return when ctx is canceled
 		slog.Debug("[sbsh] controller stopped")

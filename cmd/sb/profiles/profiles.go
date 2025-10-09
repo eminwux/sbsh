@@ -17,56 +17,26 @@
 package profiles
 
 import (
-	"context"
-	"fmt"
-	"log/slog"
-	"os"
-	"time"
-
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"sbsh/pkg/env"
-	"sbsh/pkg/rpcclient/supervisor"
 )
 
-// ProfilesCmd represents the sessions command.
-var ProfilesCmd = &cobra.Command{
-	Use:     "profiles",
-	Aliases: []string{"p"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-    fmt.Fprintln(os.Stderr, "no supervisor socket found")
-    os.Exit(1)
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		slog.Debug("-> profiles")
+func NewProfilesCmd() *cobra.Command {
+	// ProfilesCmd represents the sessions command.
+	profilesCmd := &cobra.Command{
+		Use:     "profiles",
+		Aliases: []string{"p"},
+		Short:   "Manage sbsh profiles (category, not a final command)",
+		Long: `This is a category command for managing sbsh profiles.
+See 'sb profiles --help' for available subcommands.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
 
-		// check SBSH_SUP_SOCKET
-
-		socket := viper.GetString(env.SUP_SOCKET.ViperKey)
-		if socket == "" {
-			fmt.Fprintln(os.Stderr, "no supervisor socket found")
-			os.Exit(1)
-		}
-		sup := supervisor.NewUnix(socket)
-		defer sup.Close()
-
-		ctx, cancel := context.WithTimeout(cmd.Context(), 3*time.Second)
-		defer cancel()
-
-		fmt.Fprintf(os.Stdout, "detaching..\r\n")
-		if err := sup.Detach(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "detach failed: %v\r\n", err)
-			os.Exit(1)
-		}
-
-		return nil
-	},
+	setupProfilesCmd(profilesCmd)
+	return profilesCmd
 }
 
-func init() {
-	ProfilesCmd.AddCommand(profilesListCmd)
+func setupProfilesCmd(profilesCmd *cobra.Command) {
+	profilesCmd.AddCommand(profilesListCmd)
 }

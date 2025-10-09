@@ -60,155 +60,122 @@ var (
 )
 
 func main() {
-	Execute()
-}
+	rootCmd := NewRootCmd()
 
-// rootCmd represents the base command when called without any subcommands.
-var rootCmd = &cobra.Command{
-	Use:   "sbsh",
-	Short: "A brief description of your application",
-	Long:  `A longer description ...`,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		err := LoadConfig()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Config error:", err)
-			os.Exit(1)
-		}
-
-		h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: common.ParseLevel(viper.GetString(env.LOG_LEVEL.ViperKey)),
-		})
-		slog.SetDefault(slog.New(h))
-		return nil
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		// Build SessionSpec from command-line inputs and profile (if given)
-		sessionSpec, err := profile.BuildSessionSpec(
-			viper.GetString(env.RUN_PATH.ViperKey),
-			viper.GetString(env.PROFILES_FILE.ViperKey),
-			sessionProfileNameInput,
-			sessionIDInput,
-			sessionNameInput,
-			sessionCmdInput,
-			sessionLogFilenameInput,
-			sessionSocketFileInput,
-			os.Environ(),
-			ctx,
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// If a profile name was given, set the SBSH_SES_PROFILE env var
-		if sessionProfileNameInput != "" {
-			if err := env.SES_PROFILE.Set(sessionProfileNameInput); err != nil {
-				log.Fatal(err)
-			}
-			if env.SES_PROFILE.BindEnv() != nil {
-				log.Fatal(err)
-			}
-		}
-
-		supervisorID := naming.RandomID()
-		supervisorName := naming.RandomName()
-
-		if socketFileInput == "" {
-			socketFileInput = filepath.Join(
-				viper.GetString(env.RUN_PATH.ViperKey),
-				"supervisors",
-				supervisorID,
-				"socket",
-			)
-		}
-
-		// Define a new SupervisorSpec
-		spec := &api.SupervisorSpec{
-			Kind:        api.RunNewSession,
-			ID:          api.ID(supervisorID),
-			Name:        supervisorName,
-			Env:         os.Environ(),
-			RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
-			SockerCtrl:  socketFileInput,
-			SessionSpec: sessionSpec,
-		}
-
-		slog.Debug("SupervisorSpec values",
-			"Kind", spec.Kind,
-			"ID", spec.ID,
-			"Name", spec.Name,
-			"Env", spec.Env,
-			"RunPath", spec.RunPath,
-			"SockerCtrl", spec.SockerCtrl,
-			"SessionSpec", spec.SessionSpec,
-		)
-
-		// discovery.PrintSessionSpec(sessionSpec, os.Stdout)
-		runSupervisor(spec)
-	},
-}
-
-func runSupervisor(spec *api.SupervisorSpec) error {
-	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
-
-	// Create a new Controller
-	var ctrl api.SupervisorController
-
-	ctrl = newSupervisorController(ctx)
-
-	// Create error channel
-	errCh := make(chan error, 1)
-
-	// Run controller
-	go func() {
-		errCh <- ctrl.Run(spec) // Run should return when ctx is canceled
-		slog.Debug("[sbsh] controller stopped\r\n")
-	}()
-
-	// block until controller is ready (or ctx cancels)
-	if err := ctrl.WaitReady(); err != nil {
-		slog.Debug(fmt.Sprintf("controller not ready: %s", err))
-		return fmt.Errorf("%w: %v", ErrWaitOnReady, err)
-	}
-
-	select {
-	case <-ctx.Done():
-		var err error
-		slog.Debug("[sbsh] context canceled, waiting on sessionCtrl to exit\r\n")
-		if e := ctrl.WaitClose(); e != nil {
-			err = fmt.Errorf("%w: %v", ErrWaitOnClose, e)
-		}
-		slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
-		return fmt.Errorf("%w: %v", ErrContextDone, err)
-
-	case err := <-errCh:
-		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
-		if err != nil && !errors.Is(err, context.Canceled) {
-			err = fmt.Errorf("%w: %v", ErrChildExit, err)
-			if errC := ctrl.WaitClose(); err != nil {
-				err = fmt.Errorf("%w: %w: %w", err, ErrWaitOnClose, errC)
-			}
-			slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
-			return err
-		}
-	}
-
-	return nil
-}
-
-func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
 	}
 }
 
-func init() {
+func NewRootCmd() *cobra.Command {
+	// rootCmd represents the base command when called without any subcommands.
+	rootCmd := &cobra.Command{
+		Use:   "sbsh",
+		Short: "sbsh command line tool",
+		Long: `sbsh is a command line tool to manage sbsh sessions and profiles.
+
+You can see available options and commands with:
+  sbsh help
+
+If you run sbsh with no options, a default session will start.
+
+You can also use sbsh with parameters. For example:
+  sbsh --log-level=debug
+  sbsh run
+  sbsh attach --id abcdef0
+`,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			err := LoadConfig()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Config error:", err)
+				os.Exit(1)
+			}
+
+			h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+				Level: common.ParseLevel(viper.GetString(env.LOG_LEVEL.ViperKey)),
+			})
+			slog.SetDefault(slog.New(h))
+			return nil
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			// Build SessionSpec from command-line inputs and profile (if given)
+			sessionSpec, err := profile.BuildSessionSpec(
+				viper.GetString(env.RUN_PATH.ViperKey),
+				viper.GetString(env.PROFILES_FILE.ViperKey),
+				sessionProfileNameInput,
+				sessionIDInput,
+				sessionNameInput,
+				sessionCmdInput,
+				sessionLogFilenameInput,
+				sessionSocketFileInput,
+				os.Environ(),
+				ctx,
+			)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			// If a profile name was given, set the SBSH_SES_PROFILE env var
+			if sessionProfileNameInput != "" {
+				if err := env.SES_PROFILE.Set(sessionProfileNameInput); err != nil {
+					log.Fatal(err)
+				}
+				if env.SES_PROFILE.BindEnv() != nil {
+					log.Fatal(err)
+				}
+			}
+
+			supervisorID := naming.RandomID()
+			supervisorName := naming.RandomName()
+
+			if socketFileInput == "" {
+				socketFileInput = filepath.Join(
+					viper.GetString(env.RUN_PATH.ViperKey),
+					"supervisors",
+					supervisorID,
+					"socket",
+				)
+			}
+
+			// Define a new SupervisorSpec
+			spec := &api.SupervisorSpec{
+				Kind:        api.RunNewSession,
+				ID:          api.ID(supervisorID),
+				Name:        supervisorName,
+				Env:         os.Environ(),
+				RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+				SockerCtrl:  socketFileInput,
+				SessionSpec: sessionSpec,
+			}
+
+			slog.Debug("SupervisorSpec values",
+				"Kind", spec.Kind,
+				"ID", spec.ID,
+				"Name", spec.Name,
+				"Env", spec.Env,
+				"RunPath", spec.RunPath,
+				"SockerCtrl", spec.SockerCtrl,
+				"SessionSpec", spec.SessionSpec,
+			)
+
+			// discovery.PrintSessionSpec(sessionSpec, os.Stdout)
+			runSupervisor(spec)
+		},
+	}
+
+	setupRootCmd(rootCmd)
+
+	return rootCmd
+}
+
+func setupRootCmd(rootCmd *cobra.Command) {
 	// go http.ListenAndServe("127.0.0.1:6060", nil)
 	// runtime.SetBlockProfileRate(1)     // sample ALL blocking events on chans/locks
 	// runtime.SetMutexProfileFraction(1) // sample ALL mutex contention
-	rootCmd.AddCommand(run.RunCmd)
-	rootCmd.AddCommand(attach.AttachCmd)
+
+	rootCmd.AddCommand(run.NewRunCmd())
+	rootCmd.AddCommand(attach.NewAttachCmd())
 
 	// Persistent flags
 	rootCmd.PersistentFlags().StringVar(&runPathInput, "run-path", "", "Optional run path for the supervisor")
@@ -248,6 +215,52 @@ func init() {
 	if err := viper.BindPFlag("session.logFilename", rootCmd.Flags().Lookup("session-log-filename")); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func runSupervisor(spec *api.SupervisorSpec) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	// Create a new Controller
+	ctrl := newSupervisorController(ctx)
+
+	// Create error channel
+	errCh := make(chan error, 1)
+
+	// Run controller
+	go func() {
+		errCh <- ctrl.Run(spec) // Run should return when ctx is canceled
+		slog.Debug("[sbsh] controller stopped\r\n")
+	}()
+
+	// block until controller is ready (or ctx cancels)
+	if err := ctrl.WaitReady(); err != nil {
+		slog.Debug(fmt.Sprintf("controller not ready: %s", err))
+		return fmt.Errorf("%w: %w", ErrWaitOnReady, err)
+	}
+
+	select {
+	case <-ctx.Done():
+		var err error
+		slog.Debug("[sbsh] context canceled, waiting on sessionCtrl to exit\r\n")
+		if e := ctrl.WaitClose(); e != nil {
+			err = fmt.Errorf("%w: %w", ErrWaitOnClose, e)
+		}
+		slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
+		return fmt.Errorf("%w: %w", ErrContextDone, err)
+
+	case err := <-errCh:
+		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
+		if err != nil && !errors.Is(err, context.Canceled) {
+			err = fmt.Errorf("%w: %w", ErrChildExit, err)
+			if errC := ctrl.WaitClose(); err != nil {
+				err = fmt.Errorf("%w: %w: %w", err, ErrWaitOnClose, errC)
+			}
+			slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
+			return err
+		}
+	}
+	return nil
 }
 
 // LoadConfig loads config.yaml from the given path or HOME/.sbsh.

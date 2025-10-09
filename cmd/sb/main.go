@@ -34,7 +34,10 @@ import (
 )
 
 func main() {
-	Execute()
+	err := newRootCmd().Execute()
+	if err != nil {
+		os.Exit(1)
+	}
 }
 
 var (
@@ -43,42 +46,49 @@ var (
 	cfgFileInput  string
 )
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:   "sb",
-	Short: "A brief description of your application",
-	Long:  `A longer description ...`,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		err := LoadConfig()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Config error:", err)
-			os.Exit(1)
-		}
+func newRootCmd() *cobra.Command {
+	// rootCmd represents the base command when called without any subcommands.
+	rootCmd := &cobra.Command{
+		Use:   "sb",
+		Short: "sb command line tool",
+		Long: `sb is a command line tool to manage sbsh sessions and profiles.
 
-		h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: common.ParseLevel(viper.GetString("global.logLevel")),
-		})
-		slog.SetDefault(slog.New(h))
-		return nil
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return cmd.Help()
-	},
-}
+You can see available options and commands with:
+  sb help
 
-///////////////////////////////////////////////
+Examples:
+  sb sessions list
+  sb sessions prune
+  sb detach
+  sb attach --id abcdf0
+  sb profiles list
+`,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			err := LoadConfig()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Config error:", err)
+				os.Exit(1)
+			}
 
-func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		os.Exit(1)
+			h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+				Level: common.ParseLevel(viper.GetString("global.logLevel")),
+			})
+			slog.SetDefault(slog.New(h))
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
+
+	setupRootCmd(rootCmd)
+	return rootCmd
 }
 
-func init() {
-	rootCmd.AddCommand(sessions.SessionsCmd)
-	rootCmd.AddCommand(detach.DetachCmd)
-	rootCmd.AddCommand(profiles.ProfilesCmd)
+func setupRootCmd(rootCmd *cobra.Command) {
+	rootCmd.AddCommand(sessions.NewSessionsCmd())
+	rootCmd.AddCommand(detach.NewDetachCmd())
+	rootCmd.AddCommand(profiles.NewProfilesCmd())
 
 	rootCmd.PersistentFlags().StringVar(&cfgFileInput, "config", "", "config file (default is $HOME/.sbsh/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&logLevelInput, "log-level", "", "Log level (debug, info, warn, error)")

@@ -22,65 +22,63 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"sbsh/pkg/env"
-	"sbsh/pkg/rpcclient/supervisor"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"sbsh/pkg/env"
+	"sbsh/pkg/rpcclient/supervisor"
 )
 
-var (
-	supSocketPath string
-)
+var supSocketPath string
 
-// sessionsCmd represents the sessions command
-var DetachCmd = &cobra.Command{
-	Use:     "detach",
-	Aliases: []string{"d"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-    fmt.Fprintln(os.Stderr, "no supervisor socket found")
-    os.Exit(1)
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		slog.Debug("-> detach")
+func NewDetachCmd() *cobra.Command {
+	// sessionsCmd represents the sessions command
+	detachCmd := &cobra.Command{
+		Use:     "detach",
+		Aliases: []string{"d"},
+		Short:   "Detach from a running supervisor",
+		Long: `Detach from a running supervisor.
 
-		// check SBSH_SUP_SOCKET
+This command takes a --socket argument to specify the supervisor socket path.
+If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			slog.Debug("-> detach")
 
-		socket := viper.GetString(env.SUP_SOCKET.ViperKey)
-		if socket == "" {
-			fmt.Fprintln(os.Stderr, "no supervisor socket found")
-			os.Exit(1)
-		}
-		sup := supervisor.NewUnix(socket)
-		defer sup.Close()
+			// check SBSH_SUP_SOCKET
 
-		ctx, cancel := context.WithTimeout(cmd.Context(), 3*time.Second)
-		defer cancel()
+			socket := viper.GetString(env.SUP_SOCKET.ViperKey)
+			if socket == "" {
+				fmt.Fprintln(os.Stderr, "no supervisor socket found")
+				os.Exit(1)
+			}
+			sup := supervisor.NewUnix(socket)
+			defer sup.Close()
 
-		fmt.Fprintf(os.Stdout, "detaching..\r\n")
-		if err := sup.Detach(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "detach failed: %v\r\n", err)
-			os.Exit(1)
-		}
+			ctx, cancel := context.WithTimeout(cmd.Context(), 3*time.Second)
+			defer cancel()
 
-		return nil
-	},
+			fmt.Fprintf(os.Stdout, "detaching..\r\n")
+			if err := sup.Detach(ctx); err != nil {
+				fmt.Fprintf(os.Stderr, "detach failed: %v\r\n", err)
+				os.Exit(1)
+			}
+
+			return nil
+		},
+	}
+	setupDetachCmd(detachCmd)
+	return detachCmd
 }
 
-func init() {
+func setupDetachCmd(detachCmd *cobra.Command) {
 	flagS := "socket"
-	DetachCmd.Flags().StringVar(&supSocketPath, flagS, "", "Supervisor Socket Path")
+	detachCmd.Flags().StringVar(&supSocketPath, flagS, "", "Supervisor Socket Path")
 
 	_ = env.SUP_SOCKET.BindEnv()
 
-	if err := viper.BindPFlag(env.SUP_SOCKET.ViperKey, DetachCmd.Flags().Lookup(flagS)); err != nil {
+	if err := viper.BindPFlag(env.SUP_SOCKET.ViperKey, detachCmd.Flags().Lookup(flagS)); err != nil {
 		slog.Debug("could not bind cobra flag to viper")
 		log.Fatal(err)
 	}
-
 }
