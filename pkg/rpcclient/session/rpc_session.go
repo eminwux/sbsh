@@ -24,9 +24,10 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 	"os"
+	"time"
+
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
-	"time"
 )
 
 type Dialer func(ctx context.Context) (net.Conn, error)
@@ -35,10 +36,12 @@ type client struct {
 	dial Dialer
 }
 
-type Option func(*unixOpts)
-type unixOpts struct {
-	DialTimeout time.Duration
-}
+type (
+	Option   func(*unixOpts)
+	unixOpts struct {
+		DialTimeout time.Duration
+	}
+)
 
 func WithDialTimeout(d time.Duration) Option {
 	return func(o *unixOpts) { o.DialTimeout = d }
@@ -92,7 +95,10 @@ func (c *client) callWithCodec(
 
 		rpcc := rpc.NewClientWithCodec(codec)
 		errCh := make(chan error, 1)
-		go func() { errCh <- rpcc.Call(method, in, out) }()
+		go func() {
+			errCh <- rpcc.Call(method, in, out)
+			close(errCh)
+		}()
 
 		select {
 		case <-ctx.Done():
@@ -157,9 +163,7 @@ func (c *client) Detach(ctx context.Context, id *api.ID) error {
 // --- Attach (uses FD-aware codec) ---
 // Returns the IO net.Conn built from the FD sent via SCM_RIGHTS; also fills 'out' with JSON result.
 func (c *client) Attach(ctx context.Context, id *api.ID, out any) (net.Conn, error) {
-	var (
-		gotFDs []int
-	)
+	var gotFDs []int
 
 	slog.Debug("[client] Attach RPC call starting")
 

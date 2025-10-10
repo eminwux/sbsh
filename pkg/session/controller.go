@@ -20,36 +20,41 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
+
 	"sbsh/pkg/api"
 	"sbsh/pkg/errdefs"
 	"sbsh/pkg/session/sessionrpc"
 	"sbsh/pkg/session/sessionrunner"
-	"time"
 )
 
 type SessionController struct {
 	ctx context.Context
 
-	closedCh chan struct{}
-	cancel   context.CancelFunc
+	closedCh  chan struct{}
+	closingCh chan error
+
+	shutttingDown bool
 }
 
-var newSessionRunner = sessionrunner.NewSessionRunnerExec
-var sr sessionrunner.SessionRunner
-var rpcReadyCh chan error = make(chan error)
-var rpcDoneCh chan error = make(chan error)
-var ctrlReady chan struct{} = make(chan struct{}, 1)
-var eventsCh chan sessionrunner.SessionRunnerEvent = make(chan sessionrunner.SessionRunnerEvent, 32)
-var closeReqCh chan error = make(chan error, 1)
+var (
+	newSessionRunner = sessionrunner.NewSessionRunnerExec
+	sr               sessionrunner.SessionRunner
+	rpcReadyCh       chan error                            = make(chan error)
+	rpcDoneCh        chan error                            = make(chan error)
+	ctrlReady        chan struct{}                         = make(chan struct{}, 1)
+	eventsCh         chan sessionrunner.SessionRunnerEvent = make(chan sessionrunner.SessionRunnerEvent, 32)
+	closeReqCh       chan error                            = make(chan error, 1)
+)
 
 // NewSessionController wires the manager and the shared event channel from sessions.
-func NewSessionController(ctx context.Context, cancel context.CancelFunc) api.SessionController {
+func NewSessionController(ctx context.Context) api.SessionController {
 	slog.Debug("[sessionCtrl] New controller is being created\r\n")
 
 	c := &SessionController{
-		ctx:      ctx,
-		cancel:   cancel,
-		closedCh: make(chan struct{}),
+		ctx:       ctx,
+		closedCh:  make(chan struct{}),
+		closingCh: make(chan error, 1),
 	}
 
 	return c
@@ -62,7 +67,6 @@ func (c *SessionController) Status() string {
 func (c *SessionController) WaitReady() error {
 	select {
 	case <-ctrlReady:
-		close(ctrlReady)
 		return nil
 	case <-c.ctx.Done():
 		return c.ctx.Err()
@@ -70,17 +74,19 @@ func (c *SessionController) WaitReady() error {
 }
 
 func (c *SessionController) WaitClose() error {
-
 	select {
 	case <-c.closedCh:
-		slog.Debug("[sessionCtrl] controller exited")
+		slog.Debug("controller exited")
 		return nil
+	case err := <-c.closingCh:
+		slog.Debug("controller closing", "reason", err)
 	}
+
+	return nil
 }
 
 // Run is the main orchestration loop. It owns all mode transitions.
 func (c *SessionController) Run(spec *api.SessionSpec) error {
-
 	defer slog.Debug("[sessionCtrl] controller stopped\r\n")
 
 	sr = newSessionRunner(c.ctx, spec)
@@ -111,7 +117,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 	}
 
 	rpc := &sessionrpc.SessionControllerRPC{Core: c}
-	go sr.StartServer(rpc, rpcReadyCh)
+	go sr.StartServer(c.ctx, rpc, rpcReadyCh, rpcDoneCh)
 	// Wait for startup result
 	if err := <-rpcReadyCh; err != nil {
 		// failed to start — handle and return
@@ -127,7 +133,16 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		return fmt.Errorf("%w: %v", errdefs.ErrStartSession, err)
 	}
 
-	ctrlReady <- struct{}{}
+	// ctrlReady <- struct{}{}
+	close(ctrlReady)
+
+	go func() {
+		select {
+		case err := <-c.closingCh:
+			c.shutttingDown = true
+			slog.Info("controller closing", "reason", err)
+		}
+	}()
 
 	for {
 		select {
@@ -140,13 +155,21 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 			return fmt.Errorf("%w: %v", errdefs.ErrContextDone, err)
 
 		case ev := <-eventsCh:
-			slog.Debug(fmt.Sprintf("[sessionCtrl] received event: id=%s type=%v err=%v when=%s\r\n", ev.ID, ev.Type, ev.Err, ev.When.Format(time.RFC3339Nano)))
+			slog.Debug(
+				fmt.Sprintf(
+					"[sessionCtrl] received event: id=%s type=%v err=%v when=%s\r\n",
+					ev.ID,
+					ev.Type,
+					ev.Err,
+					ev.When.Format(time.RFC3339Nano),
+				),
+			)
 			c.handleEvent(ev)
 
 		case err := <-rpcDoneCh:
 			slog.Debug(fmt.Sprintf("[sessionCtrl] rpc server has failed: %v\r\n", err))
-			if err := c.Close(err); err != nil {
-				err = fmt.Errorf("%v: %w: %v", err, errdefs.ErrOnClose, err)
+			if errC := c.Close(err); err != nil {
+				err = fmt.Errorf("%w: %v: %v", err, errdefs.ErrOnClose, errC)
 			}
 			return fmt.Errorf("%w: %v", errdefs.ErrRPCServerExited, err)
 
@@ -155,7 +178,6 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 			return fmt.Errorf("%w: %v", errdefs.ErrCloseReq, err)
 		}
 	}
-
 }
 
 /* ---------- Event handlers ---------- */
@@ -165,6 +187,7 @@ func (c *SessionController) handleEvent(ev sessionrunner.SessionRunnerEvent) {
 
 	case sessionrunner.EvError:
 		slog.Debug(fmt.Sprintf("[sessionCtrl] session %s EvError error: %v\r\n", ev.ID, ev.Err))
+		c.onClosed(ev.Err)
 
 	case sessionrunner.EvCmdExited:
 		slog.Debug(fmt.Sprintf("[sessionCtrl] session %s EvSessionExited error: %v\r\n", ev.ID, ev.Err))
@@ -173,30 +196,32 @@ func (c *SessionController) handleEvent(ev sessionrunner.SessionRunnerEvent) {
 }
 
 func (c *SessionController) Close(reason error) error {
+	if !c.shutttingDown {
+		slog.Info("initiating shutdown sequence", "reason", reason)
+		// Set closing reason
+		c.closingCh <- reason
 
-	slog.Debug(fmt.Sprintf("[session] Close called: %v\r\n", reason))
+		// Notify session runner to close all sessions
+		sr.Close(reason)
 
-	slog.Debug(fmt.Sprintf("[session] sent close order to session-runner, reason: %v\r\n", reason))
-	sr.Close(reason)
+		// Notify Run to exit
+		closeReqCh <- reason
 
-	closeReqCh <- reason
-	slog.Debug(fmt.Sprintf("[session] error sent to closingCh, reason: %v\r\n", reason))
-
-	close(c.closedCh)
-
+		// Mark controller as closed
+		close(c.closedCh)
+	} else {
+		slog.Info("shutdown sequence already in progress, ignoring duplicate request", "reason", reason)
+	}
 	return nil
 }
 
 func (c *SessionController) onClosed(err error) {
 	slog.Debug("[sessionCtrl] onClosed triggered\r\n")
 	c.Close(err)
-
 }
 
 func (c *SessionController) Resize(args api.ResizeArgs) {
-
 	sr.Resize(args)
-
 }
 
 func (c *SessionController) Attach(id *api.ID, response *api.ResponseWithFD) error {
@@ -215,7 +240,5 @@ func (c *SessionController) Attach(id *api.ID, response *api.ResponseWithFD) err
 }
 
 func (c *SessionController) Detach(id *api.ID) error {
-
 	return sr.Detach(id)
-
 }

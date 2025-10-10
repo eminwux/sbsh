@@ -34,6 +34,7 @@ import (
 	"sbsh/pkg/api"
 	"sbsh/pkg/common"
 	"sbsh/pkg/env"
+	"sbsh/pkg/errdefs"
 	"sbsh/pkg/naming"
 	"sbsh/pkg/profile"
 	"sbsh/pkg/supervisor"
@@ -230,6 +231,7 @@ func runSupervisor(spec *api.SupervisorSpec) error {
 	// Run controller
 	go func() {
 		errCh <- ctrl.Run(spec) // Run should return when ctx is canceled
+		close(errCh)
 		slog.Debug("[sbsh] controller stopped\r\n")
 	}()
 
@@ -243,11 +245,12 @@ func runSupervisor(spec *api.SupervisorSpec) error {
 	case <-ctx.Done():
 		var err error
 		slog.Debug("[sbsh] context canceled, waiting on sessionCtrl to exit\r\n")
-		if e := ctrl.WaitClose(); e != nil {
-			err = fmt.Errorf("%w: %w", ErrWaitOnClose, e)
+		if errC := ctrl.WaitClose(); errC != nil {
+			err = fmt.Errorf("%w: %v: %v", err, ErrWaitOnClose, errC)
 		}
 		slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
-		return fmt.Errorf("%w: %w", ErrContextDone, err)
+
+		return fmt.Errorf("%w: %v", errdefs.ErrContextDone, err)
 
 	case err := <-errCh:
 		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
@@ -257,6 +260,7 @@ func runSupervisor(spec *api.SupervisorSpec) error {
 				err = fmt.Errorf("%w: %w: %w", err, ErrWaitOnClose, errC)
 			}
 			slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
+
 			return err
 		}
 	}

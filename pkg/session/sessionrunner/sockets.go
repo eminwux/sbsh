@@ -22,8 +22,9 @@ import (
 	"net"
 	"os"
 
-	"golang.org/x/sys/unix"
 	"sbsh/pkg/api"
+
+	"golang.org/x/sys/unix"
 )
 
 func (sr *SessionRunnerExec) OpenSocketCtrl() error {
@@ -45,7 +46,7 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() error {
 	}
 
 	// keep references for Close()
-	sr.listenerCtrl = ctrlLn
+	sr.lnCtrl = ctrlLn
 
 	if err := os.Chmod(sr.metadata.Spec.SocketFile, 0o600); err != nil {
 		ctrlLn.Close()

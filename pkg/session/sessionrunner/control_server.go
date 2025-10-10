@@ -17,18 +17,32 @@
 package sessionrunner
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"net/rpc"
+
 	"sbsh/pkg/api"
 	"sbsh/pkg/session/sessionrpc"
 )
 
-func (sr *SessionRunnerExec) StartServer(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+func (sr *SessionRunnerExec) StartServer(
+	ctx context.Context,
+	sc *sessionrpc.SessionControllerRPC,
+	readyCh chan error,
+	doneCh chan error,
+) {
+	// Ensure ln is closed and no leaks on exit
 	defer func() {
 		// Ensure ln is closed and no leaks on exit
-		_ = sr.listenerCtrl.Close()
+		_ = sr.lnCtrl.Close()
+	}()
+
+	// stop accepting when ctx is canceled.
+	go func() {
+		<-sr.ctx.Done()
+		_ = sr.lnCtrl.Close()
 	}()
 
 	srv := rpc.NewServer()
@@ -40,9 +54,10 @@ func (sr *SessionRunnerExec) StartServer(sc *sessionrpc.SessionControllerRPC, re
 
 		// also inform 'done' since we won't run
 		select {
-		case sr.closeReqCh <- err:
+		case doneCh <- err:
 		default:
 		}
+		close(doneCh)
 		return
 	}
 	// Signal: the accept loop is about to run on an already-listening socket.
@@ -52,25 +67,25 @@ func (sr *SessionRunnerExec) StartServer(sc *sessionrpc.SessionControllerRPC, re
 	// stop accepting when ctx is canceled.
 
 	for {
-		conn, err := sr.listenerCtrl.Accept()
+		conn, err := sr.lnCtrl.Accept()
 		if err != nil {
 			// Normal path: listener closed by ctx cancel
 			if errors.Is(err, net.ErrClosed) || sr.ctx.Err() != nil {
 				select {
-				case sr.closeReqCh <- fmt.Errorf("unknown rpc server error"):
+				case doneCh <- fmt.Errorf("unknown rpc server error"):
 				default:
 				}
+				close(doneCh)
 				return
 			}
 			// Abnormal accept error
 			select {
-			case sr.closeReqCh <- err:
+			case doneCh <- err:
 			default:
 			}
-
+			close(doneCh)
 			return
 		}
-		// go srv.ServeCodec(jsonrpc.NewServerCodec(conn))
 		uconn := conn.(*net.UnixConn)
 		go srv.ServeCodec(sessionrpc.NewUnixJSONServerCodec(uconn))
 

@@ -21,8 +21,9 @@ import (
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
-	"sbsh/pkg/api"
 	"time"
+
+	"sbsh/pkg/api"
 )
 
 type Dialer func(ctx context.Context) (net.Conn, error)
@@ -43,7 +44,10 @@ func (c *client) call(ctx context.Context, method string, in, out any) error {
 	rpcc := rpc.NewClientWithCodec(jsonrpc.NewClientCodec(conn))
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- rpcc.Call(method, in, out) }()
+	go func() {
+		errCh <- rpcc.Call(method, in, out)
+		close(errCh)
+	}()
 
 	select {
 	case <-ctx.Done():

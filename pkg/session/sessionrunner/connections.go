@@ -118,7 +118,6 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 		slog.Debug(fmt.Sprintf("[session-runner] error in copy pipes: %v\r\n", err))
 	}
 	client.conn.Close()
-	close(errCh)
 	sr.removeClient(client)
 }
 

@@ -35,7 +35,7 @@ import (
 
 func TestRunSession_ErrContextCancelled(t *testing.T) {
 	orig := newSessionController
-	newSessionController = func(ctx context.Context, cancel context.CancelFunc) api.SessionController {
+	newSessionController = func(ctx context.Context) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          nil,
 			RunFunc:       func(spec *api.SessionSpec) error { return nil },
@@ -78,7 +78,7 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 
 func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	orig := newSessionController
-	newSessionController = func(ctx context.Context, cancel context.CancelFunc) api.SessionController {
+	newSessionController = func(ctx context.Context) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          nil,
 			RunFunc:       func(spec *api.SessionSpec) error { return nil },
@@ -110,7 +110,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 
 func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	orig := newSessionController
-	newSessionController = func(ctx context.Context, cancel context.CancelFunc) api.SessionController {
+	newSessionController = func(ctx context.Context) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          nil,
 			RunFunc:       func(spec *api.SessionSpec) error { return nil },

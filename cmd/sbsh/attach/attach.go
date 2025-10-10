@@ -166,6 +166,7 @@ func run(id string, name string) error {
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- supCtrl.Run(spec) // Run should return when ctx is canceled
+		close(errCh)
 		slog.Debug("[sbsh] controller stopped")
 	}()
 

@@ -130,41 +130,46 @@ func runSession(spec *api.SessionSpec) error {
 	defer cancel()
 
 	// Create a new Controller
-	var sessionCtrl api.SessionController
+	var ctrl api.SessionController
 
-	sessionCtrl = newSessionController(ctx, cancel)
+	ctrl = newSessionController(ctx)
 
 	// Create error channel
 	errCh := make(chan error, 1)
 
 	// Run controller
 	go func() {
-		errCh <- sessionCtrl.Run(spec) // Run should return when ctx is canceled
+		errCh <- ctrl.Run(spec) // Run should return when ctx is canceled
+		close(errCh)
 		slog.Debug("[sbsh] controller stopped\r\n")
 	}()
 
 	// block until controller is ready (or ctx cancels)
-	if err := sessionCtrl.WaitReady(); err != nil {
+	if err := ctrl.WaitReady(); err != nil {
 		slog.Debug(fmt.Sprintf("controller not ready: %s\r\n", err))
 		return fmt.Errorf("%w: %v", errdefs.ErrWaitOnReady, err)
 	}
 	select {
 	case <-ctx.Done():
+		var err error
 		slog.Debug("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
-		if err := sessionCtrl.WaitClose(); err != nil {
-			return fmt.Errorf("%w: %v", errdefs.ErrWaitOnClose, err)
+		if errC := ctrl.WaitClose(); errC != nil {
+			err = fmt.Errorf("%w %v: %v", err, errdefs.ErrWaitOnClose, errC)
 		}
 		slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
 
-		return errdefs.ErrContextDone
+		return fmt.Errorf("%w: %v", errdefs.ErrContextDone, err)
+
 	case err := <-errCh:
 		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
 		if err != nil && !errors.Is(err, context.Canceled) {
-			if err := sessionCtrl.WaitClose(); err != nil {
-				return fmt.Errorf("%w: %v", errdefs.ErrWaitOnClose, err)
+			err = fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
+			if errC := ctrl.WaitClose(); errC != nil {
+				err = fmt.Errorf("%w: %v: %v", err, errdefs.ErrWaitOnClose, errC)
 			}
 			slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
-			return fmt.Errorf("%w: %v", errdefs.ErrChildExit, err)
+
+			return err
 		}
 	}
 	return nil

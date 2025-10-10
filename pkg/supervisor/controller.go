@@ -35,10 +35,13 @@ import (
 /* ---------- Controller ---------- */
 
 type SupervisorController struct {
-	ctx     context.Context
-	exit    chan struct{}
-	closed  chan struct{}
-	closing chan error
+	ctx  context.Context
+	exit chan struct{}
+
+	closedCh  chan struct{}
+	closingCh chan error
+
+	shutttingDown bool
 }
 
 var (
@@ -64,9 +67,9 @@ func NewSupervisorController(ctx context.Context) api.SupervisorController {
 	slog.Debug("[supervisor] New controller is being created\r\n")
 
 	c := &SupervisorController{
-		ctx:     ctx,
-		closed:  make(chan struct{}),
-		closing: make(chan error, 1),
+		ctx:       ctx,
+		closedCh:  make(chan struct{}),
+		closingCh: make(chan error, 1),
 	}
 	return c
 }
@@ -170,6 +173,14 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 
 	close(ctrlReady)
 
+	go func() {
+		select {
+		case err := <-s.closingCh:
+			s.shutttingDown = true
+			slog.Info("controller closing", "reason", err)
+		}
+	}()
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -194,8 +205,8 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 
 		case err := <-rpcDoneCh:
 			slog.Debug(fmt.Sprintf("[supervisor] rpc server has failed: %v\r\n", err))
-			if err := s.Close(err); err != nil {
-				err = fmt.Errorf("%v:%w:%v", err, errdefs.ErrOnClose, err)
+			if errC := s.Close(err); err != nil {
+				err = fmt.Errorf("%w: %v: %v", err, errdefs.ErrOnClose, errC)
 			}
 			return fmt.Errorf("%w: %v", errdefs.ErrRPCServerExited, err)
 
@@ -290,23 +301,31 @@ func (s *SupervisorController) onClosed(_ api.ID, err error) {
 }
 
 func (s *SupervisorController) Close(reason error) error {
-	slog.Debug(fmt.Sprintf("[supervisor] Close called: %v\r\n", reason))
-	s.closing <- reason
-	closeReqCh <- reason
-	slog.Debug(fmt.Sprintf("[supervisor] error sent to closeReqCh: %v\r\n", reason))
-	sr.Close(reason)
-	close(s.closed)
+	if !s.shutttingDown {
+		slog.Info("initiating shutdown sequence", "reason", reason)
+		// Set closing reason
+		s.closingCh <- reason
+
+		// Notify session runner to close all sessions
+		sr.Close(reason)
+
+		// Notify Run to exit
+		closeReqCh <- reason
+
+		// Mark controller as closed
+		close(s.closedCh)
+	} else {
+		slog.Info("shutdown sequence already in progress, ignoring duplicate request", "reason", reason)
+	}
 
 	return nil
 }
 
 func (s *SupervisorController) WaitClose() error {
 	select {
-	case <-s.closed:
-		slog.Debug("[supervisor] controller exited\r\n")
+	case <-s.closedCh:
+		slog.Info("controller exited")
 		return nil
-	case err := <-s.closing:
-		slog.Debug(fmt.Sprintf("[supervisor] controller closing: %v\r\n", err))
 	}
 	return nil
 }

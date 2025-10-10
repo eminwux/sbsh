@@ -253,6 +253,8 @@ func (sr *SupervisorRunnerExec) forwardResize() error {
 		for {
 			select {
 			case <-sr.ctx.Done():
+				signal.Stop(ch)
+				defer close(ch)
 				return
 			case <-ch:
 				// slog.Debug("[supervisor] window change\r\n")

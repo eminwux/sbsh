@@ -48,8 +48,7 @@ func (f *fakeListener) Addr() net.Addr {
 func newStubListener() net.Listener { return &fakeListener{} }
 
 func Test_ErrSpecCmdMissing(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx, cancel)
+	sessionCtrl := NewSessionController(context.Background())
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -77,8 +76,13 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
+	closeReqCh = make(chan error, 1)
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
+	ctrlReady = make(chan struct{})
+	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+
 	exitCh := make(chan error)
-	defer close(exitCh)
 
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
@@ -90,8 +94,8 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 }
 
 func Test_ErrOpenSocketCtrl(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx, cancel)
+	ctx, _ := context.WithCancel(context.Background())
+	sessionCtrl := NewSessionController(ctx)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -119,8 +123,13 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
+	closeReqCh = make(chan error, 1)
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
+	ctrlReady = make(chan struct{})
+	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+
 	exitCh := make(chan error)
-	defer close(exitCh)
 
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
@@ -132,8 +141,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 }
 
 func Test_ErrStartRPCServer(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx, cancel)
+	sessionCtrl := NewSessionController(context.Background())
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -153,7 +161,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
 				readyCh <- fmt.Errorf("make server fail")
 			},
 		}
@@ -177,8 +185,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 }
 
 func Test_ErrStartSession(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx, cancel)
+	sessionCtrl := NewSessionController(context.Background())
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -198,7 +205,7 @@ func Test_ErrStartSession(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
@@ -212,23 +219,13 @@ func Test_ErrStartSession(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	rpcReadyCh = make(chan error)
-	defer close(rpcReadyCh)
-
-	rpcDoneCh = make(chan error)
-	defer close(rpcDoneCh)
-
-	ctrlReady = make(chan struct{})
-	defer close(ctrlReady)
-
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
-	defer close(eventsCh)
-
 	closeReqCh = make(chan error, 1)
-	defer close(closeReqCh)
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
+	ctrlReady = make(chan struct{})
+	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
 
 	exitCh := make(chan error)
-	defer close(exitCh)
 
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
@@ -241,7 +238,7 @@ func Test_ErrStartSession(t *testing.T) {
 
 func Test_ErrContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx, cancel)
+	sessionCtrl := NewSessionController(ctx)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -261,7 +258,7 @@ func Test_ErrContextDone(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
@@ -275,23 +272,13 @@ func Test_ErrContextDone(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	rpcReadyCh = make(chan error)
-	defer close(rpcReadyCh)
-
-	rpcDoneCh = make(chan error)
-	defer close(rpcDoneCh)
-
-	ctrlReady = make(chan struct{}, 1)
-	defer close(ctrlReady)
-
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
-	defer close(eventsCh)
-
 	closeReqCh = make(chan error, 1)
-	defer close(closeReqCh)
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
+	ctrlReady = make(chan struct{})
+	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
 
 	exitCh := make(chan error)
-	defer close(exitCh)
 
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
@@ -307,8 +294,7 @@ func Test_ErrContextDone(t *testing.T) {
 }
 
 func Test_ErrRPCServerExited(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx, cancel)
+	sessionCtrl := NewSessionController(context.Background())
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -328,7 +314,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
@@ -342,23 +328,12 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	rpcReadyCh = make(chan error)
-	defer close(rpcReadyCh)
-
-	rpcDoneCh = make(chan error)
-	defer close(rpcDoneCh)
-
-	ctrlReady = make(chan struct{}, 1)
-	defer close(ctrlReady)
-
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
-	defer close(eventsCh)
-
 	closeReqCh = make(chan error, 1)
-	defer close(closeReqCh)
-
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
+	ctrlReady = make(chan struct{})
+	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
 	exitCh := make(chan error)
-	defer close(exitCh)
 
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
@@ -373,7 +348,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 
 func Test_WaitReady(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx, cancel)
+	sessionCtrl := NewSessionController(ctx)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -393,7 +368,7 @@ func Test_WaitReady(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
@@ -407,26 +382,14 @@ func Test_WaitReady(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	rpcReadyCh = make(chan error)
-	defer close(rpcReadyCh)
-
-	rpcDoneCh = make(chan error)
-	defer close(rpcDoneCh)
-
-	// Closed by Run()
-	ctrlReady = make(chan struct{}, 1)
-
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
-	defer close(eventsCh)
-
 	closeReqCh = make(chan error, 1)
-	defer close(closeReqCh)
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
+	ctrlReady = make(chan struct{})
+	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	exitCh := make(chan error)
 
 	readyReturn := make(chan error)
-	defer close(readyReturn)
-
-	exitCh := make(chan error)
-	defer close(exitCh)
 
 	go func(chan error) {
 		readyReturn <- sessionCtrl.WaitReady()
@@ -444,8 +407,7 @@ func Test_WaitReady(t *testing.T) {
 }
 
 func Test_HandleEvent_EvCmdExited(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx, cancel)
+	sessionCtrl := NewSessionController(context.Background())
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -465,7 +427,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
@@ -479,26 +441,15 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	rpcReadyCh = make(chan error)
-	defer close(rpcReadyCh)
-
-	rpcDoneCh = make(chan error)
-	defer close(rpcDoneCh)
-
-	// Closed by Run()
-	ctrlReady = make(chan struct{}, 1)
-
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
-	defer close(eventsCh)
-
 	closeReqCh = make(chan error, 1)
-	defer close(closeReqCh)
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
+	ctrlReady = make(chan struct{})
+	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	exitCh := make(chan error)
 
 	readyReturn := make(chan error)
 	defer close(readyReturn)
-
-	exitCh := make(chan error)
-	defer close(exitCh)
 
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
@@ -519,8 +470,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 }
 
 func Test_HandleEvent_EvError(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx, cancel)
+	sessionCtrl := NewSessionController(context.Background())
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -540,7 +490,7 @@ func Test_HandleEvent_EvError(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
@@ -554,26 +504,15 @@ func Test_HandleEvent_EvError(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	rpcReadyCh = make(chan error)
-	defer close(rpcReadyCh)
-
-	rpcDoneCh = make(chan error)
-	defer close(rpcDoneCh)
-
-	// Closed by Run()
-	ctrlReady = make(chan struct{}, 1)
-
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
-	defer close(eventsCh)
-
 	closeReqCh = make(chan error, 1)
-	defer close(closeReqCh)
+	rpcReadyCh = make(chan error)
+	rpcDoneCh = make(chan error)
+	ctrlReady = make(chan struct{})
+	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	exitCh := make(chan error)
 
 	readyReturn := make(chan error)
 	defer close(readyReturn)
-
-	exitCh := make(chan error)
-	defer close(exitCh)
 
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
@@ -587,6 +526,4 @@ func Test_HandleEvent_EvError(t *testing.T) {
 	}
 
 	eventsCh <- ev
-
-	// Respawn implementation pending
 }

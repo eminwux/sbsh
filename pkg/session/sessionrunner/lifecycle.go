@@ -24,8 +24,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/creack/pty"
 	"sbsh/pkg/api"
+
+	"github.com/creack/pty"
 )
 
 const deleteSessionDir bool = false
@@ -68,8 +69,8 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 	slog.Debug("[session-runner] closed \r\n")
 
 	// stop accepting
-	if sr.listenerCtrl != nil {
-		if err := sr.listenerCtrl.Close(); err != nil {
+	if sr.lnCtrl != nil {
+		if err := sr.lnCtrl.Close(); err != nil {
 			slog.Debug(fmt.Sprintf("[session-runner] could not close IO listener: %v", err))
 		}
 	}

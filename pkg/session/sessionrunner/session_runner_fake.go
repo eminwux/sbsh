@@ -18,6 +18,7 @@ package sessionrunner
 
 import (
 	"context"
+
 	"sbsh/pkg/api"
 	"sbsh/pkg/errdefs"
 	"sbsh/pkg/session/sessionrpc"
@@ -25,7 +26,7 @@ import (
 
 type SessionRunnerTest struct {
 	OpenSocketCtrlFunc func() error
-	StartServerFunc    func(sc *sessionrpc.SessionControllerRPC, readyCh chan error)
+	StartServerFunc    func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error)
 	StartSessionFunc   func(evCh chan<- SessionRunnerEvent) error
 	CloseFunc          func(reason error) error
 	ResizeFunc         func(args api.ResizeArgs)
@@ -45,9 +46,15 @@ func (sr *SessionRunnerTest) OpenSocketCtrl() error {
 	}
 	return nil
 }
-func (sr *SessionRunnerTest) StartServer(sc *sessionrpc.SessionControllerRPC, readyCh chan error) {
+
+func (sr *SessionRunnerTest) StartServer(
+	ctx context.Context,
+	sc *sessionrpc.SessionControllerRPC,
+	readyCh chan error,
+	doneCh chan error,
+) {
 	if sr.StartServerFunc != nil {
-		sr.StartServerFunc(sc, readyCh)
+		sr.StartServerFunc(ctx, sc, readyCh, doneCh)
 	}
 }
 

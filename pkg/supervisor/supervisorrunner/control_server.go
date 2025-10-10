@@ -22,11 +22,17 @@ import (
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
+
 	"sbsh/pkg/api"
 	"sbsh/pkg/supervisor/supervisorrpc"
 )
 
-func (sr *SupervisorRunnerExec) StartServer(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error) {
+func (sr *SupervisorRunnerExec) StartServer(
+	ctx context.Context,
+	sc *supervisorrpc.SupervisorControllerRPC,
+	readyCh chan error,
+	doneCh chan error,
+) {
 	// Ensure ln is closed and no leaks on exit
 	defer func() {
 		_ = sr.lnCtrl.Close()
