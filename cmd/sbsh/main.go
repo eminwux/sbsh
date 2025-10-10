@@ -110,7 +110,7 @@ You can also use sbsh with parameters. For example:
 				sessionLogFilenameInput,
 				sessionSocketFileInput,
 				os.Environ(),
-				ctx,
+				context.Background(),
 			)
 			if err != nil {
 				log.Fatal(err)
@@ -218,7 +218,7 @@ func setupRootCmd(rootCmd *cobra.Command) {
 }
 
 func runSupervisor(spec *api.SupervisorSpec) error {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	// Create a new Controller
