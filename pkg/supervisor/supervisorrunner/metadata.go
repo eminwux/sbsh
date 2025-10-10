@@ -35,6 +35,11 @@ func (sr *SupervisorRunnerExec) CreateMetadata() error {
 	sr.metadata.Status.BaseRunPath = sr.metadata.Spec.RunPath
 	sr.metadata.Status.SupervisorRunPath = sr.getSupervisorDir()
 
+	slog.Debug("[supervisor] metadata values",
+		"Spec", sr.metadata.Spec,
+		"Status", sr.metadata.Status,
+	)
+
 	return sr.updateMetadata()
 }
 

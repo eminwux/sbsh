@@ -18,6 +18,7 @@ package sessionrunner
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -32,6 +33,12 @@ func (sr *SessionRunnerExec) CreateMetadata() error {
 	sr.metadata.Status.Pid = os.Getpid()
 	sr.metadata.Status.BaseRunPath = sr.metadata.Spec.RunPath
 	sr.metadata.Status.SessionRunPath = sr.getSessionDir()
+
+	// Log metadata values with slog.Debug
+	slog.Debug("Session metadata",
+		"Spec", sr.metadata.Spec,
+		"Status", sr.metadata.Status,
+	)
 
 	return sr.updateMetadata()
 }
