@@ -284,7 +284,7 @@ func Test_ErrAttach(t *testing.T) {
 	rpcReadyCh = make(chan error)
 	rpcDoneCh = make(chan error)
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{}, 1)
+	ctrlReady = make(chan struct{})
 
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
@@ -381,7 +381,7 @@ func Test_ErrContextDone(t *testing.T) {
 	rpcReadyCh = make(chan error)
 	rpcDoneCh = make(chan error)
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{}, 1)
+	ctrlReady = make(chan struct{})
 
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
@@ -482,8 +482,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	rpcReadyCh = make(chan error)
 	rpcDoneCh = make(chan error)
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{}, 1)
-
+	ctrlReady = make(chan struct{})
 	exitCh := make(chan error)
 
 	supervisorID := naming.RandomID()
@@ -581,7 +580,8 @@ func Test_ErrSessionExists(t *testing.T) {
 	rpcReadyCh = make(chan error)
 	rpcDoneCh = make(chan error)
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{}, 1)
+	ctrlReady = make(chan struct{})
+	exitCh := make(chan error)
 
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
@@ -594,7 +594,6 @@ func Test_ErrSessionExists(t *testing.T) {
 		SessionSpec: &api.SessionSpec{},
 	}
 
-	exitCh := make(chan error)
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
@@ -681,7 +680,8 @@ func Test_ErrCloseReq(t *testing.T) {
 	rpcReadyCh = make(chan error)
 	rpcDoneCh = make(chan error)
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{}, 1)
+	ctrlReady = make(chan struct{})
+	exitCh := make(chan error)
 
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
@@ -694,7 +694,6 @@ func Test_ErrCloseReq(t *testing.T) {
 		SessionSpec: &api.SessionSpec{},
 	}
 
-	exitCh := make(chan error)
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
@@ -781,7 +780,8 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 	rpcReadyCh = make(chan error)
 	rpcDoneCh = make(chan error)
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{}, 1)
+	ctrlReady = make(chan struct{})
+	exitCh := make(chan error)
 
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
@@ -794,7 +794,6 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 		SessionSpec: &api.SessionSpec{},
 	}
 
-	exitCh := make(chan error)
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
@@ -876,7 +875,8 @@ func Test_ErrSessionStore(t *testing.T) {
 	rpcReadyCh = make(chan error)
 	rpcDoneCh = make(chan error)
 	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{}, 1)
+	ctrlReady = make(chan struct{})
+	exitCh := make(chan error)
 
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
@@ -889,7 +889,6 @@ func Test_ErrSessionStore(t *testing.T) {
 		SessionSpec: &api.SessionSpec{},
 	}
 
-	exitCh := make(chan error)
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)

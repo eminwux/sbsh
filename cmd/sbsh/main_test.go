@@ -66,6 +66,8 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 	}
 
 	done := make(chan error)
+	defer close(done)
+
 	go func() {
 		done <- runSupervisor(spec) // will block until ctx.Done()
 	}()
@@ -117,6 +119,8 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 		SessionSpec: nil,
 	}
 	done := make(chan error)
+	defer close(done)
+
 	go func() {
 		done <- runSupervisor(spec) // will block until ctx.Done()
 	}()
@@ -165,6 +169,8 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	}
 
 	done := make(chan error)
+	defer close(done)
+
 	go func() {
 		done <- runSupervisor(spec) // will block until ctx.Done()
 	}()
@@ -212,6 +218,8 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 	}
 
 	done := make(chan error)
+	defer close(done)
+
 	go func() {
 		done <- runSupervisor(spec) // will block until ctx.Done()
 	}()

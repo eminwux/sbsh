@@ -37,7 +37,7 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 	orig := newSessionController
 	newSessionController = func(ctx context.Context, cancel context.CancelFunc) api.SessionController {
 		return &session.FakeSessionController{
-			Exit:          make(chan error),
+			Exit:          nil,
 			RunFunc:       func(spec *api.SessionSpec) error { return nil },
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() error { return nil },
@@ -59,6 +59,7 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 	done := make(chan error)
 	go func() {
 		done <- runSession(&spec) // will block until ctx.Done()
+		defer close(done)
 	}()
 
 	// Give Run() time to set ready, then signal the process (NotifyContext listens to SIGTERM/INT)
@@ -79,7 +80,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	orig := newSessionController
 	newSessionController = func(ctx context.Context, cancel context.CancelFunc) api.SessionController {
 		return &session.FakeSessionController{
-			Exit:          make(chan error),
+			Exit:          nil,
 			RunFunc:       func(spec *api.SessionSpec) error { return nil },
 			WaitReadyFunc: func() error { return fmt.Errorf("not ready") },
 			WaitCloseFunc: func() error { return nil },
@@ -111,7 +112,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	orig := newSessionController
 	newSessionController = func(ctx context.Context, cancel context.CancelFunc) api.SessionController {
 		return &session.FakeSessionController{
-			Exit:          make(chan error),
+			Exit:          nil,
 			RunFunc:       func(spec *api.SessionSpec) error { return nil },
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() error { return fmt.Errorf("error on close") },
@@ -137,6 +138,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
 		exitCh <- runSession(&spec)
+		defer close(exitCh)
 	}(exitCh)
 
 	time.Sleep(20 * time.Millisecond)

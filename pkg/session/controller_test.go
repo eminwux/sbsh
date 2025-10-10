@@ -24,12 +24,13 @@ import (
 	"log"
 	"net"
 	"os"
+	"testing"
+	"time"
+
 	"sbsh/pkg/api"
 	"sbsh/pkg/errdefs"
 	"sbsh/pkg/session/sessionrpc"
 	"sbsh/pkg/session/sessionrunner"
-	"testing"
-	"time"
 )
 
 type fakeListener struct{}
@@ -77,6 +78,8 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	exitCh := make(chan error)
+	defer close(exitCh)
+
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
@@ -84,7 +87,6 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrSpecCmdMissing) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrSpecCmdMissing, err)
 	}
-
 }
 
 func Test_ErrOpenSocketCtrl(t *testing.T) {
@@ -118,6 +120,8 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	exitCh := make(chan error)
+	defer close(exitCh)
+
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
@@ -125,7 +129,6 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrOpenSocketCtrl) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrOpenSocketCtrl, err)
 	}
-
 }
 
 func Test_ErrStartRPCServer(t *testing.T) {
@@ -162,6 +165,8 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	exitCh := make(chan error)
+	defer close(exitCh)
+
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
@@ -169,7 +174,6 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartRPCServer) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartRPCServer, err)
 	}
-
 }
 
 func Test_ErrStartSession(t *testing.T) {
@@ -209,12 +213,23 @@ func Test_ErrStartSession(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	rpcReadyCh = make(chan error)
+	defer close(rpcReadyCh)
+
 	rpcDoneCh = make(chan error)
+	defer close(rpcDoneCh)
+
 	ctrlReady = make(chan struct{})
+	defer close(ctrlReady)
+
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	defer close(eventsCh)
+
 	closeReqCh = make(chan error, 1)
+	defer close(closeReqCh)
 
 	exitCh := make(chan error)
+	defer close(exitCh)
+
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
@@ -222,7 +237,6 @@ func Test_ErrStartSession(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartSession) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartSession, err)
 	}
-
 }
 
 func Test_ErrContextDone(t *testing.T) {
@@ -262,12 +276,23 @@ func Test_ErrContextDone(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	rpcReadyCh = make(chan error)
+	defer close(rpcReadyCh)
+
 	rpcDoneCh = make(chan error)
+	defer close(rpcDoneCh)
+
 	ctrlReady = make(chan struct{}, 1)
+	defer close(ctrlReady)
+
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	defer close(eventsCh)
+
 	closeReqCh = make(chan error, 1)
+	defer close(closeReqCh)
 
 	exitCh := make(chan error)
+	defer close(exitCh)
+
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
@@ -279,7 +304,6 @@ func Test_ErrContextDone(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrContextDone) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrContextDone, err)
 	}
-
 }
 
 func Test_ErrRPCServerExited(t *testing.T) {
@@ -319,12 +343,23 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	rpcReadyCh = make(chan error)
+	defer close(rpcReadyCh)
+
 	rpcDoneCh = make(chan error)
+	defer close(rpcDoneCh)
+
 	ctrlReady = make(chan struct{}, 1)
+	defer close(ctrlReady)
+
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	defer close(eventsCh)
+
 	closeReqCh = make(chan error, 1)
+	defer close(closeReqCh)
 
 	exitCh := make(chan error)
+	defer close(exitCh)
+
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
@@ -334,7 +369,6 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrRPCServerExited) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrRPCServerExited, err)
 	}
-
 }
 
 func Test_WaitReady(t *testing.T) {
@@ -374,18 +408,30 @@ func Test_WaitReady(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	rpcReadyCh = make(chan error)
+	defer close(rpcReadyCh)
+
 	rpcDoneCh = make(chan error)
+	defer close(rpcDoneCh)
+
+	// Closed by Run()
 	ctrlReady = make(chan struct{}, 1)
+
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	defer close(eventsCh)
+
 	closeReqCh = make(chan error, 1)
+	defer close(closeReqCh)
 
 	readyReturn := make(chan error)
+	defer close(readyReturn)
+
+	exitCh := make(chan error)
+	defer close(exitCh)
 
 	go func(chan error) {
 		readyReturn <- sessionCtrl.WaitReady()
 	}(readyReturn)
 
-	exitCh := make(chan error)
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
@@ -395,7 +441,6 @@ func Test_WaitReady(t *testing.T) {
 	}
 	cancel()
 	<-exitCh
-
 }
 
 func Test_HandleEvent_EvCmdExited(t *testing.T) {
@@ -435,12 +480,26 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	rpcReadyCh = make(chan error)
+	defer close(rpcReadyCh)
+
 	rpcDoneCh = make(chan error)
+	defer close(rpcDoneCh)
+
+	// Closed by Run()
 	ctrlReady = make(chan struct{}, 1)
+
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	defer close(eventsCh)
+
 	closeReqCh = make(chan error, 1)
+	defer close(closeReqCh)
+
+	readyReturn := make(chan error)
+	defer close(readyReturn)
 
 	exitCh := make(chan error)
+	defer close(exitCh)
+
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
@@ -496,12 +555,26 @@ func Test_HandleEvent_EvError(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	rpcReadyCh = make(chan error)
+	defer close(rpcReadyCh)
+
 	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
+	defer close(rpcDoneCh)
+
+	// Closed by Run()
+	ctrlReady = make(chan struct{}, 1)
+
 	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	defer close(eventsCh)
+
 	closeReqCh = make(chan error, 1)
+	defer close(closeReqCh)
+
+	readyReturn := make(chan error)
+	defer close(readyReturn)
 
 	exitCh := make(chan error)
+	defer close(exitCh)
+
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
