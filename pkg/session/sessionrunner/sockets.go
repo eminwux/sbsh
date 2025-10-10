@@ -22,9 +22,8 @@ import (
 	"net"
 	"os"
 
-	"sbsh/pkg/api"
-
 	"golang.org/x/sys/unix"
+	"sbsh/pkg/api"
 )
 
 func (sr *SessionRunnerExec) OpenSocketCtrl() error {
@@ -64,7 +63,7 @@ func (sr *SessionRunnerExec) CreateNewClient(id *api.ID) (int, error) {
 	var sv [2]int
 	var err error
 
-	sv, err = unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|unix.SOCK_CLOEXEC, 0)
+	sv, err = unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|sockCloexec, 0)
 	if err != nil {
 		return -1, err
 	}
