@@ -33,8 +33,7 @@ import (
 )
 
 func TestRunSession_ErrContextCancelled(t *testing.T) {
-	orig := newSessionController
-	newSessionController = func(ctx context.Context) api.SessionController {
+	newSessionController := func(ctx context.Context) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          nil,
 			RunFunc:       func(spec *api.SessionSpec) error { return nil },
@@ -43,10 +42,13 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 			StatusFunc:    func() string { return "" },
 		}
 	}
-	t.Cleanup(func() { newSessionController = orig })
+
+	ctrl := newSessionController(context.Background())
+
+	t.Cleanup(func() {})
 
 	spec := api.SessionSpec{
-		ID:          api.ID(sessionIDInput),
+		ID:          api.ID(naming.RandomID()),
 		Kind:        api.SessionLocal,
 		Name:        naming.RandomName(),
 		Command:     "/bin/bash",
@@ -59,7 +61,7 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSession(ctx, &spec) // will block until ctx.Done()
+		done <- runSession(ctx, cancel, ctrl, &spec) // will block until ctx.Done()
 		defer close(done)
 	}()
 
@@ -78,8 +80,7 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 }
 
 func TestRunSession_ErrWaitOnReady(t *testing.T) {
-	orig := newSessionController
-	newSessionController = func(ctx context.Context) api.SessionController {
+	newSessionController := func(ctx context.Context) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          nil,
 			RunFunc:       func(spec *api.SessionSpec) error { return nil },
@@ -87,7 +88,10 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 			WaitCloseFunc: func() error { return nil },
 		}
 	}
-	t.Cleanup(func() { newSessionController = orig })
+
+	ctrl := newSessionController(context.Background())
+
+	t.Cleanup(func() {})
 
 	var buf bytes.Buffer
 	old := log.Writer()
@@ -95,7 +99,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	spec := api.SessionSpec{
-		ID:          api.ID(sessionIDInput),
+		ID:          api.ID(naming.RandomID()),
 		Kind:        api.SessionLocal,
 		Name:        naming.RandomName(),
 		Command:     "/bin/bash",
@@ -103,15 +107,14 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 		Env:         os.Environ(),
 		RunPath:     viper.GetString("global.runPath"),
 	}
-	ctx, _ := context.WithCancel(context.Background())
-	if err := runSession(ctx, &spec); err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := runSession(ctx, cancel, ctrl, &spec); err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrWaitOnReady, err)
 	}
 }
 
 func TestRunSession_ErrWaitOnClose(t *testing.T) {
-	orig := newSessionController
-	newSessionController = func(ctx context.Context) api.SessionController {
+	newSessionController := func(ctx context.Context) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          nil,
 			RunFunc:       func(spec *api.SessionSpec) error { return nil },
@@ -119,7 +122,9 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 			WaitCloseFunc: func() error { return errors.New("error on close") },
 		}
 	}
-	t.Cleanup(func() { newSessionController = orig })
+	t.Cleanup(func() {})
+
+	ctrl := newSessionController(context.Background())
 
 	var buf bytes.Buffer
 	old := log.Writer()
@@ -127,7 +132,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(old) })
 
 	spec := api.SessionSpec{
-		ID:          api.ID(sessionIDInput),
+		ID:          api.ID(naming.RandomID()),
 		Kind:        api.SessionLocal,
 		Name:        naming.RandomName(),
 		Command:     "/bin/bash",
@@ -141,7 +146,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func(exitCh chan error) {
-		exitCh <- runSession(ctx, &spec)
+		exitCh <- runSession(ctx, cancel, ctrl, &spec)
 		defer close(exitCh)
 	}(exitCh)
 

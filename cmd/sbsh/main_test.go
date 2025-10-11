@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/eminwux/sbsh/internal/env"
+	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/internal/supervisor"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -31,8 +32,7 @@ import (
 )
 
 func TestRunSession_ErrContextDone(t *testing.T) {
-	orig := newSupervisorController
-	newSupervisorController = func(ctx context.Context) api.SupervisorController {
+	newSupervisorController := func(ctx context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
 			RunFunc: func(spec *api.SupervisorSpec) error {
 				// default: succeed without doing anything
@@ -51,7 +51,10 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 			},
 		}
 	}
-	t.Cleanup(func() { newSupervisorController = orig })
+
+	ctrl := newSupervisorController(context.Background())
+
+	t.Cleanup(func() {})
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
@@ -69,7 +72,7 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, cancel, ctrl, spec) // will block until ctx.Done()
 	}()
 
 	// Give Run() time to set ready, then signal the process (NotifyContext listens to SIGTERM/INT)
@@ -78,8 +81,8 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 
 	select {
 	case err := <-done:
-		if err != nil && !errors.Is(err, ErrContextDone) {
-			t.Fatalf("expected '%v'; got: '%v'", ErrContextDone, err)
+		if err != nil && !errors.Is(err, errdefs.ErrContextDone) {
+			t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrContextDone, err)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for runSession to return after close")
@@ -87,15 +90,15 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 }
 
 func TestRunSession_ErrWaitOnReady(t *testing.T) {
-	orig := newSupervisorController
-	newSupervisorController = func(ctx context.Context) api.SupervisorController {
+	newSupervisorController := func(ctx context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
 			RunFunc: func(spec *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil
 			},
 			WaitReadyFunc: func() error {
-				return errors.New("not ready")
+				// default: succeed immediately
+				return nil
 			},
 			WaitCloseFunc: func() error {
 				return nil
@@ -106,7 +109,10 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 			},
 		}
 	}
-	t.Cleanup(func() { newSupervisorController = orig })
+
+	ctrl := newSupervisorController(context.Background())
+
+	t.Cleanup(func() {})
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
@@ -121,15 +127,14 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	done := make(chan error)
 	defer close(done)
 
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, cancel, ctrl, spec) // will block until ctx.Done()
 	}()
-
 	select {
 	case err := <-done:
-		if err != nil && !errors.Is(err, ErrWaitOnReady) {
-			t.Fatalf("expected '%v'; got: '%v'", ErrWaitOnReady, err)
+		if err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
+			t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrWaitOnReady, err)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for runSession to return after SIGTERM")
@@ -137,18 +142,18 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 }
 
 func TestRunSession_ErrWaitOnClose(t *testing.T) {
-	orig := newSupervisorController
-	newSupervisorController = func(ctx context.Context) api.SupervisorController {
+	newSupervisorController := func(ctx context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
 			RunFunc: func(spec *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil
 			},
 			WaitReadyFunc: func() error {
+				// default: succeed immediately
 				return nil
 			},
 			WaitCloseFunc: func() error {
-				return errors.New("not closed")
+				return nil
 			},
 			StartFunc: func() error {
 				// default: succeed immediately
@@ -156,7 +161,10 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 			},
 		}
 	}
-	t.Cleanup(func() { newSupervisorController = orig })
+
+	ctrl := newSupervisorController(context.Background())
+
+	t.Cleanup(func() {})
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
@@ -174,27 +182,27 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, cancel, ctrl, spec) // will block until ctx.Done()
 	}()
 
 	time.Sleep(20 * time.Millisecond)
 	cancel()
 	time.Sleep(40 * time.Millisecond)
 
-	if err := <-done; err != nil && !errors.Is(err, ErrWaitOnClose) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrWaitOnClose, err)
+	if err := <-done; err != nil && !errors.Is(err, errdefs.ErrWaitOnClose) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrWaitOnClose, err)
 	}
 }
 
 func TestRunSession_ErrChildExit(t *testing.T) {
-	orig := newSupervisorController
-	newSupervisorController = func(ctx context.Context) api.SupervisorController {
+	newSupervisorController := func(ctx context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
 			RunFunc: func(spec *api.SupervisorSpec) error {
 				// default: succeed without doing anything
-				return errors.New("force child exit")
+				return nil
 			},
 			WaitReadyFunc: func() error {
+				// default: succeed immediately
 				return nil
 			},
 			WaitCloseFunc: func() error {
@@ -206,7 +214,10 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 			},
 		}
 	}
-	t.Cleanup(func() { newSupervisorController = orig })
+
+	ctrl := newSupervisorController(context.Background())
+
+	t.Cleanup(func() {})
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
@@ -224,14 +235,14 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, cancel, ctrl, spec) // will block until ctx.Done()
 	}()
 
 	time.Sleep(20 * time.Millisecond)
 	cancel()
 	time.Sleep(40 * time.Millisecond)
 
-	if err := <-done; err != nil && !errors.Is(err, ErrChildExit) {
-		t.Fatalf("expected '%v'; got: '%v'", ErrChildExit, err)
+	if err := <-done; err != nil && !errors.Is(err, errdefs.ErrChildExit) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrChildExit, err)
 	}
 }

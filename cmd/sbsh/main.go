@@ -30,6 +30,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/sbsh/attach"
 	"github.com/eminwux/sbsh/cmd/sbsh/run"
 	"github.com/eminwux/sbsh/internal/common"
+	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/env"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
@@ -38,22 +39,6 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-)
-
-var newSupervisorController = supervisor.NewSupervisorController
-
-var (
-	logLevelInput           string
-	runPathInput            string
-	cfgFileInput            string
-	profilesFileInput       string
-	sessionProfileNameInput string
-	sessionIDInput          string
-	sessionNameInput        string
-	sessionCmdInput         string
-	sessionLogFilenameInput string
-	socketFileInput         string
-	sessionSocketFileInput  string
 )
 
 func main() {
@@ -82,6 +67,7 @@ You can also use sbsh with parameters. For example:
   sbsh run
   sbsh attach --id abcdef0
 `,
+		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			err := LoadConfig()
 			if err != nil {
@@ -95,17 +81,17 @@ You can also use sbsh with parameters. For example:
 			slog.SetDefault(slog.New(h))
 			return nil
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			// Build SessionSpec from command-line inputs and profile (if given)
 			sessionSpec, err := profile.BuildSessionSpec(
 				viper.GetString(env.RUN_PATH.ViperKey),
 				viper.GetString(env.PROFILES_FILE.ViperKey),
-				sessionProfileNameInput,
-				sessionIDInput,
-				sessionNameInput,
-				sessionCmdInput,
-				sessionLogFilenameInput,
-				sessionSocketFileInput,
+				viper.GetString("main.session.profile"),
+				viper.GetString("main.session.id"),
+				viper.GetString("main.session.name"),
+				viper.GetString("main.session.command"),
+				viper.GetString("main.session.logFilename"),
+				viper.GetString("main.session.socket"),
 				os.Environ(),
 				context.Background(),
 			)
@@ -114,18 +100,19 @@ You can also use sbsh with parameters. For example:
 			}
 
 			// If a profile name was given, set the SBSH_SES_PROFILE env var
-			if sessionProfileNameInput != "" {
-				if err := env.SES_PROFILE.Set(sessionProfileNameInput); err != nil {
+			profileNameInput := viper.GetString("session.profile")
+			if profileNameInput != "" {
+				if err := env.SES_PROFILE.Set(profileNameInput); err != nil {
 					log.Fatal(err)
 				}
-				if env.SES_PROFILE.BindEnv() != nil {
+				if err := env.SES_PROFILE.BindEnv(); err != nil {
 					log.Fatal(err)
 				}
 			}
 
 			supervisorID := naming.RandomID()
 			supervisorName := naming.RandomName()
-
+			socketFileInput := viper.GetString("session.socket")
 			if socketFileInput == "" {
 				socketFileInput = filepath.Join(
 					viper.GetString(env.RUN_PATH.ViperKey),
@@ -134,7 +121,6 @@ You can also use sbsh with parameters. For example:
 					"socket",
 				)
 			}
-
 			// Define a new SupervisorSpec
 			spec := &api.SupervisorSpec{
 				Kind:        api.RunNewSession,
@@ -156,8 +142,14 @@ You can also use sbsh with parameters. For example:
 				"SessionSpec", spec.SessionSpec,
 			)
 
-			// discovery.PrintSessionSpec(sessionSpec, os.Stdout)
-			runSupervisor(context.Background(), spec)
+			if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+				discovery.PrintSessionSpec(sessionSpec, os.Stdout)
+			}
+
+			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			ctrl := supervisor.NewSupervisorController(ctx)
+
+			return runSupervisor(ctx, cancel, ctrl, spec)
 		},
 	}
 
@@ -175,51 +167,42 @@ func setupRootCmd(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(attach.NewAttachCmd())
 
 	// Persistent flags
-	rootCmd.PersistentFlags().StringVar(&runPathInput, "run-path", "", "Optional run path for the supervisor")
-	rootCmd.PersistentFlags().StringVar(&cfgFileInput, "config", "", "config file (default is $HOME/.sbsh/config.yaml)")
-	rootCmd.PersistentFlags().StringVar(&logLevelInput, "log-level", "info", "Log level (debug, info, warn, error)")
-	rootCmd.PersistentFlags().
-		StringVar(&profilesFileInput, "profiles", "", "profiles manifests file")
+	rootCmd.PersistentFlags().String("run-path", "", "Optional run path for the supervisor")
+	rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.sbsh/config.yaml)")
+	rootCmd.PersistentFlags().String("log-level", "info", "Log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().String("profiles", "", "profiles manifests file")
 
-	if err := viper.BindPFlag(env.RUN_PATH.ViperKey, rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := viper.BindPFlag(env.CONFIG_FILE.ViperKey, rootCmd.PersistentFlags().Lookup("config")); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := viper.BindPFlag(env.LOG_LEVEL.ViperKey, rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := viper.BindPFlag(env.PROFILES_FILE.ViperKey, rootCmd.PersistentFlags().Lookup("profiles")); err != nil {
-		log.Fatal(err)
-	}
+	_ = viper.BindPFlag(env.RUN_PATH.ViperKey, rootCmd.PersistentFlags().Lookup("run-path"))
+	_ = viper.BindPFlag(env.CONFIG_FILE.ViperKey, rootCmd.PersistentFlags().Lookup("config"))
+	_ = viper.BindPFlag(env.LOG_LEVEL.ViperKey, rootCmd.PersistentFlags().Lookup("log-level"))
+	_ = viper.BindPFlag(env.PROFILES_FILE.ViperKey, rootCmd.PersistentFlags().Lookup("profiles"))
 
 	// Bind Non-persistent Flags to Viper
 	// Supervisor flags
-	rootCmd.Flags().StringVar(&socketFileInput, "socket", "", "Optional socket file for the session")
+	rootCmd.Flags().String("socket", "", "Optional socket file for the session")
 	// Session flags
-	rootCmd.Flags().StringVar(&sessionIDInput, "session-id", "", "Optional session ID (random if omitted)")
-	rootCmd.Flags().StringVar(&sessionCmdInput, "session-command", "/bin/bash", "Optional command (default: /bin/bash)")
-	rootCmd.Flags().StringVar(&sessionNameInput, "session-name", "", "Optional name for the session")
-	rootCmd.Flags().
-		StringVar(&sessionLogFilenameInput, "session-log-filename", "", "Optional filename for the session log")
-	rootCmd.Flags().StringVar(&sessionProfileNameInput, "session-profile", "", "Optional profile for the session")
-	rootCmd.Flags().StringVar(&sessionSocketFileInput, "session-socket", "", "Optional socket file for the session")
+	rootCmd.Flags().String("session-id", "", "Optional session ID (random if omitted)")
+	rootCmd.Flags().String("session-command", "/bin/bash", "Optional command (default: /bin/bash)")
+	rootCmd.Flags().String("session-name", "", "Optional name for the session")
+	rootCmd.Flags().String("session-log-filename", "", "Optional filename for the session log")
+	rootCmd.Flags().String("session-profile", "", "Optional profile for the session")
+	rootCmd.Flags().String("session-socket", "", "Optional socket file for the session")
 
-	if err := viper.BindPFlag("session.logFilename", rootCmd.Flags().Lookup("session-log-filename")); err != nil {
-		log.Fatal(err)
-	}
+	_ = viper.BindPFlag("main.session.id", rootCmd.Flags().Lookup("session-id"))
+	_ = viper.BindPFlag("main.session.command", rootCmd.Flags().Lookup("session-command"))
+	_ = viper.BindPFlag("main.session.name", rootCmd.Flags().Lookup("session-name"))
+	_ = viper.BindPFlag("main.session.logFilename", rootCmd.Flags().Lookup("session-log-filename"))
+	_ = viper.BindPFlag("main.session.profile", rootCmd.Flags().Lookup("session-profile"))
+	_ = viper.BindPFlag("main.session.socket", rootCmd.Flags().Lookup("session-socket"))
 }
 
-func runSupervisor(ctx context.Context, spec *api.SupervisorSpec) error {
-	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+func runSupervisor(
+	ctx context.Context,
+	cancel context.CancelFunc,
+	ctrl api.SupervisorController,
+	spec *api.SupervisorSpec,
+) error {
 	defer cancel()
-
-	// Create a new Controller
-	ctrl := newSupervisorController(ctx)
 
 	// Create error channel
 	errCh := make(chan error, 1)
@@ -234,7 +217,7 @@ func runSupervisor(ctx context.Context, spec *api.SupervisorSpec) error {
 	// block until controller is ready (or ctx cancels)
 	if err := ctrl.WaitReady(); err != nil {
 		slog.Debug(fmt.Sprintf("controller not ready: %s", err))
-		return fmt.Errorf("%w: %w", ErrWaitOnReady, err)
+		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
 	}
 
 	select {
@@ -242,7 +225,7 @@ func runSupervisor(ctx context.Context, spec *api.SupervisorSpec) error {
 		var err error
 		slog.Debug("[sbsh] context canceled, waiting on sessionCtrl to exit\r\n")
 		if errC := ctrl.WaitClose(); errC != nil {
-			err = fmt.Errorf("%w: %w: %w", err, ErrWaitOnClose, errC)
+			err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrWaitOnClose, errC)
 		}
 		slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
 
@@ -251,9 +234,9 @@ func runSupervisor(ctx context.Context, spec *api.SupervisorSpec) error {
 	case err := <-errCh:
 		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
 		if err != nil && !errors.Is(err, context.Canceled) {
-			err = fmt.Errorf("%w: %w", ErrChildExit, err)
+			err = fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
 			if errC := ctrl.WaitClose(); err != nil {
-				err = fmt.Errorf("%w: %w: %w", err, ErrWaitOnClose, errC)
+				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrWaitOnClose, errC)
 			}
 			slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
 

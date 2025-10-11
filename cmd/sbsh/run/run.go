@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -39,16 +38,6 @@ import (
 const (
 	Command      string = "run"
 	CommandAlias string = "r"
-)
-
-var (
-	sessionIDInput       string
-	sessionNameInput     string
-	sessionCmdInput      string
-	logFilenameInput     string
-	profileNameInput     string
-	socketFileInput      string
-	newSessionController = session.NewSessionController
 )
 
 func NewRunCmd() *cobra.Command {
@@ -70,38 +59,65 @@ If no session name is provided, a random name will be generated.
 If no command is provided, /bin/bash will be used by default.
 If no log filename is provided, a default path under the run directory will be used.
 `,
-		Run: func(cmd *cobra.Command, args []string) {
+		SilenceUsage: true,
+		RunE: func(runCmd *cobra.Command, args []string) error {
+			// Print the values of viper parameters after binding
+
+			// Print default values for debugging
+			// fmt.Printf("Default flag values:\n")
+			// fmt.Printf("  id: %v\n", runCmd.Flags().Lookup("id").DefValue)
+			// fmt.Printf("  command: %v\n", runCmd.Flags().Lookup("command").DefValue)
+			// fmt.Printf("  name: %v\n", runCmd.Flags().Lookup("name").DefValue)
+			// fmt.Printf("  log-filename: %v\n", runCmd.Flags().Lookup("log-filename").DefValue)
+			// fmt.Printf("  profile: %v\n", runCmd.Flags().Lookup("profile").DefValue)
+			// fmt.Printf("  socket: %v\n", runCmd.Flags().Lookup("socket").DefValue)
+
+			// fmt.Printf("session.id: %v\n", viper.GetString("session.id"))
+			// fmt.Printf("session.command: %v\n", viper.GetString("session.command"))
+			// fmt.Printf("session.name: %v\n", viper.GetString("session.name"))
+			// fmt.Printf("session.logFilename: %v\n", viper.GetString("session.logFilename"))
+			// fmt.Printf("session.profile: %v\n", viper.GetString("session.profile"))
+			// fmt.Printf("session.socket: %v\n", viper.GetString("session.socket"))
+
 			sessionSpec, err := profile.BuildSessionSpec(
 				viper.GetString(env.RUN_PATH.ViperKey),
 				viper.GetString(env.PROFILES_FILE.ViperKey),
-				profileNameInput,
-				sessionIDInput,
-				sessionNameInput,
-				sessionCmdInput,
-				logFilenameInput,
-				socketFileInput,
+				viper.GetString("run.session.profile"),
+				viper.GetString("run.session.id"),
+				viper.GetString("run.session.name"),
+				viper.GetString("run.session.command"),
+				viper.GetString("run.session.logFilename"),
+				viper.GetString("run.session.socket"),
 				os.Environ(),
 				context.Background(),
 			)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 
 			// If a profile name was given, set the SBSH_SES_PROFILE env var
+			profileNameInput := viper.GetString("session.profile")
 			if profileNameInput != "" {
-				env.SES_PROFILE.Set(profileNameInput)
-				if env.SES_PROFILE.BindEnv() != nil {
-					log.Fatal(err)
+				if err := env.SES_PROFILE.Set(profileNameInput); err != nil {
+					return err
 				}
-				if env.SES_PROFILE.Set(profileNameInput) != nil {
-					log.Fatal(err)
+				if err := env.SES_PROFILE.BindEnv(); err != nil {
+					return err
 				}
 			}
 
 			if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
 				discovery.PrintSessionSpec(sessionSpec, os.Stdout)
 			}
-			runSession(context.Background(), sessionSpec)
+
+			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			ctrl := session.NewSessionController(ctx)
+
+			err = runSession(ctx, cancel, ctrl, sessionSpec)
+			if err != nil {
+				return err
+			}
+			return nil
 		},
 	}
 
@@ -110,25 +126,29 @@ If no log filename is provided, a default path under the run directory will be u
 }
 
 func setupRunCmdFlags(runCmd *cobra.Command) {
-	runCmd.Flags().StringVar(&sessionIDInput, "id", "", "Optional session ID (random if omitted)")
-	runCmd.Flags().StringVar(&sessionCmdInput, "command", "", "Optional command (default: /bin/bash)")
-	runCmd.Flags().StringVar(&sessionNameInput, "name", "", "Optional name for the session")
-	runCmd.Flags().StringVar(&logFilenameInput, "log-filename", "", "Optional filename for the session log")
-	runCmd.Flags().StringVar(&profileNameInput, "profile", "", "Optional profile for the session")
-	runCmd.Flags().StringVar(&socketFileInput, "socket", "", "Optional socket file for the session")
+	runCmd.Flags().String("id", "", "Optional session ID (random if omitted)")
+	runCmd.Flags().String("command", "", "Optional command (default: /bin/bash)")
+	runCmd.Flags().String("name", "", "Optional name for the session")
+	runCmd.Flags().String("log-filename", "", "Optional filename for the session log")
+	runCmd.Flags().String("profile", "", "Optional profile for the session")
+	runCmd.Flags().String("socket", "", "Optional socket file for the session")
 
-	if err := viper.BindPFlag("session.logFilename", runCmd.Flags().Lookup("log-filename")); err != nil {
-		log.Fatal(err)
-	}
+	_ = viper.BindPFlag("run.session.id", runCmd.Flags().Lookup("id"))
+	_ = viper.BindPFlag("run.session.command", runCmd.Flags().Lookup("command"))
+	_ = viper.BindPFlag("run.session.name", runCmd.Flags().Lookup("name"))
+	_ = viper.BindPFlag("run.session.logFilename", runCmd.Flags().Lookup("log-filename"))
+	_ = viper.BindPFlag("run.session.profile", runCmd.Flags().Lookup("profile"))
+	_ = viper.BindPFlag("run.session.socket", runCmd.Flags().Lookup("socket"))
 }
 
-func runSession(ctx context.Context, spec *api.SessionSpec) error {
+func runSession(
+	ctx context.Context,
+	cancel context.CancelFunc,
+	ctrl api.SessionController,
+	spec *api.SessionSpec,
+) error {
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
-	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-
-	// Create a new Controller
-	ctrl := newSessionController(ctx)
 
 	// Create error channel
 	errCh := make(chan error, 1)

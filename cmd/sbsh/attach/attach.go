@@ -36,18 +36,8 @@ import (
 )
 
 const (
-	Command      string = "attach"
-	CommandAlias string = "a"
-)
-
-var (
-	sessionID               string
-	sessionName             string
-	socketFileInput         string
-	runPathInput            string
-	ctx                     context.Context
-	cancel                  context.CancelFunc
-	newSupervisorController = supervisor.NewSupervisorController
+	Command      = "attach"
+	CommandAlias = "a"
 )
 
 func NewAttachCmd() *cobra.Command {
@@ -63,23 +53,19 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if sessionID == "" && sessionName == "" {
-				fmt.Println("Either --id or --name must be defined")
-				os.Exit(1)
+			id := viper.GetString("attach.id")
+			name := viper.GetString("attach.name")
+			runPath := viper.GetString(env.RUN_PATH.ViperKey)
+			socketFile := viper.GetString("attach.socket")
+
+			if id == "" && name == "" {
+				return errors.New("either --id or --name must be defined")
+			}
+			if id != "" && name != "" {
+				return errors.New("only one of --id or --name must be defined")
 			}
 
-			if sessionID != "" && sessionName != "" {
-				fmt.Println("Only --id or --name must be defined")
-				os.Exit(1)
-			}
-
-			if sessionID != "" {
-				run(sessionID, "")
-			} else {
-				run("", sessionName)
-			}
-
-			return nil
+			return run(cmd.Context(), id, name, runPath, socketFile)
 		},
 	}
 
@@ -88,28 +74,31 @@ to quickly create a Cobra application.`,
 }
 
 func setupAttachCmdFlags(attachCmd *cobra.Command) {
-	attachCmd.Flags().StringVar(&sessionID, "id", "", "Session ID, cannot be set together with --name")
-	attachCmd.Flags().StringVar(&sessionName, "name", "", "Optional session name, cannot be set together with --id")
-	attachCmd.Flags().StringVar(&socketFileInput, "socket", "", "Optional socket file for the session")
-	attachCmd.Flags().StringVar(&runPathInput, "run-path", "", "Optional socket file for the session")
+	attachCmd.Flags().String("id", "", "Session ID, cannot be set together with --name")
+	attachCmd.Flags().String("name", "", "Optional session name, cannot be set together with --id")
+	attachCmd.Flags().String("socket", "", "Optional socket file for the session")
+	attachCmd.Flags().String("run-path", "", "Run path directory")
+
+	// Bind flags to viper keys
+	_ = viper.BindPFlag("attach.id", attachCmd.Flags().Lookup("id"))
+	_ = viper.BindPFlag("attach.name", attachCmd.Flags().Lookup("name"))
+	_ = viper.BindPFlag("attach.socket", attachCmd.Flags().Lookup("socket"))
+	_ = viper.BindPFlag(env.RUN_PATH.ViperKey, attachCmd.Flags().Lookup("run-path"))
 }
 
-func run(id string, name string) error {
+func run(parentCtx context.Context, id string, name string, runPath string, socketFileInput string) error {
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(parentCtx, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	// Create a new Controller
-	supCtrl := newSupervisorController(ctx)
+	supCtrl := supervisor.NewSupervisorController(ctx)
 
 	supervisorID := naming.RandomID()
 	supervisorName := naming.RandomName()
 
 	if socketFileInput == "" {
-		socketFileInput = filepath.Join(
-			runPathInput,
-			"socket",
-		)
+		socketFileInput = filepath.Join(runPath, "socket")
 	}
 	var spec *api.SupervisorSpec
 	if id != "" && name == "" {
@@ -117,7 +106,7 @@ func run(id string, name string) error {
 			Kind:       api.AttachToSession,
 			ID:         api.ID(supervisorID),
 			Name:       supervisorName,
-			RunPath:    viper.GetString(env.RUN_PATH.ViperKey),
+			RunPath:    runPath,
 			SockerCtrl: socketFileInput,
 			AttachID:   api.ID(id),
 			SessionSpec: &api.SessionSpec{
@@ -140,7 +129,7 @@ func run(id string, name string) error {
 			ID:         api.ID(naming.RandomID()),
 			Name:       naming.RandomName(),
 			LogDir:     "/tmp/sbsh-logs/s0",
-			RunPath:    viper.GetString(env.RUN_PATH.ViperKey),
+			RunPath:    runPath,
 			SockerCtrl: socketFileInput,
 			SessionSpec: &api.SessionSpec{
 				Name: name,
@@ -159,7 +148,7 @@ func run(id string, name string) error {
 	if socketFileInput != "" {
 		spec.SessionSpec.SocketFile = socketFileInput
 	} else {
-		spec.SessionSpec.SocketFile = filepath.Join(viper.GetString("global.runPath"), ".sbsh", "sessions", string(spec.SessionSpec.ID), "socket")
+		spec.SessionSpec.SocketFile = filepath.Join(runPath, ".sbsh", "sessions", string(spec.SessionSpec.ID), "socket")
 	}
 
 	// Run controller
@@ -193,7 +182,7 @@ func run(id string, name string) error {
 			slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
 
 			if errors.Is(err, errdefs.ErrAttach) {
-				fmt.Printf("%v\n", err)
+				slog.Error("attach error", "error", err)
 			}
 
 			return fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
