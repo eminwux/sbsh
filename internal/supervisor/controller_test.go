@@ -17,11 +17,8 @@
 package supervisor
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"log"
-	"net"
 	"os"
 	"testing"
 	"time"
@@ -35,68 +32,28 @@ import (
 	"github.com/spf13/viper"
 )
 
-type fakeListener struct{}
-
-func (f *fakeListener) Accept() (net.Conn, error) {
-	// No real conns; make it obvious if code tries to use it
-	return nil, errors.New("stub listener: Accept not implemented")
-}
-func (f *fakeListener) Close() error { return nil }
-func (f *fakeListener) Addr() net.Addr {
-	return &net.TCPAddr{IP: net.IPv4zero, Port: 0}
-}
-
-// use in test.
-func newStubListener() net.Listener { return &fakeListener{} }
-
 func Test_ErrOpenSocketCtrl(t *testing.T) {
-	// ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSupervisorController(context.Background())
-
-	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
-				// default: return nil listener and nil error
 				return errors.New("force socket fail")
 			},
 			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
-				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
 				default:
 				}
 			},
-			IDFunc: func() api.ID {
-				// default: empty ID
-				return ""
-			},
-			CloseFunc: func(reason error) error {
-				// default: succeed
-				return nil
-			},
-			ResizeFunc: func(args api.ResizeArgs) {
-				// default: no-op
-			},
-			CreateMetadataFunc: func() error {
-				return nil
-			},
+			IDFunc:             func() api.ID { return "" },
+			CloseFunc:          func(reason error) error { return nil },
+			ResizeFunc:         func(args api.ResizeArgs) {},
+			CreateMetadataFunc: func() error { return nil },
 		}
 	}
 
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
-
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{})
-
 	supervisorID := naming.RandomID()
-	// Define a new Supervisor
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
 		Name:    "default",
@@ -106,21 +63,21 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	}
 
 	readyReturn := make(chan error)
-	go func(chan error) {
-		readyReturn <- sessionCtrl.WaitReady()
-	}(readyReturn)
+	go func() {
+		readyReturn <- sc.WaitReady()
+	}()
 
 	exitCh := make(chan error)
-	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	go func() {
+		exitCh <- sc.Run(&spec)
+	}()
 
 	select {
 	case err := <-readyReturn:
 		if err != nil {
 			t.Fatalf("expected 'nil'; got: '%v'", err)
 		}
-	case <-time.After(100 * time.Millisecond): // pick a sensible deadline
+	case <-time.After(100 * time.Millisecond):
 		t.Fatalf("WaitReady timed out")
 	}
 
@@ -131,9 +88,8 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 
 func Test_ErrStartRPCServer(t *testing.T) {
 	// ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSupervisorController(context.Background())
-
-	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
@@ -164,17 +120,6 @@ func Test_ErrStartRPCServer(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
-
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{})
-
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
@@ -187,12 +132,12 @@ func Test_ErrStartRPCServer(t *testing.T) {
 
 	readyReturn := make(chan error)
 	go func(chan error) {
-		readyReturn <- sessionCtrl.WaitReady()
+		readyReturn <- sc.WaitReady()
 	}(readyReturn)
 
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run(&spec)
+		exitCh <- sc.Run(&spec)
 	}(exitCh)
 
 	select {
@@ -210,9 +155,8 @@ func Test_ErrStartRPCServer(t *testing.T) {
 }
 
 func Test_ErrAttach(t *testing.T) {
-	sessionCtrl := NewSupervisorController(context.Background())
-
-	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
@@ -249,7 +193,7 @@ func Test_ErrAttach(t *testing.T) {
 		}
 	}
 
-	newSessionStore = func() sessionstore.SessionStore {
+	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
 			AddFunc: func(s *api.SupervisedSession) error {
 				return errors.New("force add fail")
@@ -274,17 +218,6 @@ func Test_ErrAttach(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
-
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{})
-
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
@@ -298,7 +231,7 @@ func Test_ErrAttach(t *testing.T) {
 
 	exitCh := make(chan error)
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run(&spec)
+		exitCh <- sc.Run(&spec)
 	}(exitCh)
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrAttach) {
@@ -308,9 +241,8 @@ func Test_ErrAttach(t *testing.T) {
 
 func Test_ErrContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSupervisorController(ctx)
-
-	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc := NewSupervisorController(ctx).(*SupervisorController)
+	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
@@ -347,7 +279,7 @@ func Test_ErrContextDone(t *testing.T) {
 		}
 	}
 
-	newSessionStore = func() sessionstore.SessionStore {
+	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
 			AddFunc: func(s *api.SupervisedSession) error {
 				return nil
@@ -371,16 +303,6 @@ func Test_ErrContextDone(t *testing.T) {
 			},
 		}
 	}
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
-
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{})
 
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
@@ -394,11 +316,11 @@ func Test_ErrContextDone(t *testing.T) {
 	}
 
 	exitCh := make(chan error)
-	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	go func() {
+		exitCh <- sc.Run(&spec)
+	}()
 
-	<-ctrlReady
+	//	<-ctrlReady
 	time.Sleep(10 * time.Millisecond)
 	cancel()
 
@@ -408,9 +330,8 @@ func Test_ErrContextDone(t *testing.T) {
 }
 
 func Test_ErrRPCServerExited(t *testing.T) {
-	sessionCtrl := NewSupervisorController(context.Background())
-
-	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
@@ -447,7 +368,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		}
 	}
 
-	newSessionStore = func() sessionstore.SessionStore {
+	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
 			AddFunc: func(s *api.SupervisedSession) error {
 				return nil
@@ -472,16 +393,6 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
-
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{})
 	exitCh := make(chan error)
 
 	supervisorID := naming.RandomID()
@@ -495,11 +406,11 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		SessionSpec: &api.SessionSpec{},
 	}
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run(&spec)
+		exitCh <- sc.Run(&spec)
 	}(exitCh)
 
-	<-ctrlReady
-	rpcDoneCh <- errors.New("force rpc server exit")
+	<-sc.ctrlReadyCh
+	sc.rpcDoneCh <- errors.New("force rpc server exit")
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrRPCServerExited) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrRPCServerExited, err)
@@ -507,9 +418,8 @@ func Test_ErrRPCServerExited(t *testing.T) {
 }
 
 func Test_ErrSessionExists(t *testing.T) {
-	sessionCtrl := NewSupervisorController(context.Background())
-
-	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
@@ -545,7 +455,7 @@ func Test_ErrSessionExists(t *testing.T) {
 			},
 		}
 	}
-	newSessionStore = func() sessionstore.SessionStore {
+	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
 			AddFunc: func(s *api.SupervisedSession) error {
 				return nil
@@ -570,16 +480,6 @@ func Test_ErrSessionExists(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
-
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{})
 	exitCh := make(chan error)
 
 	supervisorID := naming.RandomID()
@@ -593,12 +493,12 @@ func Test_ErrSessionExists(t *testing.T) {
 		SessionSpec: &api.SessionSpec{},
 	}
 
-	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	go func() {
+		exitCh <- sc.Run(&spec)
+	}()
 
-	<-ctrlReady
-	closeReqCh <- errors.New("force close request")
+	<-sc.ctrlReadyCh
+	sc.closeReqCh <- errors.New("force close request")
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrCloseReq) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrCloseReq, err)
@@ -606,9 +506,8 @@ func Test_ErrSessionExists(t *testing.T) {
 }
 
 func Test_ErrCloseReq(t *testing.T) {
-	sessionCtrl := NewSupervisorController(context.Background())
-
-	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
@@ -645,7 +544,7 @@ func Test_ErrCloseReq(t *testing.T) {
 		}
 	}
 
-	newSessionStore = func() sessionstore.SessionStore {
+	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
 			AddFunc: func(s *api.SupervisedSession) error {
 				return nil
@@ -670,16 +569,6 @@ func Test_ErrCloseReq(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
-
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{})
 	exitCh := make(chan error)
 
 	supervisorID := naming.RandomID()
@@ -693,12 +582,12 @@ func Test_ErrCloseReq(t *testing.T) {
 		SessionSpec: &api.SessionSpec{},
 	}
 
-	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	go func() {
+		exitCh <- sc.Run(&spec)
+	}()
 
-	<-ctrlReady
-	closeReqCh <- errors.New("force close request")
+	<-sc.ctrlReadyCh
+	sc.closeReqCh <- errors.New("force close request")
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrCloseReq) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrCloseReq, err)
@@ -706,9 +595,8 @@ func Test_ErrCloseReq(t *testing.T) {
 }
 
 func Test_ErrStartSessionCmd(t *testing.T) {
-	sessionCtrl := NewSupervisorController(context.Background())
-
-	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
@@ -745,7 +633,7 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 		}
 	}
 
-	newSessionStore = func() sessionstore.SessionStore {
+	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
 			AddFunc: func(s *api.SupervisedSession) error {
 				return nil
@@ -770,16 +658,6 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
-
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{})
 	exitCh := make(chan error)
 
 	supervisorID := naming.RandomID()
@@ -794,10 +672,10 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 	}
 
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run(&spec)
+		exitCh <- sc.Run(&spec)
 	}(exitCh)
 
-	<-ctrlReady
+	//	<-ctrlReady
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartSessionCmd) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartSessionCmd, err)
@@ -805,9 +683,8 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 }
 
 func Test_ErrSessionStore(t *testing.T) {
-	sessionCtrl := NewSupervisorController(context.Background())
-
-	newSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
@@ -840,7 +717,7 @@ func Test_ErrSessionStore(t *testing.T) {
 			},
 		}
 	}
-	newSessionStore = func() sessionstore.SessionStore {
+	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
 			AddFunc: func(s *api.SupervisedSession) error {
 				return errors.New("force add fail")
@@ -865,16 +742,6 @@ func Test_ErrSessionStore(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
-
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	eventsCh = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
-	ctrlReady = make(chan struct{})
 	exitCh := make(chan error)
 
 	supervisorID := naming.RandomID()
@@ -889,7 +756,7 @@ func Test_ErrSessionStore(t *testing.T) {
 	}
 
 	go func(exitCh chan error) {
-		exitCh <- sessionCtrl.Run(&spec)
+		exitCh <- sc.Run(&spec)
 	}(exitCh)
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrSessionStore) {

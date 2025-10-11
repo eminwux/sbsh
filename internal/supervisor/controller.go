@@ -34,32 +34,31 @@ import (
 
 /* ---------- Controller ---------- */
 
+// SupervisorController manages the lifecycle of the supervisor.
 type SupervisorController struct {
-	ctx  context.Context
-	exit chan struct{}
+	ctx context.Context
 
-	closedCh  chan struct{}
-	closingCh chan error
+	NewSupervisorRunner func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner
+	NewSessionStore     func() sessionstore.SessionStore
 
-	shutttingDown bool
+	sr supervisorrunner.SupervisorRunner
+	ss sessionstore.SessionStore
+
+	ctrlReadyCh  chan struct{}
+	closeReqCh   chan error
+	closingCh    chan error
+	closedCh     chan struct{}
+	shuttingDown bool
+
+	eventsCh chan supervisorrunner.SupervisorRunnerEvent
+
+	rpcReadyCh chan error
+	rpcDoneCh  chan error
 }
 
 var (
 	newSupervisorRunner = supervisorrunner.NewSupervisorRunnerExec
-	sr                  supervisorrunner.SupervisorRunner
-)
-
-var (
-	newSessionStore = sessionstore.NewSessionStoreExec
-	ss              sessionstore.SessionStore
-)
-
-var (
-	ctrlReady  chan struct{}                               = make(chan struct{})
-	rpcReadyCh chan error                                  = make(chan error)
-	rpcDoneCh  chan error                                  = make(chan error)
-	closeReqCh chan error                                  = make(chan error, 1)
-	eventsCh   chan supervisorrunner.SupervisorRunnerEvent = make(chan supervisorrunner.SupervisorRunnerEvent, 32)
+	newSessionStore     = sessionstore.NewSessionStoreExec
 )
 
 // NewSupervisorController wires the manager and the shared event channel from sessions.
@@ -67,16 +66,23 @@ func NewSupervisorController(ctx context.Context) api.SupervisorController {
 	slog.Debug("[supervisor] New controller is being created\r\n")
 
 	c := &SupervisorController{
-		ctx:       ctx,
-		closedCh:  make(chan struct{}),
-		closingCh: make(chan error, 1),
+		ctx:                 ctx,
+		closedCh:            make(chan struct{}),
+		closingCh:           make(chan error, 1),
+		ctrlReadyCh:         make(chan struct{}),
+		rpcReadyCh:          make(chan error),
+		rpcDoneCh:           make(chan error),
+		closeReqCh:          make(chan error, 1),
+		eventsCh:            make(chan supervisorrunner.SupervisorRunnerEvent, 32),
+		NewSupervisorRunner: newSupervisorRunner,
+		NewSessionStore:     newSessionStore,
 	}
 	return c
 }
 
 func (s *SupervisorController) WaitReady() error {
 	select {
-	case <-ctrlReady:
+	case <-s.ctrlReadyCh:
 		return nil
 	case <-s.ctx.Done():
 		return s.ctx.Err()
@@ -85,14 +91,13 @@ func (s *SupervisorController) WaitReady() error {
 
 // Run is the main orchestration loop. It owns all mode transitions.
 func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
-	s.exit = make(chan struct{})
 	slog.Debug("[supervisor] starting controller loop")
 	defer slog.Debug("[supervisor] controller stopped\r\n")
 
-	sr = newSupervisorRunner(s.ctx, spec, eventsCh)
-	ss = newSessionStore()
+	s.sr = s.NewSupervisorRunner(s.ctx, spec, s.eventsCh)
+	s.ss = s.NewSessionStore()
 
-	err := sr.CreateMetadata()
+	err := s.sr.CreateMetadata()
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not write metadata file: %v", err))
 		if err := s.Close(err); err != nil {
@@ -101,25 +106,25 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		return fmt.Errorf("%w: %w", errdefs.ErrWriteMetadata, err)
 	}
 
-	err = sr.OpenSocketCtrl()
+	err = s.sr.OpenSocketCtrl()
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not open control socket: %v", err))
 		if err := s.Close(err); err != nil {
 			err = fmt.Errorf("%w: %w", errdefs.ErrOnClose, err)
 		}
-		close(ctrlReady)
+		close(s.ctrlReadyCh)
 		return fmt.Errorf("%w: %w", errdefs.ErrOpenSocketCtrl, err)
 	}
 
 	rpc := &supervisorrpc.SupervisorControllerRPC{Core: s}
-	go sr.StartServer(s.ctx, rpc, rpcReadyCh, rpcDoneCh)
+	go s.sr.StartServer(s.ctx, rpc, s.rpcReadyCh, s.rpcDoneCh)
 	// Wait for startup result
-	if err := <-rpcReadyCh; err != nil {
+	if err := <-s.rpcReadyCh; err != nil {
 		// failed to start — handle and return
 		if errC := s.Close(err); errC != nil {
 			err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 		}
-		close(ctrlReady)
+		close(s.ctrlReadyCh)
 		slog.Debug(fmt.Sprintf("failed to start server: %v", err))
 		return fmt.Errorf("%w: %w", errdefs.ErrStartRPCServer, err)
 	}
@@ -132,16 +137,16 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 			if errC := s.Close(err); errC != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 			}
-			close(ctrlReady)
+			close(s.ctrlReadyCh)
 			return err
 		}
 
-		if err := sr.StartSessionCmd(session); err != nil {
+		if err := s.sr.StartSessionCmd(session); err != nil {
 			slog.Debug(fmt.Sprintf("failed to start session cmd: %v", err))
 			if errC := s.Close(err); errC != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 			}
-			close(ctrlReady)
+			close(s.ctrlReadyCh)
 			return fmt.Errorf("%w: %w", errdefs.ErrStartSessionCmd, err)
 		}
 	case api.AttachToSession:
@@ -150,7 +155,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 			if errC := s.Close(err); errC != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 			}
-			close(ctrlReady)
+			close(s.ctrlReadyCh)
 			return err
 		}
 
@@ -158,25 +163,25 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		if err := s.Close(err); err != nil {
 			err = fmt.Errorf("%w: %w", errdefs.ErrOnClose, err)
 		}
-		close(ctrlReady)
+		close(s.ctrlReadyCh)
 		return errdefs.ErrSupervisorKind
 	}
 
-	if err := sr.Attach(session); err != nil {
+	if err := s.sr.Attach(session); err != nil {
 		slog.Debug(fmt.Sprintf("failed to attach: %v", err))
 		if err := s.Close(err); err != nil {
 			err = fmt.Errorf("%w: %w", errdefs.ErrOnClose, err)
 		}
-		close(ctrlReady)
+		close(s.ctrlReadyCh)
 		return fmt.Errorf("%w: %w", errdefs.ErrAttach, err)
 	}
 
-	close(ctrlReady)
+	close(s.ctrlReadyCh)
 
 	go func() {
 		select {
 		case err := <-s.closingCh:
-			s.shutttingDown = true
+			s.shuttingDown = true
 			slog.Info("controller closing", "reason", err)
 		}
 	}()
@@ -191,7 +196,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 			}
 			return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
 
-		case ev := <-eventsCh:
+		case ev := <-s.eventsCh:
 			slog.Debug(
 				fmt.Sprintf(
 					"[supervisor] received event: id=%s type=%v err=%v when=%s\r\n",
@@ -203,14 +208,14 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 			)
 			s.handleEvent(ev)
 
-		case err := <-rpcDoneCh:
+		case err := <-s.rpcDoneCh:
 			slog.Debug(fmt.Sprintf("[supervisor] rpc server has failed: %v\r\n", err))
 			if errC := s.Close(err); err != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 			}
 			return fmt.Errorf("%w: %w", errdefs.ErrRPCServerExited, err)
 
-		case err := <-closeReqCh:
+		case err := <-s.closeReqCh:
 			slog.Debug(fmt.Sprintf("[supervisor] close request received: %v\r\n", err))
 			return fmt.Errorf("%w: %w", errdefs.ErrCloseReq, err)
 		}
@@ -239,10 +244,9 @@ func (s *SupervisorController) CreateAttachSession(spec *api.SupervisorSpec) (*a
 	}
 
 	session := sessionstore.NewSupervisedSession(&metadata.Spec)
-	if err := ss.Add(session); err != nil {
+	if err := s.ss.Add(session); err != nil {
 		return nil, fmt.Errorf("%w: %w", errdefs.ErrSessionStore, err)
 	}
-
 	return session, nil
 }
 
@@ -274,10 +278,9 @@ func (s *SupervisorController) CreateRunNewSession(spec *api.SupervisorSpec) (*a
 	// spec.SessionMetadata.Spec.SocketIO = s.runPath + "/sessions/" + string(spec.SessionMetadata.Spec.ID) + "/io.sock"
 
 	session := sessionstore.NewSupervisedSession(spec.SessionSpec)
-	if err := ss.Add(session); err != nil {
+	if err := s.ss.Add(session); err != nil {
 		return nil, fmt.Errorf("%w: %w", errdefs.ErrSessionStore, err)
 	}
-
 	return session, nil
 }
 
@@ -301,23 +304,22 @@ func (s *SupervisorController) onClosed(_ api.ID, err error) {
 }
 
 func (s *SupervisorController) Close(reason error) error {
-	if !s.shutttingDown {
+	if !s.shuttingDown {
 		slog.Info("initiating shutdown sequence", "reason", reason)
 		// Set closing reason
 		s.closingCh <- reason
 
 		// Notify session runner to close all sessions
-		sr.Close(reason)
+		s.sr.Close(reason)
 
 		// Notify Run to exit
-		closeReqCh <- reason
+		s.closeReqCh <- reason
 
 		// Mark controller as closed
 		close(s.closedCh)
 	} else {
 		slog.Info("shutdown sequence already in progress, ignoring duplicate request", "reason", reason)
 	}
-
 	return nil
 }
 
@@ -330,10 +332,9 @@ func (s *SupervisorController) WaitClose() error {
 }
 
 func (s *SupervisorController) Detach() error {
-	// Request detach to sesssion
-	if err := sr.Detach(); err != nil {
+	// Request detach to session
+	if err := s.sr.Detach(); err != nil {
 		return fmt.Errorf("%w: %w", errdefs.ErrDetachSession, err)
 	}
-
 	return nil
 }
