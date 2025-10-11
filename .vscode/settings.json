@@ -12,13 +12,18 @@
   },
 
   "go.toolsManagement.autoUpdate": true,
-  "go.vetOnSave": "package",
+  "go.vetOnSave": "workspace",
 
   "go.lintTool": "golangci-lint",
-  "go.lintFlags": ["--path-mode=abs", "--fast-only"],
+  "go.lintFlags": ["--path-mode=abs"],
+  "go.lintOnSave": "workspace",
+
   "go.formatTool": "custom",
   "go.alternateTools": {
     "customFormatter": "golangci-lint"
   },
-  "go.formatFlags": ["fmt", "--stdin"]
+  "go.formatFlags": [
+  "fmt",
+  "--stdin"
+]
 }
