@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -33,7 +34,22 @@ import (
 )
 
 func main() {
-	err := newRootCmd().Execute()
+	var levelVar slog.LevelVar
+	// Default to info, can be changed at runtime
+	levelVar.Set(slog.LevelInfo)
+	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: &levelVar})
+	logger := slog.New(handler)
+
+	// Store both logger and levelVar in context using struct keys
+	//nolint:revive,staticcheck // ignore revive warning about context keys
+	ctx := context.WithValue(context.Background(), "logger", logger)
+	//nolint:revive,staticcheck // ignore revive warning about context keys
+	ctx = context.WithValue(ctx, "logLevelVar", &levelVar)
+
+	rootCmd := newRootCmd()
+	rootCmd.SetContext(ctx)
+
+	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
 	}
@@ -49,29 +65,35 @@ func newRootCmd() *cobra.Command {
 		Long: `sb is a command line tool to manage sbsh sessions and profiles.
 
 You can see available options and commands with:
-  sb help
+	sb help
 
 Examples:
-  sb sessions list
-  sb sessions prune
-  sb detach
-  sb attach --id abcdf0
-  sb profiles list
+	sb sessions list
+	sb sessions prune
+	sb detach
+	sb attach --id abcdf0
+	sb profiles list
 `,
-		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			err := LoadConfig()
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Config error:", err)
 				os.Exit(1)
 			}
 
-			h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-				Level: common.ParseLevel(viper.GetString("global.logLevel")),
-			})
-			slog.SetDefault(slog.New(h))
+			// Set log level dynamically if present
+			levelVar, ok := cmd.Context().Value("logLevelVar").(*slog.LevelVar)
+			if ok && levelVar != nil {
+				levelVar.Set(common.ParseLevel(viper.GetString("global.logLevel")))
+			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			if !ok || logger == nil {
+				return errors.New("logger not found in context")
+			}
+			logger.Debug("-> sb")
 			return cmd.Help()
 		},
 	}

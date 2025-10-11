@@ -38,5 +38,5 @@ See 'sb profiles --help' for available subcommands.`,
 }
 
 func setupProfilesCmd(profilesCmd *cobra.Command) {
-	profilesCmd.AddCommand(profilesListCmd)
+	profilesCmd.AddCommand(NewProfilesListCmd())
 }

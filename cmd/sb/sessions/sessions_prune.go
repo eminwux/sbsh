@@ -17,7 +17,7 @@
 package sessions
 
 import (
-	"context"
+	"errors"
 	"log/slog"
 	"os"
 
@@ -35,11 +35,15 @@ func NewSessionsPruneCmd() *cobra.Command {
 		Short:   "Prune dead or exited sessions",
 		Long: `Prune dead or exited sessions.
 This will remove all session files for sessions that are not running anymore.`,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			slog.Debug("sessions prune")
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			if !ok || logger == nil {
+				return errors.New("logger not found in context")
+			}
 
-			ctx := context.Background()
-			return discovery.ScanAndPruneSessions(ctx, viper.GetString(env.RUN_PATH.ViperKey), os.Stdout)
+			logger.Debug("sessions prune")
+
+			return discovery.ScanAndPruneSessions(cmd.Context(), viper.GetString(env.RUN_PATH.ViperKey), os.Stdout)
 		},
 	}
 

@@ -17,7 +17,7 @@
 package sessions
 
 import (
-	"context"
+	"errors"
 	"log/slog"
 	"os"
 
@@ -38,11 +38,21 @@ func NewSessionListCmd() *cobra.Command {
 		Long: `List sessions.
 This command scans and lists all sessions in the specified run path.
 By default, it lists only running sessions. Use the --all flag to include exited sessions.`,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			slog.Debug("sessions list", "runPath", viper.GetString(env.RUN_PATH.ViperKey), "listAll", listAllInput)
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			if !ok || logger == nil {
+				return errors.New("logger not found in context")
+			}
 
-			ctx := context.Background()
-			return discovery.ScanAndPrintSessions(ctx, viper.GetString(env.RUN_PATH.ViperKey), os.Stdout, listAllInput)
+			logger.Debug("sessions list", "runPath", viper.GetString(env.RUN_PATH.ViperKey), "listAll", listAllInput)
+
+			return discovery.ScanAndPrintSessions(
+				cmd.Context(),
+				viper.GetString(env.RUN_PATH.ViperKey),
+				os.Stdout,
+				listAllInput,
+			)
 		},
 	}
 

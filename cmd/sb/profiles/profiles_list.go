@@ -17,7 +17,7 @@
 package profiles
 
 import (
-	"context"
+	"errors"
 	"log/slog"
 	"os"
 
@@ -27,19 +27,32 @@ import (
 )
 
 // profilesListCmd represents the sessions command.
-var profilesListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"l"},
-	Short:   "List available profiles",
-	Long: `List available profiles.
+func NewProfilesListCmd() *cobra.Command {
+	profilesListCmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"l"},
+		Short:   "List available profiles",
+		Long: `List available profiles.
 This command scans and lists all available profiles in the specified configuration file.`,
-	RunE: func(_ *cobra.Command, _ []string) error {
-		slog.Debug("-> profiles list")
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			if !ok || logger == nil {
+				return errors.New("logger not found in context")
+			}
+			logger.Debug("-> profiles list")
 
-		ctx := context.Background()
-		if slog.Default().Enabled(ctx, slog.LevelDebug) {
-			discovery.ScanAndPrintProfiles(ctx, viper.GetString("global.runPath"), os.Stdout)
-		}
-		return discovery.ScanAndPrintProfiles(ctx, "/home/inwx/.sbsh/profiles.yaml", os.Stdout)
-	},
+			if slog.Default().Enabled(cmd.Context(), slog.LevelDebug) {
+				if err := discovery.ScanAndPrintProfiles(cmd.Context(), viper.GetString("global.runPath"), os.Stdout); err != nil {
+					return err
+				}
+			}
+			return discovery.ScanAndPrintProfiles(cmd.Context(), "/home/inwx/.sbsh/profiles.yaml", os.Stdout)
+		},
+	}
+
+	setupProfilesListCmd(profilesListCmd)
+	return profilesListCmd
+}
+
+func setupProfilesListCmd(_ *cobra.Command) {
 }

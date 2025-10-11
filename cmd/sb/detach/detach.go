@@ -18,6 +18,7 @@ package detach
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -40,7 +41,12 @@ func NewDetachCmd() *cobra.Command {
 This command takes a --socket argument to specify the supervisor socket path.
 If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			slog.Debug("-> detach")
+			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			if !ok || logger == nil {
+				return errors.New("logger not found in context")
+			}
+
+			logger.Debug("-> detach")
 
 			// explicit timeout avoids magic numbers (mnd) and improves readability
 			const detachTimeout = 3 * time.Second

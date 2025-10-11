@@ -42,7 +42,20 @@ import (
 )
 
 func main() {
-	rootCmd := NewRootCmd()
+	var levelVar slog.LevelVar
+	// Default to info, can be changed at runtime
+	levelVar.Set(slog.LevelInfo)
+	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: &levelVar})
+	logger := slog.New(handler)
+
+	// Store both logger and levelVar in context using struct keys
+	//nolint:revive,staticcheck // ignore revive warning about context keys
+	ctx := context.WithValue(context.Background(), "logger", logger)
+	//nolint:revive,staticcheck // ignore revive warning about context keys
+	ctx = context.WithValue(ctx, "logLevelVar", &levelVar)
+
+	rootCmd := newRootCmd()
+	rootCmd.SetContext(ctx)
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -50,7 +63,7 @@ func main() {
 	}
 }
 
-func NewRootCmd() *cobra.Command {
+func newRootCmd() *cobra.Command {
 	// rootCmd represents the base command when called without any subcommands.
 	rootCmd := &cobra.Command{
 		Use:   "sbsh",
@@ -68,20 +81,26 @@ You can also use sbsh with parameters. For example:
   sbsh attach --id abcdef0
 `,
 		SilenceUsage: true,
-		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			err := LoadConfig()
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Config error:", err)
 				os.Exit(1)
 			}
 
-			h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-				Level: common.ParseLevel(viper.GetString(env.LOG_LEVEL.ViperKey)),
-			})
-			slog.SetDefault(slog.New(h))
+			// Set log level dynamically if present
+			levelVar, ok := cmd.Context().Value("logLevelVar").(*slog.LevelVar)
+			if ok && levelVar != nil {
+				levelVar.Set(common.ParseLevel(viper.GetString("global.logLevel")))
+			}
 			return nil
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			if !ok || logger == nil {
+				return errors.New("logger not found in context")
+			}
+
 			// Build SessionSpec from command-line inputs and profile (if given)
 			sessionSpec, err := profile.BuildSessionSpec(
 				viper.GetString(env.RUN_PATH.ViperKey),
@@ -132,7 +151,7 @@ You can also use sbsh with parameters. For example:
 				SessionSpec: sessionSpec,
 			}
 
-			slog.Debug("SupervisorSpec values",
+			logger.Debug("SupervisorSpec values",
 				"Kind", spec.Kind,
 				"ID", spec.ID,
 				"Name", spec.Name,
@@ -142,8 +161,10 @@ You can also use sbsh with parameters. For example:
 				"SessionSpec", spec.SessionSpec,
 			)
 
-			if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
-				discovery.PrintSessionSpec(sessionSpec, os.Stdout)
+			if logger.Enabled(cmd.Context(), slog.LevelDebug) {
+				if printErr := discovery.PrintSessionSpec(sessionSpec, os.Stdout); printErr != nil {
+					logger.Warn("Failed to print session spec", "error", printErr)
+				}
 			}
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
