@@ -30,7 +30,7 @@ func LogBytes(prefix string, data []byte) {
 	logASCII(prefix, data)
 }
 
-// ASCII only (single-line attr, safe in any handler)
+// ASCII only (single-line attr, safe in any handler).
 func logASCII(prefix string, data []byte) {
 	if len(data) == 0 {
 		slog.Debug(prefix+" (ascii)", "len", 0, "data", "(empty)")
@@ -47,7 +47,7 @@ func logASCII(prefix string, data []byte) {
 	slog.Debug(prefix+" (ascii)", "len", len(data), "data", b.String())
 }
 
-// HEX only (multiline message; no ASCII pane)
+// HEX only (multiline message; no ASCII pane).
 func logHEX(prefix string, data []byte) {
 	if len(data) == 0 {
 		slog.Debug(prefix + " (hex)")
@@ -63,7 +63,7 @@ func logHEX(prefix string, data []byte) {
 
 		// hex columns fixed width (16 bytes → 47 chars: "HH " * 16 minus last space)
 		var hexCols strings.Builder
-		for i := 0; i < 16; i++ {
+		for i := range 16 {
 			if i < len(line) {
 				fmt.Fprintf(&hexCols, "%02X", line[i])
 			} else {
@@ -85,12 +85,14 @@ func logHEX(prefix string, data []byte) {
 
 type LoggingConn struct {
 	net.Conn
+
 	PrefixWrite string
 	PrefixRead  string
 }
 
 type LoggingConnUnix struct {
 	*net.UnixConn
+
 	PrefixWrite string
 	PrefixRead  string
 }

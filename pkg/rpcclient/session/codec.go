@@ -148,7 +148,7 @@ func (c *unixJSONClientCodec) ReadResponseBody(body any) error {
 
 func (c *unixJSONClientCodec) Close() error { return c.uc.Close() }
 
-// Helper your client uses after Call():
+// Helper your client uses after Call():.
 func (c *unixJSONClientCodec) takeLastFDs() []int {
 	f := c.pendingFDs
 	c.pendingFDs = nil

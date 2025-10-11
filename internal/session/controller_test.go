@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -44,7 +43,7 @@ func (f *fakeListener) Addr() net.Addr {
 	return &net.TCPAddr{IP: net.IPv4zero, Port: 0}
 }
 
-// use in test
+// use in test.
 func newStubListener() net.Listener { return &fakeListener{} }
 
 func Test_ErrSpecCmdMissing(t *testing.T) {
@@ -113,7 +112,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 				return api.ID("iajs099")
 			},
 			OpenSocketCtrlFunc: func() error {
-				return fmt.Errorf("error opening listener")
+				return errors.New("error opening listener")
 			},
 		}
 	}
@@ -162,7 +161,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 				return nil
 			},
 			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
-				readyCh <- fmt.Errorf("make server fail")
+				readyCh <- errors.New("make server fail")
 			},
 		}
 	}
@@ -209,7 +208,7 @@ func Test_ErrStartSession(t *testing.T) {
 				readyCh <- nil
 			},
 			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
-				return fmt.Errorf("make start session fail")
+				return errors.New("make start session fail")
 			},
 		}
 	}
@@ -339,7 +338,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
-	rpcDoneCh <- fmt.Errorf("make rpc server exit with error")
+	rpcDoneCh <- errors.New("make rpc server exit with error")
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrRPCServerExited) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrRPCServerExited, err)
@@ -458,7 +457,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 	ev := sessionrunner.SessionRunnerEvent{
 		ID:   spec.ID,
 		Type: sessionrunner.EvCmdExited,
-		Err:  fmt.Errorf("session has been closed"),
+		Err:  errors.New("session has been closed"),
 		When: time.Now(),
 	}
 
@@ -521,7 +520,7 @@ func Test_HandleEvent_EvError(t *testing.T) {
 	ev := sessionrunner.SessionRunnerEvent{
 		ID:   spec.ID,
 		Type: sessionrunner.EvError,
-		Err:  fmt.Errorf("session has been closed"),
+		Err:  errors.New("session has been closed"),
 		When: time.Now(),
 	}
 

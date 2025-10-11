@@ -46,7 +46,6 @@ func (sr *SupervisorRunnerExec) StartServer(
 
 	srv := rpc.NewServer()
 	if err := srv.RegisterName(api.SupervisorService, sc); err != nil {
-
 		// startup failed
 		readyCh <- err
 		close(readyCh)

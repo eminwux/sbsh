@@ -48,8 +48,6 @@ var (
 	logFilenameInput     string
 	profileNameInput     string
 	socketFileInput      string
-	ctx                  context.Context
-	cancel               context.CancelFunc
 	newSessionController = session.NewSessionController
 )
 
@@ -83,7 +81,7 @@ If no log filename is provided, a default path under the run directory will be u
 				logFilenameInput,
 				socketFileInput,
 				os.Environ(),
-				ctx,
+				context.Background(),
 			)
 			if err != nil {
 				log.Fatal(err)
@@ -103,7 +101,7 @@ If no log filename is provided, a default path under the run directory will be u
 			if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
 				discovery.PrintSessionSpec(sessionSpec, os.Stdout)
 			}
-			runSession(sessionSpec)
+			runSession(context.Background(), sessionSpec)
 		},
 	}
 
@@ -124,15 +122,13 @@ func setupRunCmdFlags(runCmd *cobra.Command) {
 	}
 }
 
-func runSession(spec *api.SessionSpec) error {
+func runSession(ctx context.Context, spec *api.SessionSpec) error {
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
-	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	// Create a new Controller
-	var ctrl api.SessionController
-
-	ctrl = newSessionController(ctx)
+	ctrl := newSessionController(ctx)
 
 	// Create error channel
 	errCh := make(chan error, 1)
@@ -147,25 +143,25 @@ func runSession(spec *api.SessionSpec) error {
 	// block until controller is ready (or ctx cancels)
 	if err := ctrl.WaitReady(); err != nil {
 		slog.Debug(fmt.Sprintf("controller not ready: %s\r\n", err))
-		return fmt.Errorf("%w: %v", errdefs.ErrWaitOnReady, err)
+		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
 	}
 	select {
 	case <-ctx.Done():
 		var err error
 		slog.Debug("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
 		if errC := ctrl.WaitClose(); errC != nil {
-			err = fmt.Errorf("%w %v: %v", err, errdefs.ErrWaitOnClose, errC)
+			err = fmt.Errorf("%w %w: %w", err, errdefs.ErrWaitOnClose, errC)
 		}
 		slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
 
-		return fmt.Errorf("%w: %v", errdefs.ErrContextDone, err)
+		return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
 
 	case err := <-errCh:
 		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
 		if err != nil && !errors.Is(err, context.Canceled) {
 			err = fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
 			if errC := ctrl.WaitClose(); errC != nil {
-				err = fmt.Errorf("%w: %v: %v", err, errdefs.ErrWaitOnClose, errC)
+				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrWaitOnClose, errC)
 			}
 			slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
 

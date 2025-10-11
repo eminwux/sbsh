@@ -17,6 +17,7 @@
 package sessionrunner
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -62,10 +63,10 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 			}
 
 			if rerr != nil {
-				if rerr != io.EOF {
+				if !errors.Is(rerr, io.EOF) {
 					errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", rerr)
 				} else if total == 0 {
-					errCh <- fmt.Errorf("EOF in conn->pty copy pipe")
+					errCh <- errors.New("EOF in conn->pty copy pipe")
 				}
 				return
 			}
@@ -106,7 +107,7 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 				if rerr != io.EOF {
 					errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", rerr)
 				} else if total == 0 {
-					errCh <- fmt.Errorf("EOF in pty->conn copy pipe")
+					errCh <- errors.New("EOF in pty->conn copy pipe")
 				}
 				return
 			}

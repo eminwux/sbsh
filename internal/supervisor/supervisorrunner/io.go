@@ -18,6 +18,7 @@ package supervisorrunner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -33,7 +34,7 @@ import (
 )
 
 const (
-	// in milliseconds
+	// in milliseconds.
 	resizeTimeOut = 100
 )
 
@@ -109,7 +110,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 		}
 
 		// send event (EOF or error while copying stdin -> socket)
-		if e == io.EOF {
+		if errors.Is(e, io.EOF) {
 			slog.Debug("[supervisor] stdin reached EOF\r\n")
 			trySendEvent(sr.events, SupervisorRunnerEvent{
 				ID:   sr.session.Id,
@@ -169,7 +170,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 		}
 
 		// send event (EOF or error while copying socket -> stdout)
-		if e == io.EOF {
+		if errors.Is(e, io.EOF) {
 			slog.Debug("[supervisor] socket closed (EOF)\r\n")
 			trySendEvent(sr.events, SupervisorRunnerEvent{
 				ID:   sr.session.Id,
@@ -207,7 +208,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 			_ = sr.ioConn.Close()
 			<-errCh
 			// treat EOF as normal detach
-			if e == io.EOF || e == nil {
+			if errors.Is(e, io.EOF) || e == nil {
 				return nil
 			}
 			return e
@@ -235,14 +236,12 @@ func (sr *SupervisorRunnerExec) attach() error {
 func (sr *SupervisorRunnerExec) forwardResize() error {
 	// Send initial size once (use the supervisor's TTY: os.Stdin)
 	if rows, cols, err := pty.Getsize(os.Stdin); err == nil {
-
 		ctx, cancel := context.WithTimeout(sr.ctx, 100*time.Millisecond)
 		defer cancel()
 
 		if err := sr.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: int(cols), Rows: int(rows)}); err != nil {
 			return fmt.Errorf("status failed: %w", err)
 		}
-
 	}
 
 	ch := make(chan os.Signal, 1)

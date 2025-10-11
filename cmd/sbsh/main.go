@@ -40,11 +40,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	newSupervisorController = supervisor.NewSupervisorController
-	ctx                     context.Context
-	cancel                  context.CancelFunc
-)
+var newSupervisorController = supervisor.NewSupervisorController
 
 var (
 	logLevelInput           string
@@ -161,7 +157,7 @@ You can also use sbsh with parameters. For example:
 			)
 
 			// discovery.PrintSessionSpec(sessionSpec, os.Stdout)
-			runSupervisor(spec)
+			runSupervisor(context.Background(), spec)
 		},
 	}
 
@@ -218,8 +214,8 @@ func setupRootCmd(rootCmd *cobra.Command) {
 	}
 }
 
-func runSupervisor(spec *api.SupervisorSpec) error {
-	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+func runSupervisor(ctx context.Context, spec *api.SupervisorSpec) error {
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	// Create a new Controller
@@ -246,11 +242,11 @@ func runSupervisor(spec *api.SupervisorSpec) error {
 		var err error
 		slog.Debug("[sbsh] context canceled, waiting on sessionCtrl to exit\r\n")
 		if errC := ctrl.WaitClose(); errC != nil {
-			err = fmt.Errorf("%w: %v: %v", err, ErrWaitOnClose, errC)
+			err = fmt.Errorf("%w: %w: %w", err, ErrWaitOnClose, errC)
 		}
 		slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
 
-		return fmt.Errorf("%w: %v", errdefs.ErrContextDone, err)
+		return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
 
 	case err := <-errCh:
 		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))

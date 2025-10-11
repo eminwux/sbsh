@@ -34,7 +34,7 @@ func (sr *SupervisorRunnerExec) OpenSocketCtrl() error {
 	ln, err := lnCfg.Listen(sr.ctx, "unix", sr.metadata.Spec.SockerCtrl)
 	if err != nil {
 		slog.Debug(fmt.Sprintf("[supervisor] cannot listen: %v", err))
-		return fmt.Errorf("cannot listen: %v", err)
+		return fmt.Errorf("cannot listen: %w", err)
 	}
 
 	sr.lnCtrl = ln

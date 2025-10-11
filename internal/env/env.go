@@ -80,7 +80,7 @@ func (v *Var) SetDefault(val string) {
 }
 func KV(v Var, value string) string { return v.Key + "=" + value }
 
-// ---- Declare statically (Viper key optional per var) ----
+// ---- Declare statically (Viper key optional per var) ----.
 var (
 	RUN_PATH        = DefineKV("RUN_PATH", "global.runPath")           // has viper key
 	CONFIG_FILE     = DefineKV("CONFIG_FILE", "global.configFile")     // has viper key

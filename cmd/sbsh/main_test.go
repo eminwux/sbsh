@@ -19,7 +19,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -68,8 +67,9 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 	done := make(chan error)
 	defer close(done)
 
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, spec) // will block until ctx.Done()
 	}()
 
 	// Give Run() time to set ready, then signal the process (NotifyContext listens to SIGTERM/INT)
@@ -95,7 +95,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 				return nil
 			},
 			WaitReadyFunc: func() error {
-				return fmt.Errorf("not ready")
+				return errors.New("not ready")
 			},
 			WaitCloseFunc: func() error {
 				return nil
@@ -121,8 +121,9 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	done := make(chan error)
 	defer close(done)
 
+	ctx, _ := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, spec) // will block until ctx.Done()
 	}()
 
 	select {
@@ -147,7 +148,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 				return nil
 			},
 			WaitCloseFunc: func() error {
-				return fmt.Errorf("not closed")
+				return errors.New("not closed")
 			},
 			StartFunc: func() error {
 				// default: succeed immediately
@@ -171,8 +172,9 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	done := make(chan error)
 	defer close(done)
 
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, spec) // will block until ctx.Done()
 	}()
 
 	time.Sleep(20 * time.Millisecond)
@@ -190,7 +192,7 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 		return &supervisor.SupervisorControllerTest{
 			RunFunc: func(spec *api.SupervisorSpec) error {
 				// default: succeed without doing anything
-				return fmt.Errorf("force child exit")
+				return errors.New("force child exit")
 			},
 			WaitReadyFunc: func() error {
 				return nil
@@ -220,8 +222,9 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 	done := make(chan error)
 	defer close(done)
 
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, spec) // will block until ctx.Done()
 	}()
 
 	time.Sleep(20 * time.Millisecond)

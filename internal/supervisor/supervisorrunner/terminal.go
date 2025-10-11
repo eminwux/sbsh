@@ -26,7 +26,7 @@ import (
 	"golang.org/x/term"
 )
 
-// toBashUIMode: set terminal to RAW, update flags
+// toBashUIMode: set terminal to RAW, update flags.
 func (sr *SupervisorRunnerExec) toBashUIMode() error {
 	lastTermState, err := toRawMode()
 	if err != nil {
@@ -40,7 +40,7 @@ func (sr *SupervisorRunnerExec) toBashUIMode() error {
 	return nil
 }
 
-// toSupervisorUIMode: set terminal to COOKED for your REPL
+// toSupervisorUIMode: set terminal to COOKED for your REPL.
 func (sr *SupervisorRunnerExec) toExitShell() error {
 	if sr.lastTermState != nil {
 		err := term.Restore(int(os.Stdin.Fd()), sr.lastTermState)

@@ -58,7 +58,6 @@ func ParseLevel(lvl string) slog.Level {
 }
 
 func WriteMetadata(ctx context.Context, metadata any, dir string) error {
-
 	dst := filepath.Join(dir, "metadata.json")
 	var data []byte
 	data, err := json.MarshalIndent(metadata, "", "  ")

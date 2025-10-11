@@ -60,7 +60,7 @@ func (c *client) call(ctx context.Context, method string, in, out any) error {
 	}
 }
 
-// dettach from current session
+// dettach from current session.
 func (c *client) Detach(ctx context.Context) error {
 	return c.call(ctx, api.SupervisorMethodDetach, &api.Empty{}, &api.Empty{})
 }

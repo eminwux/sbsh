@@ -40,7 +40,7 @@ const (
 	SessSSH                         // ssh -tt user@host ...
 )
 
-// Inputs needed to spawn a session; serialize parts of this into sessions.json
+// Inputs needed to spawn a session; serialize parts of this into sessions.json.
 type SessionSpec struct {
 	ID          ID                `json:"id"`
 	Kind        SessionKind       `json:"kind"`
@@ -92,7 +92,7 @@ type SessionMetadata struct {
 	Status SessionStatus `json:"status"`
 }
 
-// SESSION RPC
+// SESSION RPC.
 const SessionService = "SessionController"
 
 const (

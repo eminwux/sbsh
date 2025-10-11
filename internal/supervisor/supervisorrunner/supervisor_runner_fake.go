@@ -25,7 +25,7 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-// ErrFuncNotSet is returned when a test function has not been stubbed
+// ErrFuncNotSet is returned when a test function has not been stubbed.
 var ErrFuncNotSet = errors.New("test function not set")
 
 // SupervisorRunnerTest is a test double for SupervisorRunner
@@ -57,7 +57,7 @@ type SupervisorRunnerTest struct {
 	StartSessionCmdFunc func(session *api.SupervisedSession) error
 }
 
-// NewSupervisorRunnerTest returns a new SupervisorRunnerTest instance
+// NewSupervisorRunnerTest returns a new SupervisorRunnerTest instance.
 func NewSupervisorRunnerTest(ctx context.Context, spec *api.SupervisorSpec) *SupervisorRunnerTest {
 	return &SupervisorRunnerTest{
 		Ctx: ctx,

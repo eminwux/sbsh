@@ -19,7 +19,6 @@ package sessionrunner
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"net/rpc"
 
@@ -47,7 +46,6 @@ func (sr *SessionRunnerExec) StartServer(
 
 	srv := rpc.NewServer()
 	if err := srv.RegisterName(api.SessionService, sc); err != nil {
-
 		// startup failed
 		readyCh <- err
 		close(readyCh)
@@ -72,7 +70,7 @@ func (sr *SessionRunnerExec) StartServer(
 			// Normal path: listener closed by ctx cancel
 			if errors.Is(err, net.ErrClosed) || sr.ctx.Err() != nil {
 				select {
-				case doneCh <- fmt.Errorf("unknown rpc server error"):
+				case doneCh <- errors.New("unknown rpc server error"):
 				default:
 				}
 				close(doneCh)
@@ -88,6 +86,5 @@ func (sr *SessionRunnerExec) StartServer(
 		}
 		uconn := conn.(*net.UnixConn)
 		go srv.ServeCodec(sessionrpc.NewUnixJSONServerCodec(uconn))
-
 	}
 }

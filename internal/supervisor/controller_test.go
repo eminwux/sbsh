@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -47,7 +46,7 @@ func (f *fakeListener) Addr() net.Addr {
 	return &net.TCPAddr{IP: net.IPv4zero, Port: 0}
 }
 
-// use in test
+// use in test.
 func newStubListener() net.Listener { return &fakeListener{} }
 
 func Test_ErrOpenSocketCtrl(t *testing.T) {
@@ -59,7 +58,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
-				return fmt.Errorf("force socket fail")
+				return errors.New("force socket fail")
 			},
 			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
 				// default: immediately signal ready
@@ -144,7 +143,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
 				// default: immediately signal ready
 				select {
-				case readyCh <- fmt.Errorf("force server fail"):
+				case readyCh <- errors.New("force server fail"):
 				default:
 				}
 			},
@@ -228,7 +227,7 @@ func Test_ErrAttach(t *testing.T) {
 				}
 			},
 			AttachFunc: func(session *api.SupervisedSession) error {
-				return fmt.Errorf("force session start fail")
+				return errors.New("force session start fail")
 			},
 			IDFunc: func() api.ID {
 				// default: empty ID
@@ -253,7 +252,7 @@ func Test_ErrAttach(t *testing.T) {
 	newSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
 			AddFunc: func(s *api.SupervisedSession) error {
-				return fmt.Errorf("force add fail")
+				return errors.New("force add fail")
 			},
 			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
 				return nil, false
@@ -500,7 +499,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	}(exitCh)
 
 	<-ctrlReady
-	rpcDoneCh <- fmt.Errorf("force rpc server exit")
+	rpcDoneCh <- errors.New("force rpc server exit")
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrRPCServerExited) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrRPCServerExited, err)
@@ -599,7 +598,7 @@ func Test_ErrSessionExists(t *testing.T) {
 	}(exitCh)
 
 	<-ctrlReady
-	closeReqCh <- fmt.Errorf("force close request")
+	closeReqCh <- errors.New("force close request")
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrCloseReq) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrCloseReq, err)
@@ -699,7 +698,7 @@ func Test_ErrCloseReq(t *testing.T) {
 	}(exitCh)
 
 	<-ctrlReady
-	closeReqCh <- fmt.Errorf("force close request")
+	closeReqCh <- errors.New("force close request")
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrCloseReq) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrCloseReq, err)
@@ -741,7 +740,7 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 				return nil
 			},
 			StartSessionCmdFunc: func(session *api.SupervisedSession) error {
-				return fmt.Errorf("force cmd start fail")
+				return errors.New("force cmd start fail")
 			},
 		}
 	}
@@ -844,7 +843,7 @@ func Test_ErrSessionStore(t *testing.T) {
 	newSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
 			AddFunc: func(s *api.SupervisedSession) error {
-				return fmt.Errorf("force add fail")
+				return errors.New("force add fail")
 			},
 			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
 				return nil, false

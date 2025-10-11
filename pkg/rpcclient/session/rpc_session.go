@@ -18,6 +18,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -60,7 +61,7 @@ func NewUnix(sockPath string, opts ...Option) Client {
 	return &client{dial: dialer}
 }
 
-// --- internal: generic call path with pluggable codec (handles retries/timeouts) ---
+// --- internal: generic call path with pluggable codec (handles retries/timeouts) ---.
 func (c *client) callWithCodec(
 	ctx context.Context,
 	method string,
@@ -122,7 +123,7 @@ func (c *client) callWithCodec(
 	return lastErr
 }
 
-// --- convenience: plain JSON-RPC (no FD passing) ---
+// --- convenience: plain JSON-RPC (no FD passing) ---.
 func (c *client) call(ctx context.Context, method string, in, out any) error {
 	return c.callWithCodec(ctx, method, in, out, func(conn net.Conn) (rpc.ClientCodec, func(), error) {
 		// If this is a Unix domain socket, use the Unix-aware logger.
@@ -147,7 +148,7 @@ func (c *client) call(ctx context.Context, method string, in, out any) error {
 
 func (c *client) Close() error { return nil } // stateless client
 
-// --- Public methods (no FD passing) ---
+// --- Public methods (no FD passing) ---.
 func (c *client) Status(ctx context.Context, status *api.SessionStatusMessage) error {
 	return c.call(ctx, api.SessionMethodStatus, &api.Empty{}, status)
 }
@@ -173,7 +174,7 @@ func (c *client) Attach(ctx context.Context, id *api.ID, out any) (net.Conn, err
 		uconn, ok := conn.(*net.UnixConn)
 		if !ok {
 			_ = conn.Close()
-			return nil, nil, fmt.Errorf("attach: not a *net.UnixConn")
+			return nil, nil, errors.New("attach: not a *net.UnixConn")
 		}
 		codec := newUnixJSONClientCodec(uconn)
 		slog.Debug("[client] Attach RPC call completed")
@@ -194,7 +195,7 @@ func (c *client) Attach(ctx context.Context, id *api.ID, out any) (net.Conn, err
 	}
 
 	if len(gotFDs) == 0 {
-		return nil, fmt.Errorf("attach: server did not send IO fd")
+		return nil, errors.New("attach: server did not send IO fd")
 	}
 
 	slog.Debug("[client] converting FD to net.Conn")

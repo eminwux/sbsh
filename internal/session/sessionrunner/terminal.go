@@ -17,6 +17,7 @@
 package sessionrunner
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -82,7 +83,7 @@ func (sr *SessionRunnerExec) startPTY() error {
 		slog.Debug(fmt.Sprintf("[session] pid=%d, waiting on bash pid=%d\r\n", os.Getpid(), sr.cmd.Process.Pid))
 		_ = sr.cmd.Wait() // blocks until process exits
 		slog.Debug(fmt.Sprintf("[session] pid=%d, bash with pid=%d has exited\r\n", os.Getpid(), sr.cmd.Process.Pid))
-		sr.closeReqCh <- fmt.Errorf("the shell process has exited")
+		sr.closeReqCh <- errors.New("the shell process has exited")
 	}()
 
 	logf, err := os.OpenFile(sr.metadata.Spec.LogFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)

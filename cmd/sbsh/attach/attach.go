@@ -96,7 +96,7 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 
 func run(id string, name string) error {
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
-	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	// Create a new Controller
@@ -173,13 +173,13 @@ func run(id string, name string) error {
 	// block until controller is ready (or ctx cancels)
 	if err := supCtrl.WaitReady(); err != nil {
 		slog.Debug(fmt.Sprintf("controller not ready: %s\r\n", err))
-		return fmt.Errorf("%w: %v", errdefs.ErrWaitOnReady, err)
+		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
 	}
 	select {
 	case <-ctx.Done():
 		slog.Debug("[sbsh] context canceled, waiting on sessionCtrl to exit\r\n")
 		if err := supCtrl.WaitClose(); err != nil {
-			return fmt.Errorf("%w: %v", errdefs.ErrWaitOnClose, err)
+			return fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, err)
 		}
 		slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
 
@@ -188,7 +188,7 @@ func run(id string, name string) error {
 		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
 		if err != nil && !errors.Is(err, context.Canceled) {
 			if err := supCtrl.WaitClose(); err != nil {
-				return fmt.Errorf("%w: %v", errdefs.ErrWaitOnClose, err)
+				return fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, err)
 			}
 			slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
 
@@ -196,7 +196,7 @@ func run(id string, name string) error {
 				fmt.Printf("%v\n", err)
 			}
 
-			return fmt.Errorf("%w: %v", errdefs.ErrChildExit, err)
+			return fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
 		}
 	}
 	return nil

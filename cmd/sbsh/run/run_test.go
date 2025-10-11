@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -57,8 +56,10 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 	}
 
 	done := make(chan error)
+
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSession(&spec) // will block until ctx.Done()
+		done <- runSession(ctx, &spec) // will block until ctx.Done()
 		defer close(done)
 	}()
 
@@ -82,7 +83,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 		return &session.FakeSessionController{
 			Exit:          nil,
 			RunFunc:       func(spec *api.SessionSpec) error { return nil },
-			WaitReadyFunc: func() error { return fmt.Errorf("not ready") },
+			WaitReadyFunc: func() error { return errors.New("not ready") },
 			WaitCloseFunc: func() error { return nil },
 		}
 	}
@@ -102,8 +103,8 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 		Env:         os.Environ(),
 		RunPath:     viper.GetString("global.runPath"),
 	}
-
-	if err := runSession(&spec); err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
+	ctx, _ := context.WithCancel(context.Background())
+	if err := runSession(ctx, &spec); err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrWaitOnReady, err)
 	}
 }
@@ -115,7 +116,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 			Exit:          nil,
 			RunFunc:       func(spec *api.SessionSpec) error { return nil },
 			WaitReadyFunc: func() error { return nil },
-			WaitCloseFunc: func() error { return fmt.Errorf("error on close") },
+			WaitCloseFunc: func() error { return errors.New("error on close") },
 		}
 	}
 	t.Cleanup(func() { newSessionController = orig })
@@ -136,8 +137,11 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	}
 
 	exitCh := make(chan error)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
 	go func(exitCh chan error) {
-		exitCh <- runSession(&spec)
+		exitCh <- runSession(ctx, &spec)
 		defer close(exitCh)
 	}(exitCh)
 

@@ -42,7 +42,7 @@ func (sr *SupervisorRunnerExec) StartSessionCmd(session *api.SupervisedSession) 
 	cmd.Env = session.Env
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("%w :%v", errdefs.ErrSessionCmdStart, err)
+		return fmt.Errorf("%w :%w", errdefs.ErrSessionCmdStart, err)
 	}
 
 	// you can return cmd.Process.Pid to record in meta.json
