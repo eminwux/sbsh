@@ -20,11 +20,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"log"
-	"net"
 	"os"
 	"testing"
 	"time"
+	"log/slog"
 
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/session/sessionrpc"
@@ -32,22 +31,11 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-type fakeListener struct{}
 
-func (f *fakeListener) Accept() (net.Conn, error) {
-	// No real conns; make it obvious if code tries to use it
-	return nil, errors.New("stub listener: Accept not implemented")
-}
-func (f *fakeListener) Close() error { return nil }
-func (f *fakeListener) Addr() net.Addr {
-	return &net.TCPAddr{IP: net.IPv4zero, Port: 0}
-}
-
-// use in test.
-func newStubListener() net.Listener { return &fakeListener{} }
+// (fakeListener and newStubListener removed as unused)
 
 func Test_ErrSpecCmdMissing(t *testing.T) {
-	sessionCtrl := NewSessionController(context.Background())
+	sessionCtrl := NewSessionController(context.Background()).(*SessionController)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -71,15 +59,13 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
+	handler := slog.NewTextHandler(&buf, nil)
+	logger := slog.New(handler)
+	old := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(old) })
 
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	// No global channels needed; controller instance owns its own
 
 	exitCh := make(chan error)
 
@@ -93,8 +79,9 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 }
 
 func Test_ErrOpenSocketCtrl(t *testing.T) {
-	ctx, _ := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sessionCtrl := NewSessionController(ctx).(*SessionController)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -118,15 +105,13 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
+	handler := slog.NewTextHandler(&buf, nil)
+	logger := slog.New(handler)
+	old := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(old) })
 
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	// No global channels needed; controller instance owns its own
 
 	exitCh := make(chan error)
 
@@ -140,7 +125,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 }
 
 func Test_ErrStartRPCServer(t *testing.T) {
-	sessionCtrl := NewSessionController(context.Background())
+	sessionCtrl := NewSessionController(context.Background()).(*SessionController)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -167,9 +152,11 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
+	handler := slog.NewTextHandler(&buf, nil)
+	logger := slog.New(handler)
+	old := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(old) })
 
 	exitCh := make(chan error)
 	defer close(exitCh)
@@ -184,7 +171,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 }
 
 func Test_ErrStartSession(t *testing.T) {
-	sessionCtrl := NewSessionController(context.Background())
+	sessionCtrl := NewSessionController(context.Background()).(*SessionController)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -214,15 +201,13 @@ func Test_ErrStartSession(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
+	handler := slog.NewTextHandler(&buf, nil)
+	logger := slog.New(handler)
+	old := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(old) })
 
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	// No global channels needed; controller instance owns its own
 
 	exitCh := make(chan error)
 
@@ -237,7 +222,7 @@ func Test_ErrStartSession(t *testing.T) {
 
 func Test_ErrContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx)
+	sessionCtrl := NewSessionController(ctx).(*SessionController)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -267,15 +252,13 @@ func Test_ErrContextDone(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
+	handler := slog.NewTextHandler(&buf, nil)
+	logger := slog.New(handler)
+	old := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(old) })
 
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	// No global channels needed; controller instance owns its own
 
 	exitCh := make(chan error)
 
@@ -293,7 +276,7 @@ func Test_ErrContextDone(t *testing.T) {
 }
 
 func Test_ErrRPCServerExited(t *testing.T) {
-	sessionCtrl := NewSessionController(context.Background())
+	sessionCtrl := NewSessionController(context.Background()).(*SessionController)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -323,22 +306,20 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
+	handler := slog.NewTextHandler(&buf, nil)
+	logger := slog.New(handler)
+	old := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(old) })
 
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	// No global channels needed; controller instance owns its own
 	exitCh := make(chan error)
 
 	go func(exitCh chan error) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}(exitCh)
 
-	rpcDoneCh <- errors.New("make rpc server exit with error")
+	sessionCtrl.rpcDoneCh <- errors.New("make rpc server exit with error")
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrRPCServerExited) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrRPCServerExited, err)
@@ -347,7 +328,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 
 func Test_WaitReady(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx)
+	sessionCtrl := NewSessionController(ctx).(*SessionController)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -377,15 +358,13 @@ func Test_WaitReady(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
+	handler := slog.NewTextHandler(&buf, nil)
+	logger := slog.New(handler)
+	old := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(old) })
 
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	// No global channels needed; controller instance owns its own
 	exitCh := make(chan error)
 
 	readyReturn := make(chan error)
@@ -406,7 +385,7 @@ func Test_WaitReady(t *testing.T) {
 }
 
 func Test_HandleEvent_EvCmdExited(t *testing.T) {
-	sessionCtrl := NewSessionController(context.Background())
+	sessionCtrl := NewSessionController(context.Background()).(*SessionController)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -436,15 +415,13 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
+	handler := slog.NewTextHandler(&buf, nil)
+	logger := slog.New(handler)
+	old := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(old) })
 
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	// No global channels needed; controller instance owns its own
 	exitCh := make(chan error)
 
 	readyReturn := make(chan error)
@@ -461,7 +438,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 		When: time.Now(),
 	}
 
-	eventsCh <- ev
+	sessionCtrl.eventsCh <- ev
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrCloseReq) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrCloseReq, err)
@@ -469,7 +446,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 }
 
 func Test_HandleEvent_EvError(t *testing.T) {
-	sessionCtrl := NewSessionController(context.Background())
+	sessionCtrl := NewSessionController(context.Background()).(*SessionController)
 
 	// Define a new Session
 	spec := api.SessionSpec{
@@ -499,15 +476,13 @@ func Test_HandleEvent_EvError(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
+	handler := slog.NewTextHandler(&buf, nil)
+	logger := slog.New(handler)
+	old := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(old) })
 
-	closeReqCh = make(chan error, 1)
-	rpcReadyCh = make(chan error)
-	rpcDoneCh = make(chan error)
-	ctrlReady = make(chan struct{})
-	eventsCh = make(chan sessionrunner.SessionRunnerEvent, 32)
+	// No global channels needed; controller instance owns its own
 	exitCh := make(chan error)
 
 	readyReturn := make(chan error)
@@ -524,5 +499,5 @@ func Test_HandleEvent_EvError(t *testing.T) {
 		When: time.Now(),
 	}
 
-	eventsCh <- ev
+	sessionCtrl.eventsCh <- ev
 }

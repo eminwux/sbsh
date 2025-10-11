@@ -31,32 +31,36 @@ import (
 type SessionController struct {
 	ctx context.Context
 
-	closedCh  chan struct{}
-	closingCh chan error
+	sr sessionrunner.SessionRunner
 
-	shutttingDown bool
+	ctrlReadyCh  chan struct{}
+	closeReqCh   chan error
+	closingCh    chan error
+	closedCh     chan struct{}
+	shuttingDown bool
+
+	eventsCh chan sessionrunner.SessionRunnerEvent
+
+	rpcReadyCh chan error
+	rpcDoneCh  chan error
 }
 
-var (
-	newSessionRunner = sessionrunner.NewSessionRunnerExec
-	sr               sessionrunner.SessionRunner
-	rpcReadyCh       chan error                            = make(chan error)
-	rpcDoneCh        chan error                            = make(chan error)
-	ctrlReady        chan struct{}                         = make(chan struct{}, 1)
-	eventsCh         chan sessionrunner.SessionRunnerEvent = make(chan sessionrunner.SessionRunnerEvent, 32)
-	closeReqCh       chan error                            = make(chan error, 1)
-)
+var newSessionRunner = sessionrunner.NewSessionRunnerExec
 
 // NewSessionController wires the manager and the shared event channel from sessions.
 func NewSessionController(ctx context.Context) api.SessionController {
 	slog.Debug("[sessionCtrl] New controller is being created\r\n")
 
 	c := &SessionController{
-		ctx:       ctx,
-		closedCh:  make(chan struct{}),
-		closingCh: make(chan error, 1),
+		ctx:         ctx,
+		closedCh:    make(chan struct{}),
+		closingCh:   make(chan error, 1),
+		rpcReadyCh:  make(chan error),
+		rpcDoneCh:   make(chan error),
+		ctrlReadyCh: make(chan struct{}, 1),
+		eventsCh:    make(chan sessionrunner.SessionRunnerEvent, 32),
+		closeReqCh:  make(chan error, 1),
 	}
-
 	return c
 }
 
@@ -66,7 +70,7 @@ func (c *SessionController) Status() string {
 
 func (c *SessionController) WaitReady() error {
 	select {
-	case <-ctrlReady:
+	case <-c.ctrlReadyCh:
 		return nil
 	case <-c.ctx.Done():
 		return c.ctx.Err()
@@ -81,7 +85,6 @@ func (c *SessionController) WaitClose() error {
 	case err := <-c.closingCh:
 		slog.Debug("controller closing", "reason", err)
 	}
-
 	return nil
 }
 
@@ -89,7 +92,7 @@ func (c *SessionController) WaitClose() error {
 func (c *SessionController) Run(spec *api.SessionSpec) error {
 	defer slog.Debug("[sessionCtrl] controller stopped\r\n")
 
-	sr = newSessionRunner(c.ctx, spec)
+	c.sr = newSessionRunner(c.ctx, spec)
 
 	if len(spec.Command) == 0 {
 		slog.Debug("empty command in SessionSpec")
@@ -98,7 +101,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 
 	slog.Debug("[sessionCtrl] Starting controller loop")
 
-	err := sr.CreateMetadata()
+	err := c.sr.CreateMetadata()
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not write metadata file: %v", err))
 		if err := c.Close(err); err != nil {
@@ -107,7 +110,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		return fmt.Errorf("%w: %w", errdefs.ErrWriteMetadata, err)
 	}
 
-	err = sr.OpenSocketCtrl()
+	err = c.sr.OpenSocketCtrl()
 	if err != nil {
 		slog.Debug(fmt.Sprintf("could not open control socket: %v", err))
 		if err := c.Close(err); err != nil {
@@ -117,15 +120,15 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 	}
 
 	rpc := &sessionrpc.SessionControllerRPC{Core: c}
-	go sr.StartServer(c.ctx, rpc, rpcReadyCh, rpcDoneCh)
+	go c.sr.StartServer(c.ctx, rpc, c.rpcReadyCh, c.rpcDoneCh)
 	// Wait for startup result
-	if err := <-rpcReadyCh; err != nil {
+	if err := <-c.rpcReadyCh; err != nil {
 		// failed to start — handle and return
 		slog.Debug(fmt.Sprintf("failed to start server: %v", err))
 		return fmt.Errorf("%w: %w", errdefs.ErrStartRPCServer, err)
 	}
 
-	if err := sr.StartSession(eventsCh); err != nil {
+	if err := c.sr.StartSession(c.eventsCh); err != nil {
 		slog.Debug(fmt.Sprintf("failed to start session: %v", err))
 		if err := c.Close(err); err != nil {
 			err = fmt.Errorf("%w: %w", errdefs.ErrOnClose, err)
@@ -133,13 +136,12 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		return fmt.Errorf("%w: %w", errdefs.ErrStartSession, err)
 	}
 
-	// ctrlReady <- struct{}{}
-	close(ctrlReady)
+	close(c.ctrlReadyCh)
 
 	go func() {
 		select {
 		case err := <-c.closingCh:
-			c.shutttingDown = true
+			c.shuttingDown = true
 			slog.Info("controller closing", "reason", err)
 		}
 	}()
@@ -154,7 +156,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 			}
 			return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
 
-		case ev := <-eventsCh:
+		case ev := <-c.eventsCh:
 			slog.Debug(
 				fmt.Sprintf(
 					"[sessionCtrl] received event: id=%s type=%v err=%v when=%s\r\n",
@@ -166,14 +168,14 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 			)
 			c.handleEvent(ev)
 
-		case err := <-rpcDoneCh:
+		case err := <-c.rpcDoneCh:
 			slog.Debug(fmt.Sprintf("[sessionCtrl] rpc server has failed: %v\r\n", err))
 			if errC := c.Close(err); err != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 			}
 			return fmt.Errorf("%w: %w", errdefs.ErrRPCServerExited, err)
 
-		case err := <-closeReqCh:
+		case err := <-c.closeReqCh:
 			slog.Debug(fmt.Sprintf("[sessionCtrl] close request received: %v\r\n", err))
 			return fmt.Errorf("%w: %w", errdefs.ErrCloseReq, err)
 		}
@@ -195,16 +197,16 @@ func (c *SessionController) handleEvent(ev sessionrunner.SessionRunnerEvent) {
 }
 
 func (c *SessionController) Close(reason error) error {
-	if !c.shutttingDown {
+	if !c.shuttingDown {
 		slog.Info("initiating shutdown sequence", "reason", reason)
 		// Set closing reason
 		c.closingCh <- reason
 
 		// Notify session runner to close all sessions
-		sr.Close(reason)
+		c.sr.Close(reason)
 
 		// Notify Run to exit
-		closeReqCh <- reason
+		c.closeReqCh <- reason
 
 		// Mark controller as closed
 		close(c.closedCh)
@@ -220,11 +222,11 @@ func (c *SessionController) onClosed(err error) {
 }
 
 func (c *SessionController) Resize(args api.ResizeArgs) {
-	sr.Resize(args)
+	c.sr.Resize(args)
 }
 
 func (c *SessionController) Attach(id *api.ID, response *api.ResponseWithFD) error {
-	err := sr.Attach(id, response)
+	err := c.sr.Attach(id, response)
 	if err != nil {
 		return err
 	}
@@ -238,5 +240,5 @@ func (c *SessionController) Attach(id *api.ID, response *api.ResponseWithFD) err
 }
 
 func (c *SessionController) Detach(id *api.ID) error {
-	return sr.Detach(id)
+	return c.sr.Detach(id)
 }
