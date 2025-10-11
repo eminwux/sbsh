@@ -53,10 +53,11 @@ sbsh follows the traditional Unix philosophy: build simple tools that do one thi
 As Ken Thompson once said, “One of my most productive days was throwing away 1,000 lines of code.”
 sbsh embraces that mindset by keeping its design small, transparent, and essential: a single program that brings persistence and structure to the terminal.
 
-# Status
+# Status and Roadmap
 
-sbsh is under active development.
-The project is focused on correctness, portability, and clear abstractions before adding integrations.
+sbsh is under active development, with a focus on correctness, portability, and clear abstractions before adding integrations.
+
+Work in progress, planned features, and the project roadmap can be found in the [ROADMAP.md](./ROADMAP.md) file. This file is regularly updated with bugs, priorities, and upcoming improvements.
 
 # Contribute
 
