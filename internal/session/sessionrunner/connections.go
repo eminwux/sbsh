@@ -36,10 +36,12 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 
 	log, _ := readFileBytes(sr.metadata.Status.LogFilename)
 
+	//nolint:mnd // channel buffer size
 	errCh := make(chan error, 2)
 
 	// READ FROM CONN, WRITE TO PTY STDIN
 	go func(errCh chan error) {
+		//nolint:mnd // event channel buffer size
 		buf := make([]byte, 32*1024) // 32 KiB buffer, same as io.Copy
 		var total int64
 
@@ -81,6 +83,7 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 			return
 		}
 
+		//nolint:mnd // buffer size
 		buf := make([]byte, 32*1024) // similar buffer size to io.Copy
 		var total int64
 

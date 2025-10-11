@@ -55,7 +55,8 @@ func logHEX(prefix string, data []byte) {
 	}
 	var b strings.Builder
 	for off := 0; off < len(data); off += 16 {
-		end := off + 16
+		length := 16
+		end := off + length
 		if end > len(data) {
 			end = len(data)
 		}
@@ -69,7 +70,8 @@ func logHEX(prefix string, data []byte) {
 			} else {
 				hexCols.WriteString("  ")
 			}
-			if i != 15 {
+			maxHex := 15
+			if i != maxHex {
 				hexCols.WriteByte(' ')
 			}
 		}

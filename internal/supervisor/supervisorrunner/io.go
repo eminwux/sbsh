@@ -47,6 +47,7 @@ func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 	sr.sessionClient = session.NewUnix(sr.session.SocketFile)
 	defer sr.sessionClient.Close()
 
+	//nolint:mnd // timeout duration
 	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)
 	defer cancel()
 
@@ -69,10 +70,12 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 	// We want half-closes; UnixConn exposes CloseRead/CloseWrite
 	uc, _ := sr.ioConn.(*net.UnixConn)
 
+	//nolint:mnd // channel buffer size
 	errCh := make(chan error, 2)
 
 	// WRITER stdin -> socket
 	go func() {
+		//nolint:mnd // buffer size
 		buf := make([]byte, 32*1024) // 32 KiB buffer, like io.Copy
 		var total int64
 		var e error
@@ -133,6 +136,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 
 	// READER socket -> stdout
 	go func() {
+		//nolint:mnd // buffer size
 		buf := make([]byte, 32*1024) // 32 KiB buffer like io.Copy
 		var total int64
 		var e error
@@ -236,6 +240,7 @@ func (sr *SupervisorRunnerExec) attach() error {
 func (sr *SupervisorRunnerExec) forwardResize() error {
 	// Send initial size once (use the supervisor's TTY: os.Stdin)
 	if rows, cols, err := pty.Getsize(os.Stdin); err == nil {
+		//nolint:mnd // timeout duration
 		ctx, cancel := context.WithTimeout(sr.ctx, 100*time.Millisecond)
 		defer cancel()
 

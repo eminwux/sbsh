@@ -190,6 +190,7 @@ func (sr *SessionRunnerExec) Detach(id *api.ID) error {
 	// 4) Close the conn asynchronously after a short grace period
 	conn := ioClient.conn
 	go func() {
+		//nolint:mnd // grace period
 		time.Sleep(100 * time.Millisecond)     // allow `sb detach` to finish
 		_ = conn.SetDeadline(time.Now())       // unblock any Read/Write
 		if u, ok := conn.(*net.UnixConn); ok { // optional: half-close to flush

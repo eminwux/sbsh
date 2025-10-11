@@ -78,6 +78,7 @@ func LoadProfilesFromReader(r io.Reader) ([]api.SessionProfileDoc, error) {
 
 // PrintProfilesTable renders a compact table of profiles similar to printSessions().
 func PrintProfilesTable(w io.Writer, profiles []api.SessionProfileDoc) error {
+	//nolint:mnd // tabwriter padding
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 
 	if len(profiles) == 0 {

@@ -82,14 +82,24 @@ func KV(v Var, value string) string { return v.Key + "=" + value }
 
 // ---- Declare statically (Viper key optional per var) ----.
 var (
-	RUN_PATH        = DefineKV("RUN_PATH", "global.runPath")           // has viper key
-	CONFIG_FILE     = DefineKV("CONFIG_FILE", "global.configFile")     // has viper key
-	PROFILES_FILE   = DefineKV("PROFILES_FILE", "global.profilesFile") // has viper key
-	LOG_LEVEL       = DefineKV("LOG_LEVEL", "global.logLevel", "info") // has viper key
-	SUP_SOCKET      = DefineKV("SUP_SOCKET", "status.sup.socket")      // no viper key, no default
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	RUN_PATH = DefineKV("RUN_PATH", "global.runPath") // has viper key
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	CONFIG_FILE = DefineKV("CONFIG_FILE", "global.configFile") // has viper key
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	PROFILES_FILE = DefineKV("PROFILES_FILE", "global.profilesFile") // has viper key
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	LOG_LEVEL = DefineKV("LOG_LEVEL", "global.logLevel", "info") // has viper key
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SUP_SOCKET = DefineKV("SUP_SOCKET", "status.sup.socket") // no viper key, no default
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SES_SOCKET_CTRL = Define("SES_SOCKET_CTRL")
-	SES_SOCKET_IO   = Define("SES_SOCKET_IO")
-	SES_ID          = Define("SES_ID")
-	SES_NAME        = Define("SES_NAME")
-	SES_PROFILE     = Define("SES_PROFILE")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SES_SOCKET_IO = Define("SES_SOCKET_IO")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SES_ID = Define("SES_ID")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SES_NAME = Define("SES_NAME")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SES_PROFILE = Define("SES_PROFILE")
 )

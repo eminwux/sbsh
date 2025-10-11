@@ -150,6 +150,7 @@ func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
 		slog.Debug("[session-runner] FINISHED terminalManagerReader ")
 	}()
 
+	//nolint:mnd // buffer size
 	buf := make([]byte, 8192)
 	for {
 		// READ FROM PTY - WRITE TO PIPE
@@ -193,6 +194,7 @@ func (sr *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
 		slog.Debug("[session-runner] FINISHED terminalManagerWriter ")
 	}()
 
+	//nolint:mnd // buffer size
 	buf := make([]byte, 4096)
 	i := 0
 	for {

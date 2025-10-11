@@ -66,7 +66,8 @@ func randSeed() int64 {
 }
 
 func RandomID() string {
-	b := make([]byte, 4)
+	length := 4
+	b := make([]byte, length)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
 }

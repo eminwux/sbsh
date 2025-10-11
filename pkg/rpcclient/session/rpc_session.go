@@ -50,6 +50,7 @@ func WithDialTimeout(d time.Duration) Option {
 
 // NewUnix returns a ctx-aware client that dials a Unix socket per call.
 func NewUnix(sockPath string, opts ...Option) Client {
+	//nolint:mnd // default timeout
 	cfg := unixOpts{DialTimeout: 5 * time.Second}
 	for _, o := range opts {
 		o(&cfg)
@@ -103,6 +104,7 @@ func (c *client) callWithCodec(
 
 		select {
 		case <-ctx.Done():
+			//nolint:mnd // short deadline to unblock
 			_ = conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
 			_ = rpcc.Close()
 			if cleanup != nil {

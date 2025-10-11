@@ -75,7 +75,9 @@ func (c *unixJSONClientCodec) ReadResponseHeader(resp *rpc.Response) error {
 	slog.Debug("[client-codec] Starting ReadResponseHeader")
 
 	// Block using netpoller-aware ReadMsgUnix.
+	//nolint:mnd // buffer size
 	buf := make([]byte, 64<<10) // 64KB frame buffer
+	//nolint:mnd // buffer size
 	oob := make([]byte, 256)
 
 	slog.Debug("[client-codec] Starting ReadMsgUnix")

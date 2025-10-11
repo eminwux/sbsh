@@ -52,6 +52,7 @@ func (c *client) call(ctx context.Context, method string, in, out any) error {
 	select {
 	case <-ctx.Done():
 		// Nudge the connection so the blocked call returns quickly.
+		//nolint:mnd // short deadline to unblock
 		_ = conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
 		_ = conn.Close()
 		return ctx.Err()

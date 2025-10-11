@@ -105,6 +105,7 @@ func ScanSessions(ctx context.Context, runPath string) ([]api.SessionMetadata, e
 }
 
 func printSessions(w io.Writer, sessions []api.SessionMetadata, printAll bool) error {
+	//nolint:mnd // tabwriter padding
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	activeCount := 0
 	for _, s := range sessions {
@@ -227,6 +228,7 @@ func PrintSessionSpec(s *api.SessionSpec, w io.Writer) error {
 		return nil
 	}
 
+	//nolint:mnd // tabwriter padding
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 
 	fmt.Fprintf(tw, "ID:\t%s\n", s.ID)

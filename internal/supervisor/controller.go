@@ -66,13 +66,14 @@ func NewSupervisorController(ctx context.Context) api.SupervisorController {
 	slog.Debug("[supervisor] New controller is being created\r\n")
 
 	c := &SupervisorController{
-		ctx:                 ctx,
-		closedCh:            make(chan struct{}),
-		closingCh:           make(chan error, 1),
-		ctrlReadyCh:         make(chan struct{}),
-		rpcReadyCh:          make(chan error),
-		rpcDoneCh:           make(chan error),
-		closeReqCh:          make(chan error, 1),
+		ctx:         ctx,
+		closedCh:    make(chan struct{}),
+		closingCh:   make(chan error, 1),
+		ctrlReadyCh: make(chan struct{}),
+		rpcReadyCh:  make(chan error),
+		rpcDoneCh:   make(chan error),
+		closeReqCh:  make(chan error, 1),
+		//nolint:mnd // event channel buffer size
 		eventsCh:            make(chan supervisorrunner.SupervisorRunnerEvent, 32),
 		NewSupervisorRunner: newSupervisorRunner,
 		NewSessionStore:     newSessionStore,

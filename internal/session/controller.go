@@ -58,8 +58,9 @@ func NewSessionController(ctx context.Context) api.SessionController {
 		rpcReadyCh:  make(chan error),
 		rpcDoneCh:   make(chan error),
 		ctrlReadyCh: make(chan struct{}, 1),
-		eventsCh:    make(chan sessionrunner.SessionRunnerEvent, 32),
-		closeReqCh:  make(chan error, 1),
+		//nolint:mnd // event channel buffer size
+		eventsCh:   make(chan sessionrunner.SessionRunnerEvent, 32),
+		closeReqCh: make(chan error, 1),
 	}
 	return c
 }
