@@ -21,9 +21,9 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"sbsh/pkg/discovery"
 )
 
 // profilesListCmd represents the sessions command.

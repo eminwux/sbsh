@@ -26,11 +26,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eminwux/sbsh/internal/errdefs"
+	"github.com/eminwux/sbsh/internal/naming"
+	"github.com/eminwux/sbsh/internal/session"
+	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/viper"
-	"sbsh/pkg/api"
-	"sbsh/pkg/errdefs"
-	"sbsh/pkg/naming"
-	"sbsh/pkg/session"
 )
 
 func TestRunSession_ErrContextCancelled(t *testing.T) {

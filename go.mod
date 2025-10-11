@@ -1,4 +1,4 @@
-module sbsh
+module github.com/eminwux/sbsh
 
 go 1.24.5
 

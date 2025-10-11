@@ -21,10 +21,10 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/eminwux/sbsh/internal/discovery"
+	"github.com/eminwux/sbsh/internal/env"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"sbsh/pkg/discovery"
-	"sbsh/pkg/env"
 )
 
 var listAllInput bool

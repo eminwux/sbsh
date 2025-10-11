@@ -24,13 +24,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/eminwux/sbsh/cmd/sb/detach"
+	"github.com/eminwux/sbsh/cmd/sb/profiles"
+	"github.com/eminwux/sbsh/cmd/sb/sessions"
+	"github.com/eminwux/sbsh/internal/common"
+	"github.com/eminwux/sbsh/internal/env"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"sbsh/cmd/sb/detach"
-	"sbsh/cmd/sb/profiles"
-	"sbsh/cmd/sb/sessions"
-	"sbsh/pkg/common"
-	"sbsh/pkg/env"
 )
 
 func main() {

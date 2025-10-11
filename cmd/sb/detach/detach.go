@@ -24,10 +24,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/eminwux/sbsh/internal/env"
+	"github.com/eminwux/sbsh/pkg/rpcclient/supervisor"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"sbsh/pkg/env"
-	"sbsh/pkg/rpcclient/supervisor"
 )
 
 var supSocketPath string

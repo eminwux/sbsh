@@ -26,8 +26,8 @@ import (
 	"os"
 	"time"
 
-	"sbsh/pkg/api"
-	"sbsh/pkg/common"
+	"github.com/eminwux/sbsh/internal/common"
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
 type Dialer func(ctx context.Context) (net.Conn, error)

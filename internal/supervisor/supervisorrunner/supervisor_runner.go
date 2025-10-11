@@ -14,35 +14,27 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package supervisor
+package supervisorrunner
 
 import (
 	"context"
-	"net"
-	"time"
+
+	"github.com/eminwux/sbsh/internal/supervisor/supervisorrpc"
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
-type (
-	Option   func(*unixOpts)
-	unixOpts struct {
-		DialTimeout time.Duration
-	}
-)
-
-func WithDialTimeout(d time.Duration) Option {
-	return func(o *unixOpts) { o.DialTimeout = d }
+type SupervisorRunner interface {
+	OpenSocketCtrl() error
+	StartServer(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error)
+	Attach(session *api.SupervisedSession) error
+	ID() api.ID
+	Close(reason error) error
+	Resize(args api.ResizeArgs)
+	CreateMetadata() error
+	Detach() error
+	StartSessionCmd(session *api.SupervisedSession) error
 }
 
-// NewUnix returns a ctx-aware client that dials a Unix socket per call.
-func NewUnix(sockPath string, opts ...Option) Client {
-	cfg := unixOpts{DialTimeout: 5 * time.Second}
-	for _, o := range opts {
-		o(&cfg)
-	}
-
-	dialer := func(ctx context.Context) (net.Conn, error) {
-		d := net.Dialer{Timeout: cfg.DialTimeout}
-		return d.DialContext(ctx, "unix", sockPath)
-	}
-	return &client{dial: dialer}
+func (sr *SupervisorRunnerExec) ID() api.ID {
+	return sr.session.Id
 }

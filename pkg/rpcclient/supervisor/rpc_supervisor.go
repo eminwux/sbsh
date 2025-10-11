@@ -23,7 +23,7 @@ import (
 	"net/rpc/jsonrpc"
 	"time"
 
-	"sbsh/pkg/api"
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
 type Dialer func(ctx context.Context) (net.Conn, error)

@@ -22,9 +22,9 @@ import (
 	"log/slog"
 	"net"
 	"net/rpc"
-	"sbsh/pkg/common"
 	"sync"
 
+	"github.com/eminwux/sbsh/internal/common"
 	"golang.org/x/sys/unix"
 )
 

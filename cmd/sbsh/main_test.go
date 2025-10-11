@@ -24,11 +24,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eminwux/sbsh/internal/env"
+	"github.com/eminwux/sbsh/internal/naming"
+	"github.com/eminwux/sbsh/internal/supervisor"
+	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/viper"
-	"sbsh/pkg/api"
-	"sbsh/pkg/env"
-	"sbsh/pkg/naming"
-	"sbsh/pkg/supervisor"
 )
 
 func TestRunSession_ErrContextDone(t *testing.T) {

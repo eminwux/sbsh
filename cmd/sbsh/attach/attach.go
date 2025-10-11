@@ -26,13 +26,13 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/eminwux/sbsh/internal/env"
+	"github.com/eminwux/sbsh/internal/errdefs"
+	"github.com/eminwux/sbsh/internal/naming"
+	"github.com/eminwux/sbsh/internal/supervisor"
+	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"sbsh/pkg/api"
-	"sbsh/pkg/env"
-	"sbsh/pkg/errdefs"
-	"sbsh/pkg/naming"
-	"sbsh/pkg/supervisor"
 )
 
 const (

@@ -17,10 +17,12 @@ BINS = sbsh sb
 OS = linux darwin freebsd
 ARCHS = amd64 arm64
 
+all: clean kill $(BINS)
+
+
 .PHONY: release
 release: release-build docker-build docker-push
 
-all: clean kill $(BINS)
 
 sbsh:
 	go build -o sbsh ./cmd/sbsh
@@ -75,5 +77,5 @@ kill:
 test:
 	go test ./cmd/sb...
 	go test ./cmd/sbsh...
-	go test ./pkg/session...
-	go test ./pkg/supervisor...
+	go test ./internal/session...
+	go test ./internal/supervisor...

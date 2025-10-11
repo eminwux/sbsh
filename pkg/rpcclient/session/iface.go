@@ -19,7 +19,8 @@ package session
 import (
 	"context"
 	"net"
-	"sbsh/pkg/api"
+
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
 type Client interface {

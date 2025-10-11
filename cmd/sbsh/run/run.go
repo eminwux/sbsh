@@ -26,14 +26,14 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/eminwux/sbsh/internal/discovery"
+	"github.com/eminwux/sbsh/internal/env"
+	"github.com/eminwux/sbsh/internal/errdefs"
+	"github.com/eminwux/sbsh/internal/profile"
+	"github.com/eminwux/sbsh/internal/session"
+	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"sbsh/pkg/api"
-	"sbsh/pkg/discovery"
-	"sbsh/pkg/env"
-	"sbsh/pkg/errdefs"
-	"sbsh/pkg/profile"
-	"sbsh/pkg/session"
 )
 
 const (

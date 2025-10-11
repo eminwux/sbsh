@@ -27,17 +27,17 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/eminwux/sbsh/cmd/sbsh/attach"
+	"github.com/eminwux/sbsh/cmd/sbsh/run"
+	"github.com/eminwux/sbsh/internal/common"
+	"github.com/eminwux/sbsh/internal/env"
+	"github.com/eminwux/sbsh/internal/errdefs"
+	"github.com/eminwux/sbsh/internal/naming"
+	"github.com/eminwux/sbsh/internal/profile"
+	"github.com/eminwux/sbsh/internal/supervisor"
+	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"sbsh/cmd/sbsh/attach"
-	"sbsh/cmd/sbsh/run"
-	"sbsh/pkg/api"
-	"sbsh/pkg/common"
-	"sbsh/pkg/env"
-	"sbsh/pkg/errdefs"
-	"sbsh/pkg/naming"
-	"sbsh/pkg/profile"
-	"sbsh/pkg/supervisor"
 )
 
 var (

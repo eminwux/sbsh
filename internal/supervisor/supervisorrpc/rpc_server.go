@@ -14,35 +14,24 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package supervisor
+package supervisorrpc
 
-import (
-	"context"
-	"net"
-	"time"
-)
+import "github.com/eminwux/sbsh/pkg/api"
 
-type (
-	Option   func(*unixOpts)
-	unixOpts struct {
-		DialTimeout time.Duration
-	}
-)
-
-func WithDialTimeout(d time.Duration) Option {
-	return func(o *unixOpts) { o.DialTimeout = d }
+type SupervisorControllerRPC struct {
+	Core api.SupervisorController // the real server-side controller
 }
 
-// NewUnix returns a ctx-aware client that dials a Unix socket per call.
-func NewUnix(sockPath string, opts ...Option) Client {
-	cfg := unixOpts{DialTimeout: 5 * time.Second}
-	for _, o := range opts {
-		o(&cfg)
-	}
-
-	dialer := func(ctx context.Context) (net.Conn, error) {
-		d := net.Dialer{Timeout: cfg.DialTimeout}
-		return d.DialContext(ctx, "unix", sockPath)
-	}
-	return &client{dial: dialer}
+// Optional: usually you don’t expose Run over RPC because it blocks.
+func (s *SupervisorControllerRPC) WaitReady(_ *api.Empty, _ *api.Empty) error {
+	return s.Core.WaitReady()
 }
+
+func (s *SupervisorControllerRPC) Detach(_ *api.Empty, _ *api.Empty) error {
+	return s.Core.Detach()
+}
+
+// TODO
+// show current attach session
+// attach to a different session
+// detach from session and exit
