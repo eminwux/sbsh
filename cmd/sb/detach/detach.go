@@ -19,7 +19,6 @@ package detach
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"time"
@@ -29,8 +28,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
-
-var supSocketPath string
 
 func NewDetachCmd() *cobra.Command {
 	// sessionsCmd represents the sessions command
@@ -45,6 +42,9 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			slog.Debug("-> detach")
 
+			// explicit timeout avoids magic numbers (mnd) and improves readability
+			const detachTimeout = 3 * time.Second
+
 			// check SBSH_SUP_SOCKET
 
 			socket := viper.GetString(env.SUP_SOCKET.ViperKey)
@@ -55,7 +55,7 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 			sup := supervisor.NewUnix(socket)
 			defer sup.Close()
 
-			ctx, cancel := context.WithTimeout(cmd.Context(), 3*time.Second)
+			ctx, cancel := context.WithTimeout(cmd.Context(), detachTimeout)
 			defer cancel()
 
 			fmt.Fprintf(os.Stdout, "detaching..\r\n")
@@ -73,12 +73,13 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 
 func setupDetachCmd(detachCmd *cobra.Command) {
 	flagS := "socket"
-	detachCmd.Flags().StringVar(&supSocketPath, flagS, "", "Supervisor Socket Path")
+	// define the flag without binding to a package-level variable; use viper to read it
+	detachCmd.Flags().String(flagS, "", "Supervisor Socket Path")
 
 	_ = env.SUP_SOCKET.BindEnv()
 
 	if err := viper.BindPFlag(env.SUP_SOCKET.ViperKey, detachCmd.Flags().Lookup(flagS)); err != nil {
-		slog.Debug("could not bind cobra flag to viper")
-		log.Fatal(err)
+		// avoid fatal exit here; log and continue so command can still run with env var
+		slog.Warn("could not bind cobra flag to viper", "error", err)
 	}
 }

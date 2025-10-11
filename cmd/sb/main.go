@@ -19,7 +19,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -40,11 +39,7 @@ func main() {
 	}
 }
 
-var (
-	logLevelInput string
-	runPathInput  string
-	cfgFileInput  string
-)
+// no package-level state to satisfy gochecknoglobals
 
 func newRootCmd() *cobra.Command {
 	// rootCmd represents the base command when called without any subcommands.
@@ -90,19 +85,19 @@ func setupRootCmd(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(detach.NewDetachCmd())
 	rootCmd.AddCommand(profiles.NewProfilesCmd())
 
-	rootCmd.PersistentFlags().StringVar(&cfgFileInput, "config", "", "config file (default is $HOME/.sbsh/config.yaml)")
-	rootCmd.PersistentFlags().StringVar(&logLevelInput, "log-level", "", "Log level (debug, info, warn, error)")
-	rootCmd.PersistentFlags().StringVar(&runPathInput, "run-path", "", "Log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.sbsh/config.yaml)")
+	rootCmd.PersistentFlags().String("log-level", "", "Log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().String("run-path", "", "Run path directory")
 
 	// Bind flag to Viper
 	if err := viper.BindPFlag("global.config", rootCmd.PersistentFlags().Lookup("config")); err != nil {
-		log.Fatal(err)
+		slog.Warn("failed to bind flag", "flag", "config", "error", err)
 	}
 	if err := viper.BindPFlag("global.logLevel", rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
-		log.Fatal(err)
+		slog.Warn("failed to bind flag", "flag", "log-level", "error", err)
 	}
 	if err := viper.BindPFlag("global.runPath", rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
-		log.Fatal(err)
+		slog.Warn("failed to bind flag", "flag", "run-path", "error", err)
 	}
 }
 
@@ -111,13 +106,14 @@ func LoadConfig() error {
 	if viper.GetString(env.CONFIG_FILE.ViperKey) == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			log.Fatalf("err: %v", err)
+			return fmt.Errorf("failed to get user home dir: %w", err)
 		}
 		configPath := filepath.Join(home, ".sbsh")
 		configFile = filepath.Join(configPath, "config.yaml")
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
-		viper.AddConfigPath(configFile)
+		// Add the directory containing the config file
+		viper.AddConfigPath(configPath)
 	}
 	_ = env.CONFIG_FILE.BindEnv()
 	if err := env.CONFIG_FILE.Set(configFile); err != nil {
@@ -128,7 +124,7 @@ func LoadConfig() error {
 	if viper.GetString(env.RUN_PATH.ViperKey) == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			log.Fatalf("err: %v", err)
+			return fmt.Errorf("failed to get user home dir: %w", err)
 		}
 		runPath = filepath.Join(home, ".sbsh", "run")
 	}
@@ -139,7 +135,7 @@ func LoadConfig() error {
 	if viper.GetString(env.PROFILES_FILE.ViperKey) == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			log.Fatalf("err: %v", err)
+			return fmt.Errorf("failed to get user home dir: %w", err)
 		}
 		profilesFile = filepath.Join(home, ".sbsh", "profiles.yaml")
 	}
