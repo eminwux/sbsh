@@ -38,7 +38,7 @@ func NewSessionListCmd() *cobra.Command {
 		Long: `List sessions.
 This command scans and lists all sessions in the specified run path.
 By default, it lists only running sessions. Use the --all flag to include exited sessions.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			slog.Debug("sessions list", "runPath", viper.GetString(env.RUN_PATH.ViperKey), "listAll", listAllInput)
 
 			ctx := context.Background()

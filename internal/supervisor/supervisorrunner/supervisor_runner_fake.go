@@ -58,7 +58,7 @@ type SupervisorRunnerTest struct {
 }
 
 // NewSupervisorRunnerTest returns a new SupervisorRunnerTest instance.
-func NewSupervisorRunnerTest(ctx context.Context, spec *api.SupervisorSpec) *SupervisorRunnerTest {
+func NewSupervisorRunnerTest(ctx context.Context, _ *api.SupervisorSpec) *SupervisorRunnerTest {
 	return &SupervisorRunnerTest{
 		Ctx: ctx,
 	}

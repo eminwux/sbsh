@@ -60,7 +60,7 @@ If no command is provided, /bin/bash will be used by default.
 If no log filename is provided, a default path under the run directory will be used.
 `,
 		SilenceUsage: true,
-		RunE: func(runCmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			// Print the values of viper parameters after binding
 
 			// Print default values for debugging

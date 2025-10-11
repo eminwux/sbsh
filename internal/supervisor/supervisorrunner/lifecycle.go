@@ -90,7 +90,7 @@ func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) Close(reason error) error {
+func (sr *SupervisorRunnerExec) Close(_ error) error {
 	sr.ctxCancel()
 	// remove sockets and dir
 	if err := os.Remove(sr.metadata.Spec.SockerCtrl); err != nil {
@@ -115,11 +115,11 @@ func (sr *SupervisorRunnerExec) Close(reason error) error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) WaitClose(reason error) error {
+func (sr *SupervisorRunnerExec) WaitClose(_ error) error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) Resize(args api.ResizeArgs) {
+func (sr *SupervisorRunnerExec) Resize(_ api.ResizeArgs) {
 	// No-op
 }
 

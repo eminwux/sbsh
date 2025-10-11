@@ -32,9 +32,9 @@ import (
 )
 
 func TestRunSession_ErrContextDone(t *testing.T) {
-	newSupervisorController := func(ctx context.Context) api.SupervisorController {
+	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
-			RunFunc: func(spec *api.SupervisorSpec) error {
+			RunFunc: func(_ *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil
 			},
@@ -90,9 +90,9 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 }
 
 func TestRunSession_ErrWaitOnReady(t *testing.T) {
-	newSupervisorController := func(ctx context.Context) api.SupervisorController {
+	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
-			RunFunc: func(spec *api.SupervisorSpec) error {
+			RunFunc: func(_ *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil
 			},
@@ -142,9 +142,9 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 }
 
 func TestRunSession_ErrWaitOnClose(t *testing.T) {
-	newSupervisorController := func(ctx context.Context) api.SupervisorController {
+	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
-			RunFunc: func(spec *api.SupervisorSpec) error {
+			RunFunc: func(_ *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil
 			},
@@ -195,9 +195,9 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 }
 
 func TestRunSession_ErrChildExit(t *testing.T) {
-	newSupervisorController := func(ctx context.Context) api.SupervisorController {
+	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
-			RunFunc: func(spec *api.SupervisorSpec) error {
+			RunFunc: func(_ *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil
 			},

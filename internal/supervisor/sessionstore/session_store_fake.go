@@ -59,7 +59,7 @@ func NewSessionStoreTest() *SessionStoreTest {
 		ListLiveFunc: func() []api.ID {
 			return []api.ID{"sess-1", "sess-2"}
 		},
-		RemoveFunc: func(id api.ID) {
+		RemoveFunc: func(_ api.ID) {
 			// no-op, LastRemovedID is tracked automatically
 		},
 		CurrentFunc: func() api.ID {

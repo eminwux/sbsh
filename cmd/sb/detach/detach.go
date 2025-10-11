@@ -39,7 +39,7 @@ func NewDetachCmd() *cobra.Command {
 
 This command takes a --socket argument to specify the supervisor socket path.
 If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			slog.Debug("-> detach")
 
 			// explicit timeout avoids magic numbers (mnd) and improves readability

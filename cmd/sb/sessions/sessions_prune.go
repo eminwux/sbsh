@@ -35,7 +35,7 @@ func NewSessionsPruneCmd() *cobra.Command {
 		Short:   "Prune dead or exited sessions",
 		Long: `Prune dead or exited sessions.
 This will remove all session files for sessions that are not running anymore.`,
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			slog.Debug("sessions prune")
 
 			ctx := context.Background()
@@ -47,5 +47,5 @@ This will remove all session files for sessions that are not running anymore.`,
 	return sessionsPruneCmd
 }
 
-func setupSessionsPruneCmd(sessionsPruneCmd *cobra.Command) {
+func setupSessionsPruneCmd(_ *cobra.Command) {
 }

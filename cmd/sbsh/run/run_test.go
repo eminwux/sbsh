@@ -33,10 +33,10 @@ import (
 )
 
 func TestRunSession_ErrContextCancelled(t *testing.T) {
-	newSessionController := func(ctx context.Context) api.SessionController {
+	newSessionController := func(_ context.Context) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          nil,
-			RunFunc:       func(spec *api.SessionSpec) error { return nil },
+			RunFunc:       func(_ *api.SessionSpec) error { return nil },
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() error { return nil },
 			StatusFunc:    func() string { return "" },
@@ -80,10 +80,10 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 }
 
 func TestRunSession_ErrWaitOnReady(t *testing.T) {
-	newSessionController := func(ctx context.Context) api.SessionController {
+	newSessionController := func(_ context.Context) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          nil,
-			RunFunc:       func(spec *api.SessionSpec) error { return nil },
+			RunFunc:       func(_ *api.SessionSpec) error { return nil },
 			WaitReadyFunc: func() error { return errors.New("not ready") },
 			WaitCloseFunc: func() error { return nil },
 		}
@@ -114,10 +114,10 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 }
 
 func TestRunSession_ErrWaitOnClose(t *testing.T) {
-	newSessionController := func(ctx context.Context) api.SessionController {
+	newSessionController := func(_ context.Context) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          nil,
-			RunFunc:       func(spec *api.SessionSpec) error { return nil },
+			RunFunc:       func(_ *api.SessionSpec) error { return nil },
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() error { return errors.New("error on close") },
 		}

@@ -20,17 +20,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
-	"log/slog"
 
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/session/sessionrpc"
 	"github.com/eminwux/sbsh/internal/session/sessionrunner"
 	"github.com/eminwux/sbsh/pkg/api"
 )
-
 
 // (fakeListener and newStubListener removed as unused)
 
@@ -47,7 +46,7 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 		Env:         os.Environ(),
 	}
 
-	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(_ context.Context, _ *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return api.ID("iajs099")
@@ -69,9 +68,9 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 
 	exitCh := make(chan error)
 
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	}()
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrSpecCmdMissing) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrSpecCmdMissing, err)
@@ -93,7 +92,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 		Env:         os.Environ(),
 	}
 
-	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(_ context.Context, _ *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return api.ID("iajs099")
@@ -115,9 +114,9 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 
 	exitCh := make(chan error)
 
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	}()
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrOpenSocketCtrl) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrOpenSocketCtrl, err)
@@ -137,7 +136,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 		Env:         os.Environ(),
 	}
 
-	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -145,7 +144,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- errors.New("make server fail")
 			},
 		}
@@ -161,9 +160,9 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	exitCh := make(chan error)
 	defer close(exitCh)
 
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	}()
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartRPCServer) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartRPCServer, err)
@@ -183,7 +182,7 @@ func Test_ErrStartSession(t *testing.T) {
 		Env:         os.Environ(),
 	}
 
-	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -191,10 +190,10 @@ func Test_ErrStartSession(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(_ chan<- sessionrunner.SessionRunnerEvent) error {
 				return errors.New("make start session fail")
 			},
 		}
@@ -211,9 +210,9 @@ func Test_ErrStartSession(t *testing.T) {
 
 	exitCh := make(chan error)
 
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	}()
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartSession) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartSession, err)
@@ -234,7 +233,7 @@ func Test_ErrContextDone(t *testing.T) {
 		Env:         os.Environ(),
 	}
 
-	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -242,10 +241,10 @@ func Test_ErrContextDone(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(_ chan<- sessionrunner.SessionRunnerEvent) error {
 				return nil
 			},
 		}
@@ -262,9 +261,9 @@ func Test_ErrContextDone(t *testing.T) {
 
 	exitCh := make(chan error)
 
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	}()
 
 	time.Sleep(500 * time.Microsecond)
 
@@ -288,7 +287,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		Env:         os.Environ(),
 	}
 
-	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -296,10 +295,10 @@ func Test_ErrRPCServerExited(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(_ chan<- sessionrunner.SessionRunnerEvent) error {
 				return nil
 			},
 		}
@@ -315,9 +314,9 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	// No global channels needed; controller instance owns its own
 	exitCh := make(chan error)
 
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	}()
 
 	sessionCtrl.rpcDoneCh <- errors.New("make rpc server exit with error")
 
@@ -340,7 +339,7 @@ func Test_WaitReady(t *testing.T) {
 		Env:         os.Environ(),
 	}
 
-	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -348,10 +347,10 @@ func Test_WaitReady(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(_ chan<- sessionrunner.SessionRunnerEvent) error {
 				return nil
 			},
 		}
@@ -369,13 +368,13 @@ func Test_WaitReady(t *testing.T) {
 
 	readyReturn := make(chan error)
 
-	go func(chan error) {
+	go func() {
 		readyReturn <- sessionCtrl.WaitReady()
-	}(readyReturn)
+	}()
 
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	}()
 
 	if err := <-readyReturn; err != nil {
 		t.Fatalf("expected 'nil'; got: '%v'", err)
@@ -397,7 +396,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 		Env:         os.Environ(),
 	}
 
-	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -405,10 +404,10 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(_ chan<- sessionrunner.SessionRunnerEvent) error {
 				return nil
 			},
 		}
@@ -427,9 +426,9 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 	readyReturn := make(chan error)
 	defer close(readyReturn)
 
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	}()
 
 	ev := sessionrunner.SessionRunnerEvent{
 		ID:   spec.ID,
@@ -458,7 +457,7 @@ func Test_HandleEvent_EvError(t *testing.T) {
 		Env:         os.Environ(),
 	}
 
-	newSessionRunner = func(ctx context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -466,10 +465,10 @@ func Test_HandleEvent_EvError(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(evCh chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(_ chan<- sessionrunner.SessionRunnerEvent) error {
 				return nil
 			},
 		}
@@ -488,9 +487,9 @@ func Test_HandleEvent_EvError(t *testing.T) {
 	readyReturn := make(chan error)
 	defer close(readyReturn)
 
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sessionCtrl.Run(&spec)
-	}(exitCh)
+	}()
 
 	ev := sessionrunner.SessionRunnerEvent{
 		ID:   spec.ID,

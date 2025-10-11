@@ -36,7 +36,7 @@ type SessionRunnerTest struct {
 	DetachFunc         func(id *api.ID) error
 }
 
-func NewSessionRunnerTest(ctx context.Context) SessionRunner {
+func NewSessionRunnerTest(_ context.Context) SessionRunner {
 	return &SessionRunnerTest{}
 }
 

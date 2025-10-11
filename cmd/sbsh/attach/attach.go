@@ -52,7 +52,7 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			id := viper.GetString("attach.id")
 			name := viper.GetString("attach.name")
 			runPath := viper.GetString(env.RUN_PATH.ViperKey)

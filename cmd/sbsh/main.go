@@ -68,7 +68,7 @@ You can also use sbsh with parameters. For example:
   sbsh attach --id abcdef0
 `,
 		SilenceUsage: true,
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			err := LoadConfig()
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Config error:", err)
@@ -81,7 +81,7 @@ You can also use sbsh with parameters. For example:
 			slog.SetDefault(slog.New(h))
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			// Build SessionSpec from command-line inputs and profile (if given)
 			sessionSpec, err := profile.BuildSessionSpec(
 				viper.GetString(env.RUN_PATH.ViperKey),

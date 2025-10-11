@@ -60,11 +60,11 @@ func ParseLevel(lvl string) slog.Level {
 func WriteMetadata(ctx context.Context, metadata any, dir string) error {
 	dst := filepath.Join(dir, "metadata.json")
 	var data []byte
-	data, err := json.MarshalIndent(metadata, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal %s: %w", dir, err)
+	marshaled, marshalErr := json.MarshalIndent(metadata, "", "  ")
+	if marshalErr != nil {
+		return fmt.Errorf("marshal %s: %w", dir, marshalErr)
 	}
-	data = append(data, '\n')
+	data = append(marshaled, '\n') // gocritic: assign result to same slice
 
 	// Allow cancellation before disk work
 	select {
@@ -73,8 +73,9 @@ func WriteMetadata(ctx context.Context, metadata any, dir string) error {
 	default:
 	}
 
-	if err := atomicWriteFile(dst, data, 0o644); err != nil {
-		return fmt.Errorf("write %s: %w", dst, err)
+	const filePerm = 0o644 // mnd: magic number
+	if writeErr := atomicWriteFile(dst, data, filePerm); writeErr != nil {
+		return fmt.Errorf("write %s: %w", dst, writeErr)
 	}
 	return nil
 }
@@ -83,9 +84,9 @@ func WriteMetadata(ctx context.Context, metadata any, dir string) error {
 func atomicWriteFile(dst string, data []byte, mode os.FileMode) error {
 	dir := filepath.Dir(dst)
 
-	f, err := os.CreateTemp(dir, ".meta-*.tmp")
-	if err != nil {
-		return err
+	f, createErr := os.CreateTemp(dir, ".meta-*.tmp")
+	if createErr != nil {
+		return createErr
 	}
 	tmp := f.Name()
 	defer func() {
@@ -93,24 +94,24 @@ func atomicWriteFile(dst string, data []byte, mode os.FileMode) error {
 		_ = os.Remove(tmp) // safe if already renamed
 	}()
 
-	if err := f.Chmod(mode); err != nil {
-		return fmt.Errorf("chmod: %w", err)
+	if chmodErr := f.Chmod(mode); chmodErr != nil {
+		return fmt.Errorf("chmod: %w", chmodErr)
 	}
-	if _, err := f.Write(data); err != nil {
-		return fmt.Errorf("write: %w", err)
+	if _, writeErr := f.Write(data); writeErr != nil {
+		return fmt.Errorf("write: %w", writeErr)
 	}
-	if err := f.Sync(); err != nil { // flush file
-		return fmt.Errorf("fsync: %w", err)
+	if syncErr := f.Sync(); syncErr != nil { // flush file
+		return fmt.Errorf("fsync: %w", syncErr)
 	}
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("close: %w", err)
+	if closeErr := f.Close(); closeErr != nil {
+		return fmt.Errorf("close: %w", closeErr)
 	}
 
 	// Best-effort dir sync after rename for extra safety (Linux/Unix).
-	if err := os.Rename(tmp, dst); err != nil {
-		return fmt.Errorf("rename: %w", err)
+	if renameErr := os.Rename(tmp, dst); renameErr != nil {
+		return fmt.Errorf("rename: %w", renameErr)
 	}
-	if d, err := os.Open(dir); err == nil {
+	if d, openErr := os.Open(dir); openErr == nil {
 		_ = d.Sync()
 		_ = d.Close()
 	}

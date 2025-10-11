@@ -72,7 +72,7 @@ func (f *FakeSessionController) Close(reason error) error {
 	return errdefs.ErrFuncNotSet
 }
 
-func (f *FakeSessionController) Resize(args api.ResizeArgs) {
+func (f *FakeSessionController) Resize(_ api.ResizeArgs) {
 	if f.ResizeFunc != nil {
 		f.ResizeFunc()
 	}

@@ -27,7 +27,7 @@ import (
 )
 
 func (sr *SessionRunnerExec) StartServer(
-	ctx context.Context,
+	_ context.Context,
 	sc *sessionrpc.SessionControllerRPC,
 	readyCh chan error,
 	doneCh chan error,

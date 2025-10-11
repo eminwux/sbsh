@@ -44,7 +44,7 @@ type SupervisorControllerTest struct {
 // (Optional) constructor with zeroed fields.
 func NewSupervisorControllerTest() *SupervisorControllerTest {
 	return &SupervisorControllerTest{
-		RunFunc: func(spec *api.SupervisorSpec) error {
+		RunFunc: func(_ *api.SupervisorSpec) error {
 			// default: succeed without doing anything
 			return nil
 		},

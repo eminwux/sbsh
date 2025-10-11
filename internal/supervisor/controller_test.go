@@ -34,21 +34,21 @@ import (
 
 func Test_ErrOpenSocketCtrl(t *testing.T) {
 	sc := NewSupervisorController(context.Background()).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				return errors.New("force socket fail")
 			},
-			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *supervisorrpc.SupervisorControllerRPC, readyCh chan error, _ chan error) {
 				select {
 				case readyCh <- nil:
 				default:
 				}
 			},
 			IDFunc:             func() api.ID { return "" },
-			CloseFunc:          func(reason error) error { return nil },
-			ResizeFunc:         func(args api.ResizeArgs) {},
+			CloseFunc:          func(_ error) error { return nil },
+			ResizeFunc:         func(_ api.ResizeArgs) {},
 			CreateMetadataFunc: func() error { return nil },
 		}
 	}
@@ -89,14 +89,14 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 func Test_ErrStartRPCServer(t *testing.T) {
 	// ctx, cancel := context.WithCancel(context.Background())
 	sc := NewSupervisorController(context.Background()).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *supervisorrpc.SupervisorControllerRPC, readyCh chan error, _ chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- errors.New("force server fail"):
@@ -107,11 +107,11 @@ func Test_ErrStartRPCServer(t *testing.T) {
 				// default: empty ID
 				return ""
 			},
-			CloseFunc: func(reason error) error {
+			CloseFunc: func(_ error) error {
 				// default: succeed
 				return nil
 			},
-			ResizeFunc: func(args api.ResizeArgs) {
+			ResizeFunc: func(_ api.ResizeArgs) {
 				// default: no-op
 			},
 			CreateMetadataFunc: func() error {
@@ -131,14 +131,14 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	}
 
 	readyReturn := make(chan error)
-	go func(chan error) {
+	go func() {
 		readyReturn <- sc.WaitReady()
-	}(readyReturn)
+	}()
 
 	exitCh := make(chan error)
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sc.Run(&spec)
-	}(exitCh)
+	}()
 
 	select {
 	case err := <-readyReturn:
@@ -156,38 +156,38 @@ func Test_ErrStartRPCServer(t *testing.T) {
 
 func Test_ErrAttach(t *testing.T) {
 	sc := NewSupervisorController(context.Background()).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *supervisorrpc.SupervisorControllerRPC, readyCh chan error, _ chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
 				default:
 				}
 			},
-			AttachFunc: func(session *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedSession) error {
 				return errors.New("force session start fail")
 			},
 			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
-			CloseFunc: func(reason error) error {
+			CloseFunc: func(_ error) error {
 				// default: succeed
 				return nil
 			},
-			ResizeFunc: func(args api.ResizeArgs) {
+			ResizeFunc: func(_ api.ResizeArgs) {
 				// default: no-op
 			},
 			CreateMetadataFunc: func() error {
 				return nil
 			},
-			StartSessionCmdFunc: func(session *api.SupervisedSession) error {
+			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
 		}
@@ -195,16 +195,16 @@ func Test_ErrAttach(t *testing.T) {
 
 	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
-			AddFunc: func(s *api.SupervisedSession) error {
+			AddFunc: func(_ *api.SupervisedSession) error {
 				return errors.New("force add fail")
 			},
-			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
 				return []api.ID{}
 			},
-			RemoveFunc: func(id api.ID) {
+			RemoveFunc: func(_ api.ID) {
 			},
 			CurrentFunc: func() api.ID {
 				return "sess-1"
@@ -230,9 +230,9 @@ func Test_ErrAttach(t *testing.T) {
 	}
 
 	exitCh := make(chan error)
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sc.Run(&spec)
-	}(exitCh)
+	}()
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrAttach) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrAttach, err)
@@ -242,38 +242,38 @@ func Test_ErrAttach(t *testing.T) {
 func Test_ErrContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	sc := NewSupervisorController(ctx).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *supervisorrpc.SupervisorControllerRPC, readyCh chan error, _ chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
 				default:
 				}
 			},
-			AttachFunc: func(session *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
-			CloseFunc: func(reason error) error {
+			CloseFunc: func(_ error) error {
 				// default: succeed
 				return nil
 			},
-			ResizeFunc: func(args api.ResizeArgs) {
+			ResizeFunc: func(_ api.ResizeArgs) {
 				// default: no-op
 			},
 			CreateMetadataFunc: func() error {
 				return nil
 			},
-			StartSessionCmdFunc: func(session *api.SupervisedSession) error {
+			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
 		}
@@ -281,16 +281,16 @@ func Test_ErrContextDone(t *testing.T) {
 
 	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
-			AddFunc: func(s *api.SupervisedSession) error {
+			AddFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
-			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
 				return []api.ID{}
 			},
-			RemoveFunc: func(id api.ID) {
+			RemoveFunc: func(_ api.ID) {
 			},
 			CurrentFunc: func() api.ID {
 				return "sess-1"
@@ -331,38 +331,38 @@ func Test_ErrContextDone(t *testing.T) {
 
 func Test_ErrRPCServerExited(t *testing.T) {
 	sc := NewSupervisorController(context.Background()).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *supervisorrpc.SupervisorControllerRPC, readyCh chan error, _ chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
 				default:
 				}
 			},
-			AttachFunc: func(session *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
-			CloseFunc: func(reason error) error {
+			CloseFunc: func(_ error) error {
 				// default: succeed
 				return nil
 			},
-			ResizeFunc: func(args api.ResizeArgs) {
+			ResizeFunc: func(_ api.ResizeArgs) {
 				// default: no-op
 			},
 			CreateMetadataFunc: func() error {
 				return nil
 			},
-			StartSessionCmdFunc: func(session *api.SupervisedSession) error {
+			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
 		}
@@ -370,16 +370,16 @@ func Test_ErrRPCServerExited(t *testing.T) {
 
 	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
-			AddFunc: func(s *api.SupervisedSession) error {
+			AddFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
-			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
 				return []api.ID{}
 			},
-			RemoveFunc: func(id api.ID) {
+			RemoveFunc: func(_ api.ID) {
 			},
 			CurrentFunc: func() api.ID {
 				return "sess-1"
@@ -405,9 +405,9 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},
 	}
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sc.Run(&spec)
-	}(exitCh)
+	}()
 
 	<-sc.ctrlReadyCh
 	sc.rpcDoneCh <- errors.New("force rpc server exit")
@@ -419,54 +419,54 @@ func Test_ErrRPCServerExited(t *testing.T) {
 
 func Test_ErrSessionExists(t *testing.T) {
 	sc := NewSupervisorController(context.Background()).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *supervisorrpc.SupervisorControllerRPC, readyCh chan error, _ chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
 				default:
 				}
 			},
-			AttachFunc: func(session *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
-			CloseFunc: func(reason error) error {
+			CloseFunc: func(_ error) error {
 				// default: succeed
 				return nil
 			},
-			ResizeFunc: func(args api.ResizeArgs) {
+			ResizeFunc: func(_ api.ResizeArgs) {
 				// default: no-op
 			},
 			CreateMetadataFunc: func() error {
 				return nil
 			},
-			StartSessionCmdFunc: func(session *api.SupervisedSession) error {
+			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
 		}
 	}
 	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
-			AddFunc: func(s *api.SupervisedSession) error {
+			AddFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
-			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
 				return []api.ID{}
 			},
-			RemoveFunc: func(id api.ID) {
+			RemoveFunc: func(_ api.ID) {
 			},
 			CurrentFunc: func() api.ID {
 				return "sess-1"
@@ -507,38 +507,38 @@ func Test_ErrSessionExists(t *testing.T) {
 
 func Test_ErrCloseReq(t *testing.T) {
 	sc := NewSupervisorController(context.Background()).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *supervisorrpc.SupervisorControllerRPC, readyCh chan error, _ chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
 				default:
 				}
 			},
-			AttachFunc: func(session *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
-			CloseFunc: func(reason error) error {
+			CloseFunc: func(_ error) error {
 				// default: succeed
 				return nil
 			},
-			ResizeFunc: func(args api.ResizeArgs) {
+			ResizeFunc: func(_ api.ResizeArgs) {
 				// default: no-op
 			},
 			CreateMetadataFunc: func() error {
 				return nil
 			},
-			StartSessionCmdFunc: func(session *api.SupervisedSession) error {
+			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
 		}
@@ -546,16 +546,16 @@ func Test_ErrCloseReq(t *testing.T) {
 
 	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
-			AddFunc: func(s *api.SupervisedSession) error {
+			AddFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
-			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
 				return []api.ID{}
 			},
-			RemoveFunc: func(id api.ID) {
+			RemoveFunc: func(_ api.ID) {
 			},
 			CurrentFunc: func() api.ID {
 				return "sess-1"
@@ -596,38 +596,38 @@ func Test_ErrCloseReq(t *testing.T) {
 
 func Test_ErrStartSessionCmd(t *testing.T) {
 	sc := NewSupervisorController(context.Background()).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *supervisorrpc.SupervisorControllerRPC, readyCh chan error, _ chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
 				default:
 				}
 			},
-			AttachFunc: func(session *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
-			CloseFunc: func(reason error) error {
+			CloseFunc: func(_ error) error {
 				// default: succeed
 				return nil
 			},
-			ResizeFunc: func(args api.ResizeArgs) {
+			ResizeFunc: func(_ api.ResizeArgs) {
 				// default: no-op
 			},
 			CreateMetadataFunc: func() error {
 				return nil
 			},
-			StartSessionCmdFunc: func(session *api.SupervisedSession) error {
+			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
 				return errors.New("force cmd start fail")
 			},
 		}
@@ -635,16 +635,16 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 
 	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
-			AddFunc: func(s *api.SupervisedSession) error {
+			AddFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
-			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
 				return []api.ID{}
 			},
-			RemoveFunc: func(id api.ID) {
+			RemoveFunc: func(_ api.ID) {
 			},
 			CurrentFunc: func() api.ID {
 				return "sess-1"
@@ -671,9 +671,9 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 		SessionSpec: &api.SessionSpec{},
 	}
 
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sc.Run(&spec)
-	}(exitCh)
+	}()
 
 	//	<-ctrlReady
 
@@ -684,32 +684,32 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 
 func Test_ErrSessionStore(t *testing.T) {
 	sc := NewSupervisorController(context.Background()).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
 			},
-			StartServerFunc: func(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, errCh chan error) {
+			StartServerFunc: func(_ context.Context, _ *supervisorrpc.SupervisorControllerRPC, readyCh chan error, _ chan error) {
 				// default: immediately signal ready
 				select {
 				case readyCh <- nil:
 				default:
 				}
 			},
-			AttachFunc: func(session *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedSession) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
 				// default: empty ID
 				return ""
 			},
-			CloseFunc: func(reason error) error {
+			CloseFunc: func(_ error) error {
 				// default: succeed
 				return nil
 			},
-			ResizeFunc: func(args api.ResizeArgs) {
+			ResizeFunc: func(_ api.ResizeArgs) {
 				// default: no-op
 			},
 			CreateMetadataFunc: func() error {
@@ -719,16 +719,16 @@ func Test_ErrSessionStore(t *testing.T) {
 	}
 	sc.NewSessionStore = func() sessionstore.SessionStore {
 		return &sessionstore.SessionStoreTest{
-			AddFunc: func(s *api.SupervisedSession) error {
+			AddFunc: func(_ *api.SupervisedSession) error {
 				return errors.New("force add fail")
 			},
-			GetFunc: func(id api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
 				return []api.ID{}
 			},
-			RemoveFunc: func(id api.ID) {
+			RemoveFunc: func(_ api.ID) {
 			},
 			CurrentFunc: func() api.ID {
 				return "sess-1"
@@ -755,9 +755,9 @@ func Test_ErrSessionStore(t *testing.T) {
 		SessionSpec: &api.SessionSpec{},
 	}
 
-	go func(exitCh chan error) {
+	go func() {
 		exitCh <- sc.Run(&spec)
-	}(exitCh)
+	}()
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrSessionStore) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrSessionStore, err)

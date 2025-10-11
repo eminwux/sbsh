@@ -33,7 +33,7 @@ var profilesListCmd = &cobra.Command{
 	Short:   "List available profiles",
 	Long: `List available profiles.
 This command scans and lists all available profiles in the specified configuration file.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		slog.Debug("-> profiles list")
 
 		ctx := context.Background()

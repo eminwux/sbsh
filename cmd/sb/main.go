@@ -58,7 +58,7 @@ Examples:
   sb attach --id abcdf0
   sb profiles list
 `,
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			err := LoadConfig()
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Config error:", err)
@@ -71,7 +71,7 @@ Examples:
 			slog.SetDefault(slog.New(h))
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
 	}

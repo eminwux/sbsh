@@ -28,7 +28,7 @@ func NewSessionsCmd() *cobra.Command {
 		Short:   "Manage sbsh sessions (category, not a final command)",
 		Long: `This is a category command for managing sbsh profiles.
 See 'sb profiles --help' for available subcommands.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
 	}
