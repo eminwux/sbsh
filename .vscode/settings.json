@@ -22,8 +22,5 @@
   "go.alternateTools": {
     "customFormatter": "golangci-lint"
   },
-  "go.formatFlags": [
-  "fmt",
-  "--stdin"
-]
+  "go.formatFlags": ["fmt", "--stdin"]
 }
