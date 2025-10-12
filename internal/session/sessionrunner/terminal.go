@@ -133,6 +133,7 @@ func (sr *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writ
 		sr.terminalManagerWriter(pipeInR)
 	}()
 
+	_, _ = sr.Write([]byte("\x15"))
 	_, _ = sr.Write([]byte(`export PS1="` + sr.metadata.Spec.Prompt + `"` + "\n")) // ensure
 
 	// we start on a new line
