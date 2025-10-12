@@ -133,6 +133,9 @@ func (sr *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writ
 		sr.terminalManagerWriter(pipeInR)
 	}()
 
+	_, _ = sr.Write([]byte(`export PS1="` + sr.metadata.Spec.Prompt + `"` + "\n")) // ensure
+
+	// we start on a new line
 	// sr.Write([]byte(`export PS1="(sbsh-` + sr.id + `) $PS1"` + "\n"))
 	// s.pty.Write([]byte("echo 'Hello from Go!'\n"))
 	// s.pty.Write([]byte(`export PS1="(sbsh) $PS1"` + "\n"))

@@ -27,6 +27,7 @@ const Prefix = "SBSH"
 type Var struct {
 	Key        string // e.g. "SBSH_RUN_PATH"
 	ViperKey   string // optional, e.g. "global.runPath"
+	CobraKey   string // optional, e.g. "run-path"
 	Default    string // optional
 	HasDefault bool
 }
@@ -91,15 +92,19 @@ var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	LOG_LEVEL = DefineKV("LOG_LEVEL", "global.logLevel", "info") // has viper key
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SUP_SOCKET = DefineKV("SUP_SOCKET", "status.sup.socket") // no viper key, no default
+	SUP_SOCKET = DefineKV("SUP_SOCKET", "main.supervisor.socket") // no viper key, no default
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_SOCKET_CTRL = Define("SES_SOCKET_CTRL")
+	SES_SOCKET_CTRL = Define("SES_SOCKET_CTRL", "main.session.socket")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_SOCKET_IO = Define("SES_SOCKET_IO")
+	SES_ID = Define("SES_ID", "main.session.id")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_ID = Define("SES_ID")
+	SES_NAME = Define("SES_NAME", "main.session.name")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_NAME = Define("SES_NAME")
+	SES_PROFILE = Define("SES_PROFILE", "main.session.profile")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_PROFILE = Define("SES_PROFILE")
+	SES_CMD = Define("SES_CMD", "main.session.command")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SES_LOGFILENAME = Define("SES_LOGFILENAME", "main.session.logFilename")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SUP_DETACH = Define("SUP_DETACH", "run.supervisor.detach")
 )

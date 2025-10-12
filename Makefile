@@ -13,7 +13,7 @@ SBSH_IMAGE_NAME := sbsh
 SBSH_IMAGE_TAG ?= $(SBSH_VERSION)
 SBSH_DOCKER_IMAGE := $(SBSH_REGISTRY)/$(SBSH_IMAGE_NAME):$(SBSH_IMAGE_TAG)
 
-BINS = sbsh sb
+BINS = sbsh-sb
 OS = linux darwin freebsd
 ARCHS = amd64 arm64
 
@@ -23,6 +23,9 @@ all: clean kill $(BINS)
 .PHONY: release
 release: release-build docker-build docker-push
 
+sbsh-sb:
+	go build -o sbsh ./cmd/
+	ln sbsh sb
 
 sbsh:
 	go build -o sbsh ./cmd/sbsh
@@ -35,8 +38,7 @@ release-build:
 	# Build for all OS and ARCH combinations
 	for OS in $(OS); do \
 		for ARCH in $(ARCHS); do \
-			GO111MODULE=on CGO_ENABLED=0 GOOS=$$OS GOARCH=$$ARCH go build -a -o sb-$$OS-$$ARCH ./cmd/sb; \
-			GO111MODULE=on CGO_ENABLED=0 GOOS=$$OS GOARCH=$$ARCH go build -a -o sbsh-$$OS-$$ARCH ./cmd/sbsh; \
+			GO111MODULE=on CGO_ENABLED=0 GOOS=$$OS GOARCH=$$ARCH go build -a -o sbsh-$$OS-$$ARCH ./cmd; \
 		done \
 	done
 
@@ -45,7 +47,6 @@ docker-build:
 	if [ "$(OS)" != "linux" ]; then \
 		echo "Error: Docker images can only be built for linux OS. Current OS list: $(OS)"; \
 	fi
-	OS = linux
 	# Build for all OS and ARCH combinations
 	for OS in $(OS); do \
 		for ARCH in $(ARCHS); do \
@@ -59,7 +60,7 @@ docker-push:
 	if [ "$(OS)" != "linux" ]; then \
 		echo "Error: Docker images can only be pushed for linux OS. Current OS variable: $(OS)"; \
 	fi
-	OS = linux
+	OS := linux
 	# Build for all OS and ARCH combinations
 	for OS in $(OS); do \
 		for ARCH in $(ARCHS); do \
@@ -69,7 +70,7 @@ docker-push:
 	done
 
 clean:
-	rm -rf sbsh sb
+	rm -rf sbsh sb sb-sh
 
 kill:
 	(killall sbsh || true )

@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package sb
 
 import (
 	"context"
@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/eminwux/sbsh/cmd/sb/attach"
 	"github.com/eminwux/sbsh/cmd/sb/detach"
 	"github.com/eminwux/sbsh/cmd/sb/profiles"
 	"github.com/eminwux/sbsh/cmd/sb/sessions"
@@ -46,7 +47,7 @@ func main() {
 	//nolint:revive,staticcheck // ignore revive warning about context keys
 	ctx = context.WithValue(ctx, "logLevelVar", &levelVar)
 
-	rootCmd := newRootCmd()
+	rootCmd := NewSbRootCmd()
 	rootCmd.SetContext(ctx)
 
 	err := rootCmd.Execute()
@@ -57,7 +58,7 @@ func main() {
 
 // no package-level state to satisfy gochecknoglobals
 
-func newRootCmd() *cobra.Command {
+func NewSbRootCmd() *cobra.Command {
 	// rootCmd represents the base command when called without any subcommands.
 	rootCmd := &cobra.Command{
 		Use:   "sb",
@@ -93,7 +94,8 @@ Examples:
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
-			logger.Debug("-> sb")
+			logger.Info("sb", "args", cmd.Flags().Args())
+
 			return cmd.Help()
 		},
 	}
@@ -106,6 +108,7 @@ func setupRootCmd(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(sessions.NewSessionsCmd())
 	rootCmd.AddCommand(detach.NewDetachCmd())
 	rootCmd.AddCommand(profiles.NewProfilesCmd())
+	rootCmd.AddCommand(attach.NewAttachCmd())
 
 	rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.sbsh/config.yaml)")
 	rootCmd.PersistentFlags().String("log-level", "", "Log level (debug, info, warn, error)")

@@ -11,6 +11,8 @@ RUN go mod download
 
 COPY cmd/ cmd/
 COPY pkg/ pkg/
+COPY internal internal/
+
 COPY Makefile Makefile
 
 # Pass ARCH to make
@@ -26,7 +28,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt update && apt install -y procps
 WORKDIR /
 
 # Copy only the relevant binary
-COPY --from=builder /workspace/sbsh-${OS}-${ARCH} ./sbsh
-COPY --from=builder /workspace/sb-${OS}-${ARCH} ./sb
+COPY --from=builder /workspace/sbsh-${OS}-${ARCH} /bin/sbsh
+RUN ln /bin/sbsh /bin/sb
+RUN chmod 0755 /bin/sbsh /bin/sb
 
-ENTRYPOINT ["./sbsh"]
+CMD ["/bin/sbsh", "run"]

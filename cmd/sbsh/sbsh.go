@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package sbsh
 
 import (
 	"context"
@@ -23,6 +23,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -54,7 +55,7 @@ func main() {
 	//nolint:revive,staticcheck // ignore revive warning about context keys
 	ctx = context.WithValue(ctx, "logLevelVar", &levelVar)
 
-	rootCmd := newRootCmd()
+	rootCmd := NewSbshRootCmd()
 	rootCmd.SetContext(ctx)
 
 	err := rootCmd.Execute()
@@ -63,7 +64,7 @@ func main() {
 	}
 }
 
-func newRootCmd() *cobra.Command {
+func NewSbshRootCmd() *cobra.Command {
 	// rootCmd represents the base command when called without any subcommands.
 	rootCmd := &cobra.Command{
 		Use:   "sbsh",
@@ -99,6 +100,24 @@ You can also use sbsh with parameters. For example:
 			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
+			}
+			logger.Debug("parameters received in sbsh",
+				"runPath", viper.GetString(env.RUN_PATH.ViperKey),
+				"configFile", viper.GetString(env.CONFIG_FILE.ViperKey),
+				"logLevel", viper.GetString(env.LOG_LEVEL.ViperKey),
+				"profilesFile", viper.GetString(env.PROFILES_FILE.ViperKey),
+				"sessionID", viper.GetString("main.session.id"),
+				"sessionCommand", viper.GetString("main.session.command"),
+				"sessionName", viper.GetString("main.session.name"),
+				"sessionLogFilename", viper.GetString("main.session.logFilename"),
+				"sessionProfile", viper.GetString("main.session.profile"),
+				"sessionSocket", viper.GetString("main.session.socket"),
+				"supervisorSocket", viper.GetString("main.supervisor.socket"),
+				"detach", viper.GetBool("run.supervisor.detach"),
+			)
+			if viper.GetBool("run.supervisor.detach") {
+				detachSelf()
+				return nil
 			}
 
 			// Build SessionSpec from command-line inputs and profile (if given)
@@ -200,21 +219,24 @@ func setupRootCmd(rootCmd *cobra.Command) {
 
 	// Bind Non-persistent Flags to Viper
 	// Supervisor flags
-	rootCmd.Flags().String("socket", "", "Optional socket file for the session")
+	rootCmd.Flags().String("supervisor.socket", "", "Optional socket file for the session")
 	// Session flags
-	rootCmd.Flags().String("session-id", "", "Optional session ID (random if omitted)")
-	rootCmd.Flags().String("session-command", "/bin/bash", "Optional command (default: /bin/bash)")
-	rootCmd.Flags().String("session-name", "", "Optional name for the session")
-	rootCmd.Flags().String("session-log-filename", "", "Optional filename for the session log")
-	rootCmd.Flags().String("session-profile", "", "Optional profile for the session")
-	rootCmd.Flags().String("session-socket", "", "Optional socket file for the session")
+	rootCmd.Flags().String("id", "", "Optional session ID (random if omitted)")
+	rootCmd.Flags().String("command", "/bin/bash", "Optional command (default: /bin/bash)")
+	rootCmd.Flags().String("name", "", "Optional name for the session")
+	rootCmd.Flags().String("log-filename", "", "Optional filename for the session log")
+	rootCmd.Flags().String("profile", "", "Optional profile for the session")
+	rootCmd.Flags().String("socket", "", "Optional socket file for the session")
+	rootCmd.Flags().BoolP("detach", "d", false, "Optional socket file for the session")
 
-	_ = viper.BindPFlag("main.session.id", rootCmd.Flags().Lookup("session-id"))
-	_ = viper.BindPFlag("main.session.command", rootCmd.Flags().Lookup("session-command"))
-	_ = viper.BindPFlag("main.session.name", rootCmd.Flags().Lookup("session-name"))
-	_ = viper.BindPFlag("main.session.logFilename", rootCmd.Flags().Lookup("session-log-filename"))
-	_ = viper.BindPFlag("main.session.profile", rootCmd.Flags().Lookup("session-profile"))
-	_ = viper.BindPFlag("main.session.socket", rootCmd.Flags().Lookup("session-socket"))
+	_ = viper.BindPFlag("main.session.id", rootCmd.Flags().Lookup("id"))
+	_ = viper.BindPFlag("main.session.command", rootCmd.Flags().Lookup("command"))
+	_ = viper.BindPFlag("main.session.name", rootCmd.Flags().Lookup("name"))
+	_ = viper.BindPFlag("main.session.logFilename", rootCmd.Flags().Lookup("log-filename"))
+	_ = viper.BindPFlag("main.session.profile", rootCmd.Flags().Lookup("profile"))
+	_ = viper.BindPFlag("main.session.socket", rootCmd.Flags().Lookup("socket"))
+	_ = viper.BindPFlag("main.supervisor.socket", rootCmd.Flags().Lookup("supervisor.socket"))
+	_ = viper.BindPFlag("run.supervisor.detach", rootCmd.Flags().Lookup("detach"))
 }
 
 func runSupervisor(
@@ -318,4 +340,42 @@ func LoadConfig() error {
 	}
 
 	return nil
+}
+
+func detachSelf() {
+	// Evita bucle si ya estamos desprendidos
+	if os.Getenv("SB_DETACHED") == "1" {
+		return
+	}
+
+	// Rebuild args without --detach or -d so the child does not detach again
+	rawArgs := os.Args[1:]
+	args := make([]string, 0, len(rawArgs))
+	for _, a := range rawArgs {
+		if a == "--detach" || a == "-d" {
+			continue
+		}
+		args = append(args, a)
+	}
+
+	cmd := exec.Command(os.Args[0], args...)
+	cmd.Env = append(os.Environ(), "SB_DETACHED=1")
+
+	// Desacoplar stdio (o redirígilos a archivo si querés logs)
+	cmd.Stdin = nil
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
+	// Crear nueva sesión → sin TTY controlador
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setsid: true,
+	}
+
+	if err := cmd.Start(); err != nil {
+		// si falla, preferible loguear y continuar en foreground
+		// o salir con error según tu caso
+		return
+	}
+	fmt.Printf("[%d] sbsh detached\n", cmd.Process.Pid)
+	os.Exit(0) // el padre termina; el hijo queda en background
 }

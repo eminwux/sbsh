@@ -32,6 +32,7 @@ import (
 	"github.com/eminwux/sbsh/internal/supervisor"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -54,10 +55,28 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			id := viper.GetString("attach.id")
-			name := viper.GetString("attach.name")
+			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			if !ok || logger == nil {
+				return errors.New("logger not found in context")
+			}
+			logger.Info("attach", "args", cmd.Flags().Args())
+			cmd.Flags().VisitAll(func(f *pflag.Flag) {
+				logger.Info("flag", "name", f.Name, "value", f.Value.String())
+			})
+			cmd.InheritedFlags().VisitAll(func(f *pflag.Flag) {
+				logger.Info("inherited flag", "name", f.Name, "value", f.Value.String())
+			})
+			logger.Info("attach in viper",
+				"cmd args", cmd.Flags().Args(),
+				"sb.attach.id", viper.GetString("sb.attach.id"),
+				"sb.attach.name", viper.GetString("sb.attach.name"),
+				"sb.attach.socket", viper.GetString("sb.attach.socket"),
+				"run_path", viper.GetString(env.RUN_PATH.ViperKey),
+			)
+			id := viper.GetString("sb.attach.id")
+			name := viper.GetString("sb.attach.name")
 			runPath := viper.GetString(env.RUN_PATH.ViperKey)
-			socketFile := viper.GetString("attach.socket")
+			socketFile := viper.GetString("sb.attach.socket")
 
 			if id == "" && name == "" {
 				return errors.New("either --id or --name must be defined")
@@ -78,13 +97,12 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 	attachCmd.Flags().String("id", "", "Session ID, cannot be set together with --name")
 	attachCmd.Flags().String("name", "", "Optional session name, cannot be set together with --id")
 	attachCmd.Flags().String("socket", "", "Optional socket file for the session")
-	attachCmd.Flags().String("run-path", "", "Run path directory")
+	attachCmd.Flags().String("pepe", "", "Optional socket file for the session")
 
 	// Bind flags to viper keys
-	_ = viper.BindPFlag("attach.id", attachCmd.Flags().Lookup("id"))
-	_ = viper.BindPFlag("attach.name", attachCmd.Flags().Lookup("name"))
-	_ = viper.BindPFlag("attach.socket", attachCmd.Flags().Lookup("socket"))
-	_ = viper.BindPFlag(env.RUN_PATH.ViperKey, attachCmd.Flags().Lookup("run-path"))
+	_ = viper.BindPFlag("sb.attach.id", attachCmd.Flags().Lookup("id"))
+	_ = viper.BindPFlag("sb.attach.name", attachCmd.Flags().Lookup("name"))
+	_ = viper.BindPFlag("sb.attach.socket", attachCmd.Flags().Lookup("socket"))
 }
 
 func run(parentCtx context.Context, id string, name string, runPath string, socketFileInput string) error {

@@ -306,7 +306,7 @@ func (s *SupervisorController) onClosed(_ api.ID, err error) {
 
 func (s *SupervisorController) Close(reason error) error {
 	if !s.shuttingDown {
-		slog.Info("initiating shutdown sequence", "reason", reason)
+		slog.Debug("supervisor initiating shutdown sequence", "reason", reason)
 		// Set closing reason
 		s.closingCh <- reason
 

@@ -40,6 +40,7 @@ func NewDetachCmd() *cobra.Command {
 
 This command takes a --socket argument to specify the supervisor socket path.
 If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
 			if !ok || logger == nil {
