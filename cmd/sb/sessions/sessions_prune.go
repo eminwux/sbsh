@@ -18,6 +18,7 @@ package sessions
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -41,9 +42,20 @@ This will remove all session files for sessions that are not running anymore.`,
 				return errors.New("logger not found in context")
 			}
 
-			logger.Debug("sessions prune")
+			logger.Debug("sessions prune command invoked",
+				"run_path", viper.GetString(env.RUN_PATH.ViperKey),
+				"args", cmd.Flags().Args(),
+			)
 
-			return discovery.ScanAndPruneSessions(cmd.Context(), viper.GetString(env.RUN_PATH.ViperKey), os.Stdout)
+			err := discovery.ScanAndPruneSessions(cmd.Context(), viper.GetString(env.RUN_PATH.ViperKey), os.Stdout)
+			if err != nil {
+				logger.Debug("error pruning sessions", "error", err)
+				// Print to stderr and exit 1 as requested
+				_, _ = fmt.Fprintln(os.Stderr, "Could not prune sessions:", err)
+				os.Exit(1)
+			}
+			logger.Debug("sessions prune completed successfully")
+			return nil
 		},
 	}
 

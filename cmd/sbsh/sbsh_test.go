@@ -19,6 +19,7 @@ package sbsh
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -32,6 +33,8 @@ import (
 )
 
 func TestRunSession_ErrContextDone(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
 			RunFunc: func(_ *api.SupervisorSpec) error {
@@ -72,7 +75,7 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, ctrl, spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, cancel, logger, ctrl, spec) // will block until ctx.Done()
 	}()
 
 	// Give Run() time to set ready, then signal the process (NotifyContext listens to SIGTERM/INT)
@@ -90,6 +93,8 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 }
 
 func TestRunSession_ErrWaitOnReady(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
 			RunFunc: func(_ *api.SupervisorSpec) error {
@@ -129,7 +134,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, ctrl, spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, cancel, logger, ctrl, spec) // will block until ctx.Done()
 	}()
 	select {
 	case err := <-done:
@@ -142,6 +147,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 }
 
 func TestRunSession_ErrWaitOnClose(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
 			RunFunc: func(_ *api.SupervisorSpec) error {
@@ -182,7 +188,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, ctrl, spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, cancel, logger, ctrl, spec) // will block until ctx.Done()
 	}()
 
 	time.Sleep(20 * time.Millisecond)
@@ -195,6 +201,8 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 }
 
 func TestRunSession_ErrChildExit(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.SupervisorControllerTest{
 			RunFunc: func(_ *api.SupervisorSpec) error {
@@ -235,7 +243,7 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, ctrl, spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, cancel, logger, ctrl, spec) // will block until ctx.Done()
 	}()
 
 	time.Sleep(20 * time.Millisecond)

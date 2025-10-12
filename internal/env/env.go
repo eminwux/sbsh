@@ -84,27 +84,27 @@ func KV(v Var, value string) string { return v.Key + "=" + value }
 // ---- Declare statically (Viper key optional per var) ----.
 var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	RUN_PATH = DefineKV("RUN_PATH", "global.runPath") // has viper key
+	RUN_PATH = DefineKV("RUN_PATH", "sbsh.global.runPath") // has viper key
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	CONFIG_FILE = DefineKV("CONFIG_FILE", "global.configFile") // has viper key
+	CONFIG_FILE = DefineKV("CONFIG_FILE", "sbsh.global.configFile") // has viper key
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	PROFILES_FILE = DefineKV("PROFILES_FILE", "global.profilesFile") // has viper key
+	PROFILES_FILE = DefineKV("PROFILES_FILE", "sbsh.global.profilesFile") // has viper key
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	LOG_LEVEL = DefineKV("LOG_LEVEL", "global.logLevel", "info") // has viper key
+	LOG_LEVEL = DefineKV("LOG_LEVEL", "sbsh.global.logLevel", "info") // has viper key
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SUP_SOCKET = DefineKV("SUP_SOCKET", "main.supervisor.socket") // no viper key, no default
+	SUP_SOCKET = DefineKV("SUP_SOCKET", "sbsh.supervisor.socket") // no viper key, no default
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_SOCKET_CTRL = Define("SES_SOCKET_CTRL", "main.session.socket")
+	SES_SOCKET_CTRL = Define("SES_SOCKET_CTRL", "sbsh.session.socket")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_ID = Define("SES_ID", "main.session.id")
+	SES_ID = Define("SES_ID", "sbsh.session.id")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_NAME = Define("SES_NAME", "main.session.name")
+	SES_NAME = Define("SES_NAME", "sbsh.session.name")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_PROFILE = Define("SES_PROFILE", "main.session.profile")
+	SES_PROFILE = Define("SES_PROFILE", "sbsh.session.profile")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_CMD = Define("SES_CMD", "main.session.command")
+	SES_CMD = Define("SES_CMD", "sbsh.session.command")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_LOGFILENAME = Define("SES_LOGFILENAME", "main.session.logFilename")
+	SES_LOGFILENAME = Define("SES_LOGFILENAME", "sbsh.session.logFilename")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SUP_DETACH = Define("SUP_DETACH", "run.supervisor.detach")
+	SUP_DETACH = Define("SUP_DETACH", "sbsh.supervisor.detach")
 )

@@ -47,30 +47,35 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 				return errors.New("logger not found in context")
 			}
 
-			logger.Debug("-> detach")
+			logger.DebugContext(cmd.Context(), "detach command invoked")
 
 			// explicit timeout avoids magic numbers (mnd) and improves readability
 			const detachTimeout = 3 * time.Second
 
 			// check SBSH_SUP_SOCKET
-
 			socket := viper.GetString(env.SUP_SOCKET.ViperKey)
+			logger.DebugContext(cmd.Context(), "checking supervisor socket", "socket", socket)
 			if socket == "" {
-				fmt.Fprintln(os.Stderr, "no supervisor socket found")
-				os.Exit(1)
+				logger.DebugContext(cmd.Context(), "no supervisor socket found, cannot detach")
+				return errors.New("no supervisor socket found")
 			}
+			logger.DebugContext(cmd.Context(), "creating supervisor unix client", "socket", socket)
 			sup := supervisor.NewUnix(socket)
 			defer sup.Close()
 
 			ctx, cancel := context.WithTimeout(cmd.Context(), detachTimeout)
 			defer cancel()
 
+			logger.DebugContext(ctx, "detaching from supervisor", "timeout", detachTimeout)
 			fmt.Fprintf(os.Stdout, "detaching..\r\n")
 			if err := sup.Detach(ctx); err != nil {
-				fmt.Fprintf(os.Stderr, "detach failed: %v\r\n", err)
+				logger.DebugContext(ctx, "detach failed", "error", err)
+				fmt.Fprintf(os.Stderr, "Could not detach: %v\n", err)
+				cancel()
 				os.Exit(1)
 			}
 
+			logger.DebugContext(ctx, "detach successful")
 			return nil
 		},
 	}
@@ -79,14 +84,8 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 }
 
 func setupDetachCmd(detachCmd *cobra.Command) {
-	flagS := "socket"
-	// define the flag without binding to a package-level variable; use viper to read it
-	detachCmd.Flags().String(flagS, "", "Supervisor Socket Path")
+	detachCmd.Flags().String("socket", "", "Supervisor Socket Path")
 
 	_ = env.SUP_SOCKET.BindEnv()
-
-	if err := viper.BindPFlag(env.SUP_SOCKET.ViperKey, detachCmd.Flags().Lookup(flagS)); err != nil {
-		// avoid fatal exit here; log and continue so command can still run with env var
-		slog.Warn("could not bind cobra flag to viper", "error", err)
-	}
+	_ = viper.BindPFlag(env.SUP_SOCKET.ViperKey, detachCmd.Flags().Lookup("socket"))
 }

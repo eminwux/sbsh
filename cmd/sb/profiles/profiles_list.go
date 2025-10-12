@@ -23,10 +23,9 @@ import (
 
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-// profilesListCmd represents the sessions command.
+// NewProfilesListCmd represents the sessions command.
 func NewProfilesListCmd() *cobra.Command {
 	profilesListCmd := &cobra.Command{
 		Use:     "list",
@@ -39,14 +38,20 @@ This command scans and lists all available profiles in the specified configurati
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
-			logger.Debug("-> profiles list")
 
-			if slog.Default().Enabled(cmd.Context(), slog.LevelDebug) {
-				if err := discovery.ScanAndPrintProfiles(cmd.Context(), viper.GetString("global.runPath"), os.Stdout); err != nil {
-					return err
-				}
+			logger.Debug("profiles list command invoked",
+				"args", cmd.Flags().Args(),
+				"profiles_file", "/home/inwx/.sbsh/profiles.yaml",
+			)
+
+			err := discovery.ScanAndPrintProfiles(cmd.Context(), "/home/inwx/.sbsh/profiles.yaml", os.Stdout)
+			if err != nil {
+				logger.Debug("error scanning and printing profiles", "error", err)
+				_, _ = os.Stderr.WriteString("Could not list profiles: " + err.Error() + "\n")
+				os.Exit(1)
 			}
-			return discovery.ScanAndPrintProfiles(cmd.Context(), "/home/inwx/.sbsh/profiles.yaml", os.Stdout)
+			logger.Debug("profiles list completed successfully")
+			return nil
 		},
 	}
 

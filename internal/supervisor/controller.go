@@ -36,7 +36,8 @@ import (
 
 // SupervisorController manages the lifecycle of the supervisor.
 type SupervisorController struct {
-	ctx context.Context
+	ctx    context.Context
+	logger *slog.Logger
 
 	NewSupervisorRunner func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner
 	NewSessionStore     func() sessionstore.SessionStore
@@ -62,11 +63,12 @@ var (
 )
 
 // NewSupervisorController wires the manager and the shared event channel from sessions.
-func NewSupervisorController(ctx context.Context) api.SupervisorController {
+func NewSupervisorController(ctx context.Context, logger *slog.Logger) api.SupervisorController {
 	slog.Debug("[supervisor] New controller is being created\r\n")
 
 	c := &SupervisorController{
 		ctx:         ctx,
+		logger:      logger,
 		closedCh:    make(chan struct{}),
 		closingCh:   make(chan error, 1),
 		ctrlReadyCh: make(chan struct{}),
@@ -92,49 +94,52 @@ func (s *SupervisorController) WaitReady() error {
 
 // Run is the main orchestration loop. It owns all mode transitions.
 func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
-	slog.Debug("[supervisor] starting controller loop")
-	defer slog.Debug("[supervisor] controller stopped\r\n")
+	s.logger.Debug("controller loop started", "spec_kind", spec.Kind, "run_path", spec.RunPath)
+	defer s.logger.Debug("controller loop stopped", "run_path", spec.RunPath)
 
 	s.sr = s.NewSupervisorRunner(s.ctx, spec, s.eventsCh)
 	s.ss = s.NewSessionStore()
 
 	err := s.sr.CreateMetadata()
 	if err != nil {
-		slog.Debug(fmt.Sprintf("could not write metadata file: %v", err))
-		if err := s.Close(err); err != nil {
-			err = fmt.Errorf("%w: %w", errdefs.ErrOnClose, err)
+		s.logger.Debug("failed to write metadata file", "error", err)
+		if errC := s.Close(err); errC != nil {
+			err = fmt.Errorf("%w: %w :%w", err, errdefs.ErrOnClose, errC)
 		}
 		return fmt.Errorf("%w: %w", errdefs.ErrWriteMetadata, err)
 	}
 
 	err = s.sr.OpenSocketCtrl()
 	if err != nil {
-		slog.Debug(fmt.Sprintf("could not open control socket: %v", err))
-		if err := s.Close(err); err != nil {
-			err = fmt.Errorf("%w: %w", errdefs.ErrOnClose, err)
+		s.logger.Debug("failed to open control socket", "error", err)
+		if errC := s.Close(err); errC != nil {
+			err = fmt.Errorf("%w: %w :%w", errdefs.ErrOnClose, err, errC)
 		}
 		close(s.ctrlReadyCh)
 		return fmt.Errorf("%w: %w", errdefs.ErrOpenSocketCtrl, err)
 	}
 
 	rpc := &supervisorrpc.SupervisorControllerRPC{Core: s}
+
 	go s.sr.StartServer(s.ctx, rpc, s.rpcReadyCh, s.rpcDoneCh)
 	// Wait for startup result
-	if err := <-s.rpcReadyCh; err != nil {
-		// failed to start — handle and return
-		if errC := s.Close(err); errC != nil {
-			err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
+	if errB := <-s.rpcReadyCh; errB != nil {
+		if errC := s.Close(errB); errC != nil {
+			err = fmt.Errorf("%w: %w: %w", errB, errdefs.ErrOnClose, errC)
 		}
 		close(s.ctrlReadyCh)
-		slog.Debug(fmt.Sprintf("failed to start server: %v", err))
+		s.logger.Debug("failed to start supervisor RPC server", "error", errB)
 		return fmt.Errorf("%w: %w", errdefs.ErrStartRPCServer, err)
 	}
 
 	var session *api.SupervisedSession
+
 	switch spec.Kind {
 	case api.RunNewSession:
+		s.logger.Debug("creating new session", "spec_id", spec.ID, "spec_name", spec.Name)
 		session, err = s.CreateRunNewSession(spec)
 		if err != nil {
+			s.logger.Debug("failed to create new session", "error", err)
 			if errC := s.Close(err); errC != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 			}
@@ -143,7 +148,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		}
 
 		if err := s.sr.StartSessionCmd(session); err != nil {
-			slog.Debug(fmt.Sprintf("failed to start session cmd: %v", err))
+			s.logger.Debug("failed to start session command", "error", err)
 			if errC := s.Close(err); errC != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 			}
@@ -151,8 +156,10 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 			return fmt.Errorf("%w: %w", errdefs.ErrStartSessionCmd, err)
 		}
 	case api.AttachToSession:
+		s.logger.Debug("attaching to existing session", "attach_id", spec.AttachID, "attach_name", spec.AttachName)
 		session, err = s.CreateAttachSession(spec)
 		if err != nil {
+			s.logger.Debug("failed to attach to session", "error", err)
 			if errC := s.Close(err); errC != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 			}
@@ -161,6 +168,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		}
 
 	default:
+		s.logger.Debug("invalid supervisor kind", "kind", spec.Kind)
 		if err := s.Close(err); err != nil {
 			err = fmt.Errorf("%w: %w", errdefs.ErrOnClose, err)
 		}
@@ -169,7 +177,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	}
 
 	if err := s.sr.Attach(session); err != nil {
-		slog.Debug(fmt.Sprintf("failed to attach: %v", err))
+		s.logger.Debug("failed to attach to session", "error", err)
 		if err := s.Close(err); err != nil {
 			err = fmt.Errorf("%w: %w", errdefs.ErrOnClose, err)
 		}
@@ -177,13 +185,14 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		return fmt.Errorf("%w: %w", errdefs.ErrAttach, err)
 	}
 
+	s.logger.Debug("controller ready, entering main event loop")
 	close(s.ctrlReadyCh)
 
 	go func() {
 		select {
 		case err := <-s.closingCh:
 			s.shuttingDown = true
-			slog.Info("controller closing", "reason", err)
+			s.logger.Debug("controller closing", "reason", err)
 		}
 	}()
 
@@ -191,33 +200,35 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 		select {
 		case <-s.ctx.Done():
 			var err error
-			slog.Debug("[supervisor] parent context channel has been closed\r\n")
+			s.logger.Debug("parent context canceled, shutting down controller")
 			if errC := s.Close(s.ctx.Err()); errC != nil {
 				err = fmt.Errorf("%w: %w", errdefs.ErrOnClose, errC)
 			}
 			return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
 
 		case ev := <-s.eventsCh:
-			slog.Debug(
-				fmt.Sprintf(
-					"[supervisor] received event: id=%s type=%v err=%v when=%s\r\n",
-					ev.ID,
-					ev.Type,
-					ev.Err,
-					ev.When.Format(time.RFC3339Nano),
-				),
+			s.logger.Debug(
+				"received supervisor event",
+				"event_id",
+				ev.ID,
+				"event_type",
+				ev.Type,
+				"event_err",
+				ev.Err,
+				"event_time",
+				ev.When.Format(time.RFC3339Nano),
 			)
 			s.handleEvent(ev)
 
 		case err := <-s.rpcDoneCh:
-			slog.Debug(fmt.Sprintf("[supervisor] rpc server has failed: %v\r\n", err))
+			s.logger.Debug("rpc server exited", "error", err)
 			if errC := s.Close(err); err != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 			}
 			return fmt.Errorf("%w: %w", errdefs.ErrRPCServerExited, err)
 
 		case err := <-s.closeReqCh:
-			slog.Debug(fmt.Sprintf("[supervisor] close request received: %v\r\n", err))
+			s.logger.Debug("close request received", "error", err)
 			return fmt.Errorf("%w: %w", errdefs.ErrCloseReq, err)
 		}
 	}
@@ -327,7 +338,7 @@ func (s *SupervisorController) Close(reason error) error {
 func (s *SupervisorController) WaitClose() error {
 	select {
 	case <-s.closedCh:
-		slog.Info("controller exited")
+		s.logger.Debug("controller has fully exited and resources are released")
 		return nil
 	}
 }

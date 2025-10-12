@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -33,6 +34,8 @@ import (
 )
 
 func TestRunSession_ErrContextCancelled(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	newSessionController := func(_ context.Context) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          nil,
@@ -61,7 +64,7 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSession(ctx, cancel, ctrl, &spec) // will block until ctx.Done()
+		done <- runSession(ctx, cancel, logger, ctrl, &spec) // will block until ctx.Done()
 		defer close(done)
 	}()
 
@@ -80,6 +83,8 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 }
 
 func TestRunSession_ErrWaitOnReady(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	newSessionController := func(_ context.Context) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          nil,
@@ -108,12 +113,14 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 		RunPath:     viper.GetString("global.runPath"),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	if err := runSession(ctx, cancel, ctrl, &spec); err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
+	if err := runSession(ctx, cancel, logger, ctrl, &spec); err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrWaitOnReady, err)
 	}
 }
 
 func TestRunSession_ErrWaitOnClose(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	newSessionController := func(_ context.Context) api.SessionController {
 		return &session.FakeSessionController{
 			Exit:          nil,
@@ -146,7 +153,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func(exitCh chan error) {
-		exitCh <- runSession(ctx, cancel, ctrl, &spec)
+		exitCh <- runSession(ctx, cancel, logger, ctrl, &spec)
 		defer close(exitCh)
 	}(exitCh)
 

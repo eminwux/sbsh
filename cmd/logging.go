@@ -32,7 +32,7 @@ func (h *ReformatHandler) Enabled(ctx context.Context, lvl slog.Level) bool {
 	return h.inner.Enabled(ctx, lvl)
 }
 
-func (h *ReformatHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *ReformatHandler) Handle(_ context.Context, r slog.Record) error {
 	ts := r.Time.Format("2006-01-02T15:04:05Z07:00")
 	level := strings.ToUpper(r.Level.String())
 	msg := fmt.Sprintf("%q", r.Message) // quoted message

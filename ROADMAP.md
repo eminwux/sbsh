@@ -8,9 +8,9 @@
 
 ### 🐞 Bugs
 ```markdown
+- [ ] **A** On CTRL+C to session run, the status is Detached
 - [ ] **A** attach doesn't work with `--name`
 - [ ] **A** On supervisor reattach, the prompt is generated again
-- [ ] **A** On CTRL+C, the state of the session does not change
 - [ ] **A** `sbsh run` fails; the supervisor does not detect it
 ```
 

@@ -59,20 +59,19 @@ to quickly create a Cobra application.`,
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
-			logger.Info("attach", "args", cmd.Flags().Args())
-			cmd.Flags().VisitAll(func(f *pflag.Flag) {
-				logger.Info("flag", "name", f.Name, "value", f.Value.String())
-			})
-			cmd.InheritedFlags().VisitAll(func(f *pflag.Flag) {
-				logger.Info("inherited flag", "name", f.Name, "value", f.Value.String())
-			})
-			logger.Info("attach in viper",
-				"cmd args", cmd.Flags().Args(),
+			logger.DebugContext(cmd.Context(), "attach command invoked",
+				"args", cmd.Flags().Args(),
 				"sb.attach.id", viper.GetString("sb.attach.id"),
 				"sb.attach.name", viper.GetString("sb.attach.name"),
 				"sb.attach.socket", viper.GetString("sb.attach.socket"),
 				"run_path", viper.GetString(env.RUN_PATH.ViperKey),
 			)
+			cmd.Flags().VisitAll(func(f *pflag.Flag) {
+				logger.DebugContext(cmd.Context(), "flag value", "name", f.Name, "value", f.Value.String())
+			})
+			cmd.InheritedFlags().VisitAll(func(f *pflag.Flag) {
+				logger.DebugContext(cmd.Context(), "inherited flag value", "name", f.Name, "value", f.Value.String())
+			})
 			id := viper.GetString("sb.attach.id")
 			name := viper.GetString("sb.attach.name")
 			runPath := viper.GetString(env.RUN_PATH.ViperKey)
@@ -85,7 +84,7 @@ to quickly create a Cobra application.`,
 				return errors.New("only one of --id or --name must be defined")
 			}
 
-			return run(cmd.Context(), id, name, runPath, socketFile)
+			return run(cmd.Context(), logger, id, name, runPath, socketFile)
 		},
 	}
 
@@ -105,21 +104,96 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 	_ = viper.BindPFlag("sb.attach.socket", attachCmd.Flags().Lookup("socket"))
 }
 
-func run(parentCtx context.Context, id string, name string, runPath string, socketFileInput string) error {
+func run(
+	parentCtx context.Context,
+	logger *slog.Logger,
+	id string,
+	name string,
+	runPath string,
+	socketFileInput string,
+) error {
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
 	ctx, cancel := signal.NotifyContext(parentCtx, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	// Create a new Controller
-	supCtrl := supervisor.NewSupervisorController(ctx)
 
-	supervisorID := naming.RandomID()
-	supervisorName := naming.RandomName()
+	logger.DebugContext(ctx, "creating supervisor controller for attach", "run_path", runPath)
+	supCtrl := supervisor.NewSupervisorController(ctx, logger)
 
 	if socketFileInput == "" {
 		socketFileInput = filepath.Join(runPath, "socket")
 	}
+
+	spec := buildSupervisorSpec(ctx, id, name, runPath, socketFileInput, logger)
+
+	if socketFileInput != "" {
+		spec.SessionSpec.SocketFile = socketFileInput
+	} else {
+		spec.SessionSpec.SocketFile = filepath.Join(runPath, ".sbsh", "sessions", string(spec.SessionSpec.ID), "socket")
+	}
+
+	logger.DebugContext(ctx, "starting supervisor controller goroutine for attach")
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- supCtrl.Run(spec)
+		close(errCh)
+		logger.DebugContext(ctx, "controller goroutine exited (attach)")
+	}()
+
+	logger.DebugContext(ctx, "waiting for supervisor controller to signal ready (attach)")
+	if err := supCtrl.WaitReady(); err != nil {
+		logger.DebugContext(ctx, "controller not ready (attach)", "error", err)
+		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
+	}
+
+	logger.DebugContext(ctx, "controller ready, entering attach event loop")
+	select {
+	case <-ctx.Done():
+		logger.DebugContext(ctx, "context canceled, waiting for controller to exit (attach)")
+		waitErr := supCtrl.WaitClose()
+		if waitErr != nil {
+			logger.DebugContext(ctx, "error waiting for controller to close after context canceled", "error", waitErr)
+			return fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, waitErr)
+		}
+		logger.DebugContext(ctx, "context canceled, controller exited (attach)")
+		return errdefs.ErrContextDone
+
+	case ctrlErr := <-errCh:
+		logger.DebugContext(ctx, "controller stopped (attach)", "error", ctrlErr)
+		if ctrlErr != nil && !errors.Is(ctrlErr, context.Canceled) {
+			waitErr := supCtrl.WaitClose()
+			if waitErr != nil {
+				logger.DebugContext(ctx, "error waiting for controller to close after error", "error", waitErr)
+				return fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, waitErr)
+			}
+			logger.DebugContext(ctx, "controller exited after error (attach)")
+			if errors.Is(ctrlErr, errdefs.ErrAttach) {
+				logger.DebugContext(ctx, "attach error", "error", ctrlErr)
+				fmt.Fprintf(os.Stderr, "Could not attach: %v\n", ctrlErr)
+				cancel()
+				//nolint:gocritic // os.Exit is fine here
+				os.Exit(1)
+			}
+			// return nothing to avoid polluting the terminal with errors
+			return nil
+		}
+	}
+	return nil
+}
+
+func buildSupervisorSpec(
+	ctx context.Context,
+	id string,
+	name string,
+	runPath string,
+	socketFileInput string,
+	logger *slog.Logger,
+) *api.SupervisorSpec {
 	var spec *api.SupervisorSpec
+
+	supervisorID := naming.RandomID()
+	supervisorName := naming.RandomName()
 	if id != "" && name == "" {
 		spec = &api.SupervisorSpec{
 			Kind:       api.AttachToSession,
@@ -132,13 +206,13 @@ func run(parentCtx context.Context, id string, name string, runPath string, sock
 				ID: api.ID(id),
 			},
 		}
-		slog.Debug("Attach spec created",
-			"Kind", spec.Kind,
-			"ID", spec.ID,
-			"Name", spec.Name,
-			"RunPath", spec.RunPath,
-			"AttachID", spec.AttachID,
-			"SessionSpec.ID", spec.SessionSpec.ID,
+		logger.DebugContext(ctx, "attach spec (by id) created",
+			"kind", spec.Kind,
+			"id", spec.ID,
+			"name", spec.Name,
+			"run_path", spec.RunPath,
+			"attach_id", spec.AttachID,
+			"session_id", spec.SessionSpec.ID,
 		)
 	}
 
@@ -154,58 +228,14 @@ func run(parentCtx context.Context, id string, name string, runPath string, sock
 				Name: name,
 			},
 		}
-		slog.Debug("Attach spec created",
-			"Kind", spec.Kind,
-			"ID", spec.ID,
-			"Name", spec.Name,
-			"LogDir", spec.LogDir,
-			"RunPath", spec.RunPath,
-			"SessionMetadata.Spec.Name", spec.SessionSpec.Name,
+		logger.DebugContext(ctx, "attach spec (by name) created",
+			"kind", spec.Kind,
+			"id", spec.ID,
+			"name", spec.Name,
+			"log_dir", spec.LogDir,
+			"run_path", spec.RunPath,
+			"session_name", spec.SessionSpec.Name,
 		)
 	}
-
-	if socketFileInput != "" {
-		spec.SessionSpec.SocketFile = socketFileInput
-	} else {
-		spec.SessionSpec.SocketFile = filepath.Join(runPath, ".sbsh", "sessions", string(spec.SessionSpec.ID), "socket")
-	}
-
-	// Run controller
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- supCtrl.Run(spec) // Run should return when ctx is canceled
-		close(errCh)
-		slog.Debug("[sbsh] controller stopped")
-	}()
-
-	// block until controller is ready (or ctx cancels)
-	if err := supCtrl.WaitReady(); err != nil {
-		slog.Debug(fmt.Sprintf("controller not ready: %s\r\n", err))
-		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
-	}
-	select {
-	case <-ctx.Done():
-		slog.Debug("[sbsh] context canceled, waiting on sessionCtrl to exit\r\n")
-		if err := supCtrl.WaitClose(); err != nil {
-			return fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, err)
-		}
-		slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
-
-		return errdefs.ErrContextDone
-	case err := <-errCh:
-		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
-		if err != nil && !errors.Is(err, context.Canceled) {
-			if err := supCtrl.WaitClose(); err != nil {
-				return fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, err)
-			}
-			slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
-
-			if errors.Is(err, errdefs.ErrAttach) {
-				slog.Error("attach error", "error", err)
-			}
-
-			return fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
-		}
-	}
-	return nil
+	return spec
 }

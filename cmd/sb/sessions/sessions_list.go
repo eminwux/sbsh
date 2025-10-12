@@ -18,6 +18,7 @@ package sessions
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -45,14 +46,25 @@ By default, it lists only running sessions. Use the --all flag to include exited
 				return errors.New("logger not found in context")
 			}
 
-			logger.Debug("sessions list", "runPath", viper.GetString(env.RUN_PATH.ViperKey), "listAll", listAllInput)
+			logger.Debug("sessions list command invoked",
+				"run_path", viper.GetString(env.RUN_PATH.ViperKey),
+				"list_all", listAllInput,
+				"args", cmd.Flags().Args(),
+			)
 
-			return discovery.ScanAndPrintSessions(
+			err := discovery.ScanAndPrintSessions(
 				cmd.Context(),
 				viper.GetString(env.RUN_PATH.ViperKey),
 				os.Stdout,
 				listAllInput,
 			)
+			if err != nil {
+				logger.Debug("error scanning and printing sessions", "error", err)
+				fmt.Fprintln(os.Stderr, "Could not scan sessions")
+				return err
+			}
+			logger.Debug("sessions list completed successfully")
+			return nil
 		},
 	}
 

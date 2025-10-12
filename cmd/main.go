@@ -28,14 +28,17 @@ import (
 )
 
 func main() {
+	root := &cobra.Command{}
+
+	root.AddCommand(sb.NewSbRootCmd())
+	root.AddCommand(sbsh.NewSbshRootCmd())
+
 	// Default to info, can be changed at runtime
 	var levelVar slog.LevelVar
 	levelVar.Set(slog.LevelInfo)
 
 	textHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: &levelVar})
-
 	handler := &ReformatHandler{inner: textHandler}
-
 	logger := slog.New(handler)
 
 	// Store both logger and levelVar in context using struct keys
@@ -44,11 +47,7 @@ func main() {
 	//nolint:revive,staticcheck // ignore revive warning about context keys
 	ctx = context.WithValue(ctx, "logLevelVar", &levelVar)
 
-	root := &cobra.Command{} // invisible wrapper root
-
-	root.AddCommand(sb.NewSbRootCmd()) // returns a *cobra.Command with all of sb's children already added
-	root.AddCommand(sbsh.NewSbshRootCmd())
-
+	// Select which subtree to run based on the executable name
 	exe := filepath.Base(os.Args[0])
 	logger.Debug("cmd", "exe", exe, "args", os.Args)
 	// Decide which subtree to run by prepending the name as the first arg

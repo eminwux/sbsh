@@ -19,6 +19,7 @@ package supervisor
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -33,7 +34,8 @@ import (
 )
 
 func Test_ErrOpenSocketCtrl(t *testing.T) {
-	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
 	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
@@ -87,8 +89,8 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 }
 
 func Test_ErrStartRPCServer(t *testing.T) {
-	// ctx, cancel := context.WithCancel(context.Background())
-	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
 	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
@@ -155,7 +157,8 @@ func Test_ErrStartRPCServer(t *testing.T) {
 }
 
 func Test_ErrAttach(t *testing.T) {
-	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
 	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
@@ -241,7 +244,8 @@ func Test_ErrAttach(t *testing.T) {
 
 func Test_ErrContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	sc := NewSupervisorController(ctx).(*SupervisorController)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sc := NewSupervisorController(ctx, logger).(*SupervisorController)
 	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
@@ -330,7 +334,8 @@ func Test_ErrContextDone(t *testing.T) {
 }
 
 func Test_ErrRPCServerExited(t *testing.T) {
-	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
 	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
@@ -418,7 +423,8 @@ func Test_ErrRPCServerExited(t *testing.T) {
 }
 
 func Test_ErrSessionExists(t *testing.T) {
-	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
 	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
@@ -506,7 +512,8 @@ func Test_ErrSessionExists(t *testing.T) {
 }
 
 func Test_ErrCloseReq(t *testing.T) {
-	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
 	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
@@ -595,7 +602,8 @@ func Test_ErrCloseReq(t *testing.T) {
 }
 
 func Test_ErrStartSessionCmd(t *testing.T) {
-	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
 	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,
@@ -683,7 +691,8 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 }
 
 func Test_ErrSessionStore(t *testing.T) {
-	sc := NewSupervisorController(context.Background()).(*SupervisorController)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
 	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
 			Ctx: ctx,

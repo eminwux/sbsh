@@ -117,6 +117,8 @@ func BuildSessionSpec(
 	envVars []string,
 	ctx context.Context,
 ) (*api.SessionSpec, error) {
+	sessionCmdArgsInput := []string{}
+
 	if sessionIDInput == "" {
 		// Default session ID to a random one
 		sessionIDInput = naming.RandomID()
@@ -142,6 +144,7 @@ func BuildSessionSpec(
 
 	if sessionCmdInput == "" {
 		sessionCmdInput = "/bin/bash"
+		sessionCmdArgsInput = []string{"-i"}
 	}
 
 	if logFilenameInput == "" {
@@ -172,7 +175,7 @@ func BuildSessionSpec(
 			Kind:        api.SessionLocal,
 			Name:        sessionNameInput,
 			Command:     sessionCmdInput,
-			CommandArgs: []string{},
+			CommandArgs: sessionCmdArgsInput,
 			Env:         os.Environ(),
 			Prompt:      "(sbsh-$SBSH_SES_ID) $PS1",
 			RunPath:     runPath,

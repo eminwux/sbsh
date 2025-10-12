@@ -28,7 +28,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/eminwux/sbsh/cmd/sbsh/attach"
 	"github.com/eminwux/sbsh/cmd/sbsh/run"
 	"github.com/eminwux/sbsh/internal/common"
 	"github.com/eminwux/sbsh/internal/discovery"
@@ -92,7 +91,7 @@ You can also use sbsh with parameters. For example:
 			// Set log level dynamically if present
 			levelVar, ok := cmd.Context().Value("logLevelVar").(*slog.LevelVar)
 			if ok && levelVar != nil {
-				levelVar.Set(common.ParseLevel(viper.GetString("global.logLevel")))
+				levelVar.Set(common.ParseLevel(viper.GetString("sbsh.global.logLevel")))
 			}
 			return nil
 		},
@@ -101,19 +100,20 @@ You can also use sbsh with parameters. For example:
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
-			logger.Debug("parameters received in sbsh",
+
+			logger.DebugContext(cmd.Context(), "parameters received in sbsh",
 				"runPath", viper.GetString(env.RUN_PATH.ViperKey),
 				"configFile", viper.GetString(env.CONFIG_FILE.ViperKey),
 				"logLevel", viper.GetString(env.LOG_LEVEL.ViperKey),
 				"profilesFile", viper.GetString(env.PROFILES_FILE.ViperKey),
-				"sessionID", viper.GetString("main.session.id"),
-				"sessionCommand", viper.GetString("main.session.command"),
-				"sessionName", viper.GetString("main.session.name"),
-				"sessionLogFilename", viper.GetString("main.session.logFilename"),
-				"sessionProfile", viper.GetString("main.session.profile"),
-				"sessionSocket", viper.GetString("main.session.socket"),
-				"supervisorSocket", viper.GetString("main.supervisor.socket"),
-				"detach", viper.GetBool("run.supervisor.detach"),
+				"sessionID", viper.GetString("sbsh.session.id"),
+				"sessionCommand", viper.GetString("sbsh.session.command"),
+				"sessionName", viper.GetString("sbsh.session.name"),
+				"sessionLogFilename", viper.GetString("sbsh.session.logFilename"),
+				"sessionProfile", viper.GetString("sbsh.session.profile"),
+				"sessionSocket", viper.GetString("sbsh.session.socket"),
+				"supervisorSocket", viper.GetString("sbsh.supervisor.socket"),
+				"detach", viper.GetBool("sbsh.supervisor.detach"),
 			)
 			if viper.GetBool("run.supervisor.detach") {
 				detachSelf()
@@ -124,12 +124,12 @@ You can also use sbsh with parameters. For example:
 			sessionSpec, err := profile.BuildSessionSpec(
 				viper.GetString(env.RUN_PATH.ViperKey),
 				viper.GetString(env.PROFILES_FILE.ViperKey),
-				viper.GetString("main.session.profile"),
-				viper.GetString("main.session.id"),
-				viper.GetString("main.session.name"),
-				viper.GetString("main.session.command"),
-				viper.GetString("main.session.logFilename"),
-				viper.GetString("main.session.socket"),
+				viper.GetString("sbsh.session.profile"),
+				viper.GetString("sbsh.session.id"),
+				viper.GetString("sbsh.session.name"),
+				viper.GetString("sbsh.session.command"),
+				viper.GetString("sbsh.session.logFilename"),
+				viper.GetString("sbsh.session.socket"),
 				os.Environ(),
 				context.Background(),
 			)
@@ -170,7 +170,7 @@ You can also use sbsh with parameters. For example:
 				SessionSpec: sessionSpec,
 			}
 
-			logger.Debug("SupervisorSpec values",
+			logger.DebugContext(cmd.Context(), "SupervisorSpec values",
 				"Kind", spec.Kind,
 				"ID", spec.ID,
 				"Name", spec.Name,
@@ -187,9 +187,9 @@ You can also use sbsh with parameters. For example:
 			}
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-			ctrl := supervisor.NewSupervisorController(ctx)
+			ctrl := supervisor.NewSupervisorController(ctx, logger)
 
-			return runSupervisor(ctx, cancel, ctrl, spec)
+			return runSupervisor(ctx, cancel, logger, ctrl, spec)
 		},
 	}
 
@@ -204,7 +204,6 @@ func setupRootCmd(rootCmd *cobra.Command) {
 	// runtime.SetMutexProfileFraction(1) // sample ALL mutex contention
 
 	rootCmd.AddCommand(run.NewRunCmd())
-	rootCmd.AddCommand(attach.NewAttachCmd())
 
 	// Persistent flags
 	rootCmd.PersistentFlags().String("run-path", "", "Optional run path for the supervisor")
@@ -222,68 +221,76 @@ func setupRootCmd(rootCmd *cobra.Command) {
 	rootCmd.Flags().String("supervisor.socket", "", "Optional socket file for the session")
 	// Session flags
 	rootCmd.Flags().String("id", "", "Optional session ID (random if omitted)")
-	rootCmd.Flags().String("command", "/bin/bash", "Optional command (default: /bin/bash)")
+	rootCmd.Flags().String("command", "", "Optional command (default: /bin/bash)")
 	rootCmd.Flags().String("name", "", "Optional name for the session")
 	rootCmd.Flags().String("log-filename", "", "Optional filename for the session log")
 	rootCmd.Flags().String("profile", "", "Optional profile for the session")
 	rootCmd.Flags().String("socket", "", "Optional socket file for the session")
 	rootCmd.Flags().BoolP("detach", "d", false, "Optional socket file for the session")
 
-	_ = viper.BindPFlag("main.session.id", rootCmd.Flags().Lookup("id"))
-	_ = viper.BindPFlag("main.session.command", rootCmd.Flags().Lookup("command"))
-	_ = viper.BindPFlag("main.session.name", rootCmd.Flags().Lookup("name"))
-	_ = viper.BindPFlag("main.session.logFilename", rootCmd.Flags().Lookup("log-filename"))
-	_ = viper.BindPFlag("main.session.profile", rootCmd.Flags().Lookup("profile"))
-	_ = viper.BindPFlag("main.session.socket", rootCmd.Flags().Lookup("socket"))
-	_ = viper.BindPFlag("main.supervisor.socket", rootCmd.Flags().Lookup("supervisor.socket"))
-	_ = viper.BindPFlag("run.supervisor.detach", rootCmd.Flags().Lookup("detach"))
+	_ = viper.BindPFlag("sbsh.session.id", rootCmd.Flags().Lookup("id"))
+	_ = viper.BindPFlag("sbsh.session.command", rootCmd.Flags().Lookup("command"))
+	_ = viper.BindPFlag("sbsh.session.name", rootCmd.Flags().Lookup("name"))
+	_ = viper.BindPFlag("sbsh.session.logFilename", rootCmd.Flags().Lookup("log-filename"))
+	_ = viper.BindPFlag("sbsh.session.profile", rootCmd.Flags().Lookup("profile"))
+	_ = viper.BindPFlag("sbsh.session.socket", rootCmd.Flags().Lookup("socket"))
+	_ = viper.BindPFlag("sbsh.supervisor.socket", rootCmd.Flags().Lookup("supervisor.socket"))
+	_ = viper.BindPFlag("sbsh.supervisor.detach", rootCmd.Flags().Lookup("detach"))
 }
 
 func runSupervisor(
 	ctx context.Context,
 	cancel context.CancelFunc,
+	logger *slog.Logger,
 	ctrl api.SupervisorController,
 	spec *api.SupervisorSpec,
 ) error {
 	defer cancel()
 
-	// Create error channel
 	errCh := make(chan error, 1)
 
-	// Run controller
+	logger.DebugContext(
+		ctx,
+		"starting supervisor controller goroutine",
+		"spec_kind",
+		spec.Kind,
+		"run_path",
+		spec.RunPath,
+	)
 	go func() {
-		errCh <- ctrl.Run(spec) // Run should return when ctx is canceled
+		errCh <- ctrl.Run(spec)
 		close(errCh)
-		slog.Debug("[sbsh] controller stopped\r\n")
+		logger.DebugContext(ctx, "controller goroutine exited")
 	}()
 
-	// block until controller is ready (or ctx cancels)
+	logger.DebugContext(ctx, "waiting for controller to signal ready")
 	if err := ctrl.WaitReady(); err != nil {
-		slog.Debug(fmt.Sprintf("controller not ready: %s", err))
+		logger.DebugContext(ctx, "controller not ready", "error", err)
 		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
 	}
 
+	logger.DebugContext(ctx, "controller ready, entering supervisor event loop")
 	select {
 	case <-ctx.Done():
 		var err error
-		slog.Debug("[sbsh] context canceled, waiting on sessionCtrl to exit\r\n")
+		logger.DebugContext(ctx, "context canceled, waiting for controller to exit")
 		if errC := ctrl.WaitClose(); errC != nil {
 			err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrWaitOnClose, errC)
 		}
-		slog.Debug("[sbsh] context canceled, sessionCtrl exited\r\n")
-
+		logger.DebugContext(ctx, "context canceled, controller exited")
 		return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
 
 	case err := <-errCh:
-		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
+		logger.DebugContext(ctx, "controller stopped", "error", err)
 		if err != nil && !errors.Is(err, context.Canceled) {
 			err = fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
 			if errC := ctrl.WaitClose(); err != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrWaitOnClose, errC)
 			}
-			slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
+			logger.DebugContext(ctx, "controller exited after error")
 
-			return err
+			// return nothing to avoid polluting the terminal with errors
+			return nil
 		}
 	}
 	return nil

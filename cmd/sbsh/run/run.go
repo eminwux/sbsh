@@ -60,26 +60,25 @@ If no command is provided, /bin/bash will be used by default.
 If no log filename is provided, a default path under the run directory will be used.
 `,
 		SilenceUsage: true,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			// Print the values of viper parameters after binding
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			if !ok || logger == nil {
+				return errors.New("logger not found in context")
+			}
 
-			// Print default values for debugging
-			// fmt.Printf("Default flag values:\n")
-			// fmt.Printf("  id: %v\n", runCmd.Flags().Lookup("id").DefValue)
-			// fmt.Printf("  command: %v\n", runCmd.Flags().Lookup("command").DefValue)
-			// fmt.Printf("  name: %v\n", runCmd.Flags().Lookup("name").DefValue)
-			// fmt.Printf("  log-filename: %v\n", runCmd.Flags().Lookup("log-filename").DefValue)
-			// fmt.Printf("  profile: %v\n", runCmd.Flags().Lookup("profile").DefValue)
-			// fmt.Printf("  socket: %v\n", runCmd.Flags().Lookup("socket").DefValue)
+			logger.Info("Starting sbsh run command")
+			logger.DebugContext(cmd.Context(), "building session spec from viper and flags",
+				"run_path", viper.GetString(env.RUN_PATH.ViperKey),
+				"profiles_file", viper.GetString(env.PROFILES_FILE.ViperKey),
+				"profile", viper.GetString("run.session.profile"),
+				"id", viper.GetString("run.session.id"),
+				"name", viper.GetString("run.session.name"),
+				"command", viper.GetString("run.session.command"),
+				"logFilename", viper.GetString("run.session.logFilename"),
+				"socket", viper.GetString("run.session.socket"),
+			)
 
-			// fmt.Printf("session.id: %v\n", viper.GetString("session.id"))
-			// fmt.Printf("session.command: %v\n", viper.GetString("session.command"))
-			// fmt.Printf("session.name: %v\n", viper.GetString("session.name"))
-			// fmt.Printf("session.logFilename: %v\n", viper.GetString("session.logFilename"))
-			// fmt.Printf("session.profile: %v\n", viper.GetString("session.profile"))
-			// fmt.Printf("session.socket: %v\n", viper.GetString("session.socket"))
-
-			sessionSpec, err := profile.BuildSessionSpec(
+			sessionSpec, buildErr := profile.BuildSessionSpec(
 				viper.GetString(env.RUN_PATH.ViperKey),
 				viper.GetString(env.PROFILES_FILE.ViperKey),
 				viper.GetString("run.session.profile"),
@@ -91,32 +90,43 @@ If no log filename is provided, a default path under the run directory will be u
 				os.Environ(),
 				context.Background(),
 			)
-			if err != nil {
-				return err
+			if buildErr != nil {
+				logger.Error("Failed to build session spec", "error", buildErr)
+				return buildErr
 			}
 
-			// If a profile name was given, set the SBSH_SES_PROFILE env var
+			logger.Info("Session spec built", "session_name", sessionSpec.Name, "session_id", sessionSpec.ID)
+
 			profileNameInput := viper.GetString("session.profile")
 			if profileNameInput != "" {
-				if err := env.SES_PROFILE.Set(profileNameInput); err != nil {
-					return err
+				logger.Info("Setting SBSH_SES_PROFILE env var", "profile", profileNameInput)
+				if setErr := env.SES_PROFILE.Set(profileNameInput); setErr != nil {
+					logger.Error("Failed to set SBSH_SES_PROFILE", "error", setErr)
+					return setErr
 				}
-				if err := env.SES_PROFILE.BindEnv(); err != nil {
-					return err
+				if bindErr := env.SES_PROFILE.BindEnv(); bindErr != nil {
+					logger.Error("Failed to bind SBSH_SES_PROFILE env", "error", bindErr)
+					return bindErr
 				}
 			}
 
-			if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
-				discovery.PrintSessionSpec(sessionSpec, os.Stdout)
+			if logger.Enabled(context.Background(), slog.LevelDebug) {
+				logger.DebugContext(cmd.Context(), "printing session spec for debug")
+				if printErr := discovery.PrintSessionSpec(sessionSpec, os.Stdout); printErr != nil {
+					logger.Warn("Failed to print session spec", "error", printErr)
+				}
 			}
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			ctrl := session.NewSessionController(ctx)
 
-			err = runSession(ctx, cancel, ctrl, sessionSpec)
-			if err != nil {
-				return err
+			logger.Info("Starting session controller")
+			runErr := runSession(ctx, cancel, logger, ctrl, sessionSpec)
+			if runErr != nil {
+				logger.Error("Session controller returned error", "error", runErr)
+				return runErr
 			}
+			logger.Info("Session controller completed successfully")
 			return nil
 		},
 	}
@@ -144,48 +154,47 @@ func setupRunCmdFlags(runCmd *cobra.Command) {
 func runSession(
 	ctx context.Context,
 	cancel context.CancelFunc,
+	logger *slog.Logger,
 	ctrl api.SessionController,
 	spec *api.SessionSpec,
 ) error {
-	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
 	defer cancel()
 
-	// Create error channel
+	logger.DebugContext(ctx, "starting session controller goroutine", "session_name", spec.Name, "session_id", spec.ID)
 	errCh := make(chan error, 1)
-
-	// Run controller
 	go func() {
-		errCh <- ctrl.Run(spec) // Run should return when ctx is canceled
+		errCh <- ctrl.Run(spec)
 		close(errCh)
-		slog.Debug("[sbsh] controller stopped\r\n")
+		logger.DebugContext(ctx, "session controller goroutine exited")
 	}()
 
-	// block until controller is ready (or ctx cancels)
+	logger.DebugContext(ctx, "waiting for session controller to signal ready")
 	if err := ctrl.WaitReady(); err != nil {
-		slog.Debug(fmt.Sprintf("controller not ready: %s\r\n", err))
+		logger.DebugContext(ctx, "session controller not ready", "error", err)
 		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
 	}
+
+	logger.DebugContext(ctx, "session controller ready, entering event loop")
 	select {
 	case <-ctx.Done():
-		var err error
-		slog.Debug("[sbsh-session] context canceled, waiting on sessionCtrl to exit\r\n")
+		logger.DebugContext(ctx, "context canceled, waiting for session controller to exit")
+		var waitErr error
 		if errC := ctrl.WaitClose(); errC != nil {
-			err = fmt.Errorf("%w %w: %w", err, errdefs.ErrWaitOnClose, errC)
+			waitErr = fmt.Errorf("%w %w: %w", waitErr, errdefs.ErrWaitOnClose, errC)
 		}
-		slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
-
-		return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
+		logger.DebugContext(ctx, "context canceled, session controller exited")
+		return fmt.Errorf("%w: %w", errdefs.ErrContextDone, waitErr)
 
 	case err := <-errCh:
-		slog.Debug(fmt.Sprintf("[sbsh] controller stopped with error: %v\r\n", err))
+		logger.DebugContext(ctx, "session controller stopped", "error", err)
 		if err != nil && !errors.Is(err, context.Canceled) {
-			err = fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
+			childErr := fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
 			if errC := ctrl.WaitClose(); errC != nil {
-				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrWaitOnClose, errC)
+				_ = fmt.Errorf("%w: %w: %w", childErr, errdefs.ErrWaitOnClose, errC)
 			}
-			slog.Debug("[sbsh-session] context canceled, sessionCtrl exited\r\n")
-
-			return err
+			logger.DebugContext(ctx, "session controller exited after error")
+			// return nothing to avoid polluting the terminal with errors
+			return nil
 		}
 	}
 	return nil

@@ -76,16 +76,27 @@ Examples:
 	sb profiles list
 `,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			if !ok || logger == nil {
+				return errors.New("logger not found in context")
+			}
+			logger.DebugContext(cmd.Context(), "loading config in PersistentPreRunE")
 			err := LoadConfig()
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Config error:", err)
-				os.Exit(1)
+				logger.DebugContext(cmd.Context(), "config error", "error", err)
+				return fmt.Errorf("config error: %w", err)
 			}
 
 			// Set log level dynamically if present
 			levelVar, ok := cmd.Context().Value("logLevelVar").(*slog.LevelVar)
 			if ok && levelVar != nil {
-				levelVar.Set(common.ParseLevel(viper.GetString("global.logLevel")))
+				logger.DebugContext(
+					cmd.Context(),
+					"setting log level from viper",
+					"level",
+					viper.GetString("sb.global.logLevel"),
+				)
+				levelVar.Set(common.ParseLevel(viper.GetString("sb.global.logLevel")))
 			}
 			return nil
 		},
@@ -94,8 +105,7 @@ Examples:
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
-			logger.Info("sb", "args", cmd.Flags().Args())
-
+			logger.DebugContext(cmd.Context(), "sb root command invoked", "args", cmd.Flags().Args())
 			return cmd.Help()
 		},
 	}
@@ -114,16 +124,9 @@ func setupRootCmd(rootCmd *cobra.Command) {
 	rootCmd.PersistentFlags().String("log-level", "", "Log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().String("run-path", "", "Run path directory")
 
-	// Bind flag to Viper
-	if err := viper.BindPFlag("global.config", rootCmd.PersistentFlags().Lookup("config")); err != nil {
-		slog.Warn("failed to bind flag", "flag", "config", "error", err)
-	}
-	if err := viper.BindPFlag("global.logLevel", rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
-		slog.Warn("failed to bind flag", "flag", "log-level", "error", err)
-	}
-	if err := viper.BindPFlag("global.runPath", rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
-		slog.Warn("failed to bind flag", "flag", "run-path", "error", err)
-	}
+	_ = viper.BindPFlag("sb.global.config", rootCmd.PersistentFlags().Lookup("config"))
+	_ = viper.BindPFlag("sb.global.logLevel", rootCmd.PersistentFlags().Lookup("log-level"))
+	_ = viper.BindPFlag("sb.global.runPath", rootCmd.PersistentFlags().Lookup("run-path"))
 }
 
 func LoadConfig() error {
