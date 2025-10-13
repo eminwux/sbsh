@@ -105,86 +105,97 @@ func copyStringMap(in map[string]string) map[string]string {
 	return out
 }
 
+type BuildSessionSpecParams struct {
+	SessionID      string
+	SessionName    string
+	SessionCmd     string
+	SessionCmdArgs []string
+	CaptureFile    string
+	RunPath        string
+	ProfilesFile   string
+	ProfileName    string
+	LogFile        string
+	LogLevel       string
+	SocketFile     string
+	EnvVars        []string
+}
+
+// BuildSessionSpec builds a SessionSpec from command-line inputs and/or a profile.
+// It applies defaults for missing values, and if a profile name is given, it loads
+// the profiles file and merges the profile into the spec.
+// The returned SessionSpec is ready to be used to spawn a session.
 func BuildSessionSpec(
-	runPath,
-	profilesFilename,
-	profileNameInput,
-	sessionIDInput,
-	sessionNameInput,
-	sessionCmdInput,
-	logFilenameInput,
-	socketFileInput string,
-	envVars []string,
 	ctx context.Context,
+	p *BuildSessionSpecParams,
 ) (*api.SessionSpec, error) {
-	sessionCmdArgsInput := []string{}
-
-	if sessionIDInput == "" {
+	if p.SessionID == "" {
 		// Default session ID to a random one
-		sessionIDInput = naming.RandomID()
+		p.SessionID = naming.RandomID()
 	}
 
-	if profilesFilename == "" {
+	if p.SessionName == "" {
+		p.SessionName = naming.RandomName()
+	}
+
+	if p.ProfilesFile == "" {
 		// Default profilesFilename to $RUN_PATH/profiles.yaml
-		profilesFilename = filepath.Join(runPath, ".sbsh", "profiles.yaml")
+		p.ProfilesFile = filepath.Join(p.RunPath, ".sbsh", "profiles.yaml")
 	}
 
-	if runPath == "" {
+	if p.RunPath == "" {
 		// Default runPath to $HOME/.sbsh
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			return nil, fmt.Errorf("cannot determine home directory: %w", err)
 		}
-		runPath = filepath.Join(homeDir, ".sbsh", "run")
+		p.RunPath = filepath.Join(homeDir, ".sbsh", "run")
 	}
 
-	if sessionNameInput == "" {
-		sessionNameInput = naming.RandomName()
+	if p.SessionCmd == "" {
+		p.SessionCmd = "/bin/bash"
+		p.SessionCmdArgs = []string{"-i"}
 	}
 
-	if sessionCmdInput == "" {
-		sessionCmdInput = "/bin/bash"
-		sessionCmdArgsInput = []string{"-i"}
-	}
-
-	if logFilenameInput == "" {
-		logFilenameInput = filepath.Join(
-			runPath,
+	if p.CaptureFile == "" {
+		p.CaptureFile = filepath.Join(
+			p.RunPath,
 			"sessions",
-			sessionIDInput,
+			p.SessionID,
 			"session.log",
 		)
 	}
 
-	if socketFileInput == "" {
-		socketFileInput = filepath.Join(
-			runPath,
+	if p.SocketFile == "" {
+		p.SocketFile = filepath.Join(
+			p.RunPath,
 			"sessions",
-			sessionIDInput,
+			p.SessionID,
 			"socket",
 		)
 	}
 
 	var sessionSpec *api.SessionSpec
-	if profileNameInput == "" {
+	if p.ProfileName == "" {
 		// No profile: build a SessionSpec from command-line inputs only.
 
 		// Define a new Session
 		sessionSpec = &api.SessionSpec{
-			ID:          api.ID(sessionIDInput),
+			ID:          api.ID(p.SessionID),
 			Kind:        api.SessionLocal,
-			Name:        sessionNameInput,
-			Command:     sessionCmdInput,
-			CommandArgs: sessionCmdArgsInput,
+			Name:        p.SessionName,
+			Command:     p.SessionCmd,
+			CommandArgs: p.SessionCmdArgs,
 			Env:         os.Environ(),
 			Prompt:      "(sbsh-$SBSH_SES_ID) $PS1",
-			RunPath:     runPath,
-			LogFilename: logFilenameInput,
-			SocketFile:  socketFileInput,
+			RunPath:     p.RunPath,
+			CaptureFile: p.CaptureFile,
+			LogFile:     p.LogFile,
+			LogLevel:    p.LogLevel,
+			SocketFile:  p.SocketFile,
 		}
 	} else {
 		// Profile given: load profiles file, find profile by name, and build SessionSpec from it.
-		profileSpec, err := discovery.FindProfileByName(ctx, profilesFilename, profileNameInput)
+		profileSpec, err := discovery.FindProfileByName(ctx, p.ProfilesFile, p.ProfileName)
 		if err != nil {
 			return nil, err
 		}
@@ -192,10 +203,13 @@ func BuildSessionSpec(
 		if err != nil {
 			return nil, err
 		}
-		sessionSpec.ID = api.ID(sessionIDInput)
-		sessionSpec.RunPath = runPath
-		sessionSpec.LogFilename = logFilenameInput
-		sessionSpec.Env = append(sessionSpec.Env, envVars...)
+		sessionSpec.ID = api.ID(p.SessionID)
+		sessionSpec.Name = p.SessionName
+		sessionSpec.RunPath = p.RunPath
+		sessionSpec.CaptureFile = p.CaptureFile
+		sessionSpec.LogFile = p.LogFile
+		sessionSpec.LogLevel = p.LogLevel
+		sessionSpec.Env = append(sessionSpec.Env, p.EnvVars...)
 	}
 	return sessionSpec, nil
 }

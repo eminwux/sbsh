@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/eminwux/sbsh/internal/discovery"
+	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -34,7 +35,7 @@ func NewProfilesListCmd() *cobra.Command {
 		Long: `List available profiles.
 This command scans and lists all available profiles in the specified configuration file.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}

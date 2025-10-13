@@ -222,51 +222,56 @@ func FindSessionByName(ctx context.Context, runPath string, name string) (*api.S
 	return nil, fmt.Errorf("session with name %q not found", name)
 }
 
-func PrintSessionSpec(s *api.SessionSpec, w io.Writer) error {
+func PrintSessionSpec(s *api.SessionSpec, logger *slog.Logger) error {
 	if s == nil {
-		fmt.Fprintln(w, "nil session spec")
+		logger.Info("nil session spec")
 		return nil
 	}
 
-	//nolint:mnd // tabwriter padding
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-
-	fmt.Fprintf(tw, "ID:\t%s\n", s.ID)
-	fmt.Fprintf(tw, "NAME:\t%s\n", s.Name)
-	fmt.Fprintf(tw, "KIND:\t%s\n", s.Kind)
-	fmt.Fprintf(tw, "COMMAND:\t%s %s\n", s.Command, strings.Join(s.CommandArgs, " "))
-	fmt.Fprintf(tw, "PROMPT:\t%s\n", s.Prompt)
+	logger.Info("SessionSpec",
+		"ID", s.ID,
+		"NAME", s.Name,
+		"KIND", s.Kind,
+		"COMMAND", fmt.Sprintf("%s %s", s.Command, strings.Join(s.CommandArgs, " ")),
+		"PROMPT", s.Prompt,
+	)
 
 	if s.RunPath != "" {
-		fmt.Fprintf(tw, "RUN PATH:\t%s\n", s.RunPath)
+		logger.Info("RunPath", "value", s.RunPath)
 	}
 
-	if s.LogFilename != "" {
-		fmt.Fprintf(tw, "LOG FILE:\t%s\n", s.LogFilename)
+	if s.CaptureFile != "" {
+		logger.Info("CaptureFile", "value", s.CaptureFile)
+	}
+
+	if s.LogFile != "" {
+		logger.Info("LogFile", "value", s.LogFile)
+	}
+
+	if s.LogLevel != "" {
+		logger.Info("LogLevel", "value", s.LogLevel)
 	}
 
 	if s.SocketFile != "" {
-		fmt.Fprintf(tw, "SOCKET CTRL:\t%s\n", s.SocketFile)
+		logger.Info("SocketCtrl", "value", s.SocketFile)
 	}
 
 	if len(s.Env) > 0 {
-		fmt.Fprintln(tw, "ENVIRONMENT:")
-		for _, e := range s.Env {
-			fmt.Fprintf(tw, "\t%s\n", e)
-		}
+		logger.Info("Environment", "vars", s.Env)
 	}
 
 	if len(s.Labels) > 0 {
-		fmt.Fprintln(tw, "LABELS:")
 		keys := make([]string, 0, len(s.Labels))
 		for k := range s.Labels {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
+		labels := make([]string, 0, len(keys))
 		for _, k := range keys {
-			fmt.Fprintf(tw, "\t%s=%s\n", k, s.Labels[k])
+			labels = append(labels, fmt.Sprintf("%s=%s", k, s.Labels[k]))
 		}
+		logger.Info("Labels", "labels", labels)
 	}
 
-	return tw.Flush()
+	return nil
 }

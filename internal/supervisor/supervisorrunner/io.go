@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -39,7 +38,7 @@ const (
 )
 
 func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
-	slog.Debug(fmt.Sprintf("[supervisor] %s session on  %d trying to connect to %s\r\n",
+	sr.logger.DebugContext(sr.ctx, fmt.Sprintf("[supervisor] %s session on  %d trying to connect to %s\r\n",
 		sr.session.Id,
 		sr.session.Pid,
 		sr.session.SocketFile))
@@ -56,7 +55,7 @@ func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 		return fmt.Errorf("status failed: %w", err)
 	}
 
-	slog.Debug(fmt.Sprintf("[supervisor] rpc->session (Status): %+v\r\n", status))
+	sr.logger.DebugContext(sr.ctx, fmt.Sprintf("[supervisor] rpc->session (Status): %+v\r\n", status))
 
 	return nil
 }
@@ -64,7 +63,7 @@ func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 func (sr *SupervisorRunnerExec) attachIOSocket() error {
 	// Connected, now we enable raw mode
 	if err := sr.toBashUIMode(); err != nil {
-		slog.Debug(fmt.Sprintf("[supervisor] initial raw mode failed: %v", err))
+		sr.logger.DebugContext(sr.ctx, fmt.Sprintf("[supervisor] initial raw mode failed: %v", err))
 	}
 
 	// We want half-closes; UnixConn exposes CloseRead/CloseWrite
@@ -81,16 +80,16 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 		var e error
 
 		for {
-			slog.Debug("stdin->socket pre-read")
+			sr.logger.DebugContext(sr.ctx, "stdin->socket pre-read")
 			n, rerr := os.Stdin.Read(buf)
-			slog.Debug(fmt.Sprintf("stdin->socket post-read: %d", n))
+			sr.logger.DebugContext(sr.ctx, fmt.Sprintf("stdin->socket post-read: %d", n))
 
 			if n > 0 {
 				written := 0
 				for written < n {
-					slog.Debug("stdin->socket pre-write")
+					sr.logger.DebugContext(sr.ctx, "stdin->socket pre-write")
 					m, werr := sr.ioConn.Write(buf[written:n])
-					slog.Debug(fmt.Sprintf("stdin->socket post-write: %d", m))
+					sr.logger.DebugContext(sr.ctx, fmt.Sprintf("stdin->socket post-write: %d", m))
 					if werr != nil {
 						e = werr
 						goto done
@@ -114,7 +113,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 
 		// send event (EOF or error while copying stdin -> socket)
 		if errors.Is(e, io.EOF) {
-			slog.Debug("[supervisor] stdin reached EOF\r\n")
+			sr.logger.DebugContext(sr.ctx, "[supervisor] stdin reached EOF\r\n")
 			trySendEvent(sr.events, SupervisorRunnerEvent{
 				ID:   sr.session.Id,
 				Type: EvCmdExited,
@@ -122,7 +121,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 				When: time.Now(),
 			})
 		} else if e != nil {
-			slog.Debug(fmt.Sprintf("[supervisor] stdin->socket error: %v\r\n", e))
+			sr.logger.DebugContext(sr.ctx, fmt.Sprintf("[supervisor] stdin->socket error: %v\r\n", e))
 			trySendEvent(sr.events, SupervisorRunnerEvent{
 				ID:   sr.session.Id,
 				Type: EvError,
@@ -142,16 +141,16 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 		var e error
 
 		for {
-			slog.Debug("socket->stdout pre-read")
+			sr.logger.DebugContext(sr.ctx, "socket->stdout pre-read")
 			n, rerr := sr.ioConn.Read(buf)
-			slog.Debug(fmt.Sprintf("socket->stdout post-read: %d", n))
+			sr.logger.DebugContext(sr.ctx, fmt.Sprintf("socket->stdout post-read: %d", n))
 
 			if n > 0 {
 				written := 0
 				for written < n {
-					slog.Debug("socket->stdout pre-write")
+					sr.logger.DebugContext(sr.ctx, "socket->stdout pre-write")
 					m, werr := os.Stdout.Write(buf[written:n])
-					slog.Debug(fmt.Sprintf("socket->stdout post-write: %d", m))
+					sr.logger.DebugContext(sr.ctx, fmt.Sprintf("socket->stdout post-write: %d", m))
 					if werr != nil {
 						e = werr
 						goto done
@@ -175,7 +174,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 
 		// send event (EOF or error while copying socket -> stdout)
 		if errors.Is(e, io.EOF) {
-			slog.Debug("[supervisor] socket closed (EOF)\r\n")
+			sr.logger.DebugContext(sr.ctx, "[supervisor] socket closed (EOF)\r\n")
 			trySendEvent(sr.events, SupervisorRunnerEvent{
 				ID:   sr.session.Id,
 				Type: EvCmdExited,
@@ -183,7 +182,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 				When: time.Now(),
 			})
 		} else if e != nil {
-			slog.Debug(fmt.Sprintf("[supervisor] socket->stdout error: %v\r\n", e))
+			sr.logger.DebugContext(sr.ctx, fmt.Sprintf("[supervisor] socket->stdout error: %v\r\n", e))
 			trySendEvent(sr.events, SupervisorRunnerEvent{
 				ID:   sr.session.Id,
 				Type: EvError,
@@ -202,7 +201,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 		// Wait for either context cancel or one side finishing
 		select {
 		case <-sr.ctx.Done():
-			slog.Debug("[supervisor-runner] context done\r\n")
+			sr.logger.DebugContext(sr.ctx, "[supervisor-runner] context done\r\n")
 			_ = sr.ioConn.Close() // unblock goroutines
 			<-errCh
 			<-errCh
@@ -230,7 +229,7 @@ func (sr *SupervisorRunnerExec) attach() error {
 	if err != nil {
 		return err
 	}
-	slog.Debug("[supervisor] Received connection")
+	sr.logger.DebugContext(sr.ctx, "[supervisor] Received connection")
 
 	sr.ioConn = conn
 
@@ -261,7 +260,7 @@ func (sr *SupervisorRunnerExec) forwardResize() error {
 				defer close(ch)
 				return
 			case <-ch:
-				// slog.Debug("[supervisor] window change\r\n")
+				// sr.logger.DebugContext(sr.ctx, "[supervisor] window change\r\n")
 				// Query current terminal size again on every WINCH
 				rows, cols, err := pty.Getsize(os.Stdin)
 				if err != nil {
@@ -272,7 +271,7 @@ func (sr *SupervisorRunnerExec) forwardResize() error {
 				defer cancel()
 				if err := sr.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: int(cols), Rows: int(rows)}); err != nil {
 					// Don't kill the process on resize failure; just log
-					slog.Debug(fmt.Sprintf("resize RPC failed: %v\r\n", err))
+					sr.logger.DebugContext(sr.ctx, fmt.Sprintf("resize RPC failed: %v\r\n", err))
 				}
 			}
 		}

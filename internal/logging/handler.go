@@ -14,22 +14,32 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package logging
 
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
-	"os"
 	"strings"
 )
 
+const (
+	CtxLogger   = CtxLoggerType("logger")
+	CtxLevelVar = CtxLoggerType("logLevel")
+	CtxHandler  = CtxLoggerType("textHandler")
+	CtxCloser   = CtxLoggerType("closer")
+)
+
+type CtxLoggerType string
+
 type ReformatHandler struct {
-	inner slog.Handler
+	Inner  slog.Handler
+	Writer io.Writer
 }
 
 func (h *ReformatHandler) Enabled(ctx context.Context, lvl slog.Level) bool {
-	return h.inner.Enabled(ctx, lvl)
+	return h.Inner.Enabled(ctx, lvl)
 }
 
 func (h *ReformatHandler) Handle(_ context.Context, r slog.Record) error {
@@ -43,14 +53,14 @@ func (h *ReformatHandler) Handle(_ context.Context, r slog.Record) error {
 		return true
 	})
 
-	fmt.Fprintf(os.Stdout, "%s %s %s%s\n", ts, level, msg, attrs)
+	fmt.Fprintf(h.Writer, "%s %s %s%s\n", ts, level, msg, attrs)
 	return nil
 }
 
 func (h *ReformatHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &ReformatHandler{inner: h.inner.WithAttrs(attrs)}
+	return &ReformatHandler{Inner: h.Inner.WithAttrs(attrs)}
 }
 
 func (h *ReformatHandler) WithGroup(name string) slog.Handler {
-	return &ReformatHandler{inner: h.inner.WithGroup(name)}
+	return &ReformatHandler{Inner: h.Inner.WithGroup(name)}
 }

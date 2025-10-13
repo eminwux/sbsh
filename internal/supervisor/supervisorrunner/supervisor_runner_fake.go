@@ -19,6 +19,7 @@ package supervisorrunner
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 
 	"github.com/eminwux/sbsh/internal/supervisor/supervisorrpc"
@@ -32,7 +33,8 @@ var ErrFuncNotSet = errors.New("test function not set")
 // It allows overriding behavior with function fields and
 // capturing arguments for assertions in unit tests.
 type SupervisorRunnerTest struct {
-	Ctx context.Context
+	Ctx    context.Context
+	Logger *slog.Logger
 	// Last-call trackers
 	LastListener   net.Listener
 	LastController *supervisorrpc.SupervisorControllerRPC

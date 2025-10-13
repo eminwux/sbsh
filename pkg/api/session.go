@@ -49,7 +49,9 @@ type SessionSpec struct {
 	CommandArgs []string          `json:"commandArgs"`
 	Env         []string          `json:"env"`
 	Labels      map[string]string `json:"labels"`
-	LogFilename string            `json:"logFile"`
+	CaptureFile string            `json:"captureFile"`
+	LogFile     string            `json:"logFile"`
+	LogLevel    string            `json:"logLevel"`
 	SocketFile  string            `json:"socketIO"`
 	RunPath     string            `json:"runPath"`
 	ProfileName string            `json:"profileName"`
@@ -60,10 +62,12 @@ type SessionSpec struct {
 type SessionStatus struct {
 	Pid            int               `json:"pid"`
 	State          SessionStatusMode `json:"state"`
-	LogFilename    string            `json:"logFile"`
 	SocketFile     string            `json:"socketCtrl"`
 	BaseRunPath    string            `json:"baseRunPath"`
 	SessionRunPath string            `json:"sessionRunPath"`
+	LogFile        string            `json:"logFile"`
+	LogLevel       string            `json:"logLevel"`
+	CaptureFile    string            `json:"captureFile"`
 }
 
 type SessionStatusMode int

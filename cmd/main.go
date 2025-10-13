@@ -24,6 +24,7 @@ import (
 
 	"github.com/eminwux/sbsh/cmd/sb"
 	"github.com/eminwux/sbsh/cmd/sbsh"
+	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -38,28 +39,27 @@ func main() {
 	levelVar.Set(slog.LevelInfo)
 
 	textHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: &levelVar})
-	handler := &ReformatHandler{inner: textHandler}
+	handler := &logging.ReformatHandler{Inner: textHandler, Writer: os.Stdout}
 	logger := slog.New(handler)
 
 	// Store both logger and levelVar in context using struct keys
-	//nolint:revive,staticcheck // ignore revive warning about context keys
-	ctx := context.WithValue(context.Background(), "logger", logger)
-	//nolint:revive,staticcheck // ignore revive warning about context keys
-	ctx = context.WithValue(ctx, "logLevelVar", &levelVar)
+	ctx := context.WithValue(context.Background(), logging.CtxLogger, logger)
+	ctx = context.WithValue(ctx, logging.CtxLevelVar, &levelVar)
+	ctx = context.WithValue(ctx, logging.CtxHandler, handler)
 
 	// Select which subtree to run based on the executable name
 	exe := filepath.Base(os.Args[0])
-	logger.Debug("cmd", "exe", exe, "args", os.Args)
+	// logger.Debug("cmd", "exe", exe, "args", os.Args)
 	// Decide which subtree to run by prepending the name as the first arg
 	switch exe {
 	case "sb":
-		logger.Debug("cmd", "sb args", append([]string{"sb"}, os.Args[1:]...))
+		// logger.Debug("cmd", "sb args", append([]string{"sb"}, os.Args[1:]...))
 		root.SetArgs(append([]string{"sb"}, os.Args[1:]...))
 	case "sbsh":
-		logger.Debug("cmd", "sbsh args", append([]string{"sbsh"}, os.Args[1:]...))
+		// logger.Debug("cmd", "sbsh args", append([]string{"sbsh"}, os.Args[1:]...))
 		root.SetArgs(append([]string{"sbsh"}, os.Args[1:]...))
 	default:
-		logger.Debug("cmd", "default args", append([]string{"sbsh"}, os.Args[1:]...))
+		// logger.Debug("cmd", "default args", append([]string{"sbsh"}, os.Args[1:]...))
 		root.SetArgs(append([]string{"sbsh"}, os.Args[1:]...)) // default
 	}
 

@@ -20,14 +20,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/env"
 	"github.com/eminwux/sbsh/internal/errdefs"
+	"github.com/eminwux/sbsh/internal/logging"
+	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/internal/profile"
 	"github.com/eminwux/sbsh/internal/session"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -60,65 +64,102 @@ If no command is provided, /bin/bash will be used by default.
 If no log filename is provided, a default path under the run directory will be used.
 `,
 		SilenceUsage: true,
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			sessionID := viper.GetString("sbsh.run.id")
+			if sessionID == "" {
+				sessionID = naming.RandomID()
+				viper.Set("sbsh.run.id", sessionID)
+			}
+
+			sesLogfile := viper.GetString("sbsh.run.logFile")
+			if sesLogfile == "" {
+				sesLogfile = filepath.Join(
+					viper.GetString(env.RUN_PATH.ViperKey),
+					"sessions",
+					sessionID,
+					"log",
+				)
+			}
+
+			sesLogLevel := viper.GetString("sbsh.run.logLevel")
+			if sesLogLevel == "" {
+				sesLogLevel = "info"
+			}
+
+			if sesLogfile != "" {
+				if err := os.MkdirAll(filepath.Dir(sesLogfile), 0o700); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to create log directory: %v\n", err)
+					os.Exit(1)
+				}
+
+				f, err := os.OpenFile(sesLogfile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to open log file: %v\n", err)
+					os.Exit(1)
+				}
+
+				// Create a new logger that writes to the file with the specified log level
+				lv := new(slog.LevelVar)
+				lv.Set(logging.ParseLevel(sesLogLevel))
+
+				handler, ok := cmd.Context().Value(logging.CtxHandler).(*logging.ReformatHandler)
+				if !ok || handler == nil {
+					return errors.New("logger handler not found in context")
+				}
+
+				handler.Inner = slog.NewTextHandler(f, &slog.HandlerOptions{Level: lv})
+				handler.Writer = f
+
+				ctx := cmd.Context()
+				ctx = context.WithValue(ctx, logging.CtxLevelVar, lv)
+				ctx = context.WithValue(ctx, logging.CtxCloser, f)
+				cmd.SetContext(ctx)
+				return nil
+			}
+
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
 
 			logger.Info("Starting sbsh run command")
-			logger.DebugContext(cmd.Context(), "building session spec from viper and flags",
-				"run_path", viper.GetString(env.RUN_PATH.ViperKey),
-				"profiles_file", viper.GetString(env.PROFILES_FILE.ViperKey),
-				"profile", viper.GetString("run.session.profile"),
-				"id", viper.GetString("run.session.id"),
-				"name", viper.GetString("run.session.name"),
-				"command", viper.GetString("run.session.command"),
-				"logFilename", viper.GetString("run.session.logFilename"),
-				"socket", viper.GetString("run.session.socket"),
-			)
 
 			sessionSpec, buildErr := profile.BuildSessionSpec(
-				viper.GetString(env.RUN_PATH.ViperKey),
-				viper.GetString(env.PROFILES_FILE.ViperKey),
-				viper.GetString("run.session.profile"),
-				viper.GetString("run.session.id"),
-				viper.GetString("run.session.name"),
-				viper.GetString("run.session.command"),
-				viper.GetString("run.session.logFilename"),
-				viper.GetString("run.session.socket"),
-				os.Environ(),
-				context.Background(),
+				cmd.Context(),
+				&profile.BuildSessionSpecParams{
+					SessionID:    viper.GetString("sbsh.run.id"),
+					SessionName:  viper.GetString("sbsh.run.name"),
+					SessionCmd:   viper.GetString("sbsh.run.command"),
+					CaptureFile:  viper.GetString("sbsh.run.captureFile"),
+					RunPath:      viper.GetString(env.RUN_PATH.ViperKey),
+					ProfilesFile: viper.GetString(env.PROFILES_FILE.ViperKey),
+					ProfileName:  viper.GetString("sbsh.run.profile"),
+					LogFile:      viper.GetString("sbsh.run.logFile"),
+					LogLevel:     viper.GetString("sbsh.run.logLevel"),
+					SocketFile:   viper.GetString("sbsh.run.socket"),
+					EnvVars:      os.Environ(),
+				},
 			)
+
 			if buildErr != nil {
 				logger.Error("Failed to build session spec", "error", buildErr)
 				return buildErr
 			}
 
-			logger.Info("Session spec built", "session_name", sessionSpec.Name, "session_id", sessionSpec.ID)
-
-			profileNameInput := viper.GetString("session.profile")
-			if profileNameInput != "" {
-				logger.Info("Setting SBSH_SES_PROFILE env var", "profile", profileNameInput)
-				if setErr := env.SES_PROFILE.Set(profileNameInput); setErr != nil {
-					logger.Error("Failed to set SBSH_SES_PROFILE", "error", setErr)
-					return setErr
-				}
-				if bindErr := env.SES_PROFILE.BindEnv(); bindErr != nil {
-					logger.Error("Failed to bind SBSH_SES_PROFILE env", "error", bindErr)
-					return bindErr
-				}
-			}
+			logger.Debug("Built session spec", "sessionSpec", fmt.Sprintf("%+v", sessionSpec))
 
 			if logger.Enabled(context.Background(), slog.LevelDebug) {
 				logger.DebugContext(cmd.Context(), "printing session spec for debug")
-				if printErr := discovery.PrintSessionSpec(sessionSpec, os.Stdout); printErr != nil {
+				if printErr := discovery.PrintSessionSpec(sessionSpec, logger); printErr != nil {
 					logger.Warn("Failed to print session spec", "error", printErr)
 				}
 			}
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-			ctrl := session.NewSessionController(ctx)
+			ctrl := session.NewSessionController(ctx, logger)
 
 			logger.Info("Starting session controller")
 			runErr := runSession(ctx, cancel, logger, ctrl, sessionSpec)
@@ -129,6 +170,12 @@ If no log filename is provided, a default path under the run directory will be u
 			logger.Info("Session controller completed successfully")
 			return nil
 		},
+		PostRunE: func(cmd *cobra.Command, _ []string) error {
+			if c, _ := cmd.Context().Value(logging.CtxCloser).(io.Closer); c != nil {
+				_ = c.Close()
+			}
+			return nil
+		},
 	}
 
 	setupRunCmdFlags(runCmd)
@@ -137,18 +184,29 @@ If no log filename is provided, a default path under the run directory will be u
 
 func setupRunCmdFlags(runCmd *cobra.Command) {
 	runCmd.Flags().String("id", "", "Optional session ID (random if omitted)")
-	runCmd.Flags().String("command", "", "Optional command (default: /bin/bash)")
-	runCmd.Flags().String("name", "", "Optional name for the session")
-	runCmd.Flags().String("log-filename", "", "Optional filename for the session log")
-	runCmd.Flags().String("profile", "", "Optional profile for the session")
-	runCmd.Flags().String("socket", "", "Optional socket file for the session")
+	_ = viper.BindPFlag("sbsh.run.id", runCmd.Flags().Lookup("id"))
 
-	_ = viper.BindPFlag("run.session.id", runCmd.Flags().Lookup("id"))
-	_ = viper.BindPFlag("run.session.command", runCmd.Flags().Lookup("command"))
-	_ = viper.BindPFlag("run.session.name", runCmd.Flags().Lookup("name"))
-	_ = viper.BindPFlag("run.session.logFilename", runCmd.Flags().Lookup("log-filename"))
-	_ = viper.BindPFlag("run.session.profile", runCmd.Flags().Lookup("profile"))
-	_ = viper.BindPFlag("run.session.socket", runCmd.Flags().Lookup("socket"))
+	runCmd.Flags().String("command", "", "Optional command (default: /bin/bash)")
+	_ = viper.BindPFlag("sbsh.run.command", runCmd.Flags().Lookup("command"))
+
+	runCmd.Flags().String("name", "", "Optional name for the session")
+	_ = viper.BindPFlag("sbsh.run.name", runCmd.Flags().Lookup("name"))
+
+	runCmd.Flags().String("session-log", "", "Optional filename for the session log")
+	_ = viper.BindPFlag("sbsh.run.sessionLog", runCmd.Flags().Lookup("session-log"))
+
+	runCmd.Flags().String("log-file", "", "Optional filename for the session log")
+	_ = viper.BindPFlag("sbsh.run.logFile", runCmd.Flags().Lookup("log-file"))
+
+	runCmd.Flags().String("log-level", "", "Optional log level for the session")
+	_ = viper.BindPFlag("sbsh.run.logLevel", runCmd.Flags().Lookup("log-level"))
+
+	runCmd.Flags().String("profile", "", "Optional profile for the session")
+	_ = viper.BindPFlag("sbsh.run.profile", runCmd.Flags().Lookup("profile"))
+	_ = viper.BindEnv("sbsh.run.profile", env.SES_PROFILE.EnvVar())
+
+	runCmd.Flags().String("socket", "", "Optional socket file for the session")
+	_ = viper.BindPFlag("sbsh.run.socket", runCmd.Flags().Lookup("socket"))
 }
 
 func runSession(

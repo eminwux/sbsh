@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/eminwux/sbsh/internal/env"
+	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/eminwux/sbsh/pkg/rpcclient/supervisor"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -42,7 +43,7 @@ This command takes a --socket argument to specify the supervisor socket path.
 If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
@@ -53,7 +54,7 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 			const detachTimeout = 3 * time.Second
 
 			// check SBSH_SUP_SOCKET
-			socket := viper.GetString(env.SUP_SOCKET.ViperKey)
+			socket := viper.GetString("sb.detach.socket")
 			logger.DebugContext(cmd.Context(), "checking supervisor socket", "socket", socket)
 			if socket == "" {
 				logger.DebugContext(cmd.Context(), "no supervisor socket found, cannot detach")
@@ -86,6 +87,6 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 func setupDetachCmd(detachCmd *cobra.Command) {
 	detachCmd.Flags().String("socket", "", "Supervisor Socket Path")
 
-	_ = env.SUP_SOCKET.BindEnv()
-	_ = viper.BindPFlag(env.SUP_SOCKET.ViperKey, detachCmd.Flags().Lookup("socket"))
+	_ = viper.BindPFlag("sb.detach.socket", detachCmd.Flags().Lookup("socket"))
+	_ = viper.BindEnv("sb.detach.socket", env.SUP_SOCKET.Key)
 }

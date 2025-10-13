@@ -86,7 +86,7 @@ func (sr *SessionRunnerExec) startPTY() error {
 		sr.closeReqCh <- errors.New("the shell process has exited")
 	}()
 
-	logf, err := os.OpenFile(sr.metadata.Spec.LogFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	logf, err := os.OpenFile(sr.metadata.Spec.CaptureFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
 	}

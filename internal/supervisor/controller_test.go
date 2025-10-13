@@ -36,9 +36,10 @@ import (
 func Test_ErrOpenSocketCtrl(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx:    ctx,
+			Logger: logger,
 			OpenSocketCtrlFunc: func() error {
 				return errors.New("force socket fail")
 			},
@@ -60,7 +61,7 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 		ID:      api.ID(supervisorID),
 		Name:    "default",
 		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
+		LogFile: "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
 	}
 
@@ -91,9 +92,10 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 func Test_ErrStartRPCServer(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx:    ctx,
+			Logger: logger,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -128,7 +130,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 		ID:      api.ID(supervisorID),
 		Name:    "default",
 		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
+		LogFile: "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
 	}
 
@@ -159,9 +161,10 @@ func Test_ErrStartRPCServer(t *testing.T) {
 func Test_ErrAttach(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx:    ctx,
+			Logger: logger,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -227,7 +230,7 @@ func Test_ErrAttach(t *testing.T) {
 		ID:      api.ID(supervisorID),
 		Name:    "default",
 		Env:     os.Environ(),
-		LogDir:  "/tmp/sbsh-logs/s0",
+		LogFile: "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
 		Kind:    api.AttachToSession,
 	}
@@ -246,9 +249,10 @@ func Test_ErrContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(ctx, logger).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx:    ctx,
+			Logger: logger,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -314,7 +318,7 @@ func Test_ErrContextDone(t *testing.T) {
 		ID:          api.ID(supervisorID),
 		Name:        "default",
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},
 	}
@@ -336,9 +340,10 @@ func Test_ErrContextDone(t *testing.T) {
 func Test_ErrRPCServerExited(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx:    ctx,
+			Logger: logger,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -406,7 +411,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		ID:          api.ID(supervisorID),
 		Name:        "default",
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},
 	}
@@ -425,9 +430,10 @@ func Test_ErrRPCServerExited(t *testing.T) {
 func Test_ErrSessionExists(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx:    ctx,
+			Logger: logger,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -494,7 +500,7 @@ func Test_ErrSessionExists(t *testing.T) {
 		ID:          api.ID(supervisorID),
 		Name:        "default",
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},
 	}
@@ -514,9 +520,10 @@ func Test_ErrSessionExists(t *testing.T) {
 func Test_ErrCloseReq(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx:    ctx,
+			Logger: logger,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -584,7 +591,7 @@ func Test_ErrCloseReq(t *testing.T) {
 		ID:          api.ID(supervisorID),
 		Name:        "default",
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},
 	}
@@ -604,9 +611,10 @@ func Test_ErrCloseReq(t *testing.T) {
 func Test_ErrStartSessionCmd(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx:    ctx,
+			Logger: logger,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -674,7 +682,7 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 		ID:          api.ID(supervisorID),
 		Name:        "default",
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},
 	}
@@ -693,9 +701,10 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 func Test_ErrSessionStore(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*SupervisorController)
-	sc.NewSupervisorRunner = func(ctx context.Context, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
+	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner {
 		return &supervisorrunner.SupervisorRunnerTest{
-			Ctx: ctx,
+			Ctx:    ctx,
+			Logger: logger,
 			OpenSocketCtrlFunc: func() error {
 				// default: return nil listener and nil error
 				return nil
@@ -759,7 +768,7 @@ func Test_ErrSessionStore(t *testing.T) {
 		ID:          api.ID(supervisorID),
 		Name:        "default",
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},
 	}

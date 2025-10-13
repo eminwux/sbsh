@@ -28,6 +28,7 @@ import (
 
 	"github.com/eminwux/sbsh/internal/env"
 	"github.com/eminwux/sbsh/internal/errdefs"
+	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/internal/supervisor"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -55,7 +56,7 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
@@ -221,7 +222,7 @@ func buildSupervisorSpec(
 			Kind:       api.AttachToSession,
 			ID:         api.ID(naming.RandomID()),
 			Name:       naming.RandomName(),
-			LogDir:     "/tmp/sbsh-logs/s0",
+			LogFile:    "/tmp/sbsh-logs/s0",
 			RunPath:    runPath,
 			SockerCtrl: socketFileInput,
 			SessionSpec: &api.SessionSpec{
@@ -232,7 +233,7 @@ func buildSupervisorSpec(
 			"kind", spec.Kind,
 			"id", spec.ID,
 			"name", spec.Name,
-			"log_dir", spec.LogDir,
+			"log_dir", spec.LogFile,
 			"run_path", spec.RunPath,
 			"session_name", spec.SessionSpec.Name,
 		)

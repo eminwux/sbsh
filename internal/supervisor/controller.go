@@ -39,7 +39,7 @@ type SupervisorController struct {
 	ctx    context.Context
 	logger *slog.Logger
 
-	NewSupervisorRunner func(ctx context.Context, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner
+	NewSupervisorRunner func(ctx context.Context, logger *slog.Logger, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner
 	NewSessionStore     func() sessionstore.SessionStore
 
 	sr supervisorrunner.SupervisorRunner
@@ -57,11 +57,6 @@ type SupervisorController struct {
 	rpcDoneCh  chan error
 }
 
-var (
-	newSupervisorRunner = supervisorrunner.NewSupervisorRunnerExec
-	newSessionStore     = sessionstore.NewSessionStoreExec
-)
-
 // NewSupervisorController wires the manager and the shared event channel from sessions.
 func NewSupervisorController(ctx context.Context, logger *slog.Logger) api.SupervisorController {
 	slog.Debug("[supervisor] New controller is being created\r\n")
@@ -77,8 +72,8 @@ func NewSupervisorController(ctx context.Context, logger *slog.Logger) api.Super
 		closeReqCh:  make(chan error, 1),
 		//nolint:mnd // event channel buffer size
 		eventsCh:            make(chan supervisorrunner.SupervisorRunnerEvent, 32),
-		NewSupervisorRunner: newSupervisorRunner,
-		NewSessionStore:     newSessionStore,
+		NewSupervisorRunner: supervisorrunner.NewSupervisorRunnerExec,
+		NewSessionStore:     sessionstore.NewSessionStoreExec,
 	}
 	return c
 }
@@ -97,7 +92,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	s.logger.Debug("controller loop started", "spec_kind", spec.Kind, "run_path", spec.RunPath)
 	defer s.logger.Debug("controller loop stopped", "run_path", spec.RunPath)
 
-	s.sr = s.NewSupervisorRunner(s.ctx, spec, s.eventsCh)
+	s.sr = s.NewSupervisorRunner(s.ctx, s.logger, spec, s.eventsCh)
 	s.ss = s.NewSessionStore()
 
 	err := s.sr.CreateMetadata()

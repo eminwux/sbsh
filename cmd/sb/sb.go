@@ -28,8 +28,8 @@ import (
 	"github.com/eminwux/sbsh/cmd/sb/detach"
 	"github.com/eminwux/sbsh/cmd/sb/profiles"
 	"github.com/eminwux/sbsh/cmd/sb/sessions"
-	"github.com/eminwux/sbsh/internal/common"
 	"github.com/eminwux/sbsh/internal/env"
+	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -76,7 +76,7 @@ Examples:
 	sb profiles list
 `,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
@@ -88,7 +88,7 @@ Examples:
 			}
 
 			// Set log level dynamically if present
-			levelVar, ok := cmd.Context().Value("logLevelVar").(*slog.LevelVar)
+			levelVar, ok := cmd.Context().Value(logging.CtxLevelVar).(*slog.LevelVar)
 			if ok && levelVar != nil {
 				logger.DebugContext(
 					cmd.Context(),
@@ -96,12 +96,12 @@ Examples:
 					"level",
 					viper.GetString("sb.global.logLevel"),
 				)
-				levelVar.Set(common.ParseLevel(viper.GetString("sb.global.logLevel")))
+				levelVar.Set(logging.ParseLevel(viper.GetString("sb.global.logLevel")))
 			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			logger, ok := cmd.Context().Value("logger").(*slog.Logger)
+			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}

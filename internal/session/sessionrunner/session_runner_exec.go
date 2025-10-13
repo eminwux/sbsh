@@ -18,6 +18,7 @@ package sessionrunner
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"os"
 	"os/exec"
@@ -30,6 +31,7 @@ import (
 type SessionRunnerExec struct {
 	ctx       context.Context
 	ctxCancel context.CancelFunc
+	logger    *slog.Logger
 
 	// immutable
 	id       api.ID
@@ -77,7 +79,7 @@ type ioClient struct {
 	pipeOutW *os.File
 }
 
-func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRunner {
+func NewSessionRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.SessionSpec) SessionRunner {
 	newCtx, cancel := context.WithCancel(ctx)
 
 	return &SessionRunnerExec{
@@ -89,6 +91,7 @@ func NewSessionRunnerExec(ctx context.Context, spec *api.SessionSpec) SessionRun
 
 		ctx:       newCtx,
 		ctxCancel: cancel,
+		logger:    logger,
 
 		// runtime (initialized but inactive)
 		cmd:   nil,

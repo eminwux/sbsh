@@ -33,7 +33,9 @@ func (sr *SessionRunnerExec) CreateMetadata() error {
 	sr.metadata.Status.Pid = os.Getpid()
 	sr.metadata.Status.BaseRunPath = sr.metadata.Spec.RunPath
 	sr.metadata.Status.SessionRunPath = sr.getSessionDir()
-	sr.metadata.Status.LogFilename = sr.metadata.Spec.LogFilename
+	sr.metadata.Status.LogFile = sr.metadata.Spec.LogFile
+	sr.metadata.Status.LogLevel = sr.metadata.Spec.LogLevel
+	sr.metadata.Status.CaptureFile = sr.metadata.Spec.CaptureFile
 
 	// Log metadata values with slog.Debug
 	slog.Debug("Session metadata",

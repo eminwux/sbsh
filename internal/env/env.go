@@ -46,6 +46,7 @@ func Define(envName string, defaultVal ...string) Var {
 }
 
 func (v Var) EnvKey() string               { return v.Key }
+func (v Var) EnvVar() string               { return Prefix + "_" + v.Key }
 func (v Var) DefaultValue() (string, bool) { return v.Default, v.HasDefault }
 
 // Precedence: viper (if ViperKey set and value present) → OS env → default → "".
@@ -94,17 +95,11 @@ var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SUP_SOCKET = DefineKV("SUP_SOCKET", "sbsh.supervisor.socket") // no viper key, no default
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_SOCKET_CTRL = Define("SES_SOCKET_CTRL", "sbsh.session.socket")
+	SES_SOCKET_CTRL = Define("SES_SOCKET_CTRL")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_ID = Define("SES_ID", "sbsh.session.id")
+	SES_ID = Define("SES_ID")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_NAME = Define("SES_NAME", "sbsh.session.name")
+	SES_NAME = Define("SES_NAME")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_PROFILE = Define("SES_PROFILE", "sbsh.session.profile")
-	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_CMD = Define("SES_CMD", "sbsh.session.command")
-	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_LOGFILENAME = Define("SES_LOGFILENAME", "sbsh.session.logFilename")
-	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SUP_DETACH = Define("SUP_DETACH", "sbsh.supervisor.detach")
+	SES_PROFILE = Define("SES_PROFILE")
 )

@@ -65,7 +65,7 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 		ID:          api.ID(naming.RandomID()),
 		Name:        naming.RandomName(),
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
 		SessionSpec: nil,
 	}
@@ -125,7 +125,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 		ID:          api.ID(naming.RandomID()),
 		Name:        naming.RandomName(),
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
 		SessionSpec: nil,
 	}
@@ -178,7 +178,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 		ID:          api.ID(naming.RandomID()),
 		Name:        naming.RandomName(),
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
 		SessionSpec: nil,
 	}
@@ -233,7 +233,7 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 		ID:          api.ID(naming.RandomID()),
 		Name:        naming.RandomName(),
 		Env:         os.Environ(),
-		LogDir:      "/tmp/sbsh-logs/s0",
+		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
 		SessionSpec: nil,
 	}

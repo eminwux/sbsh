@@ -18,6 +18,7 @@ package supervisorrunner
 
 import (
 	"context"
+	"log/slog"
 	"net"
 
 	"github.com/eminwux/sbsh/internal/supervisor/sessionstore"
@@ -32,6 +33,7 @@ type SupervisorRunnerExec struct {
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
+	logger    *slog.Logger
 
 	uiMode        UIMode
 	lastTermState *term.State
@@ -56,6 +58,7 @@ const (
 
 func NewSupervisorRunnerExec(
 	ctx context.Context,
+	logger *slog.Logger,
 	spec *api.SupervisorSpec,
 	evCh chan<- SupervisorRunnerEvent,
 ) SupervisorRunner {
@@ -70,5 +73,6 @@ func NewSupervisorRunnerExec(
 		events:    evCh,
 		ctx:       newCtx,
 		ctxCancel: cancel,
+		logger:    logger,
 	}
 }

@@ -30,7 +30,7 @@ type SupervisorSpec struct {
 	Name       string            `json:"name"`
 	Env        []string          `json:"env"`
 	Labels     map[string]string `json:"context"`
-	LogDir     string            `json:"logDir"`
+	LogFile    string            `json:"logDir"`
 	SockerCtrl string            `json:"socketCtrl"`
 	RunPath    string            `json:"runPath"`
 
@@ -68,7 +68,7 @@ type SupervisedSession struct {
 	CommandArgs []string          // for local: ["bash","-i"]; for ssh: ["ssh","-tt","user@host"]
 	Env         []string          // TERM, COLORTERM, etc.
 	Context     map[string]string // kubectl ns, cwd hint, etc.
-	LogFilename string
+	LogFile     string
 	SocketFile  string
 	Pid         int
 	Prompt      string

@@ -17,7 +17,6 @@
 package session
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"log/slog"
@@ -34,19 +33,9 @@ import (
 // (fakeListener and newStubListener removed as unused)
 
 func Test_ErrSpecCmdMissing(t *testing.T) {
-	sessionCtrl := NewSessionController(context.Background()).(*SessionController)
-
-	// Define a new Session
-	spec := api.SessionSpec{
-		ID:          api.ID("abcdef"),
-		Kind:        api.SessionLocal,
-		Name:        "default",
-		Command:     "",
-		CommandArgs: nil,
-		Env:         os.Environ(),
-	}
-
-	newSessionRunner = func(_ context.Context, _ *api.SessionSpec) sessionrunner.SessionRunner {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(context.Background(), logger).(*SessionController)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, _ *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return api.ID("iajs099")
@@ -57,14 +46,15 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	handler := slog.NewTextHandler(&buf, nil)
-	logger := slog.New(handler)
-	old := slog.Default()
-	slog.SetDefault(logger)
-	t.Cleanup(func() { slog.SetDefault(old) })
-
-	// No global channels needed; controller instance owns its own
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
 
 	exitCh := make(chan error)
 
@@ -80,19 +70,10 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 func Test_ErrOpenSocketCtrl(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	sessionCtrl := NewSessionController(ctx).(*SessionController)
 
-	// Define a new Session
-	spec := api.SessionSpec{
-		ID:          api.ID("abcdef"),
-		Kind:        api.SessionLocal,
-		Name:        "default",
-		Command:     "/bin/bash",
-		CommandArgs: nil,
-		Env:         os.Environ(),
-	}
-
-	newSessionRunner = func(_ context.Context, _ *api.SessionSpec) sessionrunner.SessionRunner {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, _ *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return api.ID("iajs099")
@@ -103,14 +84,15 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	handler := slog.NewTextHandler(&buf, nil)
-	logger := slog.New(handler)
-	old := slog.Default()
-	slog.SetDefault(logger)
-	t.Cleanup(func() { slog.SetDefault(old) })
-
-	// No global channels needed; controller instance owns its own
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
 
 	exitCh := make(chan error)
 
@@ -124,19 +106,11 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 }
 
 func Test_ErrStartRPCServer(t *testing.T) {
-	sessionCtrl := NewSessionController(context.Background()).(*SessionController)
-
-	// Define a new Session
-	spec := api.SessionSpec{
-		ID:          api.ID("abcdef"),
-		Kind:        api.SessionLocal,
-		Name:        "default",
-		Command:     "/bin/bash",
-		CommandArgs: nil,
-		Env:         os.Environ(),
-	}
-
-	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -150,12 +124,15 @@ func Test_ErrStartRPCServer(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	handler := slog.NewTextHandler(&buf, nil)
-	logger := slog.New(handler)
-	old := slog.Default()
-	slog.SetDefault(logger)
-	t.Cleanup(func() { slog.SetDefault(old) })
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
 
 	exitCh := make(chan error)
 	defer close(exitCh)
@@ -170,19 +147,11 @@ func Test_ErrStartRPCServer(t *testing.T) {
 }
 
 func Test_ErrStartSession(t *testing.T) {
-	sessionCtrl := NewSessionController(context.Background()).(*SessionController)
-
-	// Define a new Session
-	spec := api.SessionSpec{
-		ID:          api.ID("abcdef"),
-		Kind:        api.SessionLocal,
-		Name:        "default",
-		Command:     "/bin/bash",
-		CommandArgs: nil,
-		Env:         os.Environ(),
-	}
-
-	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -198,15 +167,15 @@ func Test_ErrStartSession(t *testing.T) {
 			},
 		}
 	}
-
-	var buf bytes.Buffer
-	handler := slog.NewTextHandler(&buf, nil)
-	logger := slog.New(handler)
-	old := slog.Default()
-	slog.SetDefault(logger)
-	t.Cleanup(func() { slog.SetDefault(old) })
-
-	// No global channels needed; controller instance owns its own
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
 
 	exitCh := make(chan error)
 
@@ -221,19 +190,10 @@ func Test_ErrStartSession(t *testing.T) {
 
 func Test_ErrContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx).(*SessionController)
-
-	// Define a new Session
-	spec := api.SessionSpec{
-		ID:          api.ID("abcdef"),
-		Kind:        api.SessionLocal,
-		Name:        "default",
-		Command:     "/bin/bash",
-		CommandArgs: nil,
-		Env:         os.Environ(),
-	}
-
-	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	defer cancel()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -249,15 +209,15 @@ func Test_ErrContextDone(t *testing.T) {
 			},
 		}
 	}
-
-	var buf bytes.Buffer
-	handler := slog.NewTextHandler(&buf, nil)
-	logger := slog.New(handler)
-	old := slog.Default()
-	slog.SetDefault(logger)
-	t.Cleanup(func() { slog.SetDefault(old) })
-
-	// No global channels needed; controller instance owns its own
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
 
 	exitCh := make(chan error)
 
@@ -275,19 +235,11 @@ func Test_ErrContextDone(t *testing.T) {
 }
 
 func Test_ErrRPCServerExited(t *testing.T) {
-	sessionCtrl := NewSessionController(context.Background()).(*SessionController)
-
-	// Define a new Session
-	spec := api.SessionSpec{
-		ID:          api.ID("abcdef"),
-		Kind:        api.SessionLocal,
-		Name:        "default",
-		Command:     "/bin/bash",
-		CommandArgs: nil,
-		Env:         os.Environ(),
-	}
-
-	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -304,14 +256,16 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	handler := slog.NewTextHandler(&buf, nil)
-	logger := slog.New(handler)
-	old := slog.Default()
-	slog.SetDefault(logger)
-	t.Cleanup(func() { slog.SetDefault(old) })
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
 
-	// No global channels needed; controller instance owns its own
 	exitCh := make(chan error)
 
 	go func() {
@@ -327,19 +281,10 @@ func Test_ErrRPCServerExited(t *testing.T) {
 
 func Test_WaitReady(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	sessionCtrl := NewSessionController(ctx).(*SessionController)
-
-	// Define a new Session
-	spec := api.SessionSpec{
-		ID:          api.ID("abcdef"),
-		Kind:        api.SessionLocal,
-		Name:        "default",
-		Command:     "/bin/bash",
-		CommandArgs: nil,
-		Env:         os.Environ(),
-	}
-
-	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	defer cancel()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -356,14 +301,16 @@ func Test_WaitReady(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	handler := slog.NewTextHandler(&buf, nil)
-	logger := slog.New(handler)
-	old := slog.Default()
-	slog.SetDefault(logger)
-	t.Cleanup(func() { slog.SetDefault(old) })
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
 
-	// No global channels needed; controller instance owns its own
 	exitCh := make(chan error)
 
 	readyReturn := make(chan error)
@@ -384,19 +331,11 @@ func Test_WaitReady(t *testing.T) {
 }
 
 func Test_HandleEvent_EvCmdExited(t *testing.T) {
-	sessionCtrl := NewSessionController(context.Background()).(*SessionController)
-
-	// Define a new Session
-	spec := api.SessionSpec{
-		ID:          api.ID("abcdef"),
-		Kind:        api.SessionLocal,
-		Name:        "default",
-		Command:     "/bin/bash",
-		CommandArgs: nil,
-		Env:         os.Environ(),
-	}
-
-	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -413,14 +352,16 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	handler := slog.NewTextHandler(&buf, nil)
-	logger := slog.New(handler)
-	old := slog.Default()
-	slog.SetDefault(logger)
-	t.Cleanup(func() { slog.SetDefault(old) })
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
 
-	// No global channels needed; controller instance owns its own
 	exitCh := make(chan error)
 
 	readyReturn := make(chan error)
@@ -445,19 +386,11 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 }
 
 func Test_HandleEvent_EvError(t *testing.T) {
-	sessionCtrl := NewSessionController(context.Background()).(*SessionController)
-
-	// Define a new Session
-	spec := api.SessionSpec{
-		ID:          api.ID("abcdef"),
-		Kind:        api.SessionLocal,
-		Name:        "default",
-		Command:     "/bin/bash",
-		CommandArgs: nil,
-		Env:         os.Environ(),
-	}
-
-	newSessionRunner = func(_ context.Context, spec *api.SessionSpec) sessionrunner.SessionRunner {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
 		return &sessionrunner.SessionRunnerTest{
 			IDFunc: func() api.ID {
 				return spec.ID
@@ -474,14 +407,16 @@ func Test_HandleEvent_EvError(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
-	handler := slog.NewTextHandler(&buf, nil)
-	logger := slog.New(handler)
-	old := slog.Default()
-	slog.SetDefault(logger)
-	t.Cleanup(func() { slog.SetDefault(old) })
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
 
-	// No global channels needed; controller instance owns its own
 	exitCh := make(chan error)
 
 	readyReturn := make(chan error)

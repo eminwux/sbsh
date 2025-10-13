@@ -34,7 +34,7 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	client.pipeOutR, client.pipeOutW, _ = os.Pipe()
 	sr.ptyPipes.multiOutW.Add(client.pipeOutW)
 
-	log, _ := readFileBytes(sr.metadata.Status.LogFilename)
+	log, _ := readFileBytes(sr.metadata.Status.LogFile)
 
 	//nolint:mnd // channel buffer size
 	errCh := make(chan error, 2)
