@@ -163,7 +163,7 @@ func BuildSessionSpec(
 			p.RunPath,
 			"sessions",
 			p.SessionID,
-			"session.log",
+			"capture",
 		)
 	}
 
@@ -179,6 +179,7 @@ func BuildSessionSpec(
 	var sessionSpec *api.SessionSpec
 	if p.ProfileName == "" {
 		// No profile: build a SessionSpec from command-line inputs only.
+		logger.DebugContext(ctx, "No profile specified, using command-line/session defaults")
 
 		// Define a new Session
 		sessionSpec = &api.SessionSpec{
@@ -196,6 +197,7 @@ func BuildSessionSpec(
 			SocketFile:  p.SocketFile,
 		}
 	} else {
+		logger.DebugContext(ctx, "Profile specified, loading and applying profile", "profile", p.ProfileName, "profilesFile", p.ProfilesFile)
 		// Profile given: load profiles file, find profile by name, and build SessionSpec from it.
 		profileSpec, err := discovery.FindProfileByName(ctx, logger, p.ProfilesFile, p.ProfileName)
 		if err != nil {
@@ -211,6 +213,7 @@ func BuildSessionSpec(
 		sessionSpec.CaptureFile = p.CaptureFile
 		sessionSpec.LogFile = p.LogFile
 		sessionSpec.LogLevel = p.LogLevel
+		sessionSpec.SocketFile = p.SocketFile
 		sessionSpec.Env = append(sessionSpec.Env, p.EnvVars...)
 	}
 	return sessionSpec, nil

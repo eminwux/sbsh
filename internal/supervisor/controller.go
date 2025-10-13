@@ -272,11 +272,14 @@ func (s *SupervisorController) CreateRunNewSession(spec *api.SupervisorSpec) (*a
 	if spec.SessionSpec == nil {
 		return nil, errors.New("no session spec found")
 	}
-	// args := []string{"run", "--id", sessionID, "--name", sessionName}
 	args := []string{
 		"run", "--id",
 		string(spec.SessionSpec.ID), "--name",
 		spec.SessionSpec.Name,
+	}
+
+	if spec.SessionSpec.ProfileName != "" {
+		args = append(args, "--profile", spec.SessionSpec.ProfileName)
 	}
 
 	execPath, err := os.Executable()
