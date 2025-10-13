@@ -54,8 +54,7 @@ type SessionRunnerExec struct {
 	// signaling
 	evCh chan<- SessionRunnerEvent // fan-out to controller (send-only from session)
 
-	listenerIO net.Listener
-	lnCtrl     net.Listener
+	lnCtrl net.Listener
 
 	clientsMu sync.RWMutex
 	clients   map[api.ID]*ioClient

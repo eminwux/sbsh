@@ -75,12 +75,6 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 			sr.logger.Warn("could not close IO listener", "id", sr.id, "err", err)
 		}
 	}
-	// stop accepting
-	if sr.listenerIO != nil {
-		if err := sr.listenerIO.Close(); err != nil {
-			sr.logger.Warn("could not close IO listener", "id", sr.id, "err", err)
-		}
-	}
 
 	// close clients
 	sr.clientsMu.Lock()
