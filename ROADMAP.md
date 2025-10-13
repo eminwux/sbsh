@@ -8,9 +8,7 @@
 
 ### 🐞 Bugs
 ```markdown
-- [ ] **A** On CTRL+C to session run, the status is Detached
 - [ ] **A** attach doesn't work with `--name`
-- [ ] **A** On supervisor reattach, the prompt is generated again
 - [ ] **A** `sbsh run` fails; the supervisor does not detect it
 ```
 
@@ -21,8 +19,6 @@
 - [ ] **A** Session stop command
 - [ ] **A** Bash autocomplete
 - [ ] **A** Detach `sbsh run` except if run with `-i`
-- [ ] **A** `sbsh run` logs → `~/.sbsh/run/session/1f/sbsh.log`
-- [ ] **A** `sbsh logs` → `~/.sbsh/run/supervisor/1f/sbsh.log`
 - [ ] **A** Add flag to sb to show logging
 
 ```
@@ -32,15 +28,11 @@
 - [ ] **B** Supervisor can run `sbsh run` on demand through API
 - [ ] **B** Control supervisor via API
 - [ ] **B** Write to many sessions at the same time
-- [ ] **B** Solve `\r\n` everywhere
-- [ ] **B** Print event logs in `sbsh run`, attach/detach, process exited, etc.
 - [ ] **B** Sort out architecture for SupervisedSession vs. Session
-- [ ] **B** Add metadata for supervisor
 ```
 
 ### 🅲️ Nice to Have
 ```markdown
-- [ ] **C** Correct internal vs. pkg in Go code
 - [ ] **C** Save bash history in session folder (with large size)
 - [ ] **C** Command to add env variable through session ctrlSocket
 - [ ] **C** Jump out to supervisor with sentinel
@@ -66,10 +58,18 @@
 - [X] **B** Add purge to delete old sessions			        	DONE
 - [X] **C** Hide Exited sessions, add `-a` to show them all	    	DONE
 - [X] **A** BUG: Close all channels				                	DONE
+- [X] **A** On supervisor reattach, the prompt is generated again   DONE
+- [X] **A** On CTRL+C to session run, the status is Detached        DONE
+- [X] **A** `sbsh run` logs → `~/.sbsh/run/session/1f/sbsh.log`     DONE
+- [X] **A** `sbsh logs` → `~/.sbsh/run/supervisor/1f/sbsh.log`      DONE
+- [X] **B** Solve `\r\n` everywhere                                 DONE
+- [X] **B** Print event logs in `sbsh run`, attach/detach, etc.     DONE
+- [X] **B** Add metadata for supervisor                             DONE
+- [X] **C** Correct internal vs. pkg in Go code                     DONE
 ```
 
 
-## 🚀 Release v0.1.0 - 11-Oct-25
+## 🚀 Release v0.1.0 - 13-Oct-25
 ```markdown
 - [X] **A** Launch sup+sess                                         DONE
 - [X] **A** Launch sess + attach                                    DONE
