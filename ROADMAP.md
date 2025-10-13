@@ -23,6 +23,8 @@
 - [ ] **A** Detach `sbsh run` except if run with `-i`
 - [ ] **A** `sbsh run` logs → `~/.sbsh/run/session/1f/sbsh.log`
 - [ ] **A** `sbsh logs` → `~/.sbsh/run/supervisor/1f/sbsh.log`
+- [ ] **A** Add flag to sb to show logging
+
 ```
 
 ### 🅱️ Should Have

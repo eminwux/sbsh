@@ -55,6 +55,7 @@ By default, it lists only running sessions. Use the --all flag to include exited
 
 			err := discovery.ScanAndPrintSessions(
 				cmd.Context(),
+				logger,
 				viper.GetString(env.RUN_PATH.ViperKey),
 				os.Stdout,
 				listAllInput,

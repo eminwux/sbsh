@@ -32,11 +32,10 @@ import (
 
 // unixJSONServerCodec: JSON-RPC over *UnixConn with optional FD passing via SCM_RIGHTS.
 type unixJSONServerCodec struct {
-	uc *common.LoggingConnUnix
-
-	dec *json.Decoder
-
-	mu sync.Mutex // serialize writes (including sendmsg)
+	logger *slog.Logger
+	uc     *common.LoggingConnUnix
+	dec    *json.Decoder
+	mu     sync.Mutex // serialize writes (including sendmsg)
 
 	// seq bookkeeping
 	seqMu       sync.Mutex
@@ -45,13 +44,15 @@ type unixJSONServerCodec struct {
 	paramsBySeq map[uint64]json.RawMessage // serverSeq -> raw params array
 }
 
-func NewUnixJSONServerCodec(uc *net.UnixConn) rpc.ServerCodec {
+func NewUnixJSONServerCodec(uc *net.UnixConn, logger *slog.Logger) rpc.ServerCodec {
 	luc := &common.LoggingConnUnix{
 		UnixConn:    uc,
+		Logger:      logger,
 		PrefixWrite: "server->client",
 		PrefixRead:  "client->server",
 	}
 	return &unixJSONServerCodec{
+		logger:      logger,
 		uc:          luc,
 		dec:         json.NewDecoder(luc),
 		pendingID:   make(map[uint64]any),
@@ -128,7 +129,7 @@ func (c *unixJSONServerCodec) WriteResponse(resp *rpc.Response, body interface{}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	slog.Debug("[rpc] WriteResponse",
+	c.logger.Debug("WriteResponse",
 		"service", resp.ServiceMethod,
 		"seq", resp.Seq,
 		"error", resp.Error,
@@ -148,15 +149,15 @@ func (c *unixJSONServerCodec) WriteResponse(resp *rpc.Response, body interface{}
 	// Pretty-log body (optional)
 	if body != nil {
 		if b, err := json.MarshalIndent(body, "", "  "); err == nil {
-			slog.Debug("[rpc] WriteResponse body content", "json", string(b))
+			c.logger.Debug("WriteResponse body content", "json", string(b))
 		} else {
-			slog.Debug("[rpc] WriteResponse body marshal failed", "err", err)
+			c.logger.Error("WriteResponse body marshal failed", "err", err)
 		}
 	}
 
 	// FD-passing path
 	if r, ok := body.(*api.ResponseWithFD); ok && len(r.FDs) > 0 {
-		slog.Debug("[session] Attach codec response", "json_payload", r.JSON, "fds", r.FDs)
+		c.logger.Info("Attach codec response", "json_payload", r.JSON, "fds", r.FDs)
 
 		wire := struct {
 			ID     any         `json:"id"`

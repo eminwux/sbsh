@@ -18,7 +18,6 @@ package supervisorrunner
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -26,8 +25,9 @@ import (
 )
 
 func (sr *SupervisorRunnerExec) CreateMetadata() error {
-	slog.Debug("[supervisor] creating metadata", "runPath", sr.getSupervisorDir())
+	sr.logger.Debug("creating metadata", "runPath", sr.getSupervisorDir())
 	if err := os.MkdirAll(sr.getSupervisorDir(), 0o700); err != nil {
+		sr.logger.Error("failed to create supervisor dir", "dir", sr.getSupervisorDir(), "error", err)
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
@@ -35,12 +35,18 @@ func (sr *SupervisorRunnerExec) CreateMetadata() error {
 	sr.metadata.Status.BaseRunPath = sr.metadata.Spec.RunPath
 	sr.metadata.Status.SupervisorRunPath = sr.getSupervisorDir()
 
-	slog.Debug("[supervisor] metadata values",
+	sr.logger.Info("metadata values set",
 		"Spec", sr.metadata.Spec,
 		"Status", sr.metadata.Status,
 	)
 
-	return sr.updateMetadata()
+	err := sr.updateMetadata()
+	if err != nil {
+		sr.logger.Error("failed to update metadata", "error", err)
+		return err
+	}
+	sr.logger.Info("metadata created successfully")
+	return nil
 }
 
 func (sr *SupervisorRunnerExec) getSupervisorDir() string {

@@ -38,43 +38,40 @@ const (
 )
 
 func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
-	sr.logger.DebugContext(sr.ctx, fmt.Sprintf("[supervisor] %s session on  %d trying to connect to %s\r\n",
-		sr.session.Id,
-		sr.session.Pid,
-		sr.session.SocketFile))
+	sr.logger.DebugContext(sr.ctx, "dialSessionCtrlSocket: connecting to session",
+		"session_id", sr.session.Id,
+		"pid", sr.session.Pid,
+		"socket_file", sr.session.SocketFile)
 
-	sr.sessionClient = session.NewUnix(sr.session.SocketFile)
+	sr.sessionClient = session.NewUnix(sr.session.SocketFile, sr.logger)
 	defer sr.sessionClient.Close()
 
-	//nolint:mnd // timeout duration
 	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)
 	defer cancel()
 
 	var status api.SessionStatusMessage
 	if err := sr.sessionClient.Status(ctx, &status); err != nil {
+		sr.logger.ErrorContext(sr.ctx, "dialSessionCtrlSocket: status failed", "error", err)
 		return fmt.Errorf("status failed: %w", err)
 	}
 
-	sr.logger.DebugContext(sr.ctx, fmt.Sprintf("[supervisor] rpc->session (Status): %+v\r\n", status))
-
+	sr.logger.InfoContext(sr.ctx, "dialSessionCtrlSocket: session status received", "status", status)
 	return nil
 }
 
 func (sr *SupervisorRunnerExec) attachIOSocket() error {
 	// Connected, now we enable raw mode
 	if err := sr.toBashUIMode(); err != nil {
-		sr.logger.DebugContext(sr.ctx, fmt.Sprintf("[supervisor] initial raw mode failed: %v", err))
+		sr.logger.ErrorContext(sr.ctx, "attachIOSocket: initial raw mode failed", "error", err)
 	}
 
 	// We want half-closes; UnixConn exposes CloseRead/CloseWrite
 	uc, _ := sr.ioConn.(*net.UnixConn)
 
-	//nolint:mnd // channel buffer size
 	errCh := make(chan error, 2)
 
 	// WRITER stdin -> socket
 	go func() {
-		//nolint:mnd // buffer size
 		buf := make([]byte, 32*1024) // 32 KiB buffer, like io.Copy
 		var total int64
 		var e error
@@ -82,15 +79,16 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 		for {
 			sr.logger.DebugContext(sr.ctx, "stdin->socket pre-read")
 			n, rerr := os.Stdin.Read(buf)
-			sr.logger.DebugContext(sr.ctx, fmt.Sprintf("stdin->socket post-read: %d", n))
+			sr.logger.DebugContext(sr.ctx, "stdin->socket post-read", "n", n)
 
 			if n > 0 {
 				written := 0
 				for written < n {
 					sr.logger.DebugContext(sr.ctx, "stdin->socket pre-write")
 					m, werr := sr.ioConn.Write(buf[written:n])
-					sr.logger.DebugContext(sr.ctx, fmt.Sprintf("stdin->socket post-write: %d", m))
+					sr.logger.DebugContext(sr.ctx, "stdin->socket post-write", "m", m)
 					if werr != nil {
+						sr.logger.ErrorContext(sr.ctx, "stdin->socket write error", "error", werr)
 						e = werr
 						goto done
 					}
@@ -100,6 +98,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 			}
 
 			if rerr != nil {
+				sr.logger.ErrorContext(sr.ctx, "stdin->socket read error", "error", rerr)
 				e = rerr
 				break
 			}
@@ -113,16 +112,16 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 
 		// send event (EOF or error while copying stdin -> socket)
 		if errors.Is(e, io.EOF) {
-			sr.logger.DebugContext(sr.ctx, "[supervisor] stdin reached EOF\r\n")
-			trySendEvent(sr.events, SupervisorRunnerEvent{
+			sr.logger.InfoContext(sr.ctx, "stdin reached EOF")
+			trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
 				ID:   sr.session.Id,
 				Type: EvCmdExited,
 				Err:  e,
 				When: time.Now(),
 			})
 		} else if e != nil {
-			sr.logger.DebugContext(sr.ctx, fmt.Sprintf("[supervisor] stdin->socket error: %v\r\n", e))
-			trySendEvent(sr.events, SupervisorRunnerEvent{
+			sr.logger.ErrorContext(sr.ctx, "stdin->socket error", "error", e)
+			trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
 				ID:   sr.session.Id,
 				Type: EvError,
 				Err:  e,
@@ -135,7 +134,6 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 
 	// READER socket -> stdout
 	go func() {
-		//nolint:mnd // buffer size
 		buf := make([]byte, 32*1024) // 32 KiB buffer like io.Copy
 		var total int64
 		var e error
@@ -143,15 +141,16 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 		for {
 			sr.logger.DebugContext(sr.ctx, "socket->stdout pre-read")
 			n, rerr := sr.ioConn.Read(buf)
-			sr.logger.DebugContext(sr.ctx, fmt.Sprintf("socket->stdout post-read: %d", n))
+			sr.logger.DebugContext(sr.ctx, "socket->stdout post-read", "n", n)
 
 			if n > 0 {
 				written := 0
 				for written < n {
 					sr.logger.DebugContext(sr.ctx, "socket->stdout pre-write")
 					m, werr := os.Stdout.Write(buf[written:n])
-					sr.logger.DebugContext(sr.ctx, fmt.Sprintf("socket->stdout post-write: %d", m))
+					sr.logger.DebugContext(sr.ctx, "socket->stdout post-write", "m", m)
 					if werr != nil {
+						sr.logger.ErrorContext(sr.ctx, "socket->stdout write error", "error", werr)
 						e = werr
 						goto done
 					}
@@ -161,6 +160,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 			}
 
 			if rerr != nil {
+				sr.logger.ErrorContext(sr.ctx, "socket->stdout read error", "error", rerr)
 				e = rerr
 				break
 			}
@@ -174,16 +174,16 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 
 		// send event (EOF or error while copying socket -> stdout)
 		if errors.Is(e, io.EOF) {
-			sr.logger.DebugContext(sr.ctx, "[supervisor] socket closed (EOF)\r\n")
-			trySendEvent(sr.events, SupervisorRunnerEvent{
+			sr.logger.InfoContext(sr.ctx, "socket closed (EOF)")
+			trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
 				ID:   sr.session.Id,
 				Type: EvCmdExited,
 				Err:  e,
 				When: time.Now(),
 			})
 		} else if e != nil {
-			sr.logger.DebugContext(sr.ctx, fmt.Sprintf("[supervisor] socket->stdout error: %v\r\n", e))
-			trySendEvent(sr.events, SupervisorRunnerEvent{
+			sr.logger.ErrorContext(sr.ctx, "socket->stdout error", "error", e)
+			trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
 				ID:   sr.session.Id,
 				Type: EvError,
 				Err:  e,
@@ -201,7 +201,7 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 		// Wait for either context cancel or one side finishing
 		select {
 		case <-sr.ctx.Done():
-			sr.logger.DebugContext(sr.ctx, "[supervisor-runner] context done\r\n")
+			sr.logger.WarnContext(sr.ctx, "attachIOSocket: context done")
 			_ = sr.ioConn.Close() // unblock goroutines
 			<-errCh
 			<-errCh
@@ -212,8 +212,10 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 			<-errCh
 			// treat EOF as normal detach
 			if errors.Is(e, io.EOF) || e == nil {
+				sr.logger.InfoContext(sr.ctx, "attachIOSocket: normal detach or EOF")
 				return nil
 			}
+			sr.logger.ErrorContext(sr.ctx, "attachIOSocket: error", "error", e)
 			return e
 		}
 	}()
@@ -223,13 +225,12 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 
 func (sr *SupervisorRunnerExec) attach() error {
 	var response struct{}
-	var conn net.Conn
-	var err error
-	conn, err = sr.sessionClient.Attach(sr.ctx, &sr.id, &response)
+	conn, err := sr.sessionClient.Attach(sr.ctx, &sr.id, &response)
 	if err != nil {
+		sr.logger.ErrorContext(sr.ctx, "attach: failed to attach", "error", err)
 		return err
 	}
-	sr.logger.DebugContext(sr.ctx, "[supervisor] Received connection")
+	sr.logger.InfoContext(sr.ctx, "attach: received connection")
 
 	sr.ioConn = conn
 
@@ -239,13 +240,14 @@ func (sr *SupervisorRunnerExec) attach() error {
 func (sr *SupervisorRunnerExec) forwardResize() error {
 	// Send initial size once (use the supervisor's TTY: os.Stdin)
 	if rows, cols, err := pty.Getsize(os.Stdin); err == nil {
-		//nolint:mnd // timeout duration
 		ctx, cancel := context.WithTimeout(sr.ctx, 100*time.Millisecond)
 		defer cancel()
 
 		if err := sr.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: int(cols), Rows: int(rows)}); err != nil {
+			sr.logger.ErrorContext(sr.ctx, "forwardResize: initial resize failed", "error", err)
 			return fmt.Errorf("status failed: %w", err)
 		}
+		sr.logger.InfoContext(sr.ctx, "forwardResize: initial resize sent", "rows", rows, "cols", cols)
 	}
 
 	ch := make(chan os.Signal, 1)
@@ -258,20 +260,21 @@ func (sr *SupervisorRunnerExec) forwardResize() error {
 			case <-sr.ctx.Done():
 				signal.Stop(ch)
 				defer close(ch)
+				sr.logger.WarnContext(sr.ctx, "forwardResize: context done")
 				return
 			case <-ch:
-				// sr.logger.DebugContext(sr.ctx, "[supervisor] window change\r\n")
 				// Query current terminal size again on every WINCH
 				rows, cols, err := pty.Getsize(os.Stdin)
 				if err != nil {
-					// harmless: keep going; terminal may be detached briefly
+					sr.logger.WarnContext(sr.ctx, "forwardResize: Getsize failed", "error", err)
 					continue
 				}
 				ctx, cancel := context.WithTimeout(sr.ctx, resizeTimeOut*time.Millisecond)
 				defer cancel()
 				if err := sr.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: int(cols), Rows: int(rows)}); err != nil {
-					// Don't kill the process on resize failure; just log
-					sr.logger.DebugContext(sr.ctx, fmt.Sprintf("resize RPC failed: %v\r\n", err))
+					sr.logger.ErrorContext(sr.ctx, "forwardResize: resize RPC failed", "error", err)
+				} else {
+					sr.logger.DebugContext(sr.ctx, "forwardResize: resize sent", "rows", rows, "cols", cols)
 				}
 			}
 		}

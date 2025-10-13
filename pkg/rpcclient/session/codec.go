@@ -29,9 +29,10 @@ import (
 )
 
 type unixJSONClientCodec struct {
-	uc    *common.LoggingConnUnix
-	encMu sync.Mutex
-	enc   *json.Encoder
+	logger *slog.Logger
+	uc     *common.LoggingConnUnix
+	encMu  sync.Mutex
+	enc    *json.Encoder
 
 	// stash from last header read:
 	pendingResult []byte
@@ -40,19 +41,22 @@ type unixJSONClientCodec struct {
 	pendingErr    string
 }
 
-func newUnixJSONClientCodec(u *net.UnixConn) *unixJSONClientCodec {
+func newUnixJSONClientCodec(u *net.UnixConn, logger *slog.Logger) *unixJSONClientCodec {
 	luc := &common.LoggingConnUnix{
 		UnixConn:    u,
+		Logger:      logger,
 		PrefixWrite: "client->server",
 		PrefixRead:  "server->client",
 	}
 	return &unixJSONClientCodec{
-		uc:  luc,
-		enc: json.NewEncoder(luc), // writes go through the logger
+		logger: logger,
+		uc:     luc,
+		enc:    json.NewEncoder(luc), // writes go through the logger
 	}
 }
 
 func (c *unixJSONClientCodec) WriteRequest(req *rpc.Request, body any) error {
+	c.logger.Debug("WriteRequest: acquiring encoder lock", "seq", req.Seq, "method", req.ServiceMethod)
 	c.encMu.Lock()
 	defer c.encMu.Unlock()
 
@@ -65,65 +69,72 @@ func (c *unixJSONClientCodec) WriteRequest(req *rpc.Request, body any) error {
 	// Encode to buffer (so we can inspect it before sending)
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(&wire); err != nil {
+		c.logger.Error("WriteRequest: failed to encode to buffer", "error", err)
 		return err
 	}
 
-	return c.enc.Encode(&wire)
+	c.logger.Debug("WriteRequest: encoding to wire", "seq", req.Seq, "method", req.ServiceMethod)
+	err := c.enc.Encode(&wire)
+	if err != nil {
+		c.logger.Error("WriteRequest: failed to encode to wire", "error", err)
+		return err
+	}
+	c.logger.Info("WriteRequest: request sent", "seq", req.Seq, "method", req.ServiceMethod)
+	return nil
 }
 
 func (c *unixJSONClientCodec) ReadResponseHeader(resp *rpc.Response) error {
-	slog.Debug("[client-codec] Starting ReadResponseHeader")
+	c.logger.Debug("ReadResponseHeader: starting")
 
 	// Block using netpoller-aware ReadMsgUnix.
-	//nolint:mnd // buffer size
-	buf := make([]byte, 64<<10) // 64KB frame buffer
-	//nolint:mnd // buffer size
+	//nolint:mnd // 64KB buffer
+	buf := make([]byte, 64<<10)
+	//nolint:mnd // 256 bytes for FDs
 	oob := make([]byte, 256)
 
-	slog.Debug("[client-codec] Starting ReadMsgUnix")
-
+	c.logger.Debug("ReadResponseHeader: calling ReadMsgUnix")
 	n, oobn, _, err := c.uc.ReadMsgUnix(buf, oob)
 	if err != nil {
+		c.logger.Error("ReadResponseHeader: ReadMsgUnix failed", "error", err)
 		return err
 	}
 
-	slog.Debug("[client-codec] Finished ReadMsgUnix")
-	slog.Debug("[client-codec] Starting parsing FDs")
-
-	// Parse any passed FDs.
+	c.logger.Debug("ReadResponseHeader: parsing FDs", "oobn", oobn)
 	c.pendingFDs = c.pendingFDs[:0]
 	if oobn > 0 {
 		if cmsgs, _ := unix.ParseSocketControlMessage(oob[:oobn]); len(cmsgs) > 0 {
 			for _, m := range cmsgs {
 				if fds, _ := unix.ParseUnixRights(&m); len(fds) > 0 {
+					c.logger.Info("ReadResponseHeader: received FDs", "count", len(fds))
 					c.pendingFDs = append(c.pendingFDs, fds...)
 				}
 			}
 		}
 	}
 
-	slog.Debug("[client-codec] Done parsing FDs")
-	slog.Debug("[client-codec] Starting JSON Unmarshalling")
-
-	// Decode the JSON-RPC envelope to get id/error/result.
+	c.logger.Debug("ReadResponseHeader: unmarshalling JSON")
 	var wire struct {
 		ID     uint64           `json:"id"`
 		Result *json.RawMessage `json:"result"`
 		Error  *string          `json:"error"`
 	}
 	if err := json.Unmarshal(buf[:n], &wire); err != nil {
+		c.logger.Error("ReadResponseHeader: JSON unmarshal failed", "error", err)
 		return err
 	}
-	slog.Debug("[client-codec] Done JSON Unmarshalling")
+	c.logger.Debug("ReadResponseHeader: JSON unmarshalled", "id", wire.ID)
 
 	c.pendingSeq = wire.ID
 	c.pendingErr = ""
 	if wire.Error != nil {
+		c.logger.Warn("ReadResponseHeader: error in response", "error", *wire.Error)
 		c.pendingErr = *wire.Error
 	}
 	if wire.Result != nil {
+		c.logger.Debug("ReadResponseHeader: result present", "result_len", len(*wire.Result))
 		c.pendingResult = append(c.pendingResult[:0], (*wire.Result)...) // copy
 	} else {
+		c.logger.Debug("ReadResponseHeader: no result present")
 		c.pendingResult = c.pendingResult[:0]
 	}
 
@@ -132,26 +143,43 @@ func (c *unixJSONClientCodec) ReadResponseHeader(resp *rpc.Response) error {
 	resp.Seq = c.pendingSeq   // IMPORTANT
 	resp.Error = c.pendingErr // net/rpc will surface this later
 
-	slog.Debug("[client-codec] Finished ReadResponseHeader")
-
+	c.logger.Info("ReadResponseHeader: finished", "seq", resp.Seq, "error", resp.Error)
 	return nil
 }
 
 func (c *unixJSONClientCodec) ReadResponseBody(body any) error {
 	if c.pendingErr != "" {
+		c.logger.Warn("ReadResponseBody: skipping due to error", "error", c.pendingErr)
 		// Let net/rpc wrap it as error from Call()
 		return nil
 	}
 	if body == nil || len(c.pendingResult) == 0 {
+		c.logger.Debug(
+			"ReadResponseBody: nothing to unmarshal",
+			"body_nil",
+			body == nil,
+			"result_len",
+			len(c.pendingResult),
+		)
 		return nil
 	}
-	return json.Unmarshal(c.pendingResult, body)
+	err := json.Unmarshal(c.pendingResult, body)
+	if err != nil {
+		c.logger.Error("ReadResponseBody: unmarshal failed", "error", err)
+		return err
+	}
+	c.logger.Info("ReadResponseBody: body unmarshalled successfully")
+	return nil
 }
 
-func (c *unixJSONClientCodec) Close() error { return c.uc.Close() }
+func (c *unixJSONClientCodec) Close() error {
+	c.logger.Debug("Close: closing unixJSONClientCodec")
+	return c.uc.Close()
+}
 
 // Helper your client uses after Call():.
 func (c *unixJSONClientCodec) takeLastFDs() []int {
+	c.logger.Debug("takeLastFDs: returning and clearing FDs", "count", len(c.pendingFDs))
 	f := c.pendingFDs
 	c.pendingFDs = nil
 	return f

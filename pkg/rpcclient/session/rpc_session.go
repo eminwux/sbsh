@@ -34,7 +34,8 @@ import (
 type Dialer func(ctx context.Context) (net.Conn, error)
 
 type client struct {
-	dial Dialer
+	dial   Dialer
+	logger *slog.Logger
 }
 
 type (
@@ -49,7 +50,7 @@ func WithDialTimeout(d time.Duration) Option {
 }
 
 // NewUnix returns a ctx-aware client that dials a Unix socket per call.
-func NewUnix(sockPath string, opts ...Option) Client {
+func NewUnix(sockPath string, logger *slog.Logger, opts ...Option) Client {
 	//nolint:mnd // default timeout
 	cfg := unixOpts{DialTimeout: 5 * time.Second}
 	for _, o := range opts {
@@ -59,7 +60,7 @@ func NewUnix(sockPath string, opts ...Option) Client {
 		d := net.Dialer{Timeout: cfg.DialTimeout}
 		return d.DialContext(ctx, "unix", sockPath)
 	}
-	return &client{dial: dialer}
+	return &client{dial: dialer, logger: logger}
 }
 
 // --- internal: generic call path with pluggable codec (handles retries/timeouts) ---.
@@ -69,32 +70,38 @@ func (c *client) callWithCodec(
 	in, out any,
 	newCodec func(conn net.Conn) (rpc.ClientCodec, func(), error), // returns codec + cleanup
 ) error {
-	// retry delays (3 attempts: immediate, 200ms, 400ms)
 	delays := []time.Duration{0, 200 * time.Millisecond, 400 * time.Millisecond}
 	var lastErr error
 
-	for _, d := range delays {
+	for attempt, d := range delays {
 		if d > 0 {
+			c.logger.DebugContext(ctx, "delaying before retry", "attempt", attempt, "delay", d)
 			select {
 			case <-ctx.Done():
+				c.logger.WarnContext(ctx, "context done before retry", "attempt", attempt, "error", ctx.Err())
 				return ctx.Err()
 			case <-time.After(d):
 			}
 		}
 
+		c.logger.DebugContext(ctx, "dialing connection", "attempt", attempt)
 		conn, err := c.dial(ctx)
 		if err != nil {
+			c.logger.WarnContext(ctx, "dial failed", "attempt", attempt, "error", err)
 			lastErr = err
 			continue
 		}
 
+		c.logger.DebugContext(ctx, "creating codec", "attempt", attempt)
 		codec, cleanup, err := newCodec(conn)
 		if err != nil {
+			c.logger.ErrorContext(ctx, "codec creation failed", "attempt", attempt, "error", err)
 			_ = conn.Close()
 			lastErr = err
 			continue
 		}
 
+		c.logger.DebugContext(ctx, "starting RPC call", "method", method, "attempt", attempt)
 		rpcc := rpc.NewClientWithCodec(codec)
 		errCh := make(chan error, 1)
 		go func() {
@@ -104,7 +111,16 @@ func (c *client) callWithCodec(
 
 		select {
 		case <-ctx.Done():
-			//nolint:mnd // short deadline to unblock
+			c.logger.WarnContext(
+				ctx,
+				"context done during RPC call",
+				"method",
+				method,
+				"attempt",
+				attempt,
+				"error",
+				ctx.Err(),
+			)
 			_ = conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
 			_ = rpcc.Close()
 			if cleanup != nil {
@@ -117,21 +133,27 @@ func (c *client) callWithCodec(
 				cleanup()
 			}
 			if err == nil {
+				c.logger.InfoContext(ctx, "RPC call succeeded", "method", method, "attempt", attempt)
 				return nil
 			}
+			c.logger.ErrorContext(ctx, "RPC call failed", "method", method, "attempt", attempt, "error", err)
 			lastErr = err
 		}
 	}
+	c.logger.ErrorContext(ctx, "all attempts failed for RPC call", "method", method, "error", lastErr)
 	return lastErr
 }
 
 // --- convenience: plain JSON-RPC (no FD passing) ---.
-func (c *client) call(ctx context.Context, method string, in, out any) error {
+func (c *client) call(ctx context.Context, logger *slog.Logger, method string, in, out any) error {
+	logger.DebugContext(ctx, "preparing codec for call", "method", method)
 	return c.callWithCodec(ctx, method, in, out, func(conn net.Conn) (rpc.ClientCodec, func(), error) {
 		// If this is a Unix domain socket, use the Unix-aware logger.
 		if u, ok := conn.(*net.UnixConn); ok {
+			logger.DebugContext(ctx, "using LoggingConnUnix for codec", "method", method)
 			luc := &common.LoggingConnUnix{
 				UnixConn:    u,
+				Logger:      logger,
 				PrefixWrite: "client->server",
 				PrefixRead:  "server->client",
 			}
@@ -139,8 +161,10 @@ func (c *client) call(ctx context.Context, method string, in, out any) error {
 		}
 
 		// Otherwise fall back to the generic logger.
+		logger.DebugContext(ctx, "using LoggingConn for codec", "method", method)
 		lc := &common.LoggingConn{
 			Conn:        conn,
+			Logger:      logger,
 			PrefixWrite: "client->server",
 			PrefixRead:  "server->client",
 		}
@@ -152,15 +176,15 @@ func (c *client) Close() error { return nil } // stateless client
 
 // --- Public methods (no FD passing) ---.
 func (c *client) Status(ctx context.Context, status *api.SessionStatusMessage) error {
-	return c.call(ctx, api.SessionMethodStatus, &api.Empty{}, status)
+	return c.call(ctx, c.logger, api.SessionMethodStatus, &api.Empty{}, status)
 }
 
 func (c *client) Resize(ctx context.Context, args *api.ResizeArgs) error {
-	return c.call(ctx, api.SessionMethodResize, args, &api.Empty{})
+	return c.call(ctx, c.logger, api.SessionMethodResize, args, &api.Empty{})
 }
 
 func (c *client) Detach(ctx context.Context, id *api.ID) error {
-	return c.call(ctx, api.SessionMethodDetach, id, &api.Empty{})
+	return c.call(ctx, c.logger, api.SessionMethodDetach, id, &api.Empty{})
 }
 
 // --- Attach (uses FD-aware codec) ---
@@ -168,46 +192,48 @@ func (c *client) Detach(ctx context.Context, id *api.ID) error {
 func (c *client) Attach(ctx context.Context, id *api.ID, out any) (net.Conn, error) {
 	var gotFDs []int
 
-	slog.Debug("[client] Attach RPC call starting")
+	c.logger.InfoContext(ctx, "Attach RPC call starting")
 
-	// run through the same retry/timeout path, but with our FD-aware codec
 	err := c.callWithCodec(ctx, api.SessionMethodAttach, id, out, func(conn net.Conn) (rpc.ClientCodec, func(), error) {
-		// must be *net.UnixConn for ReadMsgUnix/FDs
+		c.logger.DebugContext(ctx, "preparing codec for Attach")
 		uconn, ok := conn.(*net.UnixConn)
 		if !ok {
+			c.logger.ErrorContext(ctx, "attach: not a *net.UnixConn")
 			_ = conn.Close()
 			return nil, nil, errors.New("attach: not a *net.UnixConn")
 		}
-		codec := newUnixJSONClientCodec(uconn)
-		slog.Debug("[client] Attach RPC call completed")
+		codec := newUnixJSONClientCodec(uconn, c.logger)
+		c.logger.DebugContext(ctx, "Attach RPC call completed")
 
-		// after the rpc Call completes, we’ll harvest the FDs from the codec in the cleanup
 		cleanup := func() {
 			gotFDs = codec.takeLastFDs()
 			_ = conn.Close()
+			c.logger.DebugContext(ctx, "cleanup finished, FDs taken", "fd_count", len(gotFDs))
 		}
-		slog.Debug("[client] Cleanup finished")
 
 		return codec, cleanup, nil
 	})
 
-	slog.Debug("[client] Call with codec finished")
+	c.logger.DebugContext(ctx, "callWithCodec finished for Attach")
 	if err != nil {
+		c.logger.ErrorContext(ctx, "Attach failed", "error", err)
 		return nil, err
 	}
 
 	if len(gotFDs) == 0 {
+		c.logger.ErrorContext(ctx, "attach: server did not send IO fd")
 		return nil, errors.New("attach: server did not send IO fd")
 	}
 
-	slog.Debug("[client] converting FD to net.Conn")
+	c.logger.DebugContext(ctx, "converting FD to net.Conn", "fd", gotFDs[0])
 
-	// convert FD to net.Conn
 	f := os.NewFile(uintptr(gotFDs[0]), "io")
 	defer f.Close()
 	ioConn, err := net.FileConn(f)
 	if err != nil {
+		c.logger.ErrorContext(ctx, "FileConn failed", "error", err)
 		return nil, fmt.Errorf("attach: FileConn: %w", err)
 	}
+	c.logger.InfoContext(ctx, "Attach succeeded, returning net.Conn")
 	return ioConn, nil
 }

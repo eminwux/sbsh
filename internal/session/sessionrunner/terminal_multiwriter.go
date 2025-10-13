@@ -17,7 +17,6 @@
 package sessionrunner
 
 import (
-	"fmt"
 	"io"
 	"log/slog"
 	"sync"
@@ -26,43 +25,63 @@ import (
 type DynamicMultiWriter struct {
 	mu      sync.RWMutex
 	writers []io.Writer
+	logger  *slog.Logger
 }
 
-func NewDynamicMultiWriter(writers ...io.Writer) *DynamicMultiWriter {
-	return &DynamicMultiWriter{writers: writers}
+func NewDynamicMultiWriter(logger *slog.Logger, writers ...io.Writer) *DynamicMultiWriter {
+	return &DynamicMultiWriter{writers: writers, logger: logger}
 }
 
 func (dmw *DynamicMultiWriter) Write(p []byte) (int, error) {
-	slog.Debug("pre-lock")
+	dmw.logger.Debug("acquiring read lock for writers")
 	dmw.mu.RLock()
 	ws := append([]io.Writer(nil), dmw.writers...)
 	dmw.mu.RUnlock()
-	slog.Debug("post-lock")
+	dmw.logger.Debug("read lock released, writers snapshot taken", "writers_count", len(ws), "write_len", len(p))
 
 	for i, w := range ws {
-		slog.Debug(fmt.Sprintf("pre-write to %d: %d", i, len(p)))
-		if _, err := w.Write(p); err != nil {
+		dmw.logger.Debug("writing to writer", "index", i, "write_len", len(p))
+		n, err := w.Write(p)
+		if err != nil {
+			dmw.logger.Error("write to writer failed", "index", i, "error", err)
 			return 0, err
 		}
-		slog.Debug("post-write")
+		if n != len(p) {
+			dmw.logger.Warn("partial write to writer", "index", i, "expected", len(p), "actual", n)
+			// continue to next writer, but still return full len(p) if all succeed
+		} else {
+			dmw.logger.Debug("write to writer succeeded", "index", i, "bytes_written", n)
+		}
 	}
+	dmw.logger.Info("write completed for all writers", "writers_count", len(ws), "bytes", len(p))
 	return len(p), nil
 }
 
 func (dmw *DynamicMultiWriter) Add(w io.Writer) {
+	dmw.logger.Debug("acquiring write lock to add writer")
 	dmw.mu.Lock()
 	defer dmw.mu.Unlock()
 	dmw.writers = append(dmw.writers, w)
+	dmw.logger.Info("writer added", "total_writers", len(dmw.writers))
 }
 
 func (dmw *DynamicMultiWriter) Remove(w io.Writer) {
+	dmw.logger.Debug("acquiring write lock to remove writer")
 	dmw.mu.Lock()
 	defer dmw.mu.Unlock()
+	found := false
 	newWriters := dmw.writers[:0]
 	for _, writer := range dmw.writers {
 		if writer != w {
 			newWriters = append(newWriters, writer)
+		} else {
+			found = true
 		}
 	}
 	dmw.writers = newWriters
+	if found {
+		dmw.logger.Info("writer removed", "remaining_writers", len(dmw.writers))
+	} else {
+		dmw.logger.Warn("writer to remove not found", "remaining_writers", len(dmw.writers))
+	}
 }

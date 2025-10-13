@@ -25,15 +25,15 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func LogBytes(prefix string, data []byte) {
-	logHEX(prefix, data)
-	logASCII(prefix, data)
+func LogBytes(prefix string, data []byte, logger *slog.Logger) {
+	logHEX(prefix, data, logger)
+	logASCII(prefix, data, logger)
 }
 
 // ASCII only (single-line attr, safe in any handler).
-func logASCII(prefix string, data []byte) {
+func logASCII(prefix string, data []byte, logger *slog.Logger) {
 	if len(data) == 0 {
-		slog.Debug(prefix+" (ascii)", "len", 0, "data", "(empty)")
+		logger.Debug(prefix+" (ascii)", "len", 0, "data", "(empty)")
 		return
 	}
 	var b strings.Builder
@@ -44,13 +44,13 @@ func logASCII(prefix string, data []byte) {
 			b.WriteByte('.')
 		}
 	}
-	slog.Debug(prefix+" (ascii)", "len", len(data), "data", b.String())
+	logger.Debug(prefix+" (ascii)", "len", len(data), "data", b.String())
 }
 
 // HEX only (multiline message; no ASCII pane).
-func logHEX(prefix string, data []byte) {
+func logHEX(prefix string, data []byte, logger *slog.Logger) {
 	if len(data) == 0 {
-		slog.Debug(prefix + " (hex)")
+		logger.Debug(prefix + " (hex)")
 		return
 	}
 	var b strings.Builder
@@ -82,11 +82,12 @@ func logHEX(prefix string, data []byte) {
 
 	// Put the dump in the *message* so newlines render (text handler).
 	// Most JSON handlers escape newlines; if you use JSON logs, consider per-line logs instead.
-	slog.Debug(prefix+" (hex)\n"+b.String(), "len", len(data))
+	logger.Debug(prefix+" (hex)\n"+b.String(), "len", len(data))
 }
 
 type LoggingConn struct {
 	net.Conn
+	*slog.Logger
 
 	PrefixWrite string
 	PrefixRead  string
@@ -94,6 +95,7 @@ type LoggingConn struct {
 
 type LoggingConnUnix struct {
 	*net.UnixConn
+	*slog.Logger
 
 	PrefixWrite string
 	PrefixRead  string
@@ -102,32 +104,32 @@ type LoggingConnUnix struct {
 func (l *LoggingConn) Read(p []byte) (int, error) {
 	n, err := l.Conn.Read(p)
 	if n > 0 {
-		LogBytes(l.PrefixRead+" (recv)", p[:n])
+		LogBytes(l.PrefixRead+" (recv)", p[:n], l.Logger)
 	}
 	return n, err
 }
 
 func (l *LoggingConn) Write(p []byte) (int, error) {
-	LogBytes(l.PrefixWrite+" (send)", p)
+	LogBytes(l.PrefixWrite+" (send)", p, l.Logger)
 	return l.Conn.Write(p)
 }
 
 func (l *LoggingConnUnix) Read(p []byte) (int, error) {
 	n, err := l.UnixConn.Read(p)
 	if n > 0 {
-		LogBytes(l.PrefixRead+" (recv)", p[:n])
+		LogBytes(l.PrefixRead+" (recv)", p[:n], l.Logger)
 	}
 	return n, err
 }
 
 func (l *LoggingConnUnix) Write(p []byte) (int, error) {
-	LogBytes(l.PrefixWrite+" (send)", p)
+	LogBytes(l.PrefixWrite+" (send)", p, l.Logger)
 	return l.UnixConn.Write(p)
 }
 
 func (l *LoggingConnUnix) WriteMsgUnix(p, oob []byte, addr *net.UnixAddr) (int, int, error) {
 	// payload
-	LogBytes(l.PrefixWrite+" (send)", p)
+	LogBytes(l.PrefixWrite+" (send)", p, l.Logger)
 
 	// OOB/FDs
 	if len(oob) > 0 {
@@ -138,9 +140,9 @@ func (l *LoggingConnUnix) WriteMsgUnix(p, oob []byte, addr *net.UnixAddr) (int, 
 					fds = append(fds, fs...)
 				}
 			}
-			slog.Debug(l.PrefixWrite+" (oob fds)", "fds", fds)
+			l.Logger.Debug(l.PrefixWrite+" (oob fds)", "fds", fds)
 		} else {
-			slog.Debug(l.PrefixWrite+" (oob parse error)", "err", err)
+			l.Logger.Error(l.PrefixWrite+" (oob parse error)", "err", err)
 		}
 	}
 	return l.UnixConn.WriteMsgUnix(p, oob, addr)
@@ -149,7 +151,7 @@ func (l *LoggingConnUnix) WriteMsgUnix(p, oob []byte, addr *net.UnixAddr) (int, 
 func (l *LoggingConnUnix) ReadMsgUnix(p, oob []byte) (int, int, *net.UnixAddr, error) {
 	n, oobn, _, addr, err := l.UnixConn.ReadMsgUnix(p, oob)
 	if n > 0 {
-		LogBytes(l.PrefixRead+" (recv)", p[:n])
+		LogBytes(l.PrefixRead+" (recv)", p[:n], l.Logger)
 	}
 	if oobn > 0 {
 		if cmsgs, err := unix.ParseSocketControlMessage(oob[:oobn]); err == nil {
@@ -159,9 +161,9 @@ func (l *LoggingConnUnix) ReadMsgUnix(p, oob []byte) (int, int, *net.UnixAddr, e
 					fds = append(fds, fs...)
 				}
 			}
-			slog.Debug(l.PrefixRead+" (oob fds)", "fds", fds)
+			l.Logger.Debug(l.PrefixRead+" (oob fds)", "fds", fds)
 		} else {
-			slog.Debug(l.PrefixRead+" (oob parse error)", "err", err)
+			l.Logger.Error(l.PrefixRead+" (oob parse error)", "err", err)
 		}
 	}
 	return n, oobn, addr, err

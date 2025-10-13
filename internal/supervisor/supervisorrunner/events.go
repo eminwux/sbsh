@@ -40,8 +40,8 @@ const (
 )
 
 // helper: non-blocking event send so the PTY reader never stalls
-func trySendEvent(ch chan<- SupervisorRunnerEvent, ev SupervisorRunnerEvent) {
-	slog.Debug(
+func trySendEvent(logger *slog.Logger, ch chan<- SupervisorRunnerEvent, ev SupervisorRunnerEvent) {
+	logger.Debug(
 		fmt.Sprintf(
 			"[supervisor] send event: id=%s type=%v err=%v when=%s\r\n",
 			ev.ID,

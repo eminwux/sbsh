@@ -52,7 +52,7 @@ type SessionController struct {
 
 // NewSessionController wires the manager and the shared event channel from sessions.
 func NewSessionController(ctx context.Context, logger *slog.Logger) api.SessionController {
-	logger.DebugContext(ctx, "[sessionCtrl] New controller is being created\r\n")
+	logger.DebugContext(ctx, "New controller is being created")
 
 	c := &SessionController{
 		ctx:         ctx,
@@ -68,6 +68,7 @@ func NewSessionController(ctx context.Context, logger *slog.Logger) api.SessionC
 		closeReqCh:       make(chan error, 1),
 		NewSessionRunner: sessionrunner.NewSessionRunnerExec,
 	}
+	logger.InfoContext(ctx, "SessionController created")
 	return c
 }
 
@@ -78,8 +79,10 @@ func (c *SessionController) Status() string {
 func (c *SessionController) WaitReady() error {
 	select {
 	case <-c.ctrlReadyCh:
+		c.logger.DebugContext(c.ctx, "controller is ready")
 		return nil
 	case <-c.ctx.Done():
+		c.logger.WarnContext(c.ctx, "WaitReady: context done", "error", c.ctx.Err())
 		return c.ctx.Err()
 	}
 }
@@ -87,31 +90,33 @@ func (c *SessionController) WaitReady() error {
 func (c *SessionController) WaitClose() error {
 	select {
 	case <-c.closedCh:
-		c.logger.DebugContext(c.ctx, "controller exited")
+		c.logger.InfoContext(c.ctx, "controller exited")
 		return nil
 	case err := <-c.closingCh:
-		c.logger.DebugContext(c.ctx, "controller closing", "reason", err)
+		c.logger.WarnContext(c.ctx, "controller closing", "reason", err)
 		return nil
 	}
 }
 
 // Run is the main orchestration loop. It owns all mode transitions.
 func (c *SessionController) Run(spec *api.SessionSpec) error {
-	defer c.logger.DebugContext(c.ctx, "[sessionCtrl] controller stopped\r\n")
+	defer c.logger.InfoContext(c.ctx, "controller stopped")
 
+	c.logger.DebugContext(c.ctx, "creating new session runner")
 	c.sr = c.NewSessionRunner(c.ctx, c.logger, spec)
 
 	if len(spec.Command) == 0 {
-		c.logger.DebugContext(c.ctx, "empty command in SessionSpec")
+		c.logger.ErrorContext(c.ctx, "empty command in SessionSpec")
 		return errdefs.ErrSpecCmdMissing
 	}
 
-	c.logger.DebugContext(c.ctx, "[sessionCtrl] Starting controller loop")
+	c.logger.InfoContext(c.ctx, "Starting controller loop")
 
 	err := c.sr.CreateMetadata()
 	if err != nil {
-		c.logger.DebugContext(c.ctx, fmt.Sprintf("could not write metadata file: %v", err))
+		c.logger.ErrorContext(c.ctx, "could not write metadata file", "err", err)
 		if errB := c.Close(err); errB != nil {
+			c.logger.ErrorContext(c.ctx, "error during Close after metadata failure", "err", errB)
 			err = fmt.Errorf("%w: %w :%w", err, errdefs.ErrOnClose, err)
 		}
 		return fmt.Errorf("%w: %w", errdefs.ErrWriteMetadata, err)
@@ -119,8 +124,9 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 
 	err = c.sr.OpenSocketCtrl()
 	if err != nil {
-		c.logger.DebugContext(c.ctx, fmt.Sprintf("could not open control socket: %v", err))
+		c.logger.ErrorContext(c.ctx, "could not open control socket", "err", err)
 		if errC := c.Close(err); errC != nil {
+			c.logger.ErrorContext(c.ctx, "error during Close after socket open failure", "err", errC)
 			err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 		}
 		return fmt.Errorf("%w: %w", errdefs.ErrOpenSocketCtrl, err)
@@ -130,26 +136,27 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 	go c.sr.StartServer(c.ctx, rpc, c.rpcReadyCh, c.rpcDoneCh)
 	// Wait for startup result
 	if errC := <-c.rpcReadyCh; errC != nil {
-		// failed to start — handle and return
-		c.logger.DebugContext(c.ctx, fmt.Sprintf("failed to start server: %v", errC))
+		c.logger.ErrorContext(c.ctx, "failed to start server", "err", errC)
 		return fmt.Errorf("%w: %w", errdefs.ErrStartRPCServer, errC)
 	}
 
 	if errB := c.sr.StartSession(c.eventsCh); errB != nil {
-		c.logger.DebugContext(c.ctx, fmt.Sprintf("failed to start session: %v", errB))
+		c.logger.ErrorContext(c.ctx, "failed to start session", "err", errB)
 		if errC := c.Close(errB); errC != nil {
+			c.logger.ErrorContext(c.ctx, "error during Close after session start failure", "err", errC)
 			errB = fmt.Errorf("%w: %w: %w", errB, errdefs.ErrOnClose, errC)
 		}
 		return fmt.Errorf("%w: %w", errdefs.ErrStartSession, errB)
 	}
 
+	c.logger.InfoContext(c.ctx, "controller ready")
 	close(c.ctrlReadyCh)
 
 	go func() {
 		select {
 		case err := <-c.closingCh:
 			c.shuttingDown = true
-			slog.Info("controller closing", "reason", err)
+			c.logger.WarnContext(c.ctx, "controller closing", "reason", err)
 		}
 	}()
 
@@ -157,8 +164,9 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		select {
 		case <-c.ctx.Done():
 			var err error
-			c.logger.DebugContext(c.ctx, "[supervisor] parent context channel has been closed\r\n")
+			c.logger.WarnContext(c.ctx, "parent context channel has been closed")
 			if errC := c.Close(c.ctx.Err()); errC != nil {
+				c.logger.ErrorContext(c.ctx, "error during Close after context done", "err", errC)
 				err = fmt.Errorf("%w: %w", errdefs.ErrOnClose, errC)
 			}
 			return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
@@ -166,7 +174,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		case ev := <-c.eventsCh:
 			c.logger.DebugContext(c.ctx,
 				fmt.Sprintf(
-					"[sessionCtrl] received event: id=%s type=%v err=%v when=%s\r\n",
+					"received event: id=%s type=%v err=%v when=%s",
 					ev.ID,
 					ev.Type,
 					ev.Err,
@@ -176,14 +184,15 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 			c.handleEvent(ev)
 
 		case err := <-c.rpcDoneCh:
-			c.logger.DebugContext(c.ctx, fmt.Sprintf("[sessionCtrl] rpc server has failed: %v\r\n", err))
+			c.logger.ErrorContext(c.ctx, "rpc server has failed", "err", err)
 			if errC := c.Close(err); err != nil {
+				c.logger.ErrorContext(c.ctx, "error during Close after rpc server failure", "err", errC)
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 			}
 			return fmt.Errorf("%w: %w", errdefs.ErrRPCServerExited, err)
 
 		case err := <-c.closeReqCh:
-			c.logger.DebugContext(c.ctx, fmt.Sprintf("[sessionCtrl] close request received: %v\r\n", err))
+			c.logger.WarnContext(c.ctx, "close request received", "err", err)
 			return fmt.Errorf("%w: %w", errdefs.ErrCloseReq, err)
 		}
 	}
@@ -194,21 +203,18 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 func (c *SessionController) handleEvent(ev sessionrunner.SessionRunnerEvent) {
 	switch ev.Type {
 	case sessionrunner.EvError:
-		c.logger.DebugContext(c.ctx, fmt.Sprintf("[sessionCtrl] session %s EvError error: %v\r\n", ev.ID, ev.Err))
+		c.logger.ErrorContext(c.ctx, "session EvError", "id", ev.ID, "error", ev.Err)
 		c.onClosed(ev.Err)
 
 	case sessionrunner.EvCmdExited:
-		c.logger.DebugContext(
-			c.ctx,
-			fmt.Sprintf("[sessionCtrl] session %s EvSessionExited error: %v\r\n", ev.ID, ev.Err),
-		)
+		c.logger.InfoContext(c.ctx, "session EvSessionExited", "id", ev.ID, "error", ev.Err)
 		c.onClosed(ev.Err)
 	}
 }
 
 func (c *SessionController) Close(reason error) error {
 	if !c.shuttingDown {
-		slog.Info("initiating shutdown sequence", "reason", reason)
+		c.logger.InfoContext(c.ctx, "initiating shutdown sequence", "reason", reason)
 		// Set closing reason
 		c.closingCh <- reason
 
@@ -221,13 +227,13 @@ func (c *SessionController) Close(reason error) error {
 		// Mark controller as closed
 		close(c.closedCh)
 	} else {
-		slog.Info("shutdown sequence already in progress, ignoring duplicate request", "reason", reason)
+		c.logger.WarnContext(c.ctx, "shutdown sequence already in progress, ignoring duplicate request", "reason", reason)
 	}
 	return nil
 }
 
 func (c *SessionController) onClosed(err error) {
-	c.logger.DebugContext(c.ctx, "[sessionCtrl] onClosed triggered\r\n")
+	c.logger.InfoContext(c.ctx, "onClosed triggered")
 	c.Close(err)
 }
 
@@ -238,14 +244,11 @@ func (c *SessionController) Resize(args api.ResizeArgs) {
 func (c *SessionController) Attach(id *api.ID, response *api.ResponseWithFD) error {
 	err := c.sr.Attach(id, response)
 	if err != nil {
+		c.logger.ErrorContext(c.ctx, "Attach failed", "id", id, "error", err)
 		return err
 	}
 
-	c.logger.DebugContext(c.ctx, "[session] Attach controller response",
-		"ok", response.JSON,
-		"fds", response.FDs,
-	)
-
+	c.logger.InfoContext(c.ctx, "Attach controller response", "ok", response.JSON, "fds", response.FDs)
 	return nil
 }
 

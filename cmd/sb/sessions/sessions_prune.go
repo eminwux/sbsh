@@ -48,7 +48,12 @@ This will remove all session files for sessions that are not running anymore.`,
 				"args", cmd.Flags().Args(),
 			)
 
-			err := discovery.ScanAndPruneSessions(cmd.Context(), viper.GetString(env.RUN_PATH.ViperKey), os.Stdout)
+			err := discovery.ScanAndPruneSessions(
+				cmd.Context(),
+				logger,
+				viper.GetString(env.RUN_PATH.ViperKey),
+				os.Stdout,
+			)
 			if err != nil {
 				logger.Debug("error pruning sessions", "error", err)
 				// Print to stderr and exit 1 as requested

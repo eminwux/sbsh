@@ -137,12 +137,7 @@ You can also use sbsh with parameters. For example:
 				handler.Inner = slog.NewTextHandler(f, &slog.HandlerOptions{Level: lv})
 				handler.Writer = f
 
-				// th := slog.NewTextHandler(f, &slog.HandlerOptions{Level: lv})
-				// h := &logging.ReformatHandler{Inner: th, Writer: f}
-				// newLogger := slog.New(h)
-
 				ctx := cmd.Context()
-				// ctx = context.WithValue(ctx, logging.CtxLogger, newLogger)
 				ctx = context.WithValue(ctx, logging.CtxLevelVar, lv)
 				ctx = context.WithValue(ctx, logging.CtxCloser, f)
 				cmd.SetContext(ctx)
@@ -200,6 +195,7 @@ You can also use sbsh with parameters. For example:
 
 			sessionSpec, buildErr := profile.BuildSessionSpec(
 				cmd.Context(),
+				logger,
 				&profile.BuildSessionSpecParams{
 					SessionID:    viper.GetString("sbsh.session.id"),
 					SessionName:  viper.GetString("sbsh.session.name"),

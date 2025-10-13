@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 
 	"github.com/eminwux/sbsh/pkg/api"
@@ -28,35 +27,49 @@ import (
 
 func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	defer client.conn.Close()
+	sr.logger.Info("[sessionrunner] client connection handler started", "client", client.id)
+
 	sr.metadata.Status.State = api.SessionStatusAttached
-	_ = sr.updateMetadata()
+	if err := sr.updateMetadata(); err != nil {
+		sr.logger.Warn("[sessionrunner] failed to update metadata on attach", "err", err)
+	}
 
 	client.pipeOutR, client.pipeOutW, _ = os.Pipe()
 	sr.ptyPipes.multiOutW.Add(client.pipeOutW)
 
-	log, _ := readFileBytes(sr.metadata.Status.LogFile)
+	log, err := readFileBytes(sr.metadata.Status.CaptureFile)
+	if err != nil {
+		sr.logger.Warn("[sessionrunner] failed to read log file for client attach", "err", err)
+	}
 
 	//nolint:mnd // channel buffer size
 	errCh := make(chan error, 2)
 
 	// READ FROM CONN, WRITE TO PTY STDIN
 	go func(errCh chan error) {
-		//nolint:mnd // event channel buffer size
-		buf := make([]byte, 32*1024) // 32 KiB buffer, same as io.Copy
+		//nolint:mnd // buffer size, 32 KiB buffer, same as io.Copy
+		buf := make([]byte, 32*1024)
 		var total int64
 
 		for {
-			slog.Debug("conn->pty pre-read")
+			sr.logger.Debug("conn->pty pre-read", "client", client.id)
 			n, rerr := client.conn.Read(buf)
-			slog.Debug(fmt.Sprintf("conn->pty post-read: %d", n))
+			sr.logger.Debug("conn->pty post-read", "client", client.id, "n", n)
 			if n > 0 {
 				written := 0
 				for written < n {
-					slog.Debug("conn->pty pre-write")
+					sr.logger.Debug("conn->pty pre-write", "client", client.id)
 					m, werr := sr.ptyPipes.pipeInW.Write(buf[written:n])
-					slog.Debug(fmt.Sprintf("conn->pty post-write: %d", m))
+					sr.logger.Debug("conn->pty post-write", "client", client.id, "m", m)
 					if werr != nil {
 						errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", werr)
+						sr.logger.Error(
+							"[sessionrunner] error in conn->pty copy pipe",
+							"err",
+							werr,
+							"client",
+							client.id,
+						)
 						return
 					}
 					written += m
@@ -67,8 +80,10 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 			if rerr != nil {
 				if !errors.Is(rerr, io.EOF) {
 					errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", rerr)
+					sr.logger.Error("[sessionrunner] error in conn->pty read", "err", rerr, "client", client.id)
 				} else if total == 0 {
 					errCh <- errors.New("EOF in conn->pty copy pipe")
+					sr.logger.Warn("[sessionrunner] EOF in conn->pty copy pipe", "client", client.id)
 				}
 				return
 			}
@@ -80,25 +95,33 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 		// optional initial write
 		if _, err := client.conn.Write(log); err != nil {
 			errCh <- fmt.Errorf("error in pty->conn initial write: %w", err)
+			sr.logger.Error("[sessionrunner] error in pty->conn initial write", "err", err, "client", client.id)
 			return
 		}
 
-		//nolint:mnd // buffer size
-		buf := make([]byte, 32*1024) // similar buffer size to io.Copy
+		//nolint:mnd // buffer size, 32 KiB buffer, same as io.Copy
+		buf := make([]byte, 32*1024)
 		var total int64
 
 		for {
-			slog.Debug("pty->conn pre-read")
+			sr.logger.Debug("pty->conn pre-read", "client", client.id)
 			n, rerr := client.pipeOutR.Read(buf)
-			slog.Debug(fmt.Sprintf("pty->conn post-read: %d", n))
+			sr.logger.Debug("pty->conn post-read", "client", client.id, "n", n)
 			if n > 0 {
 				written := 0
 				for written < n {
-					slog.Debug("pty->conn pre-write")
+					sr.logger.Debug("pty->conn pre-write", "client", client.id)
 					m, werr := client.conn.Write(buf[written:n])
-					slog.Debug(fmt.Sprintf("pty->conn post-write: %d", m))
+					sr.logger.Debug("pty->conn post-write", "client", client.id, "m", m)
 					if werr != nil {
 						errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", werr)
+						sr.logger.Error(
+							"[sessionrunner] error in pty->conn copy pipe",
+							"err",
+							werr,
+							"client",
+							client.id,
+						)
 						return
 					}
 					written += m
@@ -109,19 +132,24 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 			if rerr != nil {
 				if rerr != io.EOF {
 					errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", rerr)
+					sr.logger.Error("[sessionrunner] error in pty->conn read", "err", rerr, "client", client.id)
 				} else if total == 0 {
 					errCh <- errors.New("EOF in pty->conn copy pipe")
+					sr.logger.Warn("[sessionrunner] EOF in pty->conn copy pipe", "client", client.id)
 				}
 				return
 			}
 		}
 	}(errCh)
 
-	err := <-errCh
+	err = <-errCh
 	if err != nil {
-		slog.Debug(fmt.Sprintf("[session-runner] error in copy pipes: %v\r\n", err))
+		sr.logger.Error("[sessionrunner] error in copy pipes", "err", err, "client", client.id)
 	}
-	client.conn.Close()
+	sr.logger.Info("[sessionrunner] client connection handler exiting", "client", client.id)
+	if cerr := client.conn.Close(); cerr != nil {
+		sr.logger.Warn("[sessionrunner] error closing client connection", "err", cerr, "client", client.id)
+	}
 	sr.removeClient(client)
 }
 

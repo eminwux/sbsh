@@ -18,7 +18,6 @@ package sessionrunner
 
 import (
 	"fmt"
-	"log/slog"
 	"net"
 	"os"
 
@@ -27,20 +26,26 @@ import (
 )
 
 func (sr *SessionRunnerExec) OpenSocketCtrl() error {
-	slog.Debug(fmt.Sprintf("[sessionCtrl] socket: %s", sr.metadata.Spec.SocketFile))
+	sr.logger.Debug("OpenSocketCtrl: preparing to listen", "socket", sr.metadata.Spec.SocketFile)
 	sr.metadata.Status.SocketFile = sr.metadata.Spec.SocketFile
 	sr.updateMetadata()
 
 	// Remove sockets if they already exist
-	// remove sockets and dir
 	if err := os.Remove(sr.metadata.Spec.SocketFile); err != nil {
-		slog.Debug(fmt.Sprintf("[sessionCtrl] couldn't remove stale CTRL socket: %s\r\n", sr.metadata.Spec.SocketFile))
+		sr.logger.Warn(
+			"OpenSocketCtrl: couldn't remove stale CTRL socket",
+			"socket",
+			sr.metadata.Spec.SocketFile,
+			"error",
+			err,
+		)
 	}
 
 	// Listen to CONTROL SOCKET
 	var lc net.ListenConfig
 	ctrlLn, err := lc.Listen(sr.ctx, "unix", sr.metadata.Spec.SocketFile)
 	if err != nil {
+		sr.logger.Error("OpenSocketCtrl: failed to listen", "socket", sr.metadata.Spec.SocketFile, "error", err)
 		return fmt.Errorf("listen ctrl: %w", err)
 	}
 
@@ -48,6 +53,13 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() error {
 	sr.lnCtrl = ctrlLn
 
 	if err := os.Chmod(sr.metadata.Spec.SocketFile, 0o600); err != nil {
+		sr.logger.Error(
+			"OpenSocketCtrl: failed to chmod socket file",
+			"socket",
+			sr.metadata.Spec.SocketFile,
+			"error",
+			err,
+		)
 		ctrlLn.Close()
 		return err
 	}
@@ -56,15 +68,15 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() error {
 	sr.metadata.Status.SocketFile = sr.metadata.Spec.SocketFile
 	sr.updateMetadata()
 
+	sr.logger.Info("OpenSocketCtrl: listening on socket", "socket", sr.metadata.Spec.SocketFile)
 	return nil
 }
 
 func (sr *SessionRunnerExec) CreateNewClient(id *api.ID) (int, error) {
-	var sv [2]int
-	var err error
-
-	sv, err = unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|sockCloexec, 0)
+	sr.logger.Debug("CreateNewClient: creating socketpair", "id", id)
+	sv, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|sockCloexec, 0)
 	if err != nil {
+		sr.logger.Error("CreateNewClient: Socketpair failed", "id", id, "error", err)
 		return -1, err
 	}
 
@@ -75,6 +87,7 @@ func (sr *SessionRunnerExec) CreateNewClient(id *api.ID) (int, error) {
 
 	ioConn, err := net.FileConn(f)
 	if err != nil {
+		sr.logger.Error("CreateNewClient: FileConn failed", "id", id, "error", err)
 		return -1, fmt.Errorf("FileConn: %w", err)
 	}
 	f.Close() // release the duplicate, keep using ioConn
@@ -82,7 +95,9 @@ func (sr *SessionRunnerExec) CreateNewClient(id *api.ID) (int, error) {
 	cl := &ioClient{id: id, conn: ioConn}
 
 	sr.addClient(cl)
+	sr.logger.Info("CreateNewClient: client added", "id", id)
 	go sr.handleClient(cl)
 
+	sr.logger.Debug("CreateNewClient: returning client FD", "id", id, "fd", cliFD)
 	return cliFD, nil
 }

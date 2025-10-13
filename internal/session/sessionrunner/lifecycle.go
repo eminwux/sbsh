@@ -18,7 +18,6 @@ package sessionrunner
 
 import (
 	"fmt"
-	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -31,52 +30,55 @@ import (
 const deleteSessionDir bool = false
 
 func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error {
+	sr.logger.Info("starting session", "id", sr.id)
 	sr.evCh = evCh
 
 	if err := sr.prepareSessionCommand(); err != nil {
-		err = fmt.Errorf("failed to run session command for session %s: %w", sr.id, err)
-		return err
+		sr.logger.Error("failed to run session command", "id", sr.id, "err", err)
+		return fmt.Errorf("failed to run session command for session %s: %w", sr.id, err)
 	}
 
 	if err := sr.startPTY(); err != nil {
-		err = fmt.Errorf("failed to start PTY for session %s: %w", sr.id, err)
-		return err
+		sr.logger.Error("failed to start PTY", "id", sr.id, "err", err)
+		return fmt.Errorf("failed to start PTY for session %s: %w", sr.id, err)
 	}
 
+	sr.logger.Info("session PTY started", "id", sr.id)
 	go sr.waitOnSession()
 
 	return nil
 }
 
 func (sr *SessionRunnerExec) waitOnSession() {
-	select {
-	case err := <-sr.closeReqCh:
-		slog.Debug("[session] sending EvSessionExited event\r\n")
-		trySendEvent(sr.evCh, SessionRunnerEvent{ID: sr.id, Type: EvCmdExited, Err: err, When: time.Now()})
-		return
-	}
+	err := <-sr.closeReqCh
+	sr.logger.Info("session close requested", "id", sr.id, "err", err)
+	sr.logger.Debug("sending EvSessionExited event", "id", sr.id)
+	trySendEvent(sr.logger, sr.evCh, SessionRunnerEvent{ID: sr.id, Type: EvCmdExited, Err: err, When: time.Now()})
 }
 
 func (sr *SessionRunnerExec) Close(reason error) error {
-	slog.Debug(fmt.Sprintf("[session-runner] closing session-runner on request, reason: %v\r\n", reason))
+	sr.logger.Info("closing session", "id", sr.id, "reason", reason)
 
 	sr.metadata.Status.State = api.SessionStatusExited
-	sr.updateMetadata()
+
+	if err := sr.updateMetadata(); err != nil {
+		sr.logger.Warn("failed to update metadata on close", "id", sr.id, "err", err)
+	}
 
 	sr.ctxCancel()
 
-	slog.Debug("[session-runner] closed \r\n")
+	sr.logger.Debug("session closed", "id", sr.id)
 
 	// stop accepting
 	if sr.lnCtrl != nil {
 		if err := sr.lnCtrl.Close(); err != nil {
-			slog.Debug(fmt.Sprintf("[session-runner] could not close IO listener: %v", err))
+			sr.logger.Warn("could not close IO listener", "id", sr.id, "err", err)
 		}
 	}
 	// stop accepting
 	if sr.listenerIO != nil {
 		if err := sr.listenerIO.Close(); err != nil {
-			slog.Debug(fmt.Sprintf("[session-runner] could not close IO listener: %v", err))
+			sr.logger.Warn("could not close IO listener", "id", sr.id, "err", err)
 		}
 	}
 
@@ -84,7 +86,7 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 	sr.clientsMu.Lock()
 	for _, c := range sr.clients {
 		if err := c.conn.Close(); err != nil {
-			slog.Debug(fmt.Sprintf("[session-runner] could not close connection: %v\r\n", err))
+			sr.logger.Warn("could not close client connection", "id", sr.id, "client", c.id, "err", err)
 		}
 	}
 
@@ -94,7 +96,7 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 	// kill PTY child and close PTY master as needed
 	if sr.cmd != nil && sr.cmd.Process != nil {
 		if err := sr.cmd.Process.Kill(); err != nil {
-			slog.Debug(fmt.Sprintf("[sesion] could not kill cmd: %v\r\n", err))
+			sr.logger.Warn("could not kill cmd process", "id", sr.id, "err", err)
 		}
 	}
 	if sr.pty != nil {
@@ -103,25 +105,25 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 			err = sr.pty.Close()
 		})
 		if err != nil {
-			slog.Debug(fmt.Sprintf("[sesion] could not close pty: %v\r\n", err))
+			sr.logger.Warn("could not close pty", "id", sr.id, "err", err)
 		}
 	}
 
 	// remove Ctrl socket
 	if err := os.Remove(sr.metadata.Status.SocketFile); err != nil {
-		slog.Debug(
-			fmt.Sprintf("[sessionCtrl] couldn't remove Ctrl socket %s: %v\r\n", sr.metadata.Status.SocketFile, err),
-		)
+		sr.logger.Warn("couldn't remove Ctrl socket", "id", sr.id, "socket", sr.metadata.Status.SocketFile, "err", err)
 	}
 
 	if deleteSessionDir {
 		if err := os.RemoveAll(filepath.Dir(sr.metadata.Status.SessionRunPath)); err != nil {
-			slog.Debug(
-				fmt.Sprintf(
-					"[session] couldn't remove session directory '%s': %v\r\n",
-					sr.metadata.Status.SessionRunPath,
-					err,
-				),
+			sr.logger.Warn(
+				"couldn't remove session directory",
+				"id",
+				sr.id,
+				"dir",
+				sr.metadata.Status.SessionRunPath,
+				"err",
+				err,
 			)
 		}
 	}
@@ -161,10 +163,7 @@ func (sr *SessionRunnerExec) Attach(id *api.ID, response *api.ResponseWithFD) er
 
 	fds := []int{cliFD}
 
-	slog.Debug("[session] Attach response",
-		"ok", payload.OK,
-		"fds", fds,
-	)
+	sr.logger.Debug("Attach response", "id", id, "ok", payload.OK, "fds", fds)
 
 	response.JSON = payload
 	response.FDs = fds

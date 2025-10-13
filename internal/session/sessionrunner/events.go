@@ -40,8 +40,8 @@ const (
 )
 
 // helper: non-blocking event send so the PTY reader never stalls
-func trySendEvent(ch chan<- SessionRunnerEvent, ev SessionRunnerEvent) {
-	slog.Debug(
+func trySendEvent(logger *slog.Logger, ch chan<- SessionRunnerEvent, ev SessionRunnerEvent) {
+	logger.Debug(
 		fmt.Sprintf(
 			"[session] send event: id=%s type=%v err=%v when=%s\r\n",
 			ev.ID,

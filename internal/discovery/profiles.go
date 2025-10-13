@@ -33,46 +33,69 @@ import (
 
 // ScanAndPrintProfiles loads all profiles from a YAML file (supports multiple '---' documents)
 // and prints them in a table to w.
-func ScanAndPrintProfiles(ctx context.Context, path string, w io.Writer) error {
-	profiles, err := LoadProfilesFromPath(ctx, path)
+func ScanAndPrintProfiles(ctx context.Context, logger *slog.Logger, path string, w io.Writer) error {
+	logger.DebugContext(ctx, "ScanAndPrintProfiles: loading profiles", "path", path)
+	profiles, err := LoadProfilesFromPath(ctx, logger, path)
 	if err != nil {
+		logger.ErrorContext(ctx, "ScanAndPrintProfiles: failed to load profiles", "path", path, "error", err)
 		return err
 	}
+	logger.InfoContext(ctx, "ScanAndPrintProfiles: loaded profiles", "count", len(profiles))
 	return PrintProfilesTable(w, profiles)
 }
 
 // LoadProfilesFromPath reads a multi-document YAML file into []api.SessionProfileDoc.
-func LoadProfilesFromPath(_ context.Context, path string) ([]api.SessionProfileDoc, error) {
+func LoadProfilesFromPath(ctx context.Context, logger *slog.Logger, path string) ([]api.SessionProfileDoc, error) {
+	logger.DebugContext(ctx, "LoadProfilesFromPath: opening file", "path", path)
 	f, err := os.Open(path)
 	if err != nil {
+		logger.ErrorContext(ctx, "LoadProfilesFromPath: failed to open file", "path", path, "error", err)
 		return nil, fmt.Errorf("open profiles file %q: %w", path, err)
 	}
 	defer f.Close()
-	return LoadProfilesFromReader(f)
+	logger.InfoContext(ctx, "LoadProfilesFromPath: file opened", "path", path)
+	return LoadProfilesFromReaderWithContext(ctx, logger, f)
 }
 
 // LoadProfilesFromReader decodes one or more YAML documents from r.
-func LoadProfilesFromReader(r io.Reader) ([]api.SessionProfileDoc, error) {
+func LoadProfilesFromReaderWithContext(
+	ctx context.Context,
+	logger *slog.Logger,
+	r io.Reader,
+) ([]api.SessionProfileDoc, error) {
+	logger.DebugContext(ctx, "LoadProfilesFromReader: decoding YAML documents")
 	dec := yaml.NewDecoder(r)
 
 	var out []api.SessionProfileDoc
+	docCount := 0
 	for {
 		var p api.SessionProfileDoc
 		if err := dec.Decode(&p); err != nil {
 			if errors.Is(err, io.EOF) {
+				logger.InfoContext(ctx, "LoadProfilesFromReader: reached EOF", "count", docCount)
 				break
 			}
+			logger.ErrorContext(ctx, "LoadProfilesFromReader: decode error", "error", err)
 			return nil, fmt.Errorf("decode profile: %w", err)
 		}
+		docCount++
 
 		// Basic sanity checks; skip empty docs.
 		if p.Metadata.Name == "" || string(p.APIVersion) == "" || string(p.Kind) == "" {
-			slog.Debug("skipping empty/invalid profile document", "name", p.Metadata.Name)
+			logger.WarnContext(ctx,
+				"LoadProfilesFromReader: skipping empty/invalid profile document",
+				"doc",
+				docCount,
+				"name",
+				p.Metadata.Name,
+			)
 			continue
 		}
+		logger.DebugContext(ctx, "LoadProfilesFromReader: loaded profile", "name", p.Metadata.Name)
 		out = append(out, p)
 	}
 
+	logger.InfoContext(ctx, "LoadProfilesFromReader: finished loading profiles", "count", len(out))
 	return out, nil
 }
 
@@ -115,17 +138,21 @@ func PrintProfilesTable(w io.Writer, profiles []api.SessionProfileDoc) error {
 
 // FindProfileByName scans the YAML file at path and returns the profile whose metadata.name matches.
 // The match is case-sensitive; use strings.EqualFold if you prefer case-insensitive lookup.
-func FindProfileByName(ctx context.Context, path, name string) (*api.SessionProfileDoc, error) {
-	profiles, err := LoadProfilesFromPath(ctx, path)
+func FindProfileByName(ctx context.Context, logger *slog.Logger, path, name string) (*api.SessionProfileDoc, error) {
+	logger.DebugContext(ctx, "FindProfileByName: searching for profile", "name", name, "path", path)
+	profiles, err := LoadProfilesFromPath(ctx, logger, path)
 	if err != nil {
+		logger.ErrorContext(ctx, "FindProfileByName: failed to load profiles", "error", err)
 		return nil, err
 	}
 
 	for _, p := range profiles {
 		if p.Metadata.Name == name {
+			logger.InfoContext(ctx, "FindProfileByName: found profile", "name", name)
 			return &p, nil
 		}
 	}
 
+	logger.WarnContext(ctx, "FindProfileByName: profile not found", "name", name, "path", path)
 	return nil, fmt.Errorf("profile %q not found in %s", name, path)
 }

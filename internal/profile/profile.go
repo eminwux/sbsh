@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -126,6 +127,7 @@ type BuildSessionSpecParams struct {
 // The returned SessionSpec is ready to be used to spawn a session.
 func BuildSessionSpec(
 	ctx context.Context,
+	logger *slog.Logger,
 	p *BuildSessionSpecParams,
 ) (*api.SessionSpec, error) {
 	if p.SessionID == "" {
@@ -195,7 +197,7 @@ func BuildSessionSpec(
 		}
 	} else {
 		// Profile given: load profiles file, find profile by name, and build SessionSpec from it.
-		profileSpec, err := discovery.FindProfileByName(ctx, p.ProfilesFile, p.ProfileName)
+		profileSpec, err := discovery.FindProfileByName(ctx, logger, p.ProfilesFile, p.ProfileName)
 		if err != nil {
 			return nil, err
 		}

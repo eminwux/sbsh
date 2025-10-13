@@ -18,26 +18,35 @@ package supervisorrunner
 
 import (
 	"fmt"
-	"log/slog"
 	"net"
 	"os"
 )
 
 func (sr *SupervisorRunnerExec) OpenSocketCtrl() error {
-	slog.Debug(fmt.Sprintf("[supervisor] sr.spec.SockerCtrl: %s", sr.metadata.Spec.SockerCtrl))
+	sr.logger.Debug("OpenSocketCtrl: preparing to listen", "socket", sr.metadata.Spec.SockerCtrl)
 
 	// remove stale socket if it exists
 	if _, err := os.Stat(sr.metadata.Spec.SockerCtrl); err == nil {
-		_ = os.Remove(sr.metadata.Spec.SockerCtrl)
+		sr.logger.Warn("OpenSocketCtrl: removing stale socket", "socket", sr.metadata.Spec.SockerCtrl)
+		if rmErr := os.Remove(sr.metadata.Spec.SockerCtrl); rmErr != nil {
+			sr.logger.Error(
+				"OpenSocketCtrl: failed to remove stale socket",
+				"socket",
+				sr.metadata.Spec.SockerCtrl,
+				"error",
+				rmErr,
+			)
+			return fmt.Errorf("cannot remove stale socket: %w", rmErr)
+		}
 	}
 	lnCfg := net.ListenConfig{}
 	ln, err := lnCfg.Listen(sr.ctx, "unix", sr.metadata.Spec.SockerCtrl)
 	if err != nil {
-		slog.Debug(fmt.Sprintf("[supervisor] cannot listen: %v", err))
+		sr.logger.Error("OpenSocketCtrl: cannot listen", "socket", sr.metadata.Spec.SockerCtrl, "error", err)
 		return fmt.Errorf("cannot listen: %w", err)
 	}
 
 	sr.lnCtrl = ln
-
+	sr.logger.Info("OpenSocketCtrl: listening on socket", "socket", sr.metadata.Spec.SockerCtrl)
 	return nil
 }

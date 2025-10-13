@@ -18,7 +18,6 @@ package sessionrunner
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -26,7 +25,9 @@ import (
 )
 
 func (sr *SessionRunnerExec) CreateMetadata() error {
+	sr.logger.Debug("CreateMetadata: creating session directory", "dir", sr.getSessionDir())
 	if err := os.MkdirAll(sr.getSessionDir(), 0o700); err != nil {
+		sr.logger.Error("CreateMetadata: failed to create session dir", "dir", sr.getSessionDir(), "error", err)
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
@@ -37,13 +38,15 @@ func (sr *SessionRunnerExec) CreateMetadata() error {
 	sr.metadata.Status.LogLevel = sr.metadata.Spec.LogLevel
 	sr.metadata.Status.CaptureFile = sr.metadata.Spec.CaptureFile
 
-	// Log metadata values with slog.Debug
-	slog.Debug("Session metadata",
-		"Spec", sr.metadata.Spec,
-		"Status", sr.metadata.Status,
-	)
+	sr.logger.Info("CreateMetadata: session metadata set", "Spec", sr.metadata.Spec, "Status", sr.metadata.Status)
 
-	return sr.updateMetadata()
+	err := sr.updateMetadata()
+	if err != nil {
+		sr.logger.Error("CreateMetadata: failed to update metadata", "error", err)
+		return err
+	}
+	sr.logger.Info("CreateMetadata: metadata created successfully")
+	return nil
 }
 
 func (sr *SessionRunnerExec) getSessionDir() string {

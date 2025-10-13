@@ -129,6 +129,7 @@ If no log filename is provided, a default path under the run directory will be u
 
 			sessionSpec, buildErr := profile.BuildSessionSpec(
 				cmd.Context(),
+				logger,
 				&profile.BuildSessionSpecParams{
 					SessionID:    viper.GetString("sbsh.run.id"),
 					SessionName:  viper.GetString("sbsh.run.name"),

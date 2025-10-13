@@ -33,44 +33,81 @@ import (
 
 // ScanAndPrintSessions finds all metadata.json under runPath/sessions/*,
 // unmarshals them into api.SessionSpec, and prints a table to w.
-func ScanAndPrintSessions(ctx context.Context, runPath string, w io.Writer, printAll bool) error {
-	sessions, err := ScanSessions(ctx, runPath)
+func ScanAndPrintSessions(ctx context.Context, logger *slog.Logger, runPath string, w io.Writer, printAll bool) error {
+	logger.DebugContext(ctx, "ScanAndPrintSessions: scanning sessions", "runPath", runPath)
+	sessions, err := ScanSessions(ctx, logger, runPath)
 	if err != nil {
+		logger.ErrorContext(ctx, "ScanAndPrintSessions: failed to scan sessions", "error", err)
 		return err
 	}
+	logger.InfoContext(ctx, "ScanAndPrintSessions: scanned sessions", "count", len(sessions))
 	return printSessions(w, sessions, printAll)
 }
 
 // ScanAndPruneSessions finds all metadata.json under runPath/sessions/*,
 // unmarshals them into api.SessionSpec, and removes the session folders
 // for sessions that are in Exited state.
-func ScanAndPruneSessions(ctx context.Context, runPath string, w io.Writer) error {
-	sessions, err := ScanSessions(ctx, runPath)
+func ScanAndPruneSessions(ctx context.Context, logger *slog.Logger, runPath string, w io.Writer) error {
+	logger.DebugContext(ctx, "ScanAndPruneSessions: scanning sessions", "runPath", runPath)
+	sessions, err := ScanSessions(ctx, logger, runPath)
 	if err != nil {
+		logger.ErrorContext(ctx, "ScanAndPruneSessions: failed to scan sessions", "error", err)
 		return err
 	}
+	pruned := 0
 	for _, s := range sessions {
 		if s.Status.State == api.SessionStatusExited {
-			if err := PruneSession(&s); err != nil {
-				return fmt.Errorf("prune session %s: %w", sessionID(s), err)
+			logger.InfoContext(ctx, "ScanAndPruneSessions: pruning session", "id", sessionID(s))
+			if errC := PruneSession(logger, &s); errC != nil {
+				logger.ErrorContext(
+					ctx,
+					"ScanAndPruneSessions: failed to prune session",
+					"id",
+					sessionID(s),
+					"error",
+					errC,
+				)
+				return fmt.Errorf("prune session %s: %w", sessionID(s), errC)
 			}
+			pruned++
 			if w != nil {
 				fmt.Fprintf(w, "Pruned session %s (%s)\n", sessionID(s), sessionName(s))
 			}
 		}
 	}
+	logger.InfoContext(ctx, "ScanAndPruneSessions: prune complete", "pruned", pruned)
 	return nil
 }
 
-func PruneSession(metadata *api.SessionMetadata) error {
-	slog.Debug("pruning session folder", "path", metadata.Status.BaseRunPath)
-	return os.RemoveAll(metadata.Status.SessionRunPath)
+func PruneSession(logger *slog.Logger, metadata *api.SessionMetadata) error {
+	logger.DebugContext(
+		context.Background(),
+		"PruneSession: pruning session folder",
+		"path",
+		metadata.Status.BaseRunPath,
+	)
+	err := os.RemoveAll(metadata.Status.SessionRunPath)
+	if err != nil {
+		logger.ErrorContext(
+			context.Background(),
+			"PruneSession: failed to remove session folder",
+			"path",
+			metadata.Status.SessionRunPath,
+			"error",
+			err,
+		)
+	} else {
+		logger.InfoContext(context.Background(), "PruneSession: session folder removed", "path", metadata.Status.SessionRunPath)
+	}
+	return err
 }
 
-func ScanSessions(ctx context.Context, runPath string) ([]api.SessionMetadata, error) {
+func ScanSessions(ctx context.Context, logger *slog.Logger, runPath string) ([]api.SessionMetadata, error) {
 	pattern := filepath.Join(runPath, "sessions", "*", "metadata.json")
+	logger.DebugContext(ctx, "ScanSessions: globbing for session metadata", "pattern", pattern)
 	paths, err := filepath.Glob(pattern)
 	if err != nil {
+		logger.ErrorContext(ctx, "ScanSessions: glob failed", "error", err)
 		return nil, fmt.Errorf("glob %q: %w", pattern, err)
 	}
 
@@ -78,17 +115,21 @@ func ScanSessions(ctx context.Context, runPath string) ([]api.SessionMetadata, e
 	for _, p := range paths {
 		select {
 		case <-ctx.Done():
+			logger.WarnContext(ctx, "ScanSessions: context done while reading sessions")
 			return nil, ctx.Err()
 		default:
 		}
 		b, err := os.ReadFile(p)
 		if err != nil {
+			logger.ErrorContext(ctx, "ScanSessions: failed to read file", "file", p, "error", err)
 			return nil, fmt.Errorf("read %s: %w", p, err)
 		}
 		var s api.SessionMetadata
 		if err := json.Unmarshal(b, &s); err != nil {
+			logger.ErrorContext(ctx, "ScanSessions: failed to decode file", "file", p, "error", err)
 			return nil, fmt.Errorf("decode %s: %w", p, err)
 		}
+		logger.DebugContext(ctx, "ScanSessions: loaded session metadata", "id", sessionID(s), "name", sessionName(s))
 		out = append(out, s)
 	}
 
@@ -101,6 +142,7 @@ func ScanSessions(ctx context.Context, runPath string) ([]api.SessionMetadata, e
 		return sessionName(out[i]) < sessionName(out[j])
 	})
 
+	logger.InfoContext(ctx, "ScanSessions: finished scanning", "count", len(out))
 	return out, nil
 }
 
@@ -191,8 +233,13 @@ func joinLabels(m map[string]string) string {
 
 // FindSessionByID scans runPath/sessions/*/metadata.json and returns
 // the session whose Spec.ID matches the given id. If not found, returns nil.
-func FindSessionByID(ctx context.Context, runPath string, id string) (*api.SessionMetadata, error) {
-	sessions, err := ScanSessions(ctx, runPath)
+func FindSessionByID(
+	ctx context.Context,
+	logger *slog.Logger,
+	runPath string,
+	id string,
+) (*api.SessionMetadata, error) {
+	sessions, err := ScanSessions(ctx, logger, runPath)
 	if err != nil {
 		return nil, err
 	}
@@ -208,8 +255,13 @@ func FindSessionByID(ctx context.Context, runPath string, id string) (*api.Sessi
 
 // FindSessionByName scans runPath/sessions/*/metadata.json and returns
 // the session whose Spec.Name matches the given name. If not found, returns nil.
-func FindSessionByName(ctx context.Context, runPath string, name string) (*api.SessionMetadata, error) {
-	sessions, err := ScanSessions(ctx, runPath)
+func FindSessionByName(
+	ctx context.Context,
+	logger *slog.Logger,
+	runPath string,
+	name string,
+) (*api.SessionMetadata, error) {
+	sessions, err := ScanSessions(ctx, logger, runPath)
 	if err != nil {
 		return nil, err
 	}

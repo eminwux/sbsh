@@ -18,7 +18,6 @@ package supervisorrunner
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,6 +33,7 @@ const (
 )
 
 func (sr *SupervisorRunnerExec) StartSessionCmd(session *api.SupervisedSession) error {
+	sr.logger.Debug("StartSessionCmd: preparing to start session", "session_id", session.Id, "command", session.Command)
 	devNull, _ := os.OpenFile("/dev/null", os.O_RDWR, 0)
 	cmd := exec.Command(session.Command, session.CommandArgs...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // detach from your pg/ctty
@@ -42,22 +42,27 @@ func (sr *SupervisorRunnerExec) StartSessionCmd(session *api.SupervisedSession) 
 	cmd.Env = session.Env
 
 	if err := cmd.Start(); err != nil {
+		sr.logger.Error("StartSessionCmd: failed to start command", "session_id", session.Id, "error", err)
 		return fmt.Errorf("%w :%w", errdefs.ErrSessionCmdStart, err)
 	}
 
 	// you can return cmd.Process.Pid to record in meta.json
 	session.Pid = cmd.Process.Pid
-
-	slog.Debug(fmt.Sprintf("[supervisor] session %s process %d has started\r\n", session.Id, session.Pid))
+	sr.logger.Info("StartSessionCmd: process started", "session_id", session.Id, "pid", session.Pid)
 
 	// IMPORTANT: reap it in the background so it never zombifies
 	go func() {
-		_ = cmd.Wait()
-		slog.Debug(fmt.Sprintf("[supervisor] session %s process has exited\r\n", session.Id))
-		err := fmt.Errorf("session %s process has exited", session.Id)
+		err := cmd.Wait()
+		if err != nil {
+			sr.logger.Warn("StartSessionCmd: process exited with error", "session_id", session.Id, "error", err)
+		} else {
+			sr.logger.Info("StartSessionCmd: process exited", "session_id", session.Id)
+		}
+		eventErr := fmt.Errorf("session %s process has exited", session.Id)
 		trySendEvent(
+			sr.logger,
 			sr.events,
-			SupervisorRunnerEvent{ID: api.ID(session.Id), Type: EvCmdExited, Err: err, When: time.Now()},
+			SupervisorRunnerEvent{ID: session.Id, Type: EvCmdExited, Err: eventErr, When: time.Now()},
 		)
 	}()
 
@@ -91,27 +96,26 @@ func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
 }
 
 func (sr *SupervisorRunnerExec) Close(_ error) error {
+	sr.logger.Debug("Close: cancelling context and cleaning up")
 	sr.ctxCancel()
 	// remove sockets and dir
 	if err := os.Remove(sr.metadata.Spec.SockerCtrl); err != nil {
-		slog.Debug(
-			fmt.Sprintf("[supervisor] couldn't remove Ctrl socket '%s': %v\r\n", sr.metadata.Spec.SockerCtrl, err),
-		)
+		sr.logger.Warn("Close: couldn't remove Ctrl socket", "socket", sr.metadata.Spec.SockerCtrl, "error", err)
+	} else {
+		sr.logger.Info("Close: removed Ctrl socket", "socket", sr.metadata.Spec.SockerCtrl)
 	}
 
 	if deleteSupervisorDir {
-		if err := os.RemoveAll(filepath.Dir(sr.metadata.Spec.SockerCtrl)); err != nil {
-			slog.Debug(
-				fmt.Sprintf(
-					"[supervisor] couldn't remove socket Directory '%s': %v\r\n",
-					sr.metadata.Spec.SockerCtrl,
-					err,
-				),
-			)
+		dir := filepath.Dir(sr.metadata.Spec.SockerCtrl)
+		if err := os.RemoveAll(dir); err != nil {
+			sr.logger.Warn("Close: couldn't remove socket directory", "dir", dir, "error", err)
+		} else {
+			sr.logger.Info("Close: removed socket directory", "dir", dir)
 		}
 	}
 
-	sr.toExitShell()
+	_ = sr.toExitShell()
+	sr.logger.Debug("Close: cleanup complete")
 	return nil
 }
 

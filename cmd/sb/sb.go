@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -98,6 +99,23 @@ Examples:
 				)
 				levelVar.Set(logging.ParseLevel(viper.GetString("sb.global.logLevel")))
 			}
+
+			handler, ok := cmd.Context().Value(logging.CtxHandler).(*logging.ReformatHandler)
+			if !ok || handler == nil {
+				return errors.New("logger handler not found in context")
+			}
+			devNull, err := os.OpenFile("/dev/null", os.O_WRONLY, 0)
+			if err != nil {
+				return fmt.Errorf("failed to open /dev/null: %w", err)
+			}
+			handler.Inner = slog.NewTextHandler(devNull, &slog.HandlerOptions{Level: levelVar})
+			handler.Writer = devNull
+
+			ctx := cmd.Context()
+			ctx = context.WithValue(ctx, logging.CtxLevelVar, levelVar)
+			ctx = context.WithValue(ctx, logging.CtxCloser, devNull)
+			cmd.SetContext(ctx)
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -107,6 +125,12 @@ Examples:
 			}
 			logger.DebugContext(cmd.Context(), "sb root command invoked", "args", cmd.Flags().Args())
 			return cmd.Help()
+		},
+		PostRunE: func(cmd *cobra.Command, _ []string) error {
+			if c, _ := cmd.Context().Value(logging.CtxCloser).(io.Closer); c != nil {
+				_ = c.Close()
+			}
+			return nil
 		},
 	}
 

@@ -45,7 +45,7 @@ This command scans and lists all available profiles in the specified configurati
 				"profiles_file", "/home/inwx/.sbsh/profiles.yaml",
 			)
 
-			err := discovery.ScanAndPrintProfiles(cmd.Context(), "/home/inwx/.sbsh/profiles.yaml", os.Stdout)
+			err := discovery.ScanAndPrintProfiles(cmd.Context(), logger, "/home/inwx/.sbsh/profiles.yaml", os.Stdout)
 			if err != nil {
 				logger.Debug("error scanning and printing profiles", "error", err)
 				_, _ = os.Stderr.WriteString("Could not list profiles: " + err.Error() + "\n")

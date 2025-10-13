@@ -85,6 +85,6 @@ func (sr *SessionRunnerExec) StartServer(
 			return
 		}
 		uconn := conn.(*net.UnixConn)
-		go srv.ServeCodec(sessionrpc.NewUnixJSONServerCodec(uconn))
+		go srv.ServeCodec(sessionrpc.NewUnixJSONServerCodec(uconn, sr.logger))
 	}
 }
