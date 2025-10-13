@@ -240,9 +240,10 @@ func runSession(
 		var waitErr error
 		if errC := ctrl.WaitClose(); errC != nil {
 			waitErr = fmt.Errorf("%w %w: %w", waitErr, errdefs.ErrWaitOnClose, errC)
+			logger.DebugContext(ctx, "error waiting for session controller to close", "error", waitErr)
 		}
 		logger.DebugContext(ctx, "context canceled, session controller exited")
-		return fmt.Errorf("%w: %w", errdefs.ErrContextDone, waitErr)
+		return nil
 
 	case err := <-errCh:
 		logger.DebugContext(ctx, "session controller stopped", "error", err)
