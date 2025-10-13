@@ -219,7 +219,7 @@ func (c *SessionController) Close(reason error) error {
 		c.closingCh <- reason
 
 		// Notify session runner to close all sessions
-		c.sr.Close(reason)
+		_ = c.sr.Close(reason)
 
 		// Notify Run to exit
 		c.closeReqCh <- reason
@@ -234,7 +234,7 @@ func (c *SessionController) Close(reason error) error {
 
 func (c *SessionController) onClosed(err error) {
 	c.logger.InfoContext(c.ctx, "onClosed triggered")
-	c.Close(err)
+	_ = c.Close(err)
 }
 
 func (c *SessionController) Resize(args api.ResizeArgs) {
