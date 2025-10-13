@@ -42,28 +42,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-func main() {
-	var levelVar slog.LevelVar
-	// Default to info, can be changed at runtime
-	levelVar.Set(slog.LevelInfo)
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: &levelVar})
-	logger := slog.New(handler)
-
-	// Store both logger and levelVar in context using struct keys
-	//nolint:revive,staticcheck // ignore revive warning about context keys
-	ctx := context.WithValue(context.Background(), "logger", logger)
-	//nolint:revive,staticcheck // ignore revive warning about context keys
-	ctx = context.WithValue(ctx, "logLevelVar", &levelVar)
-
-	rootCmd := NewSbshRootCmd()
-	rootCmd.SetContext(ctx)
-
-	err := rootCmd.Execute()
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
 func NewSbshRootCmd() *cobra.Command {
 	// rootCmd represents the base command when called without any subcommands.
 	rootCmd := &cobra.Command{
