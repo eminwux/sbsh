@@ -30,11 +30,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "${GITHUB_REF#refs/tags/}" \
-          ./sb-linux-amd64 ./sb-linux-arm64 \
           ./sbsh-linux-amd64 ./sbsh-linux-arm64 \
-          ./sb-darwin-amd64 ./sb-darwin-arm64 \
           ./sbsh-darwin-amd64 ./sbsh-darwin-arm64 \
-          ./sb-freebsd-amd64 ./sb-freebsd-arm64 \
           ./sbsh-freebsd-amd64 ./sbsh-freebsd-arm64 \
           --title "${GITHUB_REF#refs/tags/}" \
           --notes "Docker images available at:
