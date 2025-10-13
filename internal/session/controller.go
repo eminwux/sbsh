@@ -94,8 +94,8 @@ func (c *SessionController) WaitClose() error {
 		return nil
 	case err := <-c.closingCh:
 		c.logger.WarnContext(c.ctx, "controller closing", "reason", err)
-		return nil
 	}
+	return nil
 }
 
 // Run is the main orchestration loop. It owns all mode transitions.
