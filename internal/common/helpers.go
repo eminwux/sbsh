@@ -49,13 +49,6 @@ func WriteMetadata(ctx context.Context, metadata any, dir string) error {
 	}
 	data = append(marshaled, '\n') // gocritic: assign result to same slice
 
-	// Allow cancellation before disk work
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
-
 	const filePerm = 0o644 // mnd: magic number
 	if writeErr := atomicWriteFile(dst, data, filePerm); writeErr != nil {
 		return fmt.Errorf("write %s: %w", dst, writeErr)
