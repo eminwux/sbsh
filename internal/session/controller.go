@@ -30,6 +30,7 @@ import (
 
 type SessionController struct {
 	ctx    context.Context
+	cancel context.CancelCauseFunc
 	logger *slog.Logger
 
 	NewSessionRunner func(ctx context.Context, logger *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner
@@ -53,9 +54,11 @@ type SessionController struct {
 // NewSessionController wires the manager and the shared event channel from sessions.
 func NewSessionController(ctx context.Context, logger *slog.Logger) api.SessionController {
 	logger.DebugContext(ctx, "New controller is being created")
+	newCtx, cancel := context.WithCancelCause(ctx)
 
 	c := &SessionController{
-		ctx:         ctx,
+		ctx:         newCtx,
+		cancel:      cancel,
 		logger:      logger,
 		closedCh:    make(chan struct{}),
 		closingCh:   make(chan error, 1),

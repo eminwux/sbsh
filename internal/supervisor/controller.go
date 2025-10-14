@@ -37,6 +37,7 @@ import (
 // SupervisorController manages the lifecycle of the supervisor.
 type SupervisorController struct {
 	ctx    context.Context
+	cancel context.CancelCauseFunc
 	logger *slog.Logger
 
 	NewSupervisorRunner func(ctx context.Context, logger *slog.Logger, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner
@@ -60,9 +61,11 @@ type SupervisorController struct {
 // NewSupervisorController wires the manager and the shared event channel from sessions.
 func NewSupervisorController(ctx context.Context, logger *slog.Logger) api.SupervisorController {
 	logger.InfoContext(ctx, "New supervisor controller is being created")
+	newCtx, cancel := context.WithCancelCause(ctx)
 
 	c := &SupervisorController{
-		ctx:         ctx,
+		ctx:         newCtx,
+		cancel:      cancel,
 		logger:      logger,
 		closedCh:    make(chan struct{}),
 		closingCh:   make(chan error, 1),
