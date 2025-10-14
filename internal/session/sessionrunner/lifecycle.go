@@ -59,10 +59,8 @@ func (sr *SessionRunnerExec) waitOnSession() {
 func (sr *SessionRunnerExec) Close(reason error) error {
 	sr.logger.Info("closing session", "id", sr.id, "reason", reason)
 
-	sr.metadata.Status.State = api.SessionStatusExited
-
-	if err := sr.updateMetadata(); err != nil {
-		sr.logger.Warn("failed to update metadata on close", "id", sr.id, "err", err)
+	if err := sr.updateSessionState(api.SessionStatusExited); err != nil {
+		sr.logger.Error("failed to update session state", "id", sr.id, "err", err)
 	}
 
 	sr.ctxCancel()

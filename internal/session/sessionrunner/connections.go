@@ -25,13 +25,23 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
+func (sr *SessionRunnerExec) cleanupClient(client *ioClient) {
+	sr.logger.Info("client connection handler exiting", "client", client.id)
+	if cerr := client.conn.Close(); cerr != nil {
+		sr.logger.Warn("error closing client connection", "err", cerr, "client", client.id)
+	}
+	if err := sr.updateSessionState(api.SessionStatusDetached); err != nil {
+		sr.logger.Error("failed to update session state on detach", "err", err, "client", client.id)
+	}
+	sr.removeClient(client)
+}
+
 func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	defer client.conn.Close()
-	sr.logger.Info("[sessionrunner] client connection handler started", "client", client.id)
+	sr.logger.Info("client connection handler started", "client", client.id)
 
-	sr.metadata.Status.State = api.SessionStatusAttached
-	if err := sr.updateMetadata(); err != nil {
-		sr.logger.Warn("[sessionrunner] failed to update metadata on attach", "err", err)
+	if err := sr.updateSessionState(api.SessionStatusAttached); err != nil {
+		sr.logger.Warn("failed to update metadata on attach", "err", err)
 	}
 
 	client.pipeOutR, client.pipeOutW, _ = os.Pipe()
@@ -39,7 +49,7 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 
 	log, err := readFileBytes(sr.metadata.Status.CaptureFile)
 	if err != nil {
-		sr.logger.Warn("[sessionrunner] failed to read log file for client attach", "err", err)
+		sr.logger.Warn("failed to read log file for client attach", "err", err)
 	}
 
 	//nolint:mnd // channel buffer size
@@ -64,7 +74,7 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 					if werr != nil {
 						errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", werr)
 						sr.logger.Error(
-							"[sessionrunner] error in conn->pty copy pipe",
+							"error in conn->pty copy pipe",
 							"err",
 							werr,
 							"client",
@@ -80,10 +90,10 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 			if rerr != nil {
 				if !errors.Is(rerr, io.EOF) {
 					errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", rerr)
-					sr.logger.Error("[sessionrunner] error in conn->pty read", "err", rerr, "client", client.id)
+					sr.logger.Error("error in conn->pty read", "err", rerr, "client", client.id)
 				} else if total == 0 {
 					errCh <- errors.New("EOF in conn->pty copy pipe")
-					sr.logger.Warn("[sessionrunner] EOF in conn->pty copy pipe", "client", client.id)
+					sr.logger.Warn("EOF in conn->pty copy pipe", "client", client.id)
 				}
 				return
 			}
@@ -95,7 +105,7 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 		// optional initial write
 		if _, err := client.conn.Write(log); err != nil {
 			errCh <- fmt.Errorf("error in pty->conn initial write: %w", err)
-			sr.logger.Error("[sessionrunner] error in pty->conn initial write", "err", err, "client", client.id)
+			sr.logger.Error("error in pty->conn initial write", "err", err, "client", client.id)
 			return
 		}
 
@@ -116,7 +126,7 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 					if werr != nil {
 						errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", werr)
 						sr.logger.Error(
-							"[sessionrunner] error in pty->conn copy pipe",
+							"error in pty->conn copy pipe",
 							"err",
 							werr,
 							"client",
@@ -132,10 +142,10 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 			if rerr != nil {
 				if rerr != io.EOF {
 					errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", rerr)
-					sr.logger.Error("[sessionrunner] error in pty->conn read", "err", rerr, "client", client.id)
+					sr.logger.Error("error in pty->conn read", "err", rerr, "client", client.id)
 				} else if total == 0 {
 					errCh <- errors.New("EOF in pty->conn copy pipe")
-					sr.logger.Warn("[sessionrunner] EOF in pty->conn copy pipe", "client", client.id)
+					sr.logger.Warn("EOF in pty->conn copy pipe", "client", client.id)
 				}
 				return
 			}
@@ -144,13 +154,10 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 
 	err = <-errCh
 	if err != nil {
-		sr.logger.Error("[sessionrunner] error in copy pipes", "err", err, "client", client.id)
+		sr.logger.Error("error in copy pipes", "err", err, "client", client.id)
 	}
-	sr.logger.Info("[sessionrunner] client connection handler exiting", "client", client.id)
-	if cerr := client.conn.Close(); cerr != nil {
-		sr.logger.Warn("[sessionrunner] error closing client connection", "err", cerr, "client", client.id)
-	}
-	sr.removeClient(client)
+
+	sr.cleanupClient(client)
 }
 
 func (sr *SessionRunnerExec) addClient(c *ioClient) {

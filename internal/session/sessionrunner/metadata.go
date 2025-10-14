@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 
 	"github.com/eminwux/sbsh/internal/common"
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
 func (sr *SessionRunnerExec) CreateMetadata() error {
@@ -55,4 +56,14 @@ func (sr *SessionRunnerExec) getSessionDir() string {
 
 func (sr *SessionRunnerExec) updateMetadata() error {
 	return common.WriteMetadata(sr.ctx, sr.metadata, sr.getSessionDir())
+}
+
+func (sr *SessionRunnerExec) updateSessionState(status api.SessionStatusMode) error {
+	sr.metadata.Status.State = status
+
+	if err := sr.updateMetadata(); err != nil {
+		sr.logger.Warn("failed to update metadata on close", "id", sr.id, "err", err)
+		return err
+	}
+	return nil
 }
