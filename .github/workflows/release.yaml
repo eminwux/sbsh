@@ -34,6 +34,7 @@ jobs:
           ./sbsh-darwin-amd64 ./sbsh-darwin-arm64 \
           ./sbsh-freebsd-amd64 ./sbsh-freebsd-arm64 \
           --title "${GITHUB_REF#refs/tags/}" \
+          --generate-notes \
           --notes "Docker images available at:
           - docker.io/eminwux/sbsh:${{ github.ref_name }}-linux-amd64
           - docker.io/eminwux/sbsh:${{ github.ref_name }}-linux-arm64
