@@ -14,12 +14,14 @@
 
 ### 🅰️ Must Have
 ```markdown
-- [ ] **A** Implement a Ready status after `preAttach`
-- [ ] **A** Implement preAttach commands in profile
+- [ ] **A** Implement a Ready status after `onInit`
+- [ ] **A** Implement onInit commands in profile
 - [ ] **A** Session stop command
 - [ ] **A** Bash autocomplete
 - [ ] **A** Detach `sbsh run` except if run with `-i`
 - [ ] **A** Add flag to sb to show logging
+- [ ] **A** no prompt, default prompt
+- [ ] **A** Add tty device to sb l
 
 ```
 
@@ -29,6 +31,7 @@
 - [ ] **B** Control supervisor via API
 - [ ] **B** Write to many sessions at the same time
 - [ ] **B** Sort out architecture for SupervisedSession vs. Session
+- [ ] **B** Remove AttachID and AttachName from SessionSpec
 ```
 
 ### 🅲️ Nice to Have

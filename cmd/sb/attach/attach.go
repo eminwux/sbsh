@@ -73,19 +73,19 @@ to quickly create a Cobra application.`,
 			cmd.InheritedFlags().VisitAll(func(f *pflag.Flag) {
 				logger.DebugContext(cmd.Context(), "inherited flag value", "name", f.Name, "value", f.Value.String())
 			})
-			id := viper.GetString("sb.attach.id")
-			name := viper.GetString("sb.attach.name")
+			sessionID := viper.GetString("sb.attach.id")
+			sessionName := viper.GetString("sb.attach.name")
 			runPath := viper.GetString(env.RUN_PATH.ViperKey)
 			socketFile := viper.GetString("sb.attach.socket")
 
-			if id == "" && name == "" {
+			if sessionID == "" && sessionName == "" {
 				return errors.New("either --id or --name must be defined")
 			}
-			if id != "" && name != "" {
+			if sessionID != "" && sessionName != "" {
 				return errors.New("only one of --id or --name must be defined")
 			}
 
-			return run(cmd.Context(), logger, id, name, runPath, socketFile)
+			return run(cmd.Context(), logger, sessionID, sessionName, runPath, socketFile)
 		},
 	}
 
@@ -108,8 +108,8 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 func run(
 	parentCtx context.Context,
 	logger *slog.Logger,
-	id string,
-	name string,
+	sessionID string,
+	sessionName string,
 	runPath string,
 	socketFileInput string,
 ) error {
@@ -126,18 +126,20 @@ func run(
 		socketFileInput = filepath.Join(runPath, "socket")
 	}
 
-	spec := buildSupervisorSpec(ctx, id, name, runPath, socketFileInput, logger)
+	supSpec := buildSupervisorSpec(ctx, sessionID, sessionName, runPath, socketFileInput, logger)
 
 	if socketFileInput != "" {
-		spec.SessionSpec.SocketFile = socketFileInput
+		supSpec.SessionSpec.SocketFile = socketFileInput
 	} else {
-		spec.SessionSpec.SocketFile = filepath.Join(runPath, ".sbsh", "sessions", string(spec.SessionSpec.ID), "socket")
+		supSpec.SessionSpec.SocketFile = filepath.Join(runPath, ".sbsh", "sessions", string(supSpec.SessionSpec.ID), "socket")
 	}
+
+	logger.DebugContext(ctx, "Built supervisor spec", "supervisorSpec", fmt.Sprintf("%+v", supSpec))
 
 	logger.DebugContext(ctx, "starting supervisor controller goroutine for attach")
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- supCtrl.Run(spec)
+		errCh <- supCtrl.Run(supSpec)
 		close(errCh)
 		logger.DebugContext(ctx, "controller goroutine exited (attach)")
 	}()
@@ -185,8 +187,8 @@ func run(
 
 func buildSupervisorSpec(
 	ctx context.Context,
-	id string,
-	name string,
+	sessionID string,
+	sessionName string,
 	runPath string,
 	socketFileInput string,
 	logger *slog.Logger,
@@ -195,16 +197,16 @@ func buildSupervisorSpec(
 
 	supervisorID := naming.RandomID()
 	supervisorName := naming.RandomName()
-	if id != "" && name == "" {
+	if sessionID != "" && sessionName == "" {
 		spec = &api.SupervisorSpec{
 			Kind:       api.AttachToSession,
 			ID:         api.ID(supervisorID),
 			Name:       supervisorName,
 			RunPath:    runPath,
 			SockerCtrl: socketFileInput,
-			AttachID:   api.ID(id),
+			AttachID:   api.ID(sessionID),
 			SessionSpec: &api.SessionSpec{
-				ID: api.ID(id),
+				ID: api.ID(sessionID),
 			},
 		}
 		logger.DebugContext(ctx, "attach spec (by id) created",
@@ -217,7 +219,7 @@ func buildSupervisorSpec(
 		)
 	}
 
-	if id == "" && name != "" {
+	if sessionID == "" && sessionName != "" {
 		spec = &api.SupervisorSpec{
 			Kind:       api.AttachToSession,
 			ID:         api.ID(naming.RandomID()),
@@ -225,8 +227,9 @@ func buildSupervisorSpec(
 			LogFile:    "/tmp/sbsh-logs/s0",
 			RunPath:    runPath,
 			SockerCtrl: socketFileInput,
+			AttachName: sessionName,
 			SessionSpec: &api.SessionSpec{
-				Name: name,
+				Name: sessionName,
 			},
 		}
 		logger.DebugContext(ctx, "attach spec (by name) created",

@@ -76,22 +76,29 @@ Examples:
 				levelVar.Set(logging.ParseLevel(viper.GetString("sb.global.logLevel")))
 			}
 
-			handler, ok := cmd.Context().Value(logging.CtxHandler).(*logging.ReformatHandler)
-			if !ok || handler == nil {
-				return errors.New("logger handler not found in context")
-			}
-			devNull, err := os.OpenFile("/dev/null", os.O_WRONLY, 0)
-			if err != nil {
-				return fmt.Errorf("failed to open /dev/null: %w", err)
-			}
-			handler.Inner = slog.NewTextHandler(devNull, &slog.HandlerOptions{Level: levelVar})
-			handler.Writer = devNull
+			if !viper.GetBool("sb.global.verbose") {
+				logger.DebugContext(
+					cmd.Context(),
+					"enabling verbose",
+					"log-level",
+					viper.GetString("sb.global.logLevel"),
+				)
+				handler, hOk := cmd.Context().Value(logging.CtxHandler).(*logging.ReformatHandler)
+				if !hOk || handler == nil {
+					return errors.New("logger handler not found in context")
+				}
+				devNull, errC := os.OpenFile("/dev/null", os.O_WRONLY, 0)
+				if errC != nil {
+					return fmt.Errorf("failed to open /dev/null: %w", errC)
+				}
+				handler.Inner = slog.NewTextHandler(devNull, &slog.HandlerOptions{Level: levelVar})
+				handler.Writer = devNull
 
-			ctx := cmd.Context()
-			ctx = context.WithValue(ctx, logging.CtxLevelVar, levelVar)
-			ctx = context.WithValue(ctx, logging.CtxCloser, devNull)
-			cmd.SetContext(ctx)
-
+				ctx := cmd.Context()
+				ctx = context.WithValue(ctx, logging.CtxLevelVar, levelVar)
+				ctx = context.WithValue(ctx, logging.CtxCloser, devNull)
+				cmd.SetContext(ctx)
+			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -121,10 +128,12 @@ func setupRootCmd(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(attach.NewAttachCmd())
 
 	rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.sbsh/config.yaml)")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().String("log-level", "", "Log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().String("run-path", "", "Run path directory")
 
 	_ = viper.BindPFlag("sb.global.config", rootCmd.PersistentFlags().Lookup("config"))
+	_ = viper.BindPFlag("sb.global.verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 	_ = viper.BindPFlag("sb.global.logLevel", rootCmd.PersistentFlags().Lookup("log-level"))
 	_ = viper.BindPFlag("sb.global.runPath", rootCmd.PersistentFlags().Lookup("run-path"))
 }
