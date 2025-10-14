@@ -18,16 +18,13 @@ package supervisorrunner
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net"
 
+	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/supervisor/supervisorrpc"
 	"github.com/eminwux/sbsh/pkg/api"
 )
-
-// ErrFuncNotSet is returned when a test function has not been stubbed.
-var ErrFuncNotSet = errors.New("test function not set")
 
 // SupervisorRunnerTest is a test double for SupervisorRunner
 // It allows overriding behavior with function fields and
@@ -70,7 +67,7 @@ func (t *SupervisorRunnerTest) OpenSocketCtrl() error {
 	if t.OpenSocketCtrlFunc != nil {
 		return t.OpenSocketCtrlFunc()
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
 func (t *SupervisorRunnerTest) StartServer(
@@ -98,7 +95,7 @@ func (t *SupervisorRunnerTest) Close(reason error) error {
 	if t.CloseFunc != nil {
 		return t.CloseFunc(reason)
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
 func (t *SupervisorRunnerTest) Resize(args api.ResizeArgs) {
@@ -112,26 +109,26 @@ func (t *SupervisorRunnerTest) Attach(session *api.SupervisedSession) error {
 	if t.AttachFunc != nil {
 		return t.AttachFunc(session)
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
 func (t *SupervisorRunnerTest) CreateMetadata() error {
 	if t.CreateMetadataFunc != nil {
 		return t.CreateMetadataFunc()
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
 func (t *SupervisorRunnerTest) Detach() error {
 	if t.DetachFunc != nil {
 		return t.DetachFunc()
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
 func (t *SupervisorRunnerTest) StartSessionCmd(session *api.SupervisedSession) error {
 	if t.StartSessionCmdFunc != nil {
 		return t.StartSessionCmdFunc(session)
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
