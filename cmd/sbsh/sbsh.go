@@ -295,8 +295,8 @@ func setupRootCmd(rootCmd *cobra.Command) {
 	rootCmd.Flags().String("session-loglevel", "", "Optional log level for the session")
 	_ = viper.BindPFlag("sbsh.session.logLevel", rootCmd.Flags().Lookup("session-loglevel"))
 
-	rootCmd.Flags().String("session-profile", "", "Optional profile for the session")
-	_ = viper.BindPFlag("sbsh.session.profile", rootCmd.Flags().Lookup("session-profile"))
+	rootCmd.Flags().StringP("profile", "p", "", "Optional profile for the session")
+	_ = viper.BindPFlag("sbsh.session.profile", rootCmd.Flags().Lookup("profile"))
 	_ = viper.BindEnv("sbsh.session.profile", env.SES_PROFILE.EnvVar())
 
 	rootCmd.Flags().String("session-socket", "", "Optional socket file for the session")

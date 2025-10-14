@@ -202,7 +202,7 @@ func setupRunCmdFlags(runCmd *cobra.Command) {
 	runCmd.Flags().String("log-level", "", "Optional log level for the session")
 	_ = viper.BindPFlag("sbsh.run.logLevel", runCmd.Flags().Lookup("log-level"))
 
-	runCmd.Flags().String("profile", "", "Optional profile for the session")
+	runCmd.Flags().StringP("profile", "p", "", "Optional profile for the session")
 	_ = viper.BindPFlag("sbsh.run.profile", runCmd.Flags().Lookup("profile"))
 	_ = viper.BindEnv("sbsh.run.profile", env.SES_PROFILE.EnvVar())
 
