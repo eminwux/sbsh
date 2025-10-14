@@ -83,13 +83,13 @@ func CreateSessionFromProfile(profile *api.SessionProfileDoc) (*api.SessionSpec,
 	spec := &api.SessionSpec{
 		// ID: zero; caller should set.
 		Kind:        kind,
+		Cwd:         profile.Spec.Shell.Cwd,
 		Command:     profile.Spec.Shell.Cmd,
 		CommandArgs: append([]string(nil), profile.Spec.Shell.CmdArgs...),
 		Env:         envSlice,
 		Labels:      copyStringMap(profile.Metadata.Labels),
 		ProfileName: profile.Metadata.Name,
 		Prompt:      profile.Spec.Shell.Prompt,
-		// LogFilename, SockerCtrl, SocketIO, RunPath: left empty for caller/context to fill.
 	}
 
 	return spec, nil

@@ -133,16 +133,6 @@ func (sr *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writ
 		sr.terminalManagerWriter(pipeInR)
 	}()
 
-	_, _ = sr.Write([]byte("\x15"))
-	_, _ = sr.Write([]byte(`export PS1="` + sr.metadata.Spec.Prompt + `"` + "\n")) // ensure
-
-	// we start on a new line
-	// sr.Write([]byte(`export PS1="(sbsh-` + sr.id + `) $PS1"` + "\n"))
-	// s.pty.Write([]byte("echo 'Hello from Go!'\n"))
-	// s.pty.Write([]byte(`export PS1="(sbsh) $PS1"` + "\n"))
-	// s.pty.Write([]byte(`__sbsh_emit() { printf '\033]1337;sbsh\007'; }` + "\n"))
-	// s.pty.Write([]byte(`smart()  { __sbsh_emit;  }` + "\n")
-
 	return nil
 }
 

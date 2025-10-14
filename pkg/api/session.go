@@ -42,21 +42,24 @@ const (
 
 // Inputs needed to spawn a session; serialize parts of this into sessions.json.
 type SessionSpec struct {
-	ID          ID                `json:"id"`
-	Kind        SessionKind       `json:"kind"`
-	Name        string            `json:"name"`
-	Command     string            `json:"command"`
-	CommandArgs []string          `json:"commandArgs"`
-	Env         []string          `json:"env"`
-	Labels      map[string]string `json:"labels"`
-	CaptureFile string            `json:"captureFile"`
-	LogFile     string            `json:"logFile"`
-	LogLevel    string            `json:"logLevel"`
-	SocketFile  string            `json:"socketIO"`
-	RunPath     string            `json:"runPath"`
-	ProfileName string            `json:"profileName"`
-	Prompt      string            `json:"prompt"`
-	// SockerCtrl  string            `json:"socketCtrl"`
+	ID     ID                `json:"id"`
+	Kind   SessionKind       `json:"kind"`
+	Name   string            `json:"name"`
+	Labels map[string]string `json:"labels"`
+
+	Cwd         string   `json:"cwd,omitempty"`
+	Command     string   `json:"command"`
+	CommandArgs []string `json:"commandArgs"`
+	Env         []string `json:"env"`
+	Prompt      string   `json:"prompt"`
+
+	RunPath     string `json:"runPath"`
+	CaptureFile string `json:"captureFile"`
+	LogFile     string `json:"logFile"`
+	LogLevel    string `json:"logLevel"`
+	SocketFile  string `json:"socketIO"`
+
+	ProfileName string `json:"profileName"`
 }
 
 type SessionStatus struct {

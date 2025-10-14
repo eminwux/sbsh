@@ -40,4 +40,5 @@ var (
 	ErrWriteMetadata   = errors.New("could not write metadata file")
 	ErrStartCmd        = errors.New("could not start cmd")
 	ErrDetachSession   = errors.New("could not detach session")
+	ErrSetupShell      = errors.New("could not setup shell")
 )

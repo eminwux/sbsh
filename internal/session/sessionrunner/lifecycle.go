@@ -198,3 +198,50 @@ func (sr *SessionRunnerExec) Detach(id *api.ID) error {
 
 	return nil
 }
+
+func (sr *SessionRunnerExec) SetupShell() error {
+	sr.logger.Debug("setupShell: sending CTRL-U")
+	if _, err := sr.Write([]byte("\x15")); err != nil {
+		sr.logger.Error("failed to send CTRL-U", "id", sr.id, "err", err)
+		return fmt.Errorf("failed to send CTRL-U: %w", err)
+	}
+
+	// sr.logger.Debug("setupShell: sending CTRL-L")
+	// if _, err := sr.Write([]byte("\x0c")); err != nil {
+	// 	sr.logger.Error("failed to send CTRL-L", "id", sr.id, "err", err)
+	// 	return fmt.Errorf("failed to send CTRL-L: %w", err)
+	// }
+
+	// set up prompt
+	var promptCmd string
+	if sr.metadata.Spec.Prompt != "" {
+		promptCmd = `export PS1="` + sr.metadata.Spec.Prompt + `"` + "\n"
+	} else {
+		promptCmd = `export PS1="(sbsh-` + string(sr.metadata.Spec.ID) + `) $PS1"` + "\n"
+	}
+
+	sr.logger.Debug("setupShell: setting prompt", "cmd", promptCmd)
+	if _, err := sr.Write([]byte(promptCmd)); err != nil {
+		sr.logger.Error("failed to set prompt", "id", sr.id, "cmd", promptCmd, "err", err)
+		return fmt.Errorf("failed to set prompt: %w", err)
+	}
+
+	//nolint:mnd // small delay between commands
+	time.Sleep(10 * time.Millisecond)
+
+	// setup current working directory
+	if sr.metadata.Spec.Cwd != "" {
+		cmdLine := "cd " + sr.metadata.Spec.Cwd + "\n"
+		sr.logger.Info("OnInit command", "cmd", cmdLine)
+
+		if _, err := sr.Write([]byte(cmdLine)); err != nil {
+			sr.logger.Error("failed to write OnInit command to PTY", "cmd", cmdLine, "err", err)
+			return fmt.Errorf("failed to write OnInit command to PTY: %w", err)
+		}
+
+		//nolint:mnd // small delay between commands
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	return nil
+}

@@ -33,4 +33,5 @@ type SessionRunner interface {
 	CreateMetadata() error
 	Detach(id *api.ID) error
 	Attach(id *api.ID, response *api.ResponseWithFD) error
+	SetupShell() error
 }

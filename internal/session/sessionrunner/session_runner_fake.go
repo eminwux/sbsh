@@ -34,6 +34,7 @@ type SessionRunnerTest struct {
 	CreateMetadataFunc func() error
 	AttachFunc         func(id *api.ID, response *api.ResponseWithFD) error
 	DetachFunc         func(id *api.ID) error
+	SetupShellFunc     func() error
 }
 
 func NewSessionRunnerTest(_ context.Context) SessionRunner {
@@ -102,6 +103,13 @@ func (sr *SessionRunnerTest) Attach(id *api.ID, response *api.ResponseWithFD) er
 func (sr *SessionRunnerTest) Detach(id *api.ID) error {
 	if sr.DetachFunc != nil {
 		sr.DetachFunc(id)
+	}
+	return errdefs.ErrFuncNotSet
+}
+
+func (sr *SessionRunnerTest) SetupShell() error {
+	if sr.SetupShellFunc != nil {
+		return sr.SetupShellFunc()
 	}
 	return errdefs.ErrFuncNotSet
 }

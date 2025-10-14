@@ -14,7 +14,6 @@
 
 ### 🅰️ Must Have
 ```markdown
-- [ ] **A** Implement cwd in profiles
 - [ ] **A** Implement onInit commands in profile
 - [ ] **A** Implement a Ready status after `onInit`
 - [ ] **A** Attach enables input after Ready
@@ -77,6 +76,7 @@
 - [X] **C** Correct internal vs. pkg in Go code                     DONE
 - [X] **A** attach doesn't work with `--name`
 - [X] **A** Add --verbose to sb to show logging
+- [X] **A** Implement cwd in profiles
 ```
 
 

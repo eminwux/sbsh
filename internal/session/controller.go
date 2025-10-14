@@ -152,6 +152,15 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		return fmt.Errorf("%w: %w", errdefs.ErrStartSession, errB)
 	}
 
+	if errSetup := c.sr.SetupShell(); errSetup != nil {
+		c.logger.ErrorContext(c.ctx, "failed to setup shell", "err", errSetup)
+		if errClose := c.Close(errSetup); errClose != nil {
+			c.logger.ErrorContext(c.ctx, "error during Close after setup shell failure", "err", errClose)
+			errSetup = fmt.Errorf("%w: %w: %w", errSetup, errdefs.ErrOnClose, errClose)
+		}
+		return fmt.Errorf("%w: %w", errdefs.ErrSetupShell, errSetup)
+	}
+
 	c.logger.InfoContext(c.ctx, "controller ready")
 	close(c.ctrlReadyCh)
 
