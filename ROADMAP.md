@@ -8,38 +8,44 @@
 
 ### 🐞 Bugs
 ```markdown
-- [ ] **A** attach doesn't work with `--name`
-- [ ] **A** `sbsh run` fails; the supervisor does not detect it
+- [ ] **A** If `sbsh run` fails supervisor prints to Stderr
+- [ ] **A** If supervisor dies the session remains attached
 ```
 
 ### 🅰️ Must Have
 ```markdown
-- [ ] **A** Implement a Ready status after `onInit`
+- [ ] **A** Implement cwd in profiles
 - [ ] **A** Implement onInit commands in profile
-- [ ] **A** Session stop command
-- [ ] **A** Bash autocomplete
-- [ ] **A** Detach `sbsh run` except if run with `-i`
-- [ ] **A** Add flag to sb to show logging
-- [ ] **A** no prompt, default prompt
-- [ ] **A** Add tty device to sb l
-
+- [ ] **A** Implement a Ready status after `onInit`
+- [ ] **A** Attach enables input after Ready
+- [ ] **A** Auto complete (bash)
+- [ ] **A** Use default profile if set
+- [ ] **A** Implement commandArgs in profiles
+- [ ] **A** Compress capture with xz
+- [ ] **A** Terminal replay based on capture (bytes+timestamps+i/o)
+- [ ] **A** If prompt is not set in profile, use default
 ```
 
 ### 🅱️ Should Have
 ```markdown
-- [ ] **B** Supervisor can run `sbsh run` on demand through API
-- [ ] **B** Control supervisor via API
-- [ ] **B** Write to many sessions at the same time
 - [ ] **B** Sort out architecture for SupervisedSession vs. Session
 - [ ] **B** Remove AttachID and AttachName from SessionSpec
+- [ ] **B** Add a prompt switch: auto | none — Explicit control without hacks.
+- [ ] **B** On attach: flag to print all capture; default tail ~100 lines
+- [ ] **B** Supervisor Control API (start/stop/list/attach/tail)
+- [ ] **B** Add profile to sb s l — UX nicety (listing shows profile).
+- [ ] **B** sb stop
 ```
 
 ### 🅲️ Nice to Have
 ```markdown
-- [ ] **C** Save bash history in session folder (with large size)
-- [ ] **C** Command to add env variable through session ctrlSocket
+- [ ] **C** Save input history in session folder (with large size)
+- [ ] **C** Sb Command to add env variable to session
 - [ ] **C** Jump out to supervisor with sentinel
 - [ ] **C** Message of the Day (Motd)
+- [ ] **C** Add tty device to sb l
+- [ ] **C** Detach `sbsh run`, attach if `-i` with logs
+- [ ] **C** Write to many sessions at the same time
 ```
 
 ### 🅳️ Won't Have
@@ -69,6 +75,8 @@
 - [X] **B** Print event logs in `sbsh run`, attach/detach, etc.     DONE
 - [X] **B** Add metadata for supervisor                             DONE
 - [X] **C** Correct internal vs. pkg in Go code                     DONE
+- [X] **A** attach doesn't work with `--name`
+- [X] **A** Add --verbose to sb to show logging
 ```
 
 
