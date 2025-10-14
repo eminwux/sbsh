@@ -41,4 +41,5 @@ var (
 	ErrStartCmd        = errors.New("could not start cmd")
 	ErrDetachSession   = errors.New("could not detach session")
 	ErrSetupShell      = errors.New("could not setup shell")
+	ErrInitShell       = errors.New("error on init shell stage")
 )

@@ -71,15 +71,13 @@ type ShellSpec struct {
 	Prompt  string            `json:"prompt,omitempty"  yaml:"prompt,omitempty"`
 }
 
-// StagesSpec groups lifecycle hooks. For this schema we only need preAttach.
+// StagesSpec groups lifecycle hooks. For this schema we only need onInit.
 type StagesSpec struct {
-	PreAttach []ExecStep `json:"preAttach,omitempty" yaml:"preAttach,omitempty"`
+	OnInit []ExecStep `json:"onInit,omitempty" yaml:"onInit,omitempty"`
 }
 
 // ExecStep runs a command (argv form via cmd + cmdArgs) before the first attach.
 type ExecStep struct {
-	Cmd     string            `json:"cmd"               yaml:"cmd"`
-	CmdArgs []string          `json:"cmdArgs,omitempty" yaml:"cmdArgs,omitempty"`
-	Cwd     string            `json:"cwd,omitempty"     yaml:"cwd,omitempty"`
-	Env     map[string]string `json:"env,omitempty"     yaml:"env,omitempty"`
+	Script string            `json:"script"        yaml:"script"`
+	Env    map[string]string `json:"env,omitempty" yaml:"env,omitempty"`
 }

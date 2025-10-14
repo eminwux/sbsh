@@ -210,6 +210,9 @@ func Test_ErrContextDone(t *testing.T) {
 			SetupShellFunc: func() error {
 				return nil
 			},
+			OnInitShellFunc: func() error {
+				return nil
+			},
 		}
 	}
 	// Define a new Session
@@ -259,6 +262,9 @@ func Test_ErrRPCServerExited(t *testing.T) {
 			SetupShellFunc: func() error {
 				return nil
 			},
+			OnInitShellFunc: func() error {
+				return nil
+			},
 		}
 	}
 
@@ -305,6 +311,9 @@ func Test_WaitReady(t *testing.T) {
 				return nil
 			},
 			SetupShellFunc: func() error {
+				return nil
+			},
+			OnInitShellFunc: func() error {
 				return nil
 			},
 		}
@@ -359,6 +368,9 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 				return nil
 			},
 			SetupShellFunc: func() error {
+				return nil
+			},
+			OnInitShellFunc: func() error {
 				return nil
 			},
 		}
@@ -417,6 +429,9 @@ func Test_HandleEvent_EvError(t *testing.T) {
 				return nil
 			},
 			SetupShellFunc: func() error {
+				return nil
+			},
+			OnInitShellFunc: func() error {
 				return nil
 			},
 		}

@@ -90,6 +90,7 @@ func CreateSessionFromProfile(profile *api.SessionProfileDoc) (*api.SessionSpec,
 		Labels:      copyStringMap(profile.Metadata.Labels),
 		ProfileName: profile.Metadata.Name,
 		Prompt:      profile.Spec.Shell.Prompt,
+		Stages:      profile.Spec.Stages,
 	}
 
 	return spec, nil

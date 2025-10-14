@@ -59,7 +59,8 @@ type SessionSpec struct {
 	LogLevel    string `json:"logLevel"`
 	SocketFile  string `json:"socketIO"`
 
-	ProfileName string `json:"profileName"`
+	ProfileName string     `json:"profileName"`
+	Stages      StagesSpec `json:"stages"`
 }
 
 type SessionStatus struct {

@@ -15,7 +15,7 @@ spec:
       HISTSIZE: "5000"
     prompt: "[sbsh-$SBSH_SES_ID] \\u@\\h:\\w$ "
   stages:
-    preAttach:
+    onInit:
       - cmd: echo $TEST
         cmdArgs: ["$TEST"]
         cwd: "~"
@@ -30,22 +30,23 @@ spec:
   runTarget: local
   restartPolicy: restart-on-error
   shell:
-    cwd: "~"
+    cwd: "~/projects"
     cmd: /bin/bash
     cmdArgs: []
     env:
       KUBE_CONFIG: "$HOME/.kube/config"
       KUBE_CONTEXT: company-prd
+      KUBE_NAMESPACE: prd
       JAPON: pepe
+      POD: app
       HISTSIZE: "5000"
     prompt: '\[\e[1;31m\][PRD]  sbsh-$SBSH_SES_ID\[\e[0m\] \[\e[1;33m\]\u@\h\[\e[0m\]:\w\$ '
   stages:
-    preAttach:
-      - cmd: kubectl
-        cmdArgs: ["-n", "$KUBE_NAMESPACE", "get", "pods"]
-        cwd: "~"
+    onInit:
+      - script: kubectl -n $KUBE_NAMESPACE describe pod $POD
+      - script: bash -c 'echo -e $VAR'
         env:
-          KUBE_NAMESPACE: prd
+          VAR: "Hello World"
 ---
 apiVersion: sbsh/v1beta1
 kind: SessionProfile
@@ -62,7 +63,7 @@ spec:
       HISTSIZE: "5000"
     prompt: "[sbsh-$SBSH_SESSION_ID][PRD]\\u@\\h:\\w$ "
   stages:
-    preAttach:
+    onInit:
       - cmd: terraform
         cmdArgs: ["workspace", "use", "$TF_VAR_environment"]
         cwd: "~/project/terraform"
@@ -89,7 +90,7 @@ spec:
       HISTSIZE: "5000"
     prompt: "[sbsh-$SBSH_SESSION_ID][PRD]\\u@\\h:\\w$ "
   stages:
-    preAttach:
+    onInit:
       - cmd: terraform
         cmdArgs: ["workspace", "use", "$TF_VAR_environment"]
         cwd: "~/project/terraform"

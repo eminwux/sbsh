@@ -34,4 +34,5 @@ type SessionRunner interface {
 	Detach(id *api.ID) error
 	Attach(id *api.ID, response *api.ResponseWithFD) error
 	SetupShell() error
+	OnInitShell() error
 }
