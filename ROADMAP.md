@@ -8,21 +8,22 @@
 
 ### 🐞 Bugs
 ```markdown
-- [ ] **A** If `sbsh run` fails supervisor prints to Stderr
-- [ ] **A** If supervisor dies the session remains attached
+- [ ] **A** If `sbsh run` fails supervisor must print to Stderr
+- [ ] **A** If supervisor dies session status remains attached
 ```
 
 ### 🅰️ Must Have
 ```markdown
-- [ ] **A** Implement onInit commands in profile
+- [ ] **A** Auto complete (bash) - sbsh -p profile
+- [ ] **A** sb attach id/name as positional argument
+- [ ] **A** Auto complete (bash) - sb attach
+- [ ] **A** sbsh cmd as positional argument
+- [ ] **A** Initial E2E testing
+- [ ] **A** Compress capture with xz
 - [ ] **A** Implement a Ready status after `onInit`
 - [ ] **A** Attach enables input after Ready
-- [ ] **A** Auto complete (bash)
 - [ ] **A** Use default profile if set
-- [ ] **A** Implement commandArgs in profiles
-- [ ] **A** Compress capture with xz
 - [ ] **A** Terminal replay based on capture (bytes+timestamps+i/o)
-- [ ] **A** If prompt is not set in profile, use default
 ```
 
 ### 🅱️ Should Have
@@ -30,19 +31,19 @@
 - [ ] **B** Sort out architecture for SupervisedSession vs. Session
 - [ ] **B** Remove AttachID and AttachName from SessionSpec
 - [ ] **B** Add a prompt switch: auto | none — Explicit control without hacks.
+- [ ] **B** If prompt is not set in a profile, use default
 - [ ] **B** On attach: flag to print all capture; default tail ~100 lines
 - [ ] **B** Supervisor Control API (start/stop/list/attach/tail)
-- [ ] **B** Add profile to sb s l — UX nicety (listing shows profile).
+- [ ] **B** Add profile to sb s l
+- [ ] **B** Add tty device to sb l
 - [ ] **B** sb stop
 ```
 
 ### 🅲️ Nice to Have
 ```markdown
 - [ ] **C** Save input history in session folder (with large size)
-- [ ] **C** Sb Command to add env variable to session
 - [ ] **C** Jump out to supervisor with sentinel
 - [ ] **C** Message of the Day (Motd)
-- [ ] **C** Add tty device to sb l
 - [ ] **C** Detach `sbsh run`, attach if `-i` with logs
 - [ ] **C** Write to many sessions at the same time
 ```
@@ -77,6 +78,7 @@
 - [X] **A** attach doesn't work with `--name`
 - [X] **A** Add --verbose to sb to show logging
 - [X] **A** Implement cwd in profiles
+- [X] **A** Implement onInit commands in profile
 ```
 
 
