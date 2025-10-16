@@ -24,7 +24,7 @@ import (
 )
 
 type Client interface {
-	Status(ctx context.Context, status *api.SessionStatusMessage) error
+	Ping(ctx context.Context, ping *api.PingMessage, pong *api.PingMessage) error
 	Resize(ctx context.Context, args *api.ResizeArgs) error
 	Detach(ctx context.Context, id *api.ID) error
 	// add more RPCs as you expose them:

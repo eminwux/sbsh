@@ -29,7 +29,7 @@ type FakeSessionController struct {
 	RunFunc       func(spec *api.SessionSpec) error
 	WaitReadyFunc func() error
 	WaitCloseFunc func() error
-	StatusFunc    func() string
+	PingFunc      func(in *api.PingMessage) (*api.PingMessage, error)
 	CloseFunc     func(reason error) error
 	ResizeFunc    func()
 	AttachFunc    func(id *api.ID, response *api.ResponseWithFD) error
@@ -58,11 +58,11 @@ func (f *FakeSessionController) WaitClose() error {
 	return errdefs.ErrFuncNotSet
 }
 
-func (f *FakeSessionController) Status() string {
-	if f.StatusFunc != nil {
-		return f.StatusFunc()
+func (f *FakeSessionController) Ping(in *api.PingMessage) (*api.PingMessage, error) {
+	if f.PingFunc != nil {
+		return f.PingFunc(in)
 	}
-	return ""
+	return nil, errdefs.ErrFuncNotSet
 }
 
 func (f *FakeSessionController) Close(reason error) error {

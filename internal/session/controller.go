@@ -75,8 +75,11 @@ func NewSessionController(ctx context.Context, logger *slog.Logger) api.SessionC
 	return c
 }
 
-func (c *SessionController) Status() string {
-	return "RUNNING"
+func (c *SessionController) Ping(in *api.PingMessage) (*api.PingMessage, error) {
+	if in.Message == "PING" {
+		return &api.PingMessage{Message: "PONG"}, nil
+	}
+	return &api.PingMessage{}, fmt.Errorf("unexpected ping message: %s", in.Message)
 }
 
 func (c *SessionController) WaitReady() error {

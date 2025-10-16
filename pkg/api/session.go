@@ -20,7 +20,7 @@ type SessionController interface {
 	Run(spec *SessionSpec) error
 	WaitReady() error
 	WaitClose() error
-	Status() string
+	Ping(ping *PingMessage) (*PingMessage, error)
 	Close(reason error) error
 	Resize(ResizeArgs)
 	Detach(id *ID) error
@@ -106,12 +106,12 @@ const SessionService = "SessionController"
 
 const (
 	SessionMethodResize = SessionService + ".Resize"
-	SessionMethodStatus = SessionService + ".Status"
+	SessionMethodPing   = SessionService + ".Ping"
 	SessionMethodAttach = SessionService + ".Attach"
 	SessionMethodDetach = SessionService + ".Detach"
 )
 
-type SessionStatusMessage struct {
+type PingMessage struct {
 	Message string
 }
 

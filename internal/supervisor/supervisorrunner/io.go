@@ -49,13 +49,14 @@ func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)
 	defer cancel()
 
-	var status api.SessionStatusMessage
-	if err := sr.sessionClient.Status(ctx, &status); err != nil {
-		sr.logger.ErrorContext(sr.ctx, "dialSessionCtrlSocket: status failed", "error", err)
-		return fmt.Errorf("status failed: %w", err)
+	ping := api.PingMessage{Message: "PING"}
+	var pong api.PingMessage
+	if err := sr.sessionClient.Ping(ctx, &ping, &pong); err != nil {
+		sr.logger.ErrorContext(sr.ctx, "dialSessionCtrlSocket: ping failed", "error", err)
+		return fmt.Errorf("ping failed: %w", err)
 	}
 
-	sr.logger.InfoContext(sr.ctx, "dialSessionCtrlSocket: session status received", "status", status)
+	sr.logger.InfoContext(sr.ctx, "dialSessionCtrlSocket: session ping successful", "response", pong.Message)
 	return nil
 }
 

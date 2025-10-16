@@ -175,8 +175,8 @@ func (c *client) call(ctx context.Context, logger *slog.Logger, method string, i
 func (c *client) Close() error { return nil } // stateless client
 
 // --- Public methods (no FD passing) ---.
-func (c *client) Status(ctx context.Context, status *api.SessionStatusMessage) error {
-	return c.call(ctx, c.logger, api.SessionMethodStatus, &api.Empty{}, status)
+func (c *client) Ping(ctx context.Context, ping *api.PingMessage, pong *api.PingMessage) error {
+	return c.call(ctx, c.logger, api.SessionMethodPing, ping, pong)
 }
 
 func (c *client) Resize(ctx context.Context, args *api.ResizeArgs) error {

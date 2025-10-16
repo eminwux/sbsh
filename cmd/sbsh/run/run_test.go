@@ -42,7 +42,7 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 			RunFunc:       func(_ *api.SessionSpec) error { return nil },
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() error { return nil },
-			StatusFunc:    func() string { return "" },
+			PingFunc:      func(_ *api.PingMessage) (*api.PingMessage, error) { return &api.PingMessage{Message: "PONG"}, nil },
 		}
 	}
 

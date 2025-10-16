@@ -22,8 +22,12 @@ type SessionControllerRPC struct {
 	Core api.SessionController
 }
 
-func (r *SessionControllerRPC) Status(_ *api.Empty, out *api.SessionStatusMessage) error {
-	*out = api.SessionStatusMessage{Message: r.Core.Status()}
+func (s *SessionControllerRPC) Ping(in *api.PingMessage, out *api.PingMessage) error {
+	pong, err := s.Core.Ping(in)
+	if err != nil {
+		return err
+	}
+	*out = *pong
 	return nil
 }
 
