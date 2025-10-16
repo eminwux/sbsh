@@ -44,6 +44,15 @@ func (s *SessionControllerRPC) Attach(id *api.ID, response *api.ResponseWithFD) 
 	return s.Core.Attach(id, response)
 }
 
+func (s *SessionControllerRPC) Metadata(_ api.Empty, metadata *api.SessionMetadata) error {
+	md, err := s.Core.Metadata()
+	if err != nil {
+		return err
+	}
+	*metadata = *md
+	return nil
+}
+
 // TODO
 // show session details, including attach status
 // attach, redirects pipe output/input to socket

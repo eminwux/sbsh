@@ -36,6 +36,7 @@ type SessionRunnerTest struct {
 	DetachFunc         func(id *api.ID) error
 	SetupShellFunc     func() error
 	OnInitShellFunc    func() error
+	MetadataFunc       func() (*api.SessionMetadata, error)
 }
 
 func NewSessionRunnerTest(_ context.Context) SessionRunner {
@@ -120,4 +121,11 @@ func (sr *SessionRunnerTest) OnInitShell() error {
 		return sr.OnInitShellFunc()
 	}
 	return errdefs.ErrFuncNotSet
+}
+
+func (sr *SessionRunnerTest) Metadata() (*api.SessionMetadata, error) {
+	if sr.MetadataFunc != nil {
+		return sr.MetadataFunc()
+	}
+	return nil, errdefs.ErrFuncNotSet
 }

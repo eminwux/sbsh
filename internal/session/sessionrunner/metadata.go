@@ -84,3 +84,7 @@ func (sr *SessionRunnerExec) updateSessionAttachers() error {
 	}
 	return nil
 }
+
+func (sr *SessionRunnerExec) Metadata() (*api.SessionMetadata, error) {
+	return &sr.metadata, nil
+}

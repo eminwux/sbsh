@@ -34,6 +34,7 @@ type FakeSessionController struct {
 	ResizeFunc    func()
 	AttachFunc    func(id *api.ID, response *api.ResponseWithFD) error
 	DetachFunc    func(id *api.ID) error
+	MetadataFunc  func() (*api.SessionMetadata, error)
 }
 
 func (f *FakeSessionController) Run(spec *api.SessionSpec) error {
@@ -90,4 +91,11 @@ func (f *FakeSessionController) Detach(id *api.ID) error {
 		return f.DetachFunc(id)
 	}
 	return errdefs.ErrFuncNotSet
+}
+
+func (f *FakeSessionController) Metadata() (*api.SessionMetadata, error) {
+	if f.MetadataFunc != nil {
+		return f.MetadataFunc()
+	}
+	return nil, errdefs.ErrFuncNotSet
 }

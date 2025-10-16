@@ -237,3 +237,11 @@ func (c *client) Attach(ctx context.Context, id *api.ID, out any) (net.Conn, err
 	c.logger.InfoContext(ctx, "Attach succeeded, returning net.Conn")
 	return ioConn, nil
 }
+
+func (c *client) Metadata(ctx context.Context, metadata *api.SessionMetadata) error {
+	err := c.call(ctx, c.logger, api.SessionMethodMetadata, &api.Empty{}, metadata)
+	if err != nil {
+		return fmt.Errorf("Metadata call failed: %w", err)
+	}
+	return nil
+}

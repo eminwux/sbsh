@@ -19,8 +19,6 @@
 - [ ] **A** sbsh cmd as positional argument
 - [ ] **A** Initial E2E testing
 - [ ] **A** Compress capture with xz
-- [ ] **A** Implement a Ready status after `onInit`
-- [ ] **A** Attach enables input after Ready
 - [ ] **A** Use default profile if set
 - [ ] **A** Terminal replay based on capture (bytes+timestamps+i/o)
 ```
@@ -36,6 +34,7 @@
 - [ ] **B** Add profile to sb s l
 - [ ] **B** Add tty device to sb l
 - [ ] **B** sb stop
+- [ ] **B** Optimize waitReady for initTerminal only State
 ```
 
 ### 🅲️ Nice to Have
@@ -80,6 +79,8 @@
 - [X] **A** Implement onInit commands in profile
 - [X] **A** Auto complete (bash) - sbsh -p profile
 - [X] **A** Auto complete (bash) - sb attach -n profile
+- [X] **A** Implement a Ready status after `onInit`
+- [X] **A** Attach enables input after Ready
 ```
 
 

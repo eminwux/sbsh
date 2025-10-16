@@ -88,6 +88,10 @@ func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
 		return err
 	}
 
+	if err := sr.waitReady(); err != nil {
+		return err
+	}
+
 	if err := sr.initTerminal(); err != nil {
 		return err
 	}

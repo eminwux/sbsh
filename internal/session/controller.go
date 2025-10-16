@@ -279,3 +279,7 @@ func (c *SessionController) Attach(id *api.ID, response *api.ResponseWithFD) err
 func (c *SessionController) Detach(id *api.ID) error {
 	return c.sr.Detach(id)
 }
+
+func (c *SessionController) Metadata() (*api.SessionMetadata, error) {
+	return c.sr.Metadata()
+}

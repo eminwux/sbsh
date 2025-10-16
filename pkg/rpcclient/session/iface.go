@@ -31,4 +31,5 @@ type Client interface {
 	// List(ctx context.Context) ([]api.Session, error)
 	Attach(ctx context.Context, supervisorID *api.ID, response any) (net.Conn, error)
 	Close() error
+	Metadata(ctx context.Context, metadata *api.SessionMetadata) error
 }

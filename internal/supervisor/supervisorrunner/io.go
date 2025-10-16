@@ -282,3 +282,73 @@ func (sr *SupervisorRunnerExec) forwardResize() error {
 	}()
 	return nil
 }
+
+const (
+	waitReadyTimeoutSeconds   = 2
+	waitReadyTickMilliseconds = 50
+)
+
+func (sr *SupervisorRunnerExec) waitReady() error {
+	ctx, cancel := context.WithTimeout(sr.ctx, waitReadyTimeoutSeconds*time.Second)
+	defer cancel()
+
+	sr.logger.InfoContext(
+		sr.ctx,
+		"waitReady: waiting for session to be ready",
+		"session_id",
+		sr.session.Id,
+		"session_name",
+		sr.metadata.Spec.Name,
+	)
+
+	ticker := time.NewTicker(waitReadyTickMilliseconds * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			sr.logger.ErrorContext(sr.ctx, "waitReady: context done before ready", "error", ctx.Err())
+			return fmt.Errorf("context done before ready: %w", ctx.Err())
+		case <-ticker.C:
+			// refresh metadata
+			metadata, err := sr.getSessionMetadata()
+			if err != nil {
+				sr.logger.ErrorContext(sr.ctx, "waitReady: getSessionMetadata failed during wait", "error", err)
+				return fmt.Errorf("get session metadata failed during wait: %w", err)
+			}
+			if metadata.Status.State == api.Ready {
+				sr.logger.InfoContext(
+					sr.ctx,
+					"waitReady: session is ready",
+					"session_id",
+					metadata.Spec.ID,
+					"session_name",
+					metadata.Spec.Name,
+				)
+				return nil
+			}
+			sr.logger.DebugContext(
+				sr.ctx,
+				"waitReady: session not ready yet",
+				"session_id",
+				sr.session.Id,
+				"session_name",
+				sr.metadata.Spec.Name,
+			)
+		}
+	}
+}
+
+func (sr *SupervisorRunnerExec) getSessionMetadata() (*api.SessionMetadata, error) {
+	if sr.sessionClient == nil {
+		return nil, errors.New("getSessionMetadata: session client is nil")
+	}
+
+	var metadata api.SessionMetadata
+	if err := sr.sessionClient.Metadata(sr.ctx, &metadata); err != nil {
+		sr.logger.ErrorContext(sr.ctx, "getSessionMetadata: failed to get metadata", "error", err)
+		return nil, fmt.Errorf("get metadata RPC failed: %w", err)
+	}
+	sr.logger.InfoContext(sr.ctx, "getSessionMetadata: metadata retrieved", "metadata", metadata)
+	return &metadata, nil
+}

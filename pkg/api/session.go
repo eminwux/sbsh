@@ -25,6 +25,7 @@ type SessionController interface {
 	Resize(ResizeArgs)
 	Detach(id *ID) error
 	Attach(id *ID, reply *ResponseWithFD) error
+	Metadata() (*SessionMetadata, error)
 }
 
 type SessionState int
@@ -105,10 +106,11 @@ type SessionMetadata struct {
 const SessionService = "SessionController"
 
 const (
-	SessionMethodResize = SessionService + ".Resize"
-	SessionMethodPing   = SessionService + ".Ping"
-	SessionMethodAttach = SessionService + ".Attach"
-	SessionMethodDetach = SessionService + ".Detach"
+	SessionMethodResize   = SessionService + ".Resize"
+	SessionMethodPing     = SessionService + ".Ping"
+	SessionMethodAttach   = SessionService + ".Attach"
+	SessionMethodDetach   = SessionService + ".Detach"
+	SessionMethodMetadata = SessionService + ".Metadata"
 )
 
 type PingMessage struct {
