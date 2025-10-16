@@ -29,6 +29,6 @@ type Client interface {
 	Detach(ctx context.Context, id *api.ID) error
 	// add more RPCs as you expose them:
 	// List(ctx context.Context) ([]api.Session, error)
-	Attach(ctx context.Context, id *api.ID, response any) (net.Conn, error)
+	Attach(ctx context.Context, supervisorID *api.ID, response any) (net.Conn, error)
 	Close() error
 }

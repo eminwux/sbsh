@@ -143,11 +143,18 @@ func run(
 	logger.DebugContext(ctx, "creating supervisor controller for attach", "run_path", runPath)
 	supCtrl := supervisor.NewSupervisorController(ctx, logger)
 
+	supervisorID := naming.RandomID()
+
 	if socketFileInput == "" {
-		socketFileInput = filepath.Join(runPath, "socket")
+		socketFileInput = filepath.Join(runPath, "supervisor", supervisorID, "socket")
 	}
 
-	supSpec := buildSupervisorSpec(ctx, sessionID, sessionName, runPath, socketFileInput, logger)
+	if err := os.MkdirAll(filepath.Dir(socketFileInput), 0o700); err != nil {
+		logger.ErrorContext(ctx, "failed to create supervisor dir", "dir", filepath.Dir(socketFileInput), "error", err)
+		return fmt.Errorf("create supervisor dir %q: %w", filepath.Dir(socketFileInput), err)
+	}
+
+	supSpec := buildSupervisorSpec(ctx, supervisorID, sessionID, sessionName, runPath, socketFileInput, logger)
 
 	if socketFileInput != "" {
 		supSpec.SessionSpec.SocketFile = socketFileInput
@@ -208,6 +215,7 @@ func run(
 
 func buildSupervisorSpec(
 	ctx context.Context,
+	supervisorID string,
 	sessionID string,
 	sessionName string,
 	runPath string,
@@ -216,7 +224,6 @@ func buildSupervisorSpec(
 ) *api.SupervisorSpec {
 	var spec *api.SupervisorSpec
 
-	supervisorID := naming.RandomID()
 	supervisorName := naming.RandomName()
 	if sessionID != "" && sessionName == "" {
 		spec = &api.SupervisorSpec{

@@ -31,6 +31,9 @@ const deleteSessionDir bool = false
 
 func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error {
 	sr.logger.Info("starting session", "id", sr.id)
+	if err := sr.updateSessionState(api.Initializing); err != nil {
+		sr.logger.Error("failed to update session state on initializing", "id", sr.id, "err", err)
+	}
 	sr.evCh = evCh
 
 	if err := sr.prepareSessionCommand(); err != nil {
@@ -59,7 +62,7 @@ func (sr *SessionRunnerExec) waitOnSession() {
 func (sr *SessionRunnerExec) Close(reason error) error {
 	sr.logger.Info("closing session", "id", sr.id, "reason", reason)
 
-	if err := sr.updateSessionState(api.SessionStatusExited); err != nil {
+	if err := sr.updateSessionState(api.Exited); err != nil {
 		sr.logger.Error("failed to update session state", "id", sr.id, "err", err)
 	}
 
@@ -143,8 +146,8 @@ func (sr *SessionRunnerExec) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (sr *SessionRunnerExec) Attach(id *api.ID, response *api.ResponseWithFD) error {
-	cliFD, err := sr.CreateNewClient(id)
+func (sr *SessionRunnerExec) Attach(supervisorID *api.ID, response *api.ResponseWithFD) error {
+	cliFD, err := sr.CreateNewClient(supervisorID)
 	if err != nil {
 		return err
 	}
@@ -155,7 +158,7 @@ func (sr *SessionRunnerExec) Attach(id *api.ID, response *api.ResponseWithFD) er
 
 	fds := []int{cliFD}
 
-	sr.logger.Debug("Attach response", "id", id, "ok", payload.OK, "fds", fds)
+	sr.logger.Debug("Attach response", "id", supervisorID, "ok", payload.OK, "fds", fds)
 
 	response.JSON = payload
 	response.FDs = fds
@@ -191,8 +194,9 @@ func (sr *SessionRunnerExec) Detach(id *api.ID) error {
 		_ = conn.Close()
 	}()
 
-	sr.metadata.Status.State = api.SessionStatusDetached
-	_ = sr.updateMetadata()
+	if err := sr.updateSessionAttachers(); err != nil {
+		sr.logger.Warn("failed to update metadata on client cleanup", "err", err)
+	}
 
 	return nil
 }
@@ -241,6 +245,11 @@ func (sr *SessionRunnerExec) SetupShell() error {
 		time.Sleep(10 * time.Millisecond)
 	}
 
+	if err := sr.updateSessionState(api.Ready); err != nil {
+		sr.logger.Error("failed to update session state on ready", "id", sr.id, "err", err)
+		return fmt.Errorf("failed to update session state on ready: %w", err)
+	}
+
 	return nil
 }
 
@@ -267,5 +276,8 @@ func (sr *SessionRunnerExec) OnInitShell() error {
 		}
 	}
 
+	if err := sr.updateSessionState(api.Ready); err != nil {
+		sr.logger.Error("failed to update session state on ready", "id", sr.id, "err", err)
+	}
 	return nil
 }

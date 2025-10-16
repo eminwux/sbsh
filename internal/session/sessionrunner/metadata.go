@@ -67,3 +67,20 @@ func (sr *SessionRunnerExec) updateSessionState(status api.SessionStatusMode) er
 	}
 	return nil
 }
+
+func (sr *SessionRunnerExec) updateSessionAttachers() error {
+	clientList := sr.getClientList()
+	var strIDs []string
+	for _, idPtr := range clientList {
+		if idPtr != nil {
+			strIDs = append(strIDs, string(*idPtr))
+		}
+	}
+	sr.metadata.Status.Attachers = strIDs
+
+	if err := sr.updateMetadata(); err != nil {
+		sr.logger.Warn("failed to update metadata on close", "id", sr.id, "err", err)
+		return err
+	}
+	return nil
+}

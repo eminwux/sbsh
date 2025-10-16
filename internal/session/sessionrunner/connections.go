@@ -30,8 +30,8 @@ func (sr *SessionRunnerExec) cleanupClient(client *ioClient) {
 	if cerr := client.conn.Close(); cerr != nil {
 		sr.logger.Warn("error closing client connection", "err", cerr, "client", client.id)
 	}
-	if err := sr.updateSessionState(api.SessionStatusDetached); err != nil {
-		sr.logger.Error("failed to update session state on detach", "err", err, "client", client.id)
+	if err := sr.updateSessionAttachers(); err != nil {
+		sr.logger.Warn("failed to update metadata on client cleanup", "err", err)
 	}
 	sr.removeClient(client)
 }
@@ -39,10 +39,6 @@ func (sr *SessionRunnerExec) cleanupClient(client *ioClient) {
 func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	defer client.conn.Close()
 	sr.logger.Info("client connection handler started", "client", client.id)
-
-	if err := sr.updateSessionState(api.SessionStatusAttached); err != nil {
-		sr.logger.Warn("failed to update metadata on attach", "err", err)
-	}
 
 	client.pipeOutR, client.pipeOutW, _ = os.Pipe()
 	sr.ptyPipes.multiOutW.Add(client.pipeOutW)
@@ -151,6 +147,10 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 			}
 		}
 	}(errCh)
+
+	if errAttach := sr.updateSessionAttachers(); errAttach != nil {
+		sr.logger.Warn("failed to update metadata on attach", "err", errAttach)
+	}
 
 	err = <-errCh
 	if err != nil {

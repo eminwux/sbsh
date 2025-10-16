@@ -10,6 +10,7 @@
 ```markdown
 - [ ] **A** If `sbsh run` fails supervisor must print to Stderr
 - [ ] **A** If supervisor dies session status remains attached
+- [ ] **A** sb detach SBSH_SUP_SOCKET fails on multi-attach
 ```
 
 ### 🅰️ Must Have

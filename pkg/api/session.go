@@ -72,23 +72,24 @@ type SessionStatus struct {
 	LogFile        string            `json:"logFile"`
 	LogLevel       string            `json:"logLevel"`
 	CaptureFile    string            `json:"captureFile"`
+	Attachers      []string          `json:"attachers"`
 }
 
 type SessionStatusMode int
 
 const (
-	SessionStatusDetached SessionStatusMode = iota
-	SessionStatusAttached
-	SessionStatusExited
+	Initializing SessionStatusMode = iota
+	Ready
+	Exited
 )
 
 func (s SessionStatusMode) String() string {
 	switch s {
-	case SessionStatusAttached:
-		return "Attached"
-	case SessionStatusDetached:
-		return "Detached"
-	case SessionStatusExited:
+	case Initializing:
+		return "Initializing"
+	case Ready:
+		return "Ready"
+	case Exited:
 		return "Exited"
 	default:
 		return "Unknown"

@@ -56,7 +56,7 @@ func ScanAndPruneSessions(ctx context.Context, logger *slog.Logger, runPath stri
 	}
 	pruned := 0
 	for _, s := range sessions {
-		if s.Status.State == api.SessionStatusExited {
+		if s.Status.State == api.Exited {
 			logger.InfoContext(ctx, "ScanAndPruneSessions: pruning session", "id", sessionID(s))
 			if errC := PruneSession(logger, &s); errC != nil {
 				logger.ErrorContext(
@@ -151,7 +151,7 @@ func printSessions(w io.Writer, sessions []api.SessionMetadata, printAll bool) e
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	activeCount := 0
 	for _, s := range sessions {
-		if s.Status.State != api.SessionStatusExited {
+		if s.Status.State != api.Exited {
 			activeCount++
 		}
 	}
@@ -173,14 +173,19 @@ func printSessions(w io.Writer, sessions []api.SessionMetadata, printAll bool) e
 		}
 	}
 
-	fmt.Fprintln(tw, "ID\tNAME\tCMD\tSTATUS\tLABELS")
+	fmt.Fprintln(tw, "ID\tNAME\tCMD\tSTATUS\tATTACHERS\tLABELS")
 	for _, s := range sessions {
-		if s.Status.State != api.SessionStatusExited || (printAll && s.Status.State == api.SessionStatusExited) {
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+		if s.Status.State != api.Exited || (printAll && s.Status.State == api.Exited) {
+			attachers := "None"
+			if len(s.Status.Attachers) > 0 {
+				attachers = strings.Join(s.Status.Attachers, ",")
+			}
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
 				sessionID(s),
 				sessionName(s),
 				sessionCmd(s),
 				s.Status.State.String(),
+				attachers,
 				joinLabels(sessionLabels(s)),
 			)
 		}
