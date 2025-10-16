@@ -70,6 +70,7 @@ docker-push:
 	done
 
 clean:
+	rm -rf $(HOME)/.sbsh/run/*
 	rm -rf sbsh sb sb-sh
 
 kill:
