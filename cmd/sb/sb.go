@@ -25,17 +25,18 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sb/attach"
+	"github.com/eminwux/sbsh/cmd/sb/autocomplete"
 	"github.com/eminwux/sbsh/cmd/sb/detach"
 	"github.com/eminwux/sbsh/cmd/sb/profiles"
 	"github.com/eminwux/sbsh/cmd/sb/sessions"
-	"github.com/eminwux/sbsh/internal/env"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-func NewSbRootCmd() *cobra.Command {
+func NewSbRootCmd() (*cobra.Command, error) {
 	// rootCmd represents the base command when called without any subcommands.
 	rootCmd := &cobra.Command{
 		Use:   "sb",
@@ -52,52 +53,43 @@ Examples:
 	sb attach --id abcdf0
 	sb profiles list
 `,
+		CompletionOptions: cobra.CompletionOptions{
+			DisableDefaultCmd: true,
+		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
-			if !ok || logger == nil {
-				return errors.New("logger not found in context")
-			}
-			logger.DebugContext(cmd.Context(), "loading config in PersistentPreRunE")
-			err := LoadConfig()
-			if err != nil {
-				logger.DebugContext(cmd.Context(), "config error", "error", err)
-				return fmt.Errorf("config error: %w", err)
-			}
+			var logger *slog.Logger
+			if viper.GetBool("sb.global.verbose") {
+				logLevel := viper.GetString("sb.global.logLevel")
+				if logLevel == "" {
+					logLevel = "info"
+				}
 
-			// Set log level dynamically if present
-			levelVar, ok := cmd.Context().Value(logging.CtxLevelVar).(*slog.LevelVar)
-			if ok && levelVar != nil {
-				logger.DebugContext(
-					cmd.Context(),
-					"setting log level from viper",
-					"level",
-					viper.GetString("sb.global.logLevel"),
-				)
-				levelVar.Set(logging.ParseLevel(viper.GetString("sb.global.logLevel")))
-			}
+				// Create a new logger that writes to the file with the specified log level
+				levelVar := new(slog.LevelVar)
+				levelVar.Set(logging.ParseLevel(logLevel))
 
-			if !viper.GetBool("sb.global.verbose") {
+				textHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: levelVar})
+				handler := &logging.ReformatHandler{Inner: textHandler, Writer: os.Stdout}
+				logger = slog.New(handler)
+
+				// Store both logger and levelVar in context using struct keys
+				ctx := cmd.Context()
+				ctx = context.WithValue(ctx, logging.CtxLogger, logger)
+				ctx = context.WithValue(ctx, logging.CtxLevelVar, &levelVar)
+				ctx = context.WithValue(ctx, logging.CtxHandler, handler)
+				cmd.SetContext(ctx)
 				logger.DebugContext(
 					cmd.Context(),
 					"enabling verbose",
 					"log-level",
 					viper.GetString("sb.global.logLevel"),
 				)
-				handler, hOk := cmd.Context().Value(logging.CtxHandler).(*logging.ReformatHandler)
-				if !hOk || handler == nil {
-					return errors.New("logger handler not found in context")
-				}
-				devNull, errC := os.OpenFile("/dev/null", os.O_WRONLY, 0)
-				if errC != nil {
-					return fmt.Errorf("failed to open /dev/null: %w", errC)
-				}
-				handler.Inner = slog.NewTextHandler(devNull, &slog.HandlerOptions{Level: levelVar})
-				handler.Writer = devNull
+			}
 
-				ctx := cmd.Context()
-				ctx = context.WithValue(ctx, logging.CtxLevelVar, levelVar)
-				ctx = context.WithValue(ctx, logging.CtxCloser, devNull)
-				cmd.SetContext(ctx)
+			err := LoadConfig()
+			if err != nil {
+				logger.DebugContext(cmd.Context(), "config error", "error", err)
+				return fmt.Errorf("config error: %w", err)
 			}
 			return nil
 		},
@@ -117,30 +109,46 @@ Examples:
 		},
 	}
 
-	setupRootCmd(rootCmd)
-	return rootCmd
+	err := setupRootCmd(rootCmd)
+	if err != nil {
+		return nil, err
+	}
+	return rootCmd, nil
 }
 
-func setupRootCmd(rootCmd *cobra.Command) {
+func setupRootCmd(rootCmd *cobra.Command) error {
+	rootCmd.AddCommand(autocomplete.NewAutoCompleteCmd(rootCmd))
 	rootCmd.AddCommand(sessions.NewSessionsCmd())
 	rootCmd.AddCommand(detach.NewDetachCmd())
 	rootCmd.AddCommand(profiles.NewProfilesCmd())
 	rootCmd.AddCommand(attach.NewAttachCmd())
 
 	rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.sbsh/config.yaml)")
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Log level (debug, info, warn, error)")
-	rootCmd.PersistentFlags().String("log-level", "", "Log level (debug, info, warn, error)")
-	rootCmd.PersistentFlags().String("run-path", "", "Run path directory")
+	if err := viper.BindPFlag("sb.global.config", rootCmd.PersistentFlags().Lookup("config")); err != nil {
+		return err
+	}
 
-	_ = viper.BindPFlag("sb.global.config", rootCmd.PersistentFlags().Lookup("config"))
-	_ = viper.BindPFlag("sb.global.verbose", rootCmd.PersistentFlags().Lookup("verbose"))
-	_ = viper.BindPFlag("sb.global.logLevel", rootCmd.PersistentFlags().Lookup("log-level"))
-	_ = viper.BindPFlag("sb.global.runPath", rootCmd.PersistentFlags().Lookup("run-path"))
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Log level (debug, info, warn, error)")
+	if err := viper.BindPFlag("sb.global.verbose", rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
+		return err
+	}
+
+	rootCmd.PersistentFlags().String("log-level", "", "Log level (debug, info, warn, error)")
+	if err := viper.BindPFlag("sb.global.logLevel", rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
+		return err
+	}
+
+	rootCmd.PersistentFlags().String("run-path", "", "Run path directory")
+	if err := viper.BindPFlag("sb.global.runPath", rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func LoadConfig() error {
 	var configFile string
-	if viper.GetString(env.CONFIG_FILE.ViperKey) == "" {
+	if viper.GetString(config.CONFIG_FILE.ViperKey) == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return fmt.Errorf("failed to get user home dir: %w", err)
@@ -152,35 +160,35 @@ func LoadConfig() error {
 		// Add the directory containing the config file
 		viper.AddConfigPath(configPath)
 	}
-	_ = env.CONFIG_FILE.BindEnv()
-	if err := env.CONFIG_FILE.Set(configFile); err != nil {
+	_ = config.CONFIG_FILE.BindEnv()
+	if err := config.CONFIG_FILE.Set(configFile); err != nil {
 		return fmt.Errorf("failed to set config file: %w", err)
 	}
 
 	var runPath string
-	if viper.GetString(env.RUN_PATH.ViperKey) == "" {
+	if viper.GetString(config.RUN_PATH.ViperKey) == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return fmt.Errorf("failed to get user home dir: %w", err)
 		}
 		runPath = filepath.Join(home, ".sbsh", "run")
 	}
-	_ = env.RUN_PATH.BindEnv()
-	env.RUN_PATH.SetDefault(runPath)
+	_ = config.RUN_PATH.BindEnv()
+	config.RUN_PATH.SetDefault(runPath)
 
 	var profilesFile string
-	if viper.GetString(env.PROFILES_FILE.ViperKey) == "" {
+	if viper.GetString(config.PROFILES_FILE.ViperKey) == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return fmt.Errorf("failed to get user home dir: %w", err)
 		}
 		profilesFile = filepath.Join(home, ".sbsh", "profiles.yaml")
 	}
-	_ = env.PROFILES_FILE.BindEnv()
-	env.PROFILES_FILE.SetDefault(profilesFile)
+	_ = config.PROFILES_FILE.BindEnv()
+	config.PROFILES_FILE.SetDefault(profilesFile)
 
-	_ = env.LOG_LEVEL.BindEnv()
-	env.LOG_LEVEL.SetDefault("info")
+	_ = config.LOG_LEVEL.BindEnv()
+	config.LOG_LEVEL.SetDefault("info")
 
 	if err := viper.ReadInConfig(); err != nil {
 		// File not found is OK if ENV is set

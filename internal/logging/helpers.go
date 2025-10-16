@@ -16,7 +16,16 @@
 
 package logging
 
-import "log/slog"
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+
+	"github.com/spf13/cobra"
+)
 
 func ParseLevel(lvl string) slog.Level {
 	switch lvl {
@@ -32,4 +41,39 @@ func ParseLevel(lvl string) slog.Level {
 		// default if unknown
 		return slog.LevelInfo
 	}
+}
+
+func SetupFileLogger(cmd *cobra.Command, logfile string, loglevel string) error {
+	if cmd == nil || logfile == "" || loglevel == "" {
+		return errors.New("cmd, logfile, and loglevel must not be empty")
+	}
+	if err := os.MkdirAll(filepath.Dir(logfile), 0o700); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create log directory: %v\n", err)
+		return err
+	}
+
+	f, err := os.OpenFile(logfile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to open log file: %v\n", err)
+		return err
+	}
+
+	// Create a new logger that writes to the file with the specified log level
+	levelVar := new(slog.LevelVar)
+	levelVar.Set(ParseLevel(loglevel))
+
+	handler := &ReformatHandler{
+		Inner:  slog.NewTextHandler(f, &slog.HandlerOptions{Level: levelVar}),
+		Writer: f,
+	}
+	logger := slog.New(handler)
+
+	// Store both logger and levelVar in context using struct keys
+	ctx := cmd.Context()
+	ctx = context.WithValue(ctx, CtxLogger, logger)
+	ctx = context.WithValue(ctx, CtxLevelVar, &levelVar)
+	ctx = context.WithValue(ctx, CtxHandler, handler)
+
+	cmd.SetContext(ctx)
+	return nil
 }

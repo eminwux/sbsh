@@ -22,8 +22,8 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/internal/discovery"
-	"github.com/eminwux/sbsh/internal/env"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -44,14 +44,14 @@ This will remove all session files for sessions that are not running anymore.`,
 			}
 
 			logger.Debug("sessions prune command invoked",
-				"run_path", viper.GetString(env.RUN_PATH.ViperKey),
+				"run_path", viper.GetString(config.RUN_PATH.ViperKey),
 				"args", cmd.Flags().Args(),
 			)
 
 			err := discovery.ScanAndPruneSessions(
 				cmd.Context(),
 				logger,
-				viper.GetString(env.RUN_PATH.ViperKey),
+				viper.GetString(config.RUN_PATH.ViperKey),
 				os.Stdout,
 			)
 			if err != nil {

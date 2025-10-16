@@ -22,8 +22,8 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/internal/discovery"
-	"github.com/eminwux/sbsh/internal/env"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -48,7 +48,7 @@ By default, it lists only running sessions. Use the --all flag to include exited
 			}
 
 			logger.Debug("sessions list command invoked",
-				"run_path", viper.GetString(env.RUN_PATH.ViperKey),
+				"run_path", viper.GetString(config.RUN_PATH.ViperKey),
 				"list_all", listAllInput,
 				"args", cmd.Flags().Args(),
 			)
@@ -56,7 +56,7 @@ By default, it lists only running sessions. Use the --all flag to include exited
 			err := discovery.ScanAndPrintSessions(
 				cmd.Context(),
 				logger,
-				viper.GetString(env.RUN_PATH.ViperKey),
+				viper.GetString(config.RUN_PATH.ViperKey),
 				os.Stdout,
 				listAllInput,
 			)

@@ -27,8 +27,8 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/internal/discovery"
-	"github.com/eminwux/sbsh/internal/env"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/eminwux/sbsh/internal/naming"
@@ -71,50 +71,24 @@ If no log filename is provided, a default path under the run directory will be u
 				viper.Set("sbsh.run.id", sessionID)
 			}
 
+			sesLogLevel := viper.GetString("sbsh.run.logLevel")
+			if sesLogLevel == "" {
+				sesLogLevel = "info"
+			}
+
 			sesLogfile := viper.GetString("sbsh.run.logFile")
 			if sesLogfile == "" {
 				sesLogfile = filepath.Join(
-					viper.GetString(env.RUN_PATH.ViperKey),
+					viper.GetString(config.RUN_PATH.ViperKey),
 					"sessions",
 					sessionID,
 					"log",
 				)
 			}
 
-			sesLogLevel := viper.GetString("sbsh.run.logLevel")
-			if sesLogLevel == "" {
-				sesLogLevel = "info"
-			}
-
-			if sesLogfile != "" {
-				if err := os.MkdirAll(filepath.Dir(sesLogfile), 0o700); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to create log directory: %v\n", err)
-					os.Exit(1)
-				}
-
-				f, err := os.OpenFile(sesLogfile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to open log file: %v\n", err)
-					os.Exit(1)
-				}
-
-				// Create a new logger that writes to the file with the specified log level
-				lv := new(slog.LevelVar)
-				lv.Set(logging.ParseLevel(sesLogLevel))
-
-				handler, ok := cmd.Context().Value(logging.CtxHandler).(*logging.ReformatHandler)
-				if !ok || handler == nil {
-					return errors.New("logger handler not found in context")
-				}
-
-				handler.Inner = slog.NewTextHandler(f, &slog.HandlerOptions{Level: lv})
-				handler.Writer = f
-
-				ctx := cmd.Context()
-				ctx = context.WithValue(ctx, logging.CtxLevelVar, lv)
-				ctx = context.WithValue(ctx, logging.CtxCloser, f)
-				cmd.SetContext(ctx)
-				return nil
+			err := logging.SetupFileLogger(cmd, sesLogfile, sesLogLevel)
+			if err != nil {
+				return err
 			}
 
 			return nil
@@ -135,8 +109,8 @@ If no log filename is provided, a default path under the run directory will be u
 					SessionName:  viper.GetString("sbsh.run.name"),
 					SessionCmd:   viper.GetString("sbsh.run.command"),
 					CaptureFile:  viper.GetString("sbsh.run.captureFile"),
-					RunPath:      viper.GetString(env.RUN_PATH.ViperKey),
-					ProfilesFile: viper.GetString(env.PROFILES_FILE.ViperKey),
+					RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
+					ProfilesFile: viper.GetString(config.PROFILES_FILE.ViperKey),
 					ProfileName:  viper.GetString("sbsh.run.profile"),
 					LogFile:      viper.GetString("sbsh.run.logFile"),
 					LogLevel:     viper.GetString("sbsh.run.logLevel"),
@@ -204,7 +178,7 @@ func setupRunCmdFlags(runCmd *cobra.Command) {
 
 	runCmd.Flags().StringP("profile", "p", "", "Optional profile for the session")
 	_ = viper.BindPFlag("sbsh.run.profile", runCmd.Flags().Lookup("profile"))
-	_ = viper.BindEnv("sbsh.run.profile", env.SES_PROFILE.EnvVar())
+	_ = viper.BindEnv("sbsh.run.profile", config.SES_PROFILE.EnvVar())
 
 	runCmd.Flags().String("socket", "", "Optional socket file for the session")
 	_ = viper.BindPFlag("sbsh.run.socket", runCmd.Flags().Lookup("socket"))

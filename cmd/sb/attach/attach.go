@@ -25,8 +25,9 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
-	"github.com/eminwux/sbsh/internal/env"
+	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/eminwux/sbsh/internal/naming"
@@ -65,7 +66,7 @@ to quickly create a Cobra application.`,
 				"sb.attach.id", viper.GetString("sb.attach.id"),
 				"sb.attach.name", viper.GetString("sb.attach.name"),
 				"sb.attach.socket", viper.GetString("sb.attach.socket"),
-				"run_path", viper.GetString(env.RUN_PATH.ViperKey),
+				"run_path", viper.GetString(config.RUN_PATH.ViperKey),
 			)
 			cmd.Flags().VisitAll(func(f *pflag.Flag) {
 				logger.DebugContext(cmd.Context(), "flag value", "name", f.Name, "value", f.Value.String())
@@ -75,7 +76,7 @@ to quickly create a Cobra application.`,
 			})
 			sessionID := viper.GetString("sb.attach.id")
 			sessionName := viper.GetString("sb.attach.name")
-			runPath := viper.GetString(env.RUN_PATH.ViperKey)
+			runPath := viper.GetString(config.RUN_PATH.ViperKey)
 			socketFile := viper.GetString("sb.attach.socket")
 
 			if sessionID == "" && sessionName == "" {
@@ -95,13 +96,33 @@ to quickly create a Cobra application.`,
 
 func setupAttachCmdFlags(attachCmd *cobra.Command) {
 	attachCmd.Flags().String("id", "", "Session ID, cannot be set together with --name")
-	attachCmd.Flags().String("name", "", "Optional session name, cannot be set together with --id")
-	attachCmd.Flags().String("socket", "", "Optional socket file for the session")
-	attachCmd.Flags().String("pepe", "", "Optional socket file for the session")
-
-	// Bind flags to viper keys
 	_ = viper.BindPFlag("sb.attach.id", attachCmd.Flags().Lookup("id"))
+
+	attachCmd.Flags().StringP("name", "n", "", "Optional session name, cannot be set together with --id")
 	_ = viper.BindPFlag("sb.attach.name", attachCmd.Flags().Lookup("name"))
+
+	_ = attachCmd.RegisterFlagCompletionFunc(
+		"name",
+		func(c *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+			//nolint:mnd // 150ms is a good compromise between snappy completion and enough time to read files
+			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+			defer cancel()
+			runPath, err := config.GetRunPathFromEnvAndFlags(c)
+			if err != nil {
+				// fail silent to keep completion snappy
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			profs, err := config.AutoCompleteListSessions(ctx, nil, runPath)
+			if err != nil {
+				// fail silent to keep completion snappy
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+
+			// Optionally add descriptions: "value\tpath" for nicer columns
+			return profs, cobra.ShellCompDirectiveNoFileComp
+		},
+	)
+	attachCmd.Flags().String("socket", "", "Optional socket file for the session")
 	_ = viper.BindPFlag("sb.attach.socket", attachCmd.Flags().Lookup("socket"))
 }
 

@@ -24,22 +24,6 @@ import (
 	"path/filepath"
 )
 
-func RuntimeBaseSessions() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".sbsh", "run", "sessions"), nil
-}
-
-func RuntimeBaseSupervisor() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".sbsh", "run", "supervisors"), nil
-}
-
 func WriteMetadata(ctx context.Context, metadata any, dir string) error {
 	dst := filepath.Join(dir, "metadata.json")
 	var data []byte

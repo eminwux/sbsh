@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/eminwux/sbsh/internal/env"
+	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/internal/supervisor"
@@ -66,7 +66,7 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 		Name:        naming.RandomName(),
 		Env:         os.Environ(),
 		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+		RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
 		SessionSpec: nil,
 	}
 
@@ -126,7 +126,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 		Name:        naming.RandomName(),
 		Env:         os.Environ(),
 		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+		RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
 		SessionSpec: nil,
 	}
 	done := make(chan error)
@@ -179,7 +179,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 		Name:        naming.RandomName(),
 		Env:         os.Environ(),
 		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+		RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
 		SessionSpec: nil,
 	}
 
@@ -234,7 +234,7 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 		Name:        naming.RandomName(),
 		Env:         os.Environ(),
 		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString(env.RUN_PATH.ViperKey),
+		RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
 		SessionSpec: nil,
 	}
 

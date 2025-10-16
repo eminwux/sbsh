@@ -24,7 +24,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/eminwux/sbsh/internal/env"
+	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/eminwux/sbsh/pkg/rpcclient/supervisor"
 	"github.com/spf13/cobra"
@@ -88,5 +88,5 @@ func setupDetachCmd(detachCmd *cobra.Command) {
 	detachCmd.Flags().String("socket", "", "Supervisor Socket Path")
 
 	_ = viper.BindPFlag("sb.detach.socket", detachCmd.Flags().Lookup("socket"))
-	_ = viper.BindEnv("sb.detach.socket", env.SUP_SOCKET.Key)
+	_ = viper.BindEnv("sb.detach.socket", config.SUP_SOCKET.Key)
 }

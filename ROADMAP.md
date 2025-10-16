@@ -14,9 +14,7 @@
 
 ### 🅰️ Must Have
 ```markdown
-- [ ] **A** Auto complete (bash) - sbsh -p profile
 - [ ] **A** sb attach id/name as positional argument
-- [ ] **A** Auto complete (bash) - sb attach
 - [ ] **A** sbsh cmd as positional argument
 - [ ] **A** Initial E2E testing
 - [ ] **A** Compress capture with xz
@@ -79,6 +77,8 @@
 - [X] **A** Add --verbose to sb to show logging
 - [X] **A** Implement cwd in profiles
 - [X] **A** Implement onInit commands in profile
+- [X] **A** Auto complete (bash) - sbsh -p profile
+- [X] **A** Auto complete (bash) - sb attach -n profile
 ```
 
 

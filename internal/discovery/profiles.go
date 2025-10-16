@@ -45,15 +45,19 @@ func ScanAndPrintProfiles(ctx context.Context, logger *slog.Logger, path string,
 }
 
 // LoadProfilesFromPath reads a multi-document YAML file into []api.SessionProfileDoc.
-func LoadProfilesFromPath(ctx context.Context, logger *slog.Logger, path string) ([]api.SessionProfileDoc, error) {
-	logger.DebugContext(ctx, "LoadProfilesFromPath: opening file", "path", path)
-	f, err := os.Open(path)
+func LoadProfilesFromPath(
+	ctx context.Context,
+	logger *slog.Logger,
+	profilesFile string,
+) ([]api.SessionProfileDoc, error) {
+	logger.DebugContext(ctx, "LoadProfilesFromPath: opening file", "path", profilesFile)
+	f, err := os.Open(profilesFile)
 	if err != nil {
-		logger.ErrorContext(ctx, "LoadProfilesFromPath: failed to open file", "path", path, "error", err)
-		return nil, fmt.Errorf("open profiles file %q: %w", path, err)
+		logger.ErrorContext(ctx, "LoadProfilesFromPath: failed to open file", "path", profilesFile, "error", err)
+		return nil, fmt.Errorf("open profiles file %q: %w", profilesFile, err)
 	}
 	defer f.Close()
-	logger.InfoContext(ctx, "LoadProfilesFromPath: file opened", "path", path)
+	logger.InfoContext(ctx, "LoadProfilesFromPath: file opened", "path", profilesFile)
 	return LoadProfilesFromReaderWithContext(ctx, logger, f)
 }
 

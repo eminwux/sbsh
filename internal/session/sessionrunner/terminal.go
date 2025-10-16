@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/eminwux/sbsh/internal/env"
+	"github.com/eminwux/sbsh/cmd/config"
 )
 
 var closePTY sync.Once
@@ -43,10 +43,10 @@ func (sr *SessionRunnerExec) prepareSessionCommand() error {
 		cmd.Env = os.Environ()
 	}
 	cmd.Env = append(cmd.Env,
-		env.KV(env.SES_SOCKET_CTRL, sr.metadata.Status.SocketFile),
-		env.KV(env.SES_ID, string(sr.metadata.Spec.ID)),
-		env.KV(env.SES_NAME, sr.metadata.Spec.Name),
-		env.KV(env.SES_PROFILE, sr.metadata.Spec.ProfileName),
+		config.KV(config.SES_SOCKET_CTRL, sr.metadata.Status.SocketFile),
+		config.KV(config.SES_ID, string(sr.metadata.Spec.ID)),
+		config.KV(config.SES_NAME, sr.metadata.Spec.Name),
+		config.KV(config.SES_PROFILE, sr.metadata.Spec.ProfileName),
 	)
 	// Start the process in a new session so it has its own process group
 	cmd.SysProcAttr = &syscall.SysProcAttr{

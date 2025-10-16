@@ -18,7 +18,7 @@ package main
 
 import (
 	"context"
-	"log/slog"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -28,43 +28,69 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func execRoot(root *cobra.Command) int {
+	if err := root.Execute(); err != nil {
+		return 1
+	}
+	return 0
+}
+
 func main() {
-	root := &cobra.Command{}
-
-	root.AddCommand(sb.NewSbRootCmd())
-	root.AddCommand(sbsh.NewSbshRootCmd())
-
-	// Default to info, can be changed at runtime
-	var levelVar slog.LevelVar
-	levelVar.Set(slog.LevelInfo)
-
-	textHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: &levelVar})
-	handler := &logging.ReformatHandler{Inner: textHandler, Writer: os.Stdout}
-	logger := slog.New(handler)
-
-	// Store both logger and levelVar in context using struct keys
+	logger := logging.NewNoopLogger()
 	ctx := context.WithValue(context.Background(), logging.CtxLogger, logger)
-	ctx = context.WithValue(ctx, logging.CtxLevelVar, &levelVar)
-	ctx = context.WithValue(ctx, logging.CtxHandler, handler)
 
 	// Select which subtree to run based on the executable name
 	exe := filepath.Base(os.Args[0])
-	// logger.Debug("cmd", "exe", exe, "args", os.Args)
 	// Decide which subtree to run by prepending the name as the first arg
 	switch exe {
 	case "sb":
-		// logger.Debug("cmd", "sb args", append([]string{"sb"}, os.Args[1:]...))
-		root.SetArgs(append([]string{"sb"}, os.Args[1:]...))
-	case "sbsh":
-		// logger.Debug("cmd", "sbsh args", append([]string{"sbsh"}, os.Args[1:]...))
-		root.SetArgs(append([]string{"sbsh"}, os.Args[1:]...))
-	default:
-		// logger.Debug("cmd", "default args", append([]string{"sbsh"}, os.Args[1:]...))
-		root.SetArgs(append([]string{"sbsh"}, os.Args[1:]...)) // default
-	}
+		cmd, err := sb.NewSbRootCmd()
+		cmd.SetContext(ctx)
+		if err != nil {
+			os.Exit(1)
+		}
+		os.Exit(execRoot(cmd)) // <- sbsh IS the root; no wrapper
 
-	root.SetContext(ctx)
-	if err := root.Execute(); err != nil {
-		os.Exit(1)
+	case "sbsh":
+		cmd, err := sbsh.NewSbshRootCmd()
+		cmd.SetContext(ctx)
+		if err != nil {
+			os.Exit(1)
+		}
+		os.Exit(execRoot(cmd)) // <- sbsh IS the root; no wrapper
+
+	default:
+		// Fallback to sbsh if SBSH_DEBUG_MODE is set
+		// This is useful for development and debugging purposes
+		// as it allows to run sbsh even if the executable is not named sbsh
+		// or sb. For example, when running from an IDE or a debugger.
+		// In this case, SBSH_DEBUG_MODE can be set to "sbsh" or "sb"
+		// to run the corresponding subtree.
+		// If SBSH_DEBUG_MODE is not set, an error is printed and the program exits.
+		// This avoids confusion and ensures that the user is aware of the correct usage.
+		debug := os.Getenv("SBSH_DEBUG_MODE")
+		if debug == "" {
+			fmt.Fprintf(os.Stderr, "unknown entry command: %s\n", exe)
+			os.Exit(1)
+		}
+		switch os.Getenv("SBSH_DEBUG_MODE") {
+		case "sb":
+			cmd, err := sbsh.NewSbshRootCmd()
+			cmd.SetContext(ctx)
+			if err != nil {
+				os.Exit(1)
+			}
+			os.Exit(execRoot(cmd))
+		case "sbsh":
+			cmd, err := sbsh.NewSbshRootCmd()
+			cmd.SetContext(ctx)
+			if err != nil {
+				os.Exit(1)
+			}
+			os.Exit(execRoot(cmd))
+		default:
+			fmt.Fprintf(os.Stderr, "unknown entry command: %s\n", exe)
+			os.Exit(1)
+		}
 	}
 }
