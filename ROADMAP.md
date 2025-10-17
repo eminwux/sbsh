@@ -81,6 +81,7 @@
 - [X] **A** Auto complete (bash) - sb attach -n profile
 - [X] **A** Implement a Ready status after `onInit`
 - [X] **A** Attach enables input after Ready
+- [X] **A** Remove hardcoded quotes in export PS1
 ```
 
 

@@ -217,7 +217,7 @@ func (sr *SessionRunnerExec) SetupShell() error {
 	// set up prompt
 	var promptCmd string
 	if sr.metadata.Spec.Prompt != "" {
-		promptCmd = `export PS1="` + sr.metadata.Spec.Prompt + `"` + "\n"
+		promptCmd = `export PS1=` + sr.metadata.Spec.Prompt + "\n"
 	} else {
 		promptCmd = `export PS1="(sbsh-` + string(sr.metadata.Spec.ID) + `) $PS1"` + "\n"
 	}

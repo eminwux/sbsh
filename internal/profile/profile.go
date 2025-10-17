@@ -190,7 +190,7 @@ func BuildSessionSpec(
 			Command:     p.SessionCmd,
 			CommandArgs: p.SessionCmdArgs,
 			Env:         os.Environ(),
-			Prompt:      "(sbsh-$SBSH_SES_ID) $PS1",
+			Prompt:      "\"(sbsh-$SBSH_SES_ID) $PS1\"",
 			RunPath:     p.RunPath,
 			CaptureFile: p.CaptureFile,
 			LogFile:     p.LogFile,
