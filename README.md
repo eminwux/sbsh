@@ -19,7 +19,7 @@ sbsh gives terminals persistence, structure, and visibility without changing how
 
 ```bash
 # Install sbsh
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.1.1/sbsh-linux-amd64 && \
+curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.1.3/sbsh-linux-amd64 && \
 chmod +x sbsh && \
 sudo mv sbsh /usr/local/bin/ && \
 sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
