@@ -23,6 +23,7 @@ import (
 
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/logging"
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
 func AutoCompleteProfiles(ctx context.Context, logger *slog.Logger, profilesFile string) ([]string, error) {
@@ -49,7 +50,12 @@ func AutoCompleteProfiles(ctx context.Context, logger *slog.Logger, profilesFile
 	return names, nil
 }
 
-func AutoCompleteListSessions(ctx context.Context, logger *slog.Logger, runPath string) ([]string, error) {
+func AutoCompleteListSessions(
+	ctx context.Context,
+	logger *slog.Logger,
+	runPath string,
+	showExited bool,
+) ([]string, error) {
 	// logger is not set on autocomplete calls
 	if logger == nil {
 		logger = logging.NewNoopLogger()
@@ -67,7 +73,9 @@ func AutoCompleteListSessions(ctx context.Context, logger *slog.Logger, runPath 
 
 	var names []string
 	for _, s := range sessions {
-		names = append(names, s.Spec.Name)
+		if showExited || s.Status.State != api.Exited {
+			names = append(names, s.Spec.Name)
+		}
 	}
 	return names, nil
 }

@@ -112,7 +112,7 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
-			profs, err := config.AutoCompleteListSessions(ctx, nil, runPath)
+			profs, err := config.AutoCompleteListSessions(ctx, nil, runPath, false)
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
