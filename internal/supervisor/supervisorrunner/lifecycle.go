@@ -84,7 +84,7 @@ func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
 		return err
 	}
 
-	if err := sr.attachIOSocket(); err != nil {
+	if err := sr.StartConnManager(); err != nil {
 		return err
 	}
 

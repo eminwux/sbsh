@@ -30,6 +30,7 @@ import (
 	"github.com/creack/pty"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/eminwux/sbsh/pkg/rpcclient/session"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -60,7 +61,100 @@ func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) attachIOSocket() error {
+func (sr *SupervisorRunnerExec) readWriteBytes(r io.Reader, w io.Writer) error {
+	//nolint:mnd // 32 KiB buffer
+	buf := make([]byte, 32*1024)
+	var total int64
+	n, rerr := r.Read(buf)
+	sr.logger.DebugContext(sr.ctx, "stdin->socket post-read", "n", n)
+
+	if n > 0 {
+		written := 0
+		for written < n {
+			sr.logger.DebugContext(sr.ctx, "stdin->socket pre-write")
+			m, werr := w.Write(buf[written:n])
+			sr.logger.DebugContext(sr.ctx, "stdin->socket post-write", "m", m)
+			if werr != nil {
+				return fmt.Errorf("could not write stdin->socket: %w", werr)
+			}
+			written += m
+			total += int64(m)
+		}
+	}
+
+	if rerr != nil {
+		sr.logger.ErrorContext(sr.ctx, "stdin->socket read error", "error", rerr)
+		return fmt.Errorf("could not read stdin->socket: %w", rerr)
+	}
+
+	return nil
+}
+
+func (sr *SupervisorRunnerExec) connManager(ctx context.Context, g *errgroup.Group, uc *net.UnixConn) {
+	errGroup := make(chan error, 1)
+	go func() {
+		errGroup <- g.Wait()
+	}()
+
+	select {
+	case <-ctx.Done():
+		sr.logger.InfoContext(sr.ctx, "connManager: context cancelled or error received, beginning shutdown")
+		// ACT IMMEDIATELY: close/unblock I/O, log, metrics, etc.
+		//nolint:nestif // thorough debug
+		if uc != nil {
+			if err := uc.SetReadDeadline(time.Now()); err != nil {
+				sr.logger.WarnContext(sr.ctx, "connManager: failed to set read deadline", "error", err)
+			} else {
+				sr.logger.DebugContext(sr.ctx, "connManager: set read deadline to unblock readers")
+			}
+			if err := uc.SetWriteDeadline(time.Now()); err != nil {
+				sr.logger.WarnContext(sr.ctx, "connManager: failed to set write deadline", "error", err)
+			} else {
+				sr.logger.DebugContext(sr.ctx, "connManager: set write deadline to unblock writers")
+			}
+		} else {
+			sr.logger.WarnContext(sr.ctx, "connManager: UnixConn is nil, cannot set deadlines")
+		}
+		sr.logger.InfoContext(sr.ctx, "connManager: context done, shutting down connection manager")
+		trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
+			ID:   sr.session.Id,
+			Type: EvError,
+			Err:  errors.New("read/write routines exited"),
+			When: time.Now(),
+		})
+
+	case err := <-errGroup:
+		e := fmt.Errorf("wait on routines error group returned: %w", err)
+		sr.logger.ErrorContext(sr.ctx, "read/write routines finished", "error", e)
+	}
+}
+
+func (sr *SupervisorRunnerExec) runReadWriter(ctx context.Context, uc *net.UnixConn, r io.Reader, w io.Writer) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			sr.logger.DebugContext(
+				sr.ctx,
+				"pre-read",
+				"reader",
+				fmt.Sprintf("%T", r),
+				"writer",
+				fmt.Sprintf("%T", w),
+			)
+			err := sr.readWriteBytes(r, w)
+			if err != nil {
+				if uc != nil {
+					_ = uc.CloseRead()
+				}
+				return err
+			}
+		}
+	}
+}
+
+func (sr *SupervisorRunnerExec) StartConnManager() error {
 	// Connected, now we enable raw mode
 	if err := sr.toBashUIMode(); err != nil {
 		sr.logger.ErrorContext(sr.ctx, "attachIOSocket: initial raw mode failed", "error", err)
@@ -69,157 +163,26 @@ func (sr *SupervisorRunnerExec) attachIOSocket() error {
 	// We want half-closes; UnixConn exposes CloseRead/CloseWrite
 	uc, _ := sr.ioConn.(*net.UnixConn)
 
-	errCh := make(chan error, 2)
+	g, ctx := errgroup.WithContext(sr.ctx)
 
-	// WRITER stdin -> socket
-	go func() {
-		buf := make([]byte, 32*1024) // 32 KiB buffer, like io.Copy
-		var total int64
-		var e error
+	// WRITER: stdin -> socket
+	g.Go(func() error {
+		return sr.runReadWriter(ctx, uc, os.Stdin, sr.ioConn)
+	})
 
-		for {
-			sr.logger.DebugContext(sr.ctx, "stdin->socket pre-read")
-			n, rerr := os.Stdin.Read(buf)
-			sr.logger.DebugContext(sr.ctx, "stdin->socket post-read", "n", n)
+	// READER: socket  -> stdin
+	g.Go(func() error {
+		return sr.runReadWriter(ctx, uc, sr.ioConn, os.Stdout)
+	})
 
-			if n > 0 {
-				written := 0
-				for written < n {
-					sr.logger.DebugContext(sr.ctx, "stdin->socket pre-write")
-					m, werr := sr.ioConn.Write(buf[written:n])
-					sr.logger.DebugContext(sr.ctx, "stdin->socket post-write", "m", m)
-					if werr != nil {
-						sr.logger.ErrorContext(sr.ctx, "stdin->socket write error", "error", werr)
-						e = werr
-						goto done
-					}
-					written += m
-					total += int64(m)
-				}
-			}
+	// Spawn ConnManager
+	go sr.connManager(ctx, g, uc)
 
-			if rerr != nil {
-				sr.logger.ErrorContext(sr.ctx, "stdin->socket read error", "error", rerr)
-				e = rerr
-				break
-			}
-		}
-
-	done:
-		// tell peer we're done sending (but still willing to read)
-		if uc != nil {
-			_ = uc.CloseWrite()
-		}
-
-		// send event (EOF or error while copying stdin -> socket)
-		if errors.Is(e, io.EOF) {
-			sr.logger.InfoContext(sr.ctx, "stdin reached EOF")
-			trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
-				ID:   sr.session.Id,
-				Type: EvCmdExited,
-				Err:  e,
-				When: time.Now(),
-			})
-		} else if e != nil {
-			sr.logger.ErrorContext(sr.ctx, "stdin->socket error", "error", e)
-			trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
-				ID:   sr.session.Id,
-				Type: EvError,
-				Err:  e,
-				When: time.Now(),
-			})
-		}
-
-		errCh <- e
-	}()
-
-	// READER socket -> stdout
-	go func() {
-		buf := make([]byte, 32*1024) // 32 KiB buffer like io.Copy
-		var total int64
-		var e error
-
-		for {
-			sr.logger.DebugContext(sr.ctx, "socket->stdout pre-read")
-			n, rerr := sr.ioConn.Read(buf)
-			sr.logger.DebugContext(sr.ctx, "socket->stdout post-read", "n", n)
-
-			if n > 0 {
-				written := 0
-				for written < n {
-					sr.logger.DebugContext(sr.ctx, "socket->stdout pre-write")
-					m, werr := os.Stdout.Write(buf[written:n])
-					sr.logger.DebugContext(sr.ctx, "socket->stdout post-write", "m", m)
-					if werr != nil {
-						sr.logger.ErrorContext(sr.ctx, "socket->stdout write error", "error", werr)
-						e = werr
-						goto done
-					}
-					written += m
-					total += int64(m)
-				}
-			}
-
-			if rerr != nil {
-				sr.logger.ErrorContext(sr.ctx, "socket->stdout read error", "error", rerr)
-				e = rerr
-				break
-			}
-		}
-
-	done:
-		// we won't read further; let the other goroutine finish
-		if uc != nil {
-			_ = uc.CloseRead()
-		}
-
-		// send event (EOF or error while copying socket -> stdout)
-		if errors.Is(e, io.EOF) {
-			sr.logger.InfoContext(sr.ctx, "socket closed (EOF)")
-			trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
-				ID:   sr.session.Id,
-				Type: EvCmdExited,
-				Err:  e,
-				When: time.Now(),
-			})
-		} else if e != nil {
-			sr.logger.ErrorContext(sr.ctx, "socket->stdout error", "error", e)
-			trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
-				ID:   sr.session.Id,
-				Type: EvError,
-				Err:  e,
-				When: time.Now(),
-			})
-		}
-
-		errCh <- e
-	}()
-
-	// Force resize
-	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
-
-	go func() error {
-		// Wait for either context cancel or one side finishing
-		select {
-		case <-sr.ctx.Done():
-			sr.logger.WarnContext(sr.ctx, "attachIOSocket: context done")
-			_ = sr.ioConn.Close() // unblock goroutines
-			<-errCh
-			<-errCh
-			return sr.ctx.Err()
-		case e := <-errCh:
-			// one direction ended; close and wait for the other
-			_ = sr.ioConn.Close()
-			<-errCh
-			// treat EOF as normal detach
-			if errors.Is(e, io.EOF) || e == nil {
-				sr.logger.InfoContext(sr.ctx, "attachIOSocket: normal detach or EOF")
-				return nil
-			}
-			sr.logger.ErrorContext(sr.ctx, "attachIOSocket: error", "error", e)
-			return e
-		}
-	}()
+	// Force an initial terminal resize event to ensure the session starts with correct dimensions
+	sr.logger.DebugContext(sr.ctx, "attachIOSocket: sending initial SIGWINCH to self")
+	if err := syscall.Kill(syscall.Getpid(), syscall.SIGWINCH); err != nil {
+		sr.logger.WarnContext(sr.ctx, "attachIOSocket: failed to send SIGWINCH", "error", err)
+	}
 
 	return nil
 }
