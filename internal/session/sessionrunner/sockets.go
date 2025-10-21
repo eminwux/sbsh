@@ -90,7 +90,7 @@ func (sr *SessionRunnerExec) CreateNewClient(supervisorID *api.ID) (int, error) 
 		sr.logger.Error("CreateNewClient: FileConn failed", "id", supervisorID, "error", err)
 		return -1, fmt.Errorf("FileConn: %w", err)
 	}
-	f.Close() // release the duplicate, keep using ioConn
+	_ = f.Close() // release the duplicate, keep using ioConn
 
 	cl := &ioClient{id: supervisorID, conn: ioConn}
 

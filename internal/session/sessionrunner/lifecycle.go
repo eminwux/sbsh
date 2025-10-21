@@ -168,8 +168,8 @@ func (sr *SessionRunnerExec) Attach(supervisorID *api.ID, response *api.Response
 
 func (sr *SessionRunnerExec) Detach(id *api.ID) error {
 	// 1) Lookup
-	ioClient, ok := sr.getClient(*id)
-	if !ok {
+	ioClient, okClient := sr.getClient(*id)
+	if !okClient {
 		return fmt.Errorf("supervisor %s not found among clients", *id)
 	}
 
@@ -185,9 +185,9 @@ func (sr *SessionRunnerExec) Detach(id *api.ID) error {
 	conn := ioClient.conn
 	go func() {
 		//nolint:mnd // grace period
-		time.Sleep(100 * time.Millisecond)     // allow `sb detach` to finish
-		_ = conn.SetDeadline(time.Now())       // unblock any Read/Write
-		if u, ok := conn.(*net.UnixConn); ok { // optional: half-close to flush
+		time.Sleep(100 * time.Millisecond)             // allow `sb detach` to finish
+		_ = conn.SetDeadline(time.Now())               // unblock any Read/Write
+		if u, okConn := conn.(*net.UnixConn); okConn { // optional: half-close to flush
 			_ = u.CloseWrite()
 			_ = u.CloseRead()
 		}
