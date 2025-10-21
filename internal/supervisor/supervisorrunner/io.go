@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -28,6 +27,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/eminwux/sbsh/internal/dualcopier"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/eminwux/sbsh/pkg/rpcclient/session"
 )
@@ -60,166 +60,57 @@ func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) attachIOSocket() error {
+func (sr *SupervisorRunnerExec) startConnectionManager() error {
 	// Connected, now we enable raw mode
 	if err := sr.toBashUIMode(); err != nil {
 		sr.logger.ErrorContext(sr.ctx, "attachIOSocket: initial raw mode failed", "error", err)
 	}
 
 	// We want half-closes; UnixConn exposes CloseRead/CloseWrite
-	uc, _ := sr.ioConn.(*net.UnixConn)
+	uc, ok := sr.ioConn.(*net.UnixConn)
+	if !ok {
+		sr.logger.ErrorContext(sr.ctx, "StartConnManager: ioConn is not a *net.UnixConn")
+		return errors.New("ioConn is not a *net.UnixConn")
+	}
 
-	errCh := make(chan error, 2)
+	dc := dualcopier.NewCopier(sr.ctx, sr.logger)
 
-	// WRITER stdin -> socket
-	go func() {
-		buf := make([]byte, 32*1024) // 32 KiB buffer, like io.Copy
-		var total int64
-		var e error
-
-		for {
-			sr.logger.DebugContext(sr.ctx, "stdin->socket pre-read")
-			n, rerr := os.Stdin.Read(buf)
-			sr.logger.DebugContext(sr.ctx, "stdin->socket post-read", "n", n)
-
-			if n > 0 {
-				written := 0
-				for written < n {
-					sr.logger.DebugContext(sr.ctx, "stdin->socket pre-write")
-					m, werr := sr.ioConn.Write(buf[written:n])
-					sr.logger.DebugContext(sr.ctx, "stdin->socket post-write", "m", m)
-					if werr != nil {
-						sr.logger.ErrorContext(sr.ctx, "stdin->socket write error", "error", werr)
-						e = werr
-						goto done
-					}
-					written += m
-					total += int64(m)
-				}
-			}
-
-			if rerr != nil {
-				sr.logger.ErrorContext(sr.ctx, "stdin->socket read error", "error", rerr)
-				e = rerr
-				break
-			}
-		}
-
-	done:
-		// tell peer we're done sending (but still willing to read)
+	// WRITER: stdin -> socket
+	readyWriter := make(chan struct{})
+	go dc.RunCopier(os.Stdin, sr.ioConn, readyWriter, func() {
 		if uc != nil {
+			sr.logger.DebugContext(sr.ctx, "stdin->socket: closing write side of UnixConn")
 			_ = uc.CloseWrite()
 		}
+	})
 
-		// send event (EOF or error while copying stdin -> socket)
-		if errors.Is(e, io.EOF) {
-			sr.logger.InfoContext(sr.ctx, "stdin reached EOF")
-			trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
-				ID:   sr.session.Id,
-				Type: EvCmdExited,
-				Err:  e,
-				When: time.Now(),
-			})
-		} else if e != nil {
-			sr.logger.ErrorContext(sr.ctx, "stdin->socket error", "error", e)
-			trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
-				ID:   sr.session.Id,
-				Type: EvError,
-				Err:  e,
-				When: time.Now(),
-			})
-		}
-
-		errCh <- e
-	}()
-
-	// READER socket -> stdout
-	go func() {
-		buf := make([]byte, 32*1024) // 32 KiB buffer like io.Copy
-		var total int64
-		var e error
-
-		for {
-			sr.logger.DebugContext(sr.ctx, "socket->stdout pre-read")
-			n, rerr := sr.ioConn.Read(buf)
-			sr.logger.DebugContext(sr.ctx, "socket->stdout post-read", "n", n)
-
-			if n > 0 {
-				written := 0
-				for written < n {
-					sr.logger.DebugContext(sr.ctx, "socket->stdout pre-write")
-					m, werr := os.Stdout.Write(buf[written:n])
-					sr.logger.DebugContext(sr.ctx, "socket->stdout post-write", "m", m)
-					if werr != nil {
-						sr.logger.ErrorContext(sr.ctx, "socket->stdout write error", "error", werr)
-						e = werr
-						goto done
-					}
-					written += m
-					total += int64(m)
-				}
-			}
-
-			if rerr != nil {
-				sr.logger.ErrorContext(sr.ctx, "socket->stdout read error", "error", rerr)
-				e = rerr
-				break
-			}
-		}
-
-	done:
-		// we won't read further; let the other goroutine finish
+	// READER: socket  -> stdout
+	readyReader := make(chan struct{})
+	go dc.RunCopier(sr.ioConn, os.Stdout, readyReader, func() {
 		if uc != nil {
+			sr.logger.DebugContext(sr.ctx, "socket->stdout: closing read side of UnixConn")
 			_ = uc.CloseRead()
 		}
+	})
 
-		// send event (EOF or error while copying socket -> stdout)
-		if errors.Is(e, io.EOF) {
-			sr.logger.InfoContext(sr.ctx, "socket closed (EOF)")
-			trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
-				ID:   sr.session.Id,
-				Type: EvCmdExited,
-				Err:  e,
-				When: time.Now(),
-			})
-		} else if e != nil {
-			sr.logger.ErrorContext(sr.ctx, "socket->stdout error", "error", e)
-			trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
-				ID:   sr.session.Id,
-				Type: EvError,
-				Err:  e,
-				When: time.Now(),
-			})
-		}
+	<-readyWriter
+	<-readyReader
 
-		errCh <- e
-	}()
+	// MANAGER
+	go dc.CopierManager(uc, func() {
+		trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
+			ID:   sr.session.Id,
+			Type: EvError,
+			Err:  errors.New("read/write routines exited"),
+			When: time.Now(),
+		})
+	})
 
-	// Force resize
-	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
-
-	go func() error {
-		// Wait for either context cancel or one side finishing
-		select {
-		case <-sr.ctx.Done():
-			sr.logger.WarnContext(sr.ctx, "attachIOSocket: context done")
-			_ = sr.ioConn.Close() // unblock goroutines
-			<-errCh
-			<-errCh
-			return sr.ctx.Err()
-		case e := <-errCh:
-			// one direction ended; close and wait for the other
-			_ = sr.ioConn.Close()
-			<-errCh
-			// treat EOF as normal detach
-			if errors.Is(e, io.EOF) || e == nil {
-				sr.logger.InfoContext(sr.ctx, "attachIOSocket: normal detach or EOF")
-				return nil
-			}
-			sr.logger.ErrorContext(sr.ctx, "attachIOSocket: error", "error", e)
-			return e
-		}
-	}()
+	// // Force an initial terminal resize event to ensure the session starts with correct dimensions
+	// sr.logger.DebugContext(sr.ctx, "attachIOSocket: sending initial SIGWINCH to self")
+	// if err := syscall.Kill(syscall.Getpid(), syscall.SIGWINCH); err != nil {
+	// 	sr.logger.WarnContext(sr.ctx, "attachIOSocket: failed to send SIGWINCH", "error", err)
+	// }
 
 	return nil
 }
@@ -337,18 +228,4 @@ func (sr *SupervisorRunnerExec) waitReady() error {
 			)
 		}
 	}
-}
-
-func (sr *SupervisorRunnerExec) getSessionMetadata() (*api.SessionMetadata, error) {
-	if sr.sessionClient == nil {
-		return nil, errors.New("getSessionMetadata: session client is nil")
-	}
-
-	var metadata api.SessionMetadata
-	if err := sr.sessionClient.Metadata(sr.ctx, &metadata); err != nil {
-		sr.logger.ErrorContext(sr.ctx, "getSessionMetadata: failed to get metadata", "error", err)
-		return nil, fmt.Errorf("get metadata RPC failed: %w", err)
-	}
-	sr.logger.InfoContext(sr.ctx, "getSessionMetadata: metadata retrieved", "metadata", metadata)
-	return &metadata, nil
 }

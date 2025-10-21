@@ -321,7 +321,7 @@ func (s *SupervisorController) handleEvent(ev supervisorrunner.SupervisorRunnerE
 
 func (s *SupervisorController) onClosed(_ api.ID, err error) {
 	s.logger.Warn("onClosed called", "err", err)
-	s.Close(err)
+	_ = s.Close(err)
 }
 
 func (s *SupervisorController) Close(reason error) error {
@@ -331,7 +331,7 @@ func (s *SupervisorController) Close(reason error) error {
 		s.closingCh <- reason
 
 		// Notify session runner to close all sessions
-		s.sr.Close(reason)
+		_ = s.sr.Close(reason)
 
 		// Notify Run to exit
 		s.closeReqCh <- reason

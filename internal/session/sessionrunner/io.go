@@ -17,14 +17,26 @@
 package sessionrunner
 
 import (
-	"fmt"
 	"os"
 )
 
-func readFileBytes(path string) ([]byte, error) {
-	data, err := os.ReadFile(path)
+func (sr *SessionRunnerExec) setupPipes(client *ioClient) error {
+	var err error
+	client.pipeOutR, client.pipeOutW, err = os.Pipe()
 	if err != nil {
-		return nil, fmt.Errorf("reading file: %w", err)
+		sr.logger.Warn("failed to create pipe", "err", err)
+		return err
+	}
+	sr.ptyPipes.multiOutW.Add(client.pipeOutW)
+
+	return nil
+}
+
+func (sr *SessionRunnerExec) readLogFile() ([]byte, error) {
+	data, err := os.ReadFile(sr.metadata.Status.CaptureFile)
+	if err != nil {
+		sr.logger.Warn("failed to read log file", "err", err)
+		return nil, err
 	}
 	return data, nil
 }

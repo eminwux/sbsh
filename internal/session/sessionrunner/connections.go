@@ -17,11 +17,9 @@
 package sessionrunner
 
 import (
-	"errors"
-	"fmt"
-	"io"
-	"os"
+	"net"
 
+	"github.com/eminwux/sbsh/internal/dualcopier"
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
@@ -37,127 +35,63 @@ func (sr *SessionRunnerExec) cleanupClient(client *ioClient) {
 }
 
 func (sr *SessionRunnerExec) handleClient(client *ioClient) {
-	defer client.conn.Close()
 	sr.logger.Info("client connection handler started", "client", client.id)
 
-	client.pipeOutR, client.pipeOutW, _ = os.Pipe()
-	sr.ptyPipes.multiOutW.Add(client.pipeOutW)
-
-	log, err := readFileBytes(sr.metadata.Status.CaptureFile)
-	if err != nil {
-		sr.logger.Warn("failed to read log file for client attach", "err", err)
+	if err := sr.setupPipes(client); err != nil {
+		sr.logger.Error("failed to setup pipes for client", "err", err, "client", client.id)
+		return
 	}
 
-	//nolint:mnd // channel buffer size
-	errCh := make(chan error, 2)
+	uc, ok := client.conn.(*net.UnixConn)
+	if !ok {
+		sr.logger.Error("client connection is not a UnixConn", "client", client.id)
+		return
+	}
 
-	// READ FROM CONN, WRITE TO PTY STDIN
-	go func(errCh chan error) {
-		//nolint:mnd // buffer size, 32 KiB buffer, same as io.Copy
-		buf := make([]byte, 32*1024)
-		var total int64
+	dc := dualcopier.NewCopier(sr.ctx, sr.logger)
 
-		for {
-			sr.logger.Debug("conn->pty pre-read", "client", client.id)
-			n, rerr := client.conn.Read(buf)
-			sr.logger.Debug("conn->pty post-read", "client", client.id, "n", n)
-			if n > 0 {
-				written := 0
-				for written < n {
-					sr.logger.Debug("conn->pty pre-write", "client", client.id)
-					m, werr := sr.ptyPipes.pipeInW.Write(buf[written:n])
-					sr.logger.Debug("conn->pty post-write", "client", client.id, "m", m)
-					if werr != nil {
-						errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", werr)
-						sr.logger.Error(
-							"error in conn->pty copy pipe",
-							"err",
-							werr,
-							"client",
-							client.id,
-						)
-						return
-					}
-					written += m
-					total += int64(m)
-				}
-			}
-
-			if rerr != nil {
-				if !errors.Is(rerr, io.EOF) {
-					errCh <- fmt.Errorf("error in conn->pty copy pipe: %w", rerr)
-					sr.logger.Error("error in conn->pty read", "err", rerr, "client", client.id)
-				} else if total == 0 {
-					errCh <- errors.New("EOF in conn->pty copy pipe")
-					sr.logger.Warn("EOF in conn->pty copy pipe", "client", client.id)
-				}
-				return
-			}
+	// WRITER: stdout -> socket
+	readyWriter := make(chan struct{})
+	go dc.RunCopier(client.pipeOutR, client.conn, readyWriter, func() {
+		if uc != nil {
+			sr.logger.Debug("closing UnixConn write side", "client", client.id)
+			_ = uc.CloseWrite()
 		}
-	}(errCh)
+	})
 
-	// READ FROM PTY STDOUT, WRITE TO CONN
-	go func(errCh chan error) {
-		// optional initial write
-		if _, err := client.conn.Write(log); err != nil {
-			errCh <- fmt.Errorf("error in pty->conn initial write: %w", err)
-			sr.logger.Error("error in pty->conn initial write", "err", err, "client", client.id)
-			return
+	// READER: socket  -> stdin
+	readyReader := make(chan struct{})
+	go dc.RunCopier(client.conn, sr.ptyPipes.pipeInW, readyReader, func() {
+		if uc != nil {
+			sr.logger.Debug("closing UnixConn read side", "client", client.id)
+			_ = uc.CloseRead()
 		}
+	})
 
-		//nolint:mnd // buffer size, 32 KiB buffer, same as io.Copy
-		buf := make([]byte, 32*1024)
-		var total int64
+	<-readyWriter
+	<-readyReader
 
-		for {
-			sr.logger.Debug("pty->conn pre-read", "client", client.id)
-			n, rerr := client.pipeOutR.Read(buf)
-			sr.logger.Debug("pty->conn post-read", "client", client.id, "n", n)
-			if n > 0 {
-				written := 0
-				for written < n {
-					sr.logger.Debug("pty->conn pre-write", "client", client.id)
-					m, werr := client.conn.Write(buf[written:n])
-					sr.logger.Debug("pty->conn post-write", "client", client.id, "m", m)
-					if werr != nil {
-						errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", werr)
-						sr.logger.Error(
-							"error in pty->conn copy pipe",
-							"err",
-							werr,
-							"client",
-							client.id,
-						)
-						return
-					}
-					written += m
-					total += int64(m)
-				}
-			}
-
-			if rerr != nil {
-				if rerr != io.EOF {
-					errCh <- fmt.Errorf("error in pty->conn copy pipe: %w", rerr)
-					sr.logger.Error("error in pty->conn read", "err", rerr, "client", client.id)
-				} else if total == 0 {
-					errCh <- errors.New("EOF in pty->conn copy pipe")
-					sr.logger.Warn("EOF in pty->conn copy pipe", "client", client.id)
-				}
-				return
-			}
-		}
-	}(errCh)
+	// MANAGER
+	go dc.CopierManager(uc, func() {
+		sr.cleanupClient(client)
+		_ = sr.updateSessionAttachers()
+	})
 
 	if errAttach := sr.updateSessionAttachers(); errAttach != nil {
 		sr.logger.Warn("failed to update metadata on attach", "err", errAttach)
+		return
 	}
 
-	err = <-errCh
-	if err != nil {
-		sr.logger.Error("error in copy pipes", "err", err, "client", client.id)
+	log, errLog := sr.readLogFile()
+	if errLog != nil {
+		sr.logger.Warn("failed to read log file for client attach", "err", errLog)
+		return
 	}
 
-	sr.cleanupClient(client)
+	if _, errWrite := client.conn.Write(log); errWrite != nil {
+		sr.logger.Error("error in pty->conn initial write", "err", errWrite, "client", client.id)
+		return
+	}
 }
 
 func (sr *SessionRunnerExec) addClient(c *ioClient) {

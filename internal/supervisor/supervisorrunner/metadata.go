@@ -17,11 +17,13 @@
 package supervisorrunner
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/eminwux/sbsh/internal/common"
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
 func (sr *SupervisorRunnerExec) CreateMetadata() error {
@@ -55,4 +57,18 @@ func (sr *SupervisorRunnerExec) getSupervisorDir() string {
 
 func (sr *SupervisorRunnerExec) updateMetadata() error {
 	return common.WriteMetadata(sr.ctx, sr.metadata, sr.getSupervisorDir())
+}
+
+func (sr *SupervisorRunnerExec) getSessionMetadata() (*api.SessionMetadata, error) {
+	if sr.sessionClient == nil {
+		return nil, errors.New("getSessionMetadata: session client is nil")
+	}
+
+	var metadata api.SessionMetadata
+	if err := sr.sessionClient.Metadata(sr.ctx, &metadata); err != nil {
+		sr.logger.ErrorContext(sr.ctx, "getSessionMetadata: failed to get metadata", "error", err)
+		return nil, fmt.Errorf("get metadata RPC failed: %w", err)
+	}
+	sr.logger.InfoContext(sr.ctx, "getSessionMetadata: metadata retrieved", "metadata", metadata)
+	return &metadata, nil
 }

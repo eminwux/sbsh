@@ -11,6 +11,7 @@
 - [ ] **A** If `sbsh run` fails supervisor must print to Stderr
 - [ ] **A** If supervisor dies session status remains attached
 - [ ] **A** sb detach SBSH_SUP_SOCKET fails on multi-attach
+- [ ] **A** sbsh use default profile if set in profiles.yaml
 ```
 
 ### 🅰️ Must Have
@@ -18,9 +19,10 @@
 - [ ] **A** sb attach id/name as positional argument
 - [ ] **A** sbsh cmd as positional argument
 - [ ] **A** Initial E2E testing
-- [ ] **A** Compress capture with xz
-- [ ] **A** Use default profile if set
-- [ ] **A** Terminal replay based on capture (bytes+timestamps+i/o)
+- [ ] **A** Spec sent through Stdin (sbsh run -)
+- [ ] **A** Add boolean to ProfileSpec to include current Env Vars
+- [ ] **A** Add profile to sb s l
+- [ ] **A** sb stop
 ```
 
 ### 🅱️ Should Have
@@ -31,10 +33,11 @@
 - [ ] **B** If prompt is not set in a profile, use default
 - [ ] **B** On attach: flag to print all capture; default tail ~100 lines
 - [ ] **B** Supervisor Control API (start/stop/list/attach/tail)
-- [ ] **B** Add profile to sb s l
 - [ ] **B** Add tty device to sb l
-- [ ] **B** sb stop
-- [ ] **B** Optimize waitReady for initTerminal only State
+- [ ] **B** Optimize waitReady for initTerminal only State RPC
+- [ ] **B** sbsh/sb disallow illegal positional arguments
+- [ ] **B** Compress capture with xz
+- [ ] **B** Terminal replay based on capture (bytes+timestamps+i/o)
 ```
 
 ### 🅲️ Nice to Have
@@ -73,23 +76,14 @@
 - [X] **B** Print event logs in `sbsh run`, attach/detach, etc.     DONE
 - [X] **B** Add metadata for supervisor                             DONE
 - [X] **C** Correct internal vs. pkg in Go code                     DONE
-- [X] **A** attach doesn't work with `--name`
-- [X] **A** Add --verbose to sb to show logging
-- [X] **A** Implement cwd in profiles
-- [X] **A** Implement onInit commands in profile
-- [X] **A** Auto complete (bash) - sbsh -p profile
-- [X] **A** Auto complete (bash) - sb attach -n profile
-- [X] **A** Implement a Ready status after `onInit`
-- [X] **A** Attach enables input after Ready
-- [X] **A** Remove hardcoded quotes in export PS1
-```
-
-
-## 🚀 Release v0.1.0 - 13-Oct-25
-```markdown
-- [X] **A** Launch sup+sess                                         DONE
-- [X] **A** Launch sess + attach                                    DONE
-- [X] **A** Detach + reattach                                       DONE
-- [X] **A** Session statuses                                        DONE
-- [X] **A** Session profiles                                        DONE
+- [X] **A** attach doesn't work with `--name`                       DONE
+- [X] **A** Add --verbose to sb to show logging                     DONE
+- [X] **A** Implement cwd in profiles                               DONE
+- [X] **A** Implement onInit commands in profile                    DONE
+- [X] **A** Auto complete (bash) - sbsh -p profile                  DONE
+- [X] **A** Auto complete (bash) - sb attach -n profile             DONE
+- [X] **A** Implement a Ready status after `onInit`                 DONE
+- [X] **A** Attach enables input after Ready                        DONE
+- [X] **A** Remove hardcoded quotes in export PS1                   DONE
+- [X] **A** sb attach --name autocomplete hide Exited sessions      DONE
 ```
