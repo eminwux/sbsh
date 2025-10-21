@@ -253,27 +253,41 @@ func (sr *SessionRunnerExec) SetupShell() error {
 	return nil
 }
 
-func (sr *SessionRunnerExec) OnInitShell() error {
-	if sr.metadata.Spec.Stages.OnInit != nil {
+func (sr *SessionRunnerExec) writeStage(stage *[]api.ExecStep) error {
+	if stage != nil {
 		// run OnInit steps
-		for _, step := range sr.metadata.Spec.Stages.OnInit {
+		for _, step := range *stage {
 			cmdLine := ""
 			for k, v := range step.Env {
 				cmdLine += fmt.Sprintf("%s=%q ", k, v)
 			}
 			cmdLine += step.Script
-			sr.logger.Info("OnInit command", "cmd", cmdLine)
+			sr.logger.Info("stage command", "cmd", cmdLine)
 
 			_, err := sr.Write([]byte(cmdLine + "\n"))
 			if err != nil {
-				sr.logger.Error("failed to write OnInit command to PTY", "cmd", cmdLine, "err", err)
-				return fmt.Errorf("failed to write OnInit command to PTY: %w", err)
+				sr.logger.Error("failed to write stage command to PTY", "cmd", cmdLine, "err", err)
+				return fmt.Errorf("failed to write stage command to PTY: %w", err)
 			}
 
 			// small delay between commands
 			//nolint:mnd // small delay between commands
 			time.Sleep(10 * time.Millisecond)
 		}
+	}
+	return nil
+}
+
+func (sr *SessionRunnerExec) PostAttachShell() error {
+	if err := sr.writeStage(&sr.metadata.Spec.Stages.PostAttach); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (sr *SessionRunnerExec) OnInitShell() error {
+	if err := sr.writeStage(&sr.metadata.Spec.Stages.OnInit); err != nil {
+		return err
 	}
 
 	if err := sr.updateSessionState(api.Ready); err != nil {

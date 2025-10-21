@@ -272,6 +272,12 @@ func (c *SessionController) Attach(id *api.ID, response *api.ResponseWithFD) err
 		return err
 	}
 
+	errPostAttach := c.sr.PostAttachShell()
+	if errPostAttach != nil {
+		c.logger.ErrorContext(c.ctx, "Attach failed", "id", id, "error", errPostAttach)
+		return errPostAttach
+	}
+
 	c.logger.InfoContext(c.ctx, "Attach controller response", "ok", response.JSON, "fds", response.FDs)
 	return nil
 }

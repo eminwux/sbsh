@@ -35,5 +35,6 @@ type SessionRunner interface {
 	Attach(id *api.ID, response *api.ResponseWithFD) error
 	SetupShell() error
 	OnInitShell() error
+	PostAttachShell() error
 	Metadata() (*api.SessionMetadata, error)
 }

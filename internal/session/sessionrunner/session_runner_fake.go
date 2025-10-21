@@ -25,18 +25,19 @@ import (
 )
 
 type SessionRunnerTest struct {
-	OpenSocketCtrlFunc func() error
-	StartServerFunc    func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error)
-	StartSessionFunc   func(evCh chan<- SessionRunnerEvent) error
-	CloseFunc          func(reason error) error
-	ResizeFunc         func(args api.ResizeArgs)
-	IDFunc             func() api.ID
-	CreateMetadataFunc func() error
-	AttachFunc         func(id *api.ID, response *api.ResponseWithFD) error
-	DetachFunc         func(id *api.ID) error
-	SetupShellFunc     func() error
-	OnInitShellFunc    func() error
-	MetadataFunc       func() (*api.SessionMetadata, error)
+	OpenSocketCtrlFunc  func() error
+	StartServerFunc     func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error)
+	StartSessionFunc    func(evCh chan<- SessionRunnerEvent) error
+	CloseFunc           func(reason error) error
+	ResizeFunc          func(args api.ResizeArgs)
+	IDFunc              func() api.ID
+	CreateMetadataFunc  func() error
+	AttachFunc          func(id *api.ID, response *api.ResponseWithFD) error
+	DetachFunc          func(id *api.ID) error
+	SetupShellFunc      func() error
+	OnInitShellFunc     func() error
+	MetadataFunc        func() (*api.SessionMetadata, error)
+	PostAttachShellFunc func() error
 }
 
 func NewSessionRunnerTest(_ context.Context) SessionRunner {
@@ -128,4 +129,11 @@ func (sr *SessionRunnerTest) Metadata() (*api.SessionMetadata, error) {
 		return sr.MetadataFunc()
 	}
 	return nil, errdefs.ErrFuncNotSet
+}
+
+func (sr *SessionRunnerTest) PostAttachShell() error {
+	if sr.PostAttachShellFunc != nil {
+		return sr.PostAttachShellFunc()
+	}
+	return errdefs.ErrFuncNotSet
 }

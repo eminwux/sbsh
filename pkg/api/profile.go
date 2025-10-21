@@ -73,7 +73,8 @@ type ShellSpec struct {
 
 // StagesSpec groups lifecycle hooks. For this schema we only need onInit.
 type StagesSpec struct {
-	OnInit []ExecStep `json:"onInit,omitempty" yaml:"onInit,omitempty"`
+	OnInit     []ExecStep `json:"onInit,omitempty"     yaml:"onInit,omitempty"`
+	PostAttach []ExecStep `json:"postAttach,omitempty" yaml:"postAttach,omitempty"`
 }
 
 // ExecStep runs a command (argv form via cmd + cmdArgs) before the first attach.

@@ -8,7 +8,7 @@ spec:
   shell:
     cwd: "~"
     cmd: /bin/bash
-    cmdArgs: []
+    cmdArgs: ["--norc", "--noprofile"]
     env:
       LANG: en_US.UTF-8
       EDITOR: vim
@@ -20,6 +20,8 @@ spec:
         env:
           TEST: "/tmp"
       - script: sleep 1
+    postAttach:
+      - script: echo "attached"
 ---
 apiVersion: sbsh/v1beta1
 kind: SessionProfile
@@ -46,6 +48,8 @@ spec:
       - script: bash -c 'echo -e $VAR'
         env:
           VAR: "Hello World"
+    postAttach:
+      - script: echo "attached"
 ---
 apiVersion: sbsh/v1beta1
 kind: SessionProfile
