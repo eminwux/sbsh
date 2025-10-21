@@ -53,8 +53,7 @@ func (sr *Copier) readWriteBytes(r io.Reader, w io.Writer) error {
 	if n > 0 {
 		written := 0
 		for written < n {
-			sr.
-				logger.DebugContext(sr.ctx, "stdin->socket pre-write")
+			sr.logger.DebugContext(sr.ctx, "stdin->socket pre-write")
 			m, werr := w.Write(buf[written:n])
 			sr.logger.DebugContext(sr.ctx, "stdin->socket post-write", "m", m)
 			if werr != nil {
@@ -73,7 +72,7 @@ func (sr *Copier) readWriteBytes(r io.Reader, w io.Writer) error {
 	return nil
 }
 
-func (sr *Copier) ConnectionManager(uc *net.UnixConn, finish func()) {
+func (sr *Copier) CopierManager(uc *net.UnixConn, finish func()) {
 	errGroup := make(chan error, 1)
 	go func() {
 		errGroup <- sr.errGroup.Wait()
@@ -108,7 +107,8 @@ func (sr *Copier) ConnectionManager(uc *net.UnixConn, finish func()) {
 	}
 }
 
-func (sr *Copier) runReadWriter(uc *net.UnixConn, r io.Reader, w io.Writer) error {
+func (sr *Copier) runReadWriter(r io.Reader, w io.Writer, ready chan struct{}, errFunc func()) error {
+	close(ready)
 	for {
 		select {
 		case <-sr.ctx.Done():
@@ -124,17 +124,37 @@ func (sr *Copier) runReadWriter(uc *net.UnixConn, r io.Reader, w io.Writer) erro
 			)
 			err := sr.readWriteBytes(r, w)
 			if err != nil {
-				if uc != nil {
-					_ = uc.CloseRead()
-				}
+				sr.logger.ErrorContext(
+					sr.ctx,
+					"read/write error",
+					"reader",
+					fmt.Sprintf("%T", r),
+					"writer",
+					fmt.Sprintf("%T", w),
+					"error",
+					err,
+				)
+				errFunc()
 				return err
 			}
 		}
 	}
 }
 
-func (sr *Copier) RunCopier(uc *net.UnixConn, r io.Reader, w io.Writer) {
+func (sr *Copier) RunCopier(r io.Reader, w io.Writer, ready chan struct{}, errFunc func()) {
+	sr.logger.DebugContext(
+		sr.ctx,
+		"RunCopier: starting copier goroutine",
+		"reader", fmt.Sprintf("%T", r),
+		"writer", fmt.Sprintf("%T", w),
+	)
 	sr.errGroup.Go(func() error {
-		return sr.runReadWriter(uc, r, w)
+		sr.logger.DebugContext(
+			sr.ctx,
+			"RunCopier: copier goroutine running",
+			"reader", fmt.Sprintf("%T", r),
+			"writer", fmt.Sprintf("%T", w),
+		)
+		return sr.runReadWriter(r, w, ready, errFunc)
 	})
 }

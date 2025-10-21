@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -28,9 +27,9 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/eminwux/sbsh/internal/dualcopier"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/eminwux/sbsh/pkg/rpcclient/session"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -61,128 +60,57 @@ func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) readWriteBytes(r io.Reader, w io.Writer) error {
-	//nolint:mnd // 32 KiB buffer
-	buf := make([]byte, 32*1024)
-	var total int64
-	n, rerr := r.Read(buf)
-	sr.logger.DebugContext(sr.ctx, "stdin->socket post-read", "n", n)
-
-	if n > 0 {
-		written := 0
-		for written < n {
-			sr.logger.DebugContext(sr.ctx, "stdin->socket pre-write")
-			m, werr := w.Write(buf[written:n])
-			sr.logger.DebugContext(sr.ctx, "stdin->socket post-write", "m", m)
-			if werr != nil {
-				return fmt.Errorf("could not write stdin->socket: %w", werr)
-			}
-			written += m
-			total += int64(m)
-		}
-	}
-
-	if rerr != nil {
-		sr.logger.ErrorContext(sr.ctx, "stdin->socket read error", "error", rerr)
-		return fmt.Errorf("could not read stdin->socket: %w", rerr)
-	}
-
-	return nil
-}
-
-func (sr *SupervisorRunnerExec) connManager(ctx context.Context, g *errgroup.Group, uc *net.UnixConn) {
-	errGroup := make(chan error, 1)
-	go func() {
-		errGroup <- g.Wait()
-	}()
-
-	select {
-	case <-ctx.Done():
-		sr.logger.InfoContext(sr.ctx, "connManager: context cancelled or error received, beginning shutdown")
-		// ACT IMMEDIATELY: close/unblock I/O, log, metrics, etc.
-		//nolint:nestif // thorough debug
-		if uc != nil {
-			if err := uc.SetReadDeadline(time.Now()); err != nil {
-				sr.logger.WarnContext(sr.ctx, "connManager: failed to set read deadline", "error", err)
-			} else {
-				sr.logger.DebugContext(sr.ctx, "connManager: set read deadline to unblock readers")
-			}
-			if err := uc.SetWriteDeadline(time.Now()); err != nil {
-				sr.logger.WarnContext(sr.ctx, "connManager: failed to set write deadline", "error", err)
-			} else {
-				sr.logger.DebugContext(sr.ctx, "connManager: set write deadline to unblock writers")
-			}
-		} else {
-			sr.logger.WarnContext(sr.ctx, "connManager: UnixConn is nil, cannot set deadlines")
-		}
-		sr.logger.InfoContext(sr.ctx, "connManager: context done, shutting down connection manager")
-		trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
-			ID:   sr.session.Id,
-			Type: EvError,
-			Err:  errors.New("read/write routines exited"),
-			When: time.Now(),
-		})
-
-	case err := <-errGroup:
-		e := fmt.Errorf("wait on routines error group returned: %w", err)
-		sr.logger.ErrorContext(sr.ctx, "read/write routines finished", "error", e)
-	}
-}
-
-func (sr *SupervisorRunnerExec) runReadWriter(ctx context.Context, uc *net.UnixConn, r io.Reader, w io.Writer) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			sr.logger.DebugContext(
-				sr.ctx,
-				"pre-read",
-				"reader",
-				fmt.Sprintf("%T", r),
-				"writer",
-				fmt.Sprintf("%T", w),
-			)
-			err := sr.readWriteBytes(r, w)
-			if err != nil {
-				if uc != nil {
-					_ = uc.CloseRead()
-				}
-				return err
-			}
-		}
-	}
-}
-
-func (sr *SupervisorRunnerExec) StartConnManager() error {
+func (sr *SupervisorRunnerExec) startConnectionManager() error {
 	// Connected, now we enable raw mode
 	if err := sr.toBashUIMode(); err != nil {
 		sr.logger.ErrorContext(sr.ctx, "attachIOSocket: initial raw mode failed", "error", err)
 	}
 
 	// We want half-closes; UnixConn exposes CloseRead/CloseWrite
-	uc, _ := sr.ioConn.(*net.UnixConn)
+	uc, ok := sr.ioConn.(*net.UnixConn)
+	if !ok {
+		sr.logger.ErrorContext(sr.ctx, "StartConnManager: ioConn is not a *net.UnixConn")
+		return errors.New("ioConn is not a *net.UnixConn")
+	}
 
-	g, ctx := errgroup.WithContext(sr.ctx)
+	dc := dualcopier.NewCopier(sr.ctx, sr.logger)
 
 	// WRITER: stdin -> socket
-	g.Go(func() error {
-		return sr.runReadWriter(ctx, uc, os.Stdin, sr.ioConn)
+	readyWriter := make(chan struct{})
+	go dc.RunCopier(os.Stdin, sr.ioConn, readyWriter, func() {
+		if uc != nil {
+			sr.logger.DebugContext(sr.ctx, "stdin->socket: closing write side of UnixConn")
+			_ = uc.CloseWrite()
+		}
 	})
 
-	// READER: socket  -> stdin
-	g.Go(func() error {
-		return sr.runReadWriter(ctx, uc, sr.ioConn, os.Stdout)
+	// READER: socket  -> stdout
+	readyReader := make(chan struct{})
+	go dc.RunCopier(sr.ioConn, os.Stdout, readyReader, func() {
+		if uc != nil {
+			sr.logger.DebugContext(sr.ctx, "socket->stdout: closing read side of UnixConn")
+			_ = uc.CloseRead()
+		}
 	})
 
-	// Spawn ConnManager
-	go sr.connManager(ctx, g, uc)
+	<-readyWriter
+	<-readyReader
 
-	// Force an initial terminal resize event to ensure the session starts with correct dimensions
-	sr.logger.DebugContext(sr.ctx, "attachIOSocket: sending initial SIGWINCH to self")
-	if err := syscall.Kill(syscall.Getpid(), syscall.SIGWINCH); err != nil {
-		sr.logger.WarnContext(sr.ctx, "attachIOSocket: failed to send SIGWINCH", "error", err)
-	}
+	// MANAGER
+	go dc.CopierManager(uc, func() {
+		trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
+			ID:   sr.session.Id,
+			Type: EvError,
+			Err:  errors.New("read/write routines exited"),
+			When: time.Now(),
+		})
+	})
+
+	// // Force an initial terminal resize event to ensure the session starts with correct dimensions
+	// sr.logger.DebugContext(sr.ctx, "attachIOSocket: sending initial SIGWINCH to self")
+	// if err := syscall.Kill(syscall.Getpid(), syscall.SIGWINCH); err != nil {
+	// 	sr.logger.WarnContext(sr.ctx, "attachIOSocket: failed to send SIGWINCH", "error", err)
+	// }
 
 	return nil
 }
@@ -300,18 +228,4 @@ func (sr *SupervisorRunnerExec) waitReady() error {
 			)
 		}
 	}
-}
-
-func (sr *SupervisorRunnerExec) getSessionMetadata() (*api.SessionMetadata, error) {
-	if sr.sessionClient == nil {
-		return nil, errors.New("getSessionMetadata: session client is nil")
-	}
-
-	var metadata api.SessionMetadata
-	if err := sr.sessionClient.Metadata(sr.ctx, &metadata); err != nil {
-		sr.logger.ErrorContext(sr.ctx, "getSessionMetadata: failed to get metadata", "error", err)
-		return nil, fmt.Errorf("get metadata RPC failed: %w", err)
-	}
-	sr.logger.InfoContext(sr.ctx, "getSessionMetadata: metadata retrieved", "metadata", metadata)
-	return &metadata, nil
 }

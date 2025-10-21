@@ -57,7 +57,7 @@ func (sr *SupervisorRunnerExec) toExitShell() error {
 }
 
 func (sr *SupervisorRunnerExec) initTerminal() error {
-	sr.logger.Debug("initTerminal: setting prompt", "prompt", sr.session.Prompt)
+	sr.logger.Debug("initTerminal: supervisor writing to terminal")
 
 	if err := sr.writeTerminal("export SBSH_SUP_SOCKET=" + sr.metadata.Spec.SockerCtrl + "\n"); err != nil {
 		sr.logger.Error("initTerminal: failed to write terminal", "error", err)
@@ -70,10 +70,21 @@ func (sr *SupervisorRunnerExec) initTerminal() error {
 
 func (sr *SupervisorRunnerExec) writeTerminal(input string) error {
 	sr.logger.Debug("writeTerminal: writing to terminal", "input_len", len(input))
+	const maxRetries = 10
+	const retrySleepMs = 100
+
 	for i := range len(input) {
-		_, err := sr.ioConn.Write([]byte{input[i]})
+		var err error
+		for attempt := range maxRetries {
+			_, err = sr.ioConn.Write([]byte{input[i]})
+			if err == nil {
+				break
+			}
+			sr.logger.Warn("writeTerminal: write failed, retrying", "index", i, "attempt", attempt+1, "error", err)
+			time.Sleep(retrySleepMs * time.Millisecond)
+		}
 		if err != nil {
-			sr.logger.Error("writeTerminal: failed to write byte", "index", i, "error", err)
+			sr.logger.Error("writeTerminal: failed to write byte after retries", "index", i, "error", err)
 			return err
 		}
 		time.Sleep(time.Microsecond)

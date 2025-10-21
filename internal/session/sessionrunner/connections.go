@@ -37,34 +37,58 @@ func (sr *SessionRunnerExec) cleanupClient(client *ioClient) {
 func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	sr.logger.Info("client connection handler started", "client", client.id)
 
-	_ = sr.setupPipes(client)
+	if err := sr.setupPipes(client); err != nil {
+		sr.logger.Error("failed to setup pipes for client", "err", err, "client", client.id)
+		return
+	}
 
-	uc, _ := client.conn.(*net.UnixConn)
+	uc, ok := client.conn.(*net.UnixConn)
+	if !ok {
+		sr.logger.Error("client connection is not a UnixConn", "client", client.id)
+		return
+	}
 
 	dc := dualcopier.NewCopier(sr.ctx, sr.logger)
 
-	// WRITER: stdin -> socket
-	go dc.RunCopier(uc, client.pipeOutR, client.conn)
+	// WRITER: stdout -> socket
+	readyWriter := make(chan struct{})
+	go dc.RunCopier(client.pipeOutR, client.conn, readyWriter, func() {
+		if uc != nil {
+			sr.logger.Debug("closing UnixConn write side", "client", client.id)
+			_ = uc.CloseWrite()
+		}
+	})
 
 	// READER: socket  -> stdin
-	go dc.RunCopier(uc, client.conn, sr.ptyPipes.pipeInW)
+	readyReader := make(chan struct{})
+	go dc.RunCopier(client.conn, sr.ptyPipes.pipeInW, readyReader, func() {
+		if uc != nil {
+			sr.logger.Debug("closing UnixConn read side", "client", client.id)
+			_ = uc.CloseRead()
+		}
+	})
+
+	<-readyWriter
+	<-readyReader
 
 	// MANAGER
-	go dc.ConnectionManager(uc, func() {
+	go dc.CopierManager(uc, func() {
 		sr.cleanupClient(client)
 		_ = sr.updateSessionAttachers()
 	})
 
 	if errAttach := sr.updateSessionAttachers(); errAttach != nil {
 		sr.logger.Warn("failed to update metadata on attach", "err", errAttach)
+		return
 	}
 
-	log, err := sr.readLogFile()
-	if err != nil {
-		sr.logger.Warn("failed to read log file for client attach", "err", err)
+	log, errLog := sr.readLogFile()
+	if errLog != nil {
+		sr.logger.Warn("failed to read log file for client attach", "err", errLog)
+		return
 	}
 
-	if _, errWrite := client.conn.Write(log); err != nil {
+	if _, errWrite := client.conn.Write(log); errWrite != nil {
 		sr.logger.Error("error in pty->conn initial write", "err", errWrite, "client", client.id)
 		return
 	}

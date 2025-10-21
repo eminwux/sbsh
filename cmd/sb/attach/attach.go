@@ -146,7 +146,7 @@ func run(
 	supervisorID := naming.RandomID()
 
 	if socketFileInput == "" {
-		socketFileInput = filepath.Join(runPath, "supervisor", supervisorID, "socket")
+		socketFileInput = filepath.Join(runPath, "supervisors", supervisorID, "socket")
 	}
 
 	if err := os.MkdirAll(filepath.Dir(socketFileInput), 0o700); err != nil {
