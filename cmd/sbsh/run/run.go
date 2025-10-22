@@ -115,7 +115,6 @@ If no log filename is provided, a default path under the run directory will be u
 					LogFile:      viper.GetString("sbsh.run.logFile"),
 					LogLevel:     viper.GetString("sbsh.run.logLevel"),
 					SocketFile:   viper.GetString("sbsh.run.socket"),
-					EnvVars:      os.Environ(),
 				},
 			)
 

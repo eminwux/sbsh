@@ -28,7 +28,6 @@ type SupervisorSpec struct {
 	ID         ID                `json:"id"`
 	Kind       SupervisorKind    `json:"kind"`
 	Name       string            `json:"name"`
-	Env        []string          `json:"env"`
 	Labels     map[string]string `json:"context"`
 	LogFile    string            `json:"logDir"`
 	SockerCtrl string            `json:"socketCtrl"`
@@ -61,11 +60,12 @@ const (
 )
 
 type SupervisedSession struct {
-	Id          ID
+	ID          ID
 	Kind        SessionKind
 	Name        string // user-friendly name
 	Command     string
 	CommandArgs []string          // for local: ["bash","-i"]; for ssh: ["ssh","-tt","user@host"]
+	EnvInherit  bool              // inherit parent env or not
 	Env         []string          // TERM, COLORTERM, etc.
 	Context     map[string]string // kubectl ns, cwd hint, etc.
 	LogFile     string

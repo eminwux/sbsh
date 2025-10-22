@@ -60,7 +60,6 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
 		Name:    "default",
-		Env:     os.Environ(),
 		LogFile: "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
 	}
@@ -129,7 +128,6 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
 		Name:    "default",
-		Env:     os.Environ(),
 		LogFile: "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
 	}
@@ -229,7 +227,6 @@ func Test_ErrAttach(t *testing.T) {
 	spec := api.SupervisorSpec{
 		ID:      api.ID(supervisorID),
 		Name:    "default",
-		Env:     os.Environ(),
 		LogFile: "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
 		Kind:    api.AttachToSession,
@@ -317,7 +314,6 @@ func Test_ErrContextDone(t *testing.T) {
 	spec := api.SupervisorSpec{
 		ID:          api.ID(supervisorID),
 		Name:        "default",
-		Env:         os.Environ(),
 		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},
@@ -410,7 +406,6 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	spec := api.SupervisorSpec{
 		ID:          api.ID(supervisorID),
 		Name:        "default",
-		Env:         os.Environ(),
 		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},
@@ -499,7 +494,6 @@ func Test_ErrSessionExists(t *testing.T) {
 	spec := api.SupervisorSpec{
 		ID:          api.ID(supervisorID),
 		Name:        "default",
-		Env:         os.Environ(),
 		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},
@@ -590,7 +584,6 @@ func Test_ErrCloseReq(t *testing.T) {
 	spec := api.SupervisorSpec{
 		ID:          api.ID(supervisorID),
 		Name:        "default",
-		Env:         os.Environ(),
 		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},
@@ -681,7 +674,6 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 	spec := api.SupervisorSpec{
 		ID:          api.ID(supervisorID),
 		Name:        "default",
-		Env:         os.Environ(),
 		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},
@@ -767,7 +759,6 @@ func Test_ErrSessionStore(t *testing.T) {
 	spec := api.SupervisorSpec{
 		ID:          api.ID(supervisorID),
 		Name:        "default",
-		Env:         os.Environ(),
 		LogFile:     "/tmp/sbsh-logs/s0",
 		RunPath:     viper.GetString("global.runPath"),
 		SessionSpec: &api.SessionSpec{},

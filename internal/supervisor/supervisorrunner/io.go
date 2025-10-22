@@ -39,7 +39,7 @@ const (
 
 func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 	sr.logger.DebugContext(sr.ctx, "dialSessionCtrlSocket: connecting to session",
-		"session_id", sr.session.Id,
+		"session_id", sr.session.ID,
 		"pid", sr.session.Pid,
 		"socket_file", sr.session.SocketFile)
 
@@ -99,7 +99,7 @@ func (sr *SupervisorRunnerExec) startConnectionManager() error {
 	// MANAGER
 	go dc.CopierManager(uc, func() {
 		trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
-			ID:   sr.session.Id,
+			ID:   sr.session.ID,
 			Type: EvError,
 			Err:  errors.New("read/write routines exited"),
 			When: time.Now(),
@@ -187,7 +187,7 @@ func (sr *SupervisorRunnerExec) waitReady() error {
 		sr.ctx,
 		"waitReady: waiting for session to be ready",
 		"session_id",
-		sr.session.Id,
+		sr.session.ID,
 		"session_name",
 		sr.metadata.Spec.Name,
 	)
@@ -222,7 +222,7 @@ func (sr *SupervisorRunnerExec) waitReady() error {
 				sr.ctx,
 				"waitReady: session not ready yet",
 				"session_id",
-				sr.session.Id,
+				sr.session.ID,
 				"session_name",
 				sr.metadata.Spec.Name,
 			)

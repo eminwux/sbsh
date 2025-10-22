@@ -164,7 +164,6 @@ You can also use sbsh with parameters. For example:
 					LogFile:      viper.GetString("sbsh.session.logFile"),
 					LogLevel:     viper.GetString("sbsh.session.logLevel"),
 					SocketFile:   viper.GetString("sbsh.session.socket"),
-					EnvVars:      os.Environ(),
 				},
 			)
 
@@ -180,7 +179,6 @@ You can also use sbsh with parameters. For example:
 				Kind:        api.RunNewSession,
 				ID:          api.ID(supervisorID),
 				Name:        supervisorName,
-				Env:         os.Environ(),
 				RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
 				LogFile:     supLogfile,
 				SockerCtrl:  socketFileInput,
@@ -191,7 +189,6 @@ You can also use sbsh with parameters. For example:
 				"Kind", spec.Kind,
 				"ID", spec.ID,
 				"Name", spec.Name,
-				"Env", spec.Env,
 				"RunPath", spec.RunPath,
 				"SockerCtrl", spec.SockerCtrl,
 				"SessionSpec", spec.SessionSpec,
@@ -476,6 +473,7 @@ func detachSelf() {
 		args = append(args, a)
 	}
 
+	//nolint:gosec,noctx // We want to re-execute same program with same args; we explicitly don't want to use context here to avoid killing the process on parent exit
 	cmd := exec.Command(os.Args[0], args...)
 	cmd.Env = append(os.Environ(), "SB_DETACHED=1")
 
