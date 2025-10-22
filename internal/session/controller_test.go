@@ -34,9 +34,9 @@ import (
 
 func Test_ErrSpecCmdMissing(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sessionCtrl := NewSessionController(context.Background(), logger).(*SessionController)
+	sessionCtrl := NewSessionController(context.Background(), logger).(*Controller)
 	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, _ *api.SessionSpec) sessionrunner.SessionRunner {
-		return &sessionrunner.SessionRunnerTest{
+		return &sessionrunner.Test{
 			IDFunc: func() api.ID {
 				return api.ID("iajs099")
 			},
@@ -72,9 +72,9 @@ func Test_ErrOpenSocketCtrl(t *testing.T) {
 	defer cancel()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl := NewSessionController(ctx, logger).(*Controller)
 	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, _ *api.SessionSpec) sessionrunner.SessionRunner {
-		return &sessionrunner.SessionRunnerTest{
+		return &sessionrunner.Test{
 			IDFunc: func() api.ID {
 				return api.ID("iajs099")
 			},
@@ -109,9 +109,9 @@ func Test_ErrStartRPCServer(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl := NewSessionController(ctx, logger).(*Controller)
 	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
-		return &sessionrunner.SessionRunnerTest{
+		return &sessionrunner.Test{
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
@@ -150,9 +150,9 @@ func Test_ErrStartSession(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl := NewSessionController(ctx, logger).(*Controller)
 	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
-		return &sessionrunner.SessionRunnerTest{
+		return &sessionrunner.Test{
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
@@ -162,7 +162,7 @@ func Test_ErrStartSession(t *testing.T) {
 			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(_ chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(_ chan<- sessionrunner.Event) error {
 				return errors.New("make start session fail")
 			},
 		}
@@ -192,9 +192,9 @@ func Test_ErrContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl := NewSessionController(ctx, logger).(*Controller)
 	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
-		return &sessionrunner.SessionRunnerTest{
+		return &sessionrunner.Test{
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
@@ -204,7 +204,7 @@ func Test_ErrContextDone(t *testing.T) {
 			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(_ chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(_ chan<- sessionrunner.Event) error {
 				return nil
 			},
 			SetupShellFunc: func() error {
@@ -244,9 +244,9 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl := NewSessionController(ctx, logger).(*Controller)
 	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
-		return &sessionrunner.SessionRunnerTest{
+		return &sessionrunner.Test{
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
@@ -256,7 +256,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(_ chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(_ chan<- sessionrunner.Event) error {
 				return nil
 			},
 			SetupShellFunc: func() error {
@@ -295,9 +295,9 @@ func Test_WaitReady(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl := NewSessionController(ctx, logger).(*Controller)
 	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
-		return &sessionrunner.SessionRunnerTest{
+		return &sessionrunner.Test{
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
@@ -307,7 +307,7 @@ func Test_WaitReady(t *testing.T) {
 			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(_ chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(_ chan<- sessionrunner.Event) error {
 				return nil
 			},
 			SetupShellFunc: func() error {
@@ -352,9 +352,9 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl := NewSessionController(ctx, logger).(*Controller)
 	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
-		return &sessionrunner.SessionRunnerTest{
+		return &sessionrunner.Test{
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
@@ -364,7 +364,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(_ chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(_ chan<- sessionrunner.Event) error {
 				return nil
 			},
 			SetupShellFunc: func() error {
@@ -395,7 +395,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}()
 
-	ev := sessionrunner.SessionRunnerEvent{
+	ev := sessionrunner.Event{
 		ID:   spec.ID,
 		Type: sessionrunner.EvCmdExited,
 		Err:  errors.New("session has been closed"),
@@ -409,13 +409,13 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 	}
 }
 
-func Test_HandleEvent_EvError(t *testing.T) {
+func Test_HandleEvent_EvError(_ *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sessionCtrl := NewSessionController(ctx, logger).(*SessionController)
+	sessionCtrl := NewSessionController(ctx, logger).(*Controller)
 	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
-		return &sessionrunner.SessionRunnerTest{
+		return &sessionrunner.Test{
 			IDFunc: func() api.ID {
 				return spec.ID
 			},
@@ -425,7 +425,7 @@ func Test_HandleEvent_EvError(t *testing.T) {
 			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
 				readyCh <- nil
 			},
-			StartSessionFunc: func(_ chan<- sessionrunner.SessionRunnerEvent) error {
+			StartSessionFunc: func(_ chan<- sessionrunner.Event) error {
 				return nil
 			},
 			SetupShellFunc: func() error {
@@ -456,7 +456,7 @@ func Test_HandleEvent_EvError(t *testing.T) {
 		exitCh <- sessionCtrl.Run(&spec)
 	}()
 
-	ev := sessionrunner.SessionRunnerEvent{
+	ev := sessionrunner.Event{
 		ID:   spec.ID,
 		Type: sessionrunner.EvError,
 		Err:  errors.New("session has been closed"),

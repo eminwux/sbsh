@@ -20,13 +20,13 @@ package api
 // kind: SessionProfile
 
 type (
-	APIVersion string
-	Kind       string
+	Version string
+	Kind    string
 )
 
 const (
-	APIVersionV1Beta1  APIVersion = "sbsh/v1beta1"
-	KindSessionProfile Kind       = "SessionProfile"
+	APIVersionV1Beta1  Version = "sbsh/v1beta1"
+	KindSessionProfile Kind    = "SessionProfile"
 )
 
 type (
@@ -43,7 +43,7 @@ const (
 
 // SessionProfileDoc models one YAML document containing a SessionProfile.
 type SessionProfileDoc struct {
-	APIVersion APIVersion         `json:"apiVersion" yaml:"apiVersion"`
+	APIVersion Version            `json:"apiVersion" yaml:"apiVersion"`
 	Kind       Kind               `json:"kind"       yaml:"kind"`
 	Metadata   SessionProfileMeta `json:"metadata"   yaml:"metadata"`
 	Spec       SessionProfileSpec `json:"spec"       yaml:"spec"`

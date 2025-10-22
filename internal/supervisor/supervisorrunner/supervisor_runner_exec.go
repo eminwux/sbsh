@@ -27,7 +27,7 @@ import (
 	"golang.org/x/term"
 )
 
-type SupervisorRunnerExec struct {
+type Exec struct {
 	id       api.ID
 	metadata api.SupervisorMetadata
 
@@ -38,9 +38,9 @@ type SupervisorRunnerExec struct {
 	uiMode        UIMode
 	lastTermState *term.State
 
-	events  chan<- SupervisorRunnerEvent
+	events  chan<- Event
 	session *api.SupervisedSession
-	Mgr     *sessionstore.SessionStoreExec
+	Mgr     *sessionstore.Exec
 
 	lnCtrl net.Listener
 
@@ -60,11 +60,11 @@ func NewSupervisorRunnerExec(
 	ctx context.Context,
 	logger *slog.Logger,
 	spec *api.SupervisorSpec,
-	evCh chan<- SupervisorRunnerEvent,
+	evCh chan<- Event,
 ) SupervisorRunner {
 	newCtx, cancel := context.WithCancel(ctx)
 
-	return &SupervisorRunnerExec{
+	return &Exec{
 		id: spec.ID,
 		metadata: api.SupervisorMetadata{
 			Spec: *spec,

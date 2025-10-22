@@ -21,11 +21,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/eminwux/sbsh/internal/common"
+	"github.com/eminwux/sbsh/internal/shared"
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-func (sr *SessionRunnerExec) CreateMetadata() error {
+func (sr *Exec) CreateMetadata() error {
 	sr.logger.Debug("CreateMetadata: creating session directory", "dir", sr.getSessionDir())
 	if err := os.MkdirAll(sr.getSessionDir(), 0o700); err != nil {
 		sr.logger.Error("CreateMetadata: failed to create session dir", "dir", sr.getSessionDir(), "error", err)
@@ -50,15 +50,15 @@ func (sr *SessionRunnerExec) CreateMetadata() error {
 	return nil
 }
 
-func (sr *SessionRunnerExec) getSessionDir() string {
+func (sr *Exec) getSessionDir() string {
 	return filepath.Join(sr.metadata.Spec.RunPath, "sessions", string(sr.id))
 }
 
-func (sr *SessionRunnerExec) updateMetadata() error {
-	return common.WriteMetadata(sr.ctx, sr.metadata, sr.getSessionDir())
+func (sr *Exec) updateMetadata() error {
+	return shared.WriteMetadata(sr.ctx, sr.metadata, sr.getSessionDir())
 }
 
-func (sr *SessionRunnerExec) updateSessionState(status api.SessionStatusMode) error {
+func (sr *Exec) updateSessionState(status api.SessionStatusMode) error {
 	sr.metadata.Status.State = status
 
 	if err := sr.updateMetadata(); err != nil {
@@ -68,7 +68,7 @@ func (sr *SessionRunnerExec) updateSessionState(status api.SessionStatusMode) er
 	return nil
 }
 
-func (sr *SessionRunnerExec) updateSessionAttachers() error {
+func (sr *Exec) updateSessionAttachers() error {
 	clientList := sr.getClientList()
 	var strIDs []string
 	for _, idPtr := range clientList {
@@ -85,6 +85,6 @@ func (sr *SessionRunnerExec) updateSessionAttachers() error {
 	return nil
 }
 
-func (sr *SessionRunnerExec) Metadata() (*api.SessionMetadata, error) {
+func (sr *Exec) Metadata() (*api.SessionMetadata, error) {
 	return &sr.metadata, nil
 }

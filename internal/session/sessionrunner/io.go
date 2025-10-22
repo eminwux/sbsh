@@ -20,7 +20,7 @@ import (
 	"os"
 )
 
-func (sr *SessionRunnerExec) setupPipes(client *ioClient) error {
+func (sr *Exec) setupPipes(client *ioClient) error {
 	var err error
 	client.pipeOutR, client.pipeOutW, err = os.Pipe()
 	if err != nil {
@@ -32,7 +32,7 @@ func (sr *SessionRunnerExec) setupPipes(client *ioClient) error {
 	return nil
 }
 
-func (sr *SessionRunnerExec) readLogFile() ([]byte, error) {
+func (sr *Exec) readLogFile() ([]byte, error) {
 	data, err := os.ReadFile(sr.metadata.Status.CaptureFile)
 	if err != nil {
 		sr.logger.Warn("failed to read log file", "err", err)

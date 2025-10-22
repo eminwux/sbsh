@@ -29,7 +29,7 @@ import (
 
 const deleteSessionDir bool = false
 
-func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error {
+func (sr *Exec) StartSession(evCh chan<- Event) error {
 	sr.logger.Info("starting session", "id", sr.id)
 	if err := sr.updateSessionState(api.Initializing); err != nil {
 		sr.logger.Error("failed to update session state on initializing", "id", sr.id, "err", err)
@@ -52,14 +52,14 @@ func (sr *SessionRunnerExec) StartSession(evCh chan<- SessionRunnerEvent) error 
 	return nil
 }
 
-func (sr *SessionRunnerExec) waitOnSession() {
+func (sr *Exec) waitOnSession() {
 	err := <-sr.closeReqCh
 	sr.logger.Info("session close requested", "id", sr.id, "err", err)
 	sr.logger.Debug("sending EvSessionExited event", "id", sr.id)
-	trySendEvent(sr.logger, sr.evCh, SessionRunnerEvent{ID: sr.id, Type: EvCmdExited, Err: err, When: time.Now()})
+	trySendEvent(sr.logger, sr.evCh, Event{ID: sr.id, Type: EvCmdExited, Err: err, When: time.Now()})
 }
 
-func (sr *SessionRunnerExec) Close(reason error) error {
+func (sr *Exec) Close(reason error) error {
 	sr.logger.Info("closing session", "id", sr.id, "reason", reason)
 
 	if err := sr.updateSessionState(api.Exited); err != nil {
@@ -127,7 +127,7 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 	return nil
 }
 
-func (sr *SessionRunnerExec) Resize(args api.ResizeArgs) {
+func (sr *Exec) Resize(args api.ResizeArgs) {
 	pty.Setsize(sr.pty, &pty.Winsize{
 		Cols: uint16(args.Cols),
 		Rows: uint16(args.Rows),
@@ -135,7 +135,7 @@ func (sr *SessionRunnerExec) Resize(args api.ResizeArgs) {
 }
 
 // Write writes bytes to the session PTY (used by controller or Smart executor).
-func (sr *SessionRunnerExec) Write(p []byte) (int, error) {
+func (sr *Exec) Write(p []byte) (int, error) {
 	for i := range p {
 		_, err := sr.pty.Write([]byte{p[i]})
 		if err != nil {
@@ -146,7 +146,7 @@ func (sr *SessionRunnerExec) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (sr *SessionRunnerExec) Attach(supervisorID *api.ID, response *api.ResponseWithFD) error {
+func (sr *Exec) Attach(supervisorID *api.ID, response *api.ResponseWithFD) error {
 	cliFD, err := sr.CreateNewClient(supervisorID)
 	if err != nil {
 		return err
@@ -166,7 +166,7 @@ func (sr *SessionRunnerExec) Attach(supervisorID *api.ID, response *api.Response
 	return nil
 }
 
-func (sr *SessionRunnerExec) Detach(id *api.ID) error {
+func (sr *Exec) Detach(id *api.ID) error {
 	// 1) Lookup
 	ioClient, okClient := sr.getClient(*id)
 	if !okClient {
@@ -201,7 +201,7 @@ func (sr *SessionRunnerExec) Detach(id *api.ID) error {
 	return nil
 }
 
-func (sr *SessionRunnerExec) SetupShell() error {
+func (sr *Exec) SetupShell() error {
 	sr.logger.Debug("setupShell: sending CTRL-U")
 	if _, err := sr.Write([]byte("\x15")); err != nil {
 		sr.logger.Error("failed to send CTRL-U", "id", sr.id, "err", err)
@@ -253,7 +253,7 @@ func (sr *SessionRunnerExec) SetupShell() error {
 	return nil
 }
 
-func (sr *SessionRunnerExec) writeStage(stage *[]api.ExecStep) error {
+func (sr *Exec) writeStage(stage *[]api.ExecStep) error {
 	if stage != nil {
 		// run OnInit steps
 		for _, step := range *stage {
@@ -278,14 +278,14 @@ func (sr *SessionRunnerExec) writeStage(stage *[]api.ExecStep) error {
 	return nil
 }
 
-func (sr *SessionRunnerExec) PostAttachShell() error {
+func (sr *Exec) PostAttachShell() error {
 	if err := sr.writeStage(&sr.metadata.Spec.Stages.PostAttach); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (sr *SessionRunnerExec) OnInitShell() error {
+func (sr *Exec) OnInitShell() error {
 	if err := sr.writeStage(&sr.metadata.Spec.Stages.OnInit); err != nil {
 		return err
 	}

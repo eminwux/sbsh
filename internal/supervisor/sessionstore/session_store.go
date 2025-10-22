@@ -33,14 +33,14 @@ type SessionStore interface {
 	SetCurrent(id api.ID) error
 }
 
-type SessionStoreExec struct {
+type Exec struct {
 	mu       sync.RWMutex
 	sessions map[api.ID]*api.SupervisedSession
 	current  api.ID
 }
 
 func NewSessionStoreExec() SessionStore {
-	return &SessionStoreExec{
+	return &Exec{
 		sessions: make(map[api.ID]*api.SupervisedSession),
 	}
 }
@@ -62,7 +62,7 @@ func NewSupervisedSession(spec *api.SessionSpec) *api.SupervisedSession {
 
 /* Basic ops */
 
-func (m *SessionStoreExec) Add(s *api.SupervisedSession) error {
+func (m *Exec) Add(s *api.SupervisedSession) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.sessions[s.ID] != nil {
@@ -75,14 +75,14 @@ func (m *SessionStoreExec) Add(s *api.SupervisedSession) error {
 	return nil
 }
 
-func (m *SessionStoreExec) Get(id api.ID) (*api.SupervisedSession, bool) {
+func (m *Exec) Get(id api.ID) (*api.SupervisedSession, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	s, ok := m.sessions[id]
 	return s, ok
 }
 
-func (m *SessionStoreExec) ListLive() []api.ID {
+func (m *Exec) ListLive() []api.ID {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	out := make([]api.ID, 0, len(m.sessions))
@@ -92,7 +92,7 @@ func (m *SessionStoreExec) ListLive() []api.ID {
 	return out
 }
 
-func (m *SessionStoreExec) Remove(id api.ID) {
+func (m *Exec) Remove(id api.ID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.sessions, id)
@@ -101,13 +101,13 @@ func (m *SessionStoreExec) Remove(id api.ID) {
 	}
 }
 
-func (m *SessionStoreExec) Current() api.ID {
+func (m *Exec) Current() api.ID {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.current
 }
 
-func (m *SessionStoreExec) SetCurrent(id api.ID) error {
+func (m *Exec) SetCurrent(id api.ID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, ok := m.sessions[id]; !ok {

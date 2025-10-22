@@ -22,7 +22,7 @@ type SupervisorControllerRPC struct {
 	Core api.SupervisorController // the real server-side controller
 }
 
-// Optional: usually you don’t expose Run over RPC because it blocks.
+// WaitReady Optional: usually you don’t expose Run over RPC because it blocks.
 func (s *SupervisorControllerRPC) WaitReady(_ *api.Empty, _ *api.Empty) error {
 	return s.Core.WaitReady()
 }

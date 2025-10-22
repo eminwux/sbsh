@@ -36,7 +36,7 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
-		return &supervisor.SupervisorControllerTest{
+		return &supervisor.ControllerTest{
 			RunFunc: func(_ *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil
@@ -95,7 +95,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
-		return &supervisor.SupervisorControllerTest{
+		return &supervisor.ControllerTest{
 			RunFunc: func(_ *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil
@@ -147,7 +147,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
-		return &supervisor.SupervisorControllerTest{
+		return &supervisor.ControllerTest{
 			RunFunc: func(_ *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil
@@ -201,7 +201,7 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
-		return &supervisor.SupervisorControllerTest{
+		return &supervisor.ControllerTest{
 			RunFunc: func(_ *api.SupervisorSpec) error {
 				// default: succeed without doing anything
 				return nil

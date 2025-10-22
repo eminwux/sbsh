@@ -33,7 +33,7 @@ const (
 	deleteSupervisorDir bool = false
 )
 
-func (sr *SupervisorRunnerExec) StartSessionCmd(session *api.SupervisedSession) error {
+func (sr *Exec) StartSessionCmd(session *api.SupervisedSession) error {
 	sr.logger.Debug("StartSessionCmd: preparing to start session", "session_id", session.ID, "command", session.Command)
 	devNull, _ := os.OpenFile("/dev/null", os.O_RDWR, 0)
 
@@ -91,14 +91,14 @@ func (sr *SupervisorRunnerExec) StartSessionCmd(session *api.SupervisedSession) 
 		trySendEvent(
 			sr.logger,
 			sr.events,
-			SupervisorRunnerEvent{ID: session.ID, Type: EvCmdExited, Err: eventErr, When: time.Now()},
+			Event{ID: session.ID, Type: EvCmdExited, Err: eventErr, When: time.Now()},
 		)
 	}()
 
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
+func (sr *Exec) Attach(session *api.SupervisedSession) error {
 	sr.session = session
 
 	if err := sr.dialSessionCtrlSocket(); err != nil {
@@ -128,7 +128,7 @@ func (sr *SupervisorRunnerExec) Attach(session *api.SupervisedSession) error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) Close(_ error) error {
+func (sr *Exec) Close(_ error) error {
 	sr.logger.Debug("Close: cancelling context and cleaning up")
 	sr.ctxCancel()
 	// remove sockets and dir
@@ -152,15 +152,15 @@ func (sr *SupervisorRunnerExec) Close(_ error) error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) WaitClose(_ error) error {
+func (sr *Exec) WaitClose(_ error) error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) Resize(_ api.ResizeArgs) {
+func (sr *Exec) Resize(_ api.ResizeArgs) {
 	// No-op
 }
 
-func (sr *SupervisorRunnerExec) Detach() error {
+func (sr *Exec) Detach() error {
 	if err := sr.sessionClient.Detach(sr.ctx, &sr.id); err != nil {
 		return err
 	}

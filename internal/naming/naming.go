@@ -23,6 +23,7 @@ import (
 	mrand "math/rand"
 )
 
+//nolint:gochecknoglobals // word lists
 var left = []string{
 	"adventurous", "ancient", "ardent", "artful", "audacious", "august", "autumnal", "brave", "bright", "careful",
 	"cheerful", "cunning", "dauntless", "devoted", "diligent", "doughty", "dour", "elven", "emerald", "enchanted",
@@ -36,6 +37,7 @@ var left = []string{
 	"wild", "willowy", "wise", "wry", "youthful", "starcrowned", "seafaring", "westering", "windborne", "woodwise",
 }
 
+//nolint:gochecknoglobals // word lists
 var right = []string{
 	"frodo", "samwise", "aragorn", "legolas", "gimli", "gandalf", "boromir", "faramir", "eowyn", "eomer",
 	"theoden", "denethor", "galadriel", "elrond", "arwen", "celeborn", "haldir", "tauriel", "thranduil", "bilbo",

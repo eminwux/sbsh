@@ -26,7 +26,7 @@ import (
 type SessionRunner interface {
 	OpenSocketCtrl() error
 	StartServer(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error)
-	StartSession(evCh chan<- SessionRunnerEvent) error
+	StartSession(evCh chan<- Event) error
 	ID() api.ID
 	Close(reason error) error
 	Resize(args api.ResizeArgs)

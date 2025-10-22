@@ -35,9 +35,9 @@ type client struct {
 func (c *client) Close() error { return nil } // no long-lived conn
 
 func (c *client) call(ctx context.Context, method string, in, out any) error {
-	conn, err := c.dial(ctx)
-	if err != nil {
-		return err
+	conn, errDial := c.dial(ctx)
+	if errDial != nil {
+		return errDial
 	}
 	defer conn.Close()
 
@@ -61,15 +61,6 @@ func (c *client) call(ctx context.Context, method string, in, out any) error {
 	}
 }
 
-// dettach from current session.
 func (c *client) Detach(ctx context.Context) error {
 	return c.call(ctx, api.SupervisorMethodDetach, &api.Empty{}, &api.Empty{})
 }
-
-// TODO
-// list all existing sessions - X no need to do it via sup
-// show session X - no need to do it via sup
-// stop session Y - goes to session
-// restart session - goes to session
-// create new session -
-// attach to a different session

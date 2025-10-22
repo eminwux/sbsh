@@ -19,15 +19,13 @@ package supervisor
 import (
 	"context"
 
+	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-// ErrFuncNotSet is returned when a test function has not been stubbed.
-var ErrFuncNotSet error = nil
-
-// SupervisorControllerTest is a test double for SupervisorController.
+// ControllerTest is a test double for SupervisorController.
 // It lets you override behavior with function fields and capture args.
-type SupervisorControllerTest struct {
+type ControllerTest struct {
 	// Last-call trackers (useful for assertions)
 	LastCtx context.Context
 	LastID  api.ID
@@ -41,9 +39,8 @@ type SupervisorControllerTest struct {
 	DetachFunc    func() error
 }
 
-// (Optional) constructor with zeroed fields.
-func NewSupervisorControllerTest() *SupervisorControllerTest {
-	return &SupervisorControllerTest{
+func NewSupervisorControllerTest() *ControllerTest {
+	return &ControllerTest{
 		RunFunc: func(_ *api.SupervisorSpec) error {
 			// default: succeed without doing anything
 			return nil
@@ -59,44 +56,44 @@ func NewSupervisorControllerTest() *SupervisorControllerTest {
 	}
 }
 
-func (t *SupervisorControllerTest) Run(spec *api.SupervisorSpec) error {
+func (t *ControllerTest) Run(spec *api.SupervisorSpec) error {
 	if t.RunFunc != nil {
 		return t.RunFunc(spec)
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
-func (t *SupervisorControllerTest) WaitReady() error {
+func (t *ControllerTest) WaitReady() error {
 	if t.WaitReadyFunc != nil {
 		return t.WaitReadyFunc()
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
-func (t *SupervisorControllerTest) Start() error {
+func (t *ControllerTest) Start() error {
 	if t.StartFunc != nil {
 		return t.StartFunc()
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
-func (t *SupervisorControllerTest) Close(reason error) error {
+func (t *ControllerTest) Close(reason error) error {
 	if t.CloseFunc != nil {
 		return t.CloseFunc(reason)
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
-func (t *SupervisorControllerTest) WaitClose() error {
+func (t *ControllerTest) WaitClose() error {
 	if t.WaitCloseFunc != nil {
 		return t.WaitCloseFunc()
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }
 
-func (t *SupervisorControllerTest) Detach() error {
+func (t *ControllerTest) Detach() error {
 	if t.DetachFunc != nil {
 		return t.DetachFunc()
 	}
-	return ErrFuncNotSet
+	return errdefs.ErrFuncNotSet
 }

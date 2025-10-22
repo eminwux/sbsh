@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package common
+package shared
 
 import (
 	"fmt"
@@ -149,12 +149,12 @@ func (l *LoggingConnUnix) WriteMsgUnix(p, oob []byte, addr *net.UnixAddr) (int, 
 }
 
 func (l *LoggingConnUnix) ReadMsgUnix(p, oob []byte) (int, int, *net.UnixAddr, error) {
-	n, oobn, _, addr, err := l.UnixConn.ReadMsgUnix(p, oob)
+	n, oobn, _, addr, errRead := l.UnixConn.ReadMsgUnix(p, oob)
 	if n > 0 {
 		LogBytes(l.PrefixRead+" (recv)", p[:n], l.Logger)
 	}
 	if oobn > 0 {
-		if cmsgs, err := unix.ParseSocketControlMessage(oob[:oobn]); err == nil {
+		if cmsgs, errParse := unix.ParseSocketControlMessage(oob[:oobn]); errParse == nil {
 			var fds []int
 			for _, m := range cmsgs {
 				if fs, _ := unix.ParseUnixRights(&m); len(fs) > 0 {
@@ -163,8 +163,8 @@ func (l *LoggingConnUnix) ReadMsgUnix(p, oob []byte) (int, int, *net.UnixAddr, e
 			}
 			l.Logger.Debug(l.PrefixRead+" (oob fds)", "fds", fds)
 		} else {
-			l.Logger.Error(l.PrefixRead+" (oob parse error)", "err", err)
+			l.Logger.Error(l.PrefixRead+" (oob parse error)", "err", errParse)
 		}
 	}
-	return n, oobn, addr, err
+	return n, oobn, addr, errRead
 }

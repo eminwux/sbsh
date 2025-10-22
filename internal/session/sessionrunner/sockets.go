@@ -25,7 +25,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func (sr *SessionRunnerExec) OpenSocketCtrl() error {
+func (sr *Exec) OpenSocketCtrl() error {
 	sr.logger.Debug("OpenSocketCtrl: preparing to listen", "socket", sr.metadata.Spec.SocketFile)
 	sr.metadata.Status.SocketFile = sr.metadata.Spec.SocketFile
 	sr.updateMetadata()
@@ -43,36 +43,40 @@ func (sr *SessionRunnerExec) OpenSocketCtrl() error {
 
 	// Listen to CONTROL SOCKET
 	var lc net.ListenConfig
-	ctrlLn, err := lc.Listen(sr.ctx, "unix", sr.metadata.Spec.SocketFile)
-	if err != nil {
-		sr.logger.Error("OpenSocketCtrl: failed to listen", "socket", sr.metadata.Spec.SocketFile, "error", err)
-		return fmt.Errorf("listen ctrl: %w", err)
+	ctrlLn, errListen := lc.Listen(sr.ctx, "unix", sr.metadata.Spec.SocketFile)
+	if errListen != nil {
+		sr.logger.Error("OpenSocketCtrl: failed to listen", "socket", sr.metadata.Spec.SocketFile, "error", errListen)
+		return fmt.Errorf("listen ctrl: %w", errListen)
 	}
 
 	// keep references for Close()
 	sr.lnCtrl = ctrlLn
 
-	if err := os.Chmod(sr.metadata.Spec.SocketFile, 0o600); err != nil {
+	if errChmod := os.Chmod(sr.metadata.Spec.SocketFile, 0o600); errChmod != nil {
 		sr.logger.Error(
 			"OpenSocketCtrl: failed to chmod socket file",
 			"socket",
 			sr.metadata.Spec.SocketFile,
 			"error",
-			err,
+			errChmod,
 		)
-		ctrlLn.Close()
-		return err
+		_ = ctrlLn.Close()
+		return errChmod
 	}
 
 	// update metadata with socket file path
 	sr.metadata.Status.SocketFile = sr.metadata.Spec.SocketFile
-	sr.updateMetadata()
+	if err := sr.updateMetadata(); err != nil {
+		sr.logger.Error("OpenSocketCtrl: failed to update metadata", "error", err)
+		_ = ctrlLn.Close()
+		return err
+	}
 
 	sr.logger.Info("OpenSocketCtrl: listening on socket", "socket", sr.metadata.Spec.SocketFile)
 	return nil
 }
 
-func (sr *SessionRunnerExec) CreateNewClient(supervisorID *api.ID) (int, error) {
+func (sr *Exec) CreateNewClient(supervisorID *api.ID) (int, error) {
 	sr.logger.Debug("CreateNewClient: creating socketpair", "id", supervisorID)
 	sv, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|sockCloexec, 0)
 	if err != nil {
@@ -102,7 +106,7 @@ func (sr *SessionRunnerExec) CreateNewClient(supervisorID *api.ID) (int, error) 
 	return cliFD, nil
 }
 
-func (sr *SessionRunnerExec) getClientList() []*api.ID {
+func (sr *Exec) getClientList() []*api.ID {
 	sr.clientsMu.Lock()
 	defer sr.clientsMu.Unlock()
 

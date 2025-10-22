@@ -103,7 +103,8 @@ type SessionMetadata struct {
 	Status SessionStatus `json:"status"`
 }
 
-// SESSION RPC.
+// RPC definitions
+
 const SessionService = "SessionController"
 
 const (

@@ -27,7 +27,7 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-func (sr *SupervisorRunnerExec) StartServer(
+func (sr *Exec) StartServer(
 	ctx context.Context,
 	sc *supervisorrpc.SupervisorControllerRPC,
 	readyCh chan error,
