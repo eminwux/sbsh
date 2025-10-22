@@ -96,7 +96,7 @@ func (sr *SessionRunnerExec) Close(reason error) error {
 	}
 	if sr.pty != nil {
 		var err error
-		closePTY.Do(func() {
+		sr.closePTY.Do(func() {
 			err = sr.pty.Close()
 		})
 		if err != nil {

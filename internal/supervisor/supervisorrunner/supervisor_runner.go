@@ -36,5 +36,5 @@ type SupervisorRunner interface {
 }
 
 func (sr *SupervisorRunnerExec) ID() api.ID {
-	return sr.session.Id
+	return sr.session.ID
 }

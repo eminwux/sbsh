@@ -86,6 +86,7 @@ func CreateSessionFromProfile(profile *api.SessionProfileDoc) (*api.SessionSpec,
 		Cwd:         profile.Spec.Shell.Cwd,
 		Command:     profile.Spec.Shell.Cmd,
 		CommandArgs: append([]string(nil), profile.Spec.Shell.CmdArgs...),
+		EnvInherit:  profile.Spec.Shell.EnvInherit,
 		Env:         envSlice,
 		Labels:      copyStringMap(profile.Metadata.Labels),
 		ProfileName: profile.Metadata.Name,
@@ -178,18 +179,20 @@ func BuildSessionSpec(
 	}
 
 	var sessionSpec *api.SessionSpec
+	// If no profile is given, build SessionSpec from command-line inputs only.
 	if p.ProfileName == "" {
 		// No profile: build a SessionSpec from command-line inputs only.
 		logger.DebugContext(ctx, "No profile specified, using command-line/session defaults")
 
-		// Define a new Session
+		// Define the Default SessionSpec
 		sessionSpec = &api.SessionSpec{
 			ID:          api.ID(p.SessionID),
 			Kind:        api.SessionLocal,
 			Name:        p.SessionName,
 			Command:     p.SessionCmd,
 			CommandArgs: p.SessionCmdArgs,
-			Env:         os.Environ(),
+			EnvInherit:  true,
+			Env:         []string{},
 			Prompt:      "\"(sbsh-$SBSH_SES_ID) $PS1\"",
 			RunPath:     p.RunPath,
 			CaptureFile: p.CaptureFile,

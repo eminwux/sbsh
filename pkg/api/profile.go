@@ -64,11 +64,12 @@ type SessionProfileSpec struct {
 
 // ShellSpec describes the base interactive process that owns the session lifetime.
 type ShellSpec struct {
-	Cwd     string            `json:"cwd,omitempty"     yaml:"cwd,omitempty"`
-	Cmd     string            `json:"cmd"               yaml:"cmd"`
-	CmdArgs []string          `json:"cmdArgs,omitempty" yaml:"cmdArgs,omitempty"`
-	Env     map[string]string `json:"env,omitempty"     yaml:"env,omitempty"`
-	Prompt  string            `json:"prompt,omitempty"  yaml:"prompt,omitempty"`
+	Cwd        string            `json:"cwd,omitempty"        yaml:"cwd,omitempty"`
+	Cmd        string            `json:"cmd"                  yaml:"cmd"`
+	CmdArgs    []string          `json:"cmdArgs,omitempty"    yaml:"cmdArgs,omitempty"`
+	Env        map[string]string `json:"env,omitempty"        yaml:"env,omitempty"`
+	EnvInherit bool              `json:"inheritEnv,omitempty" yaml:"inheritEnv,omitempty"`
+	Prompt     string            `json:"prompt,omitempty"     yaml:"prompt,omitempty"`
 }
 
 // StagesSpec groups lifecycle hooks. For this schema we only need onInit.

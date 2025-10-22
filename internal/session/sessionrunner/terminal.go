@@ -22,7 +22,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"sync"
 	"syscall"
 	"time"
 
@@ -30,18 +29,36 @@ import (
 	"github.com/eminwux/sbsh/cmd/config"
 )
 
-var closePTY sync.Once
-
 // closePTY is used to ensure PTY is closed only once (shared across session lifecycle).
 func (sr *SessionRunnerExec) prepareSessionCommand() error {
-	// Build the child command with context (so ctx cancel can kill it)
+	// Prepare the exec.Cmd based on session metadata
+	//nolint:gosec // User has to specify the command and its args
 	cmd := exec.CommandContext(sr.ctx, sr.metadata.Spec.Command, sr.metadata.Spec.CommandArgs...)
-	// Environment: use provided or inherit
-	if len(sr.metadata.Spec.Env) > 0 {
-		cmd.Env = sr.metadata.Spec.Env
+
+	// Inherit Environment Variables
+	if sr.metadata.Spec.EnvInherit {
+		sr.logger.Debug("inheriting environment variables from parent process")
+		cmd.Env = append(cmd.Env, os.Environ()...)
 	} else {
-		cmd.Env = os.Environ()
+		sr.logger.Debug("only HOME will be inherited from parent environment")
+		home := os.Getenv("HOME")
+		sr.logger.Debug("setting HOME environment variable", "HOME", home)
+
+		if home != "" {
+			cmd.Env = append(cmd.Env, "HOME="+home)
+		} else {
+			sr.logger.Warn("HOME environment variable is not set; not appending HOME to child environment")
+			return errors.New("HOME environment variable is not set in parent process; cannot start session without HOME")
+		}
 	}
+
+	// Add custom env vars
+	if len(sr.metadata.Spec.Env) > 0 {
+		sr.logger.Debug("adding custom environment variables", "env_count", len(sr.metadata.Spec.Env))
+		cmd.Env = append(cmd.Env, sr.metadata.Spec.Env...)
+	}
+
+	// Add SBSH-specific env vars
 	cmd.Env = append(cmd.Env,
 		config.KV(config.SES_SOCKET_CTRL, sr.metadata.Status.SocketFile),
 		config.KV(config.SES_ID, string(sr.metadata.Spec.ID)),
@@ -86,13 +103,13 @@ func (sr *SessionRunnerExec) startPTY() error {
 		sr.closeReqCh <- errors.New("the shell process has exited")
 	}()
 
-	logf, err := os.OpenFile(sr.metadata.Spec.CaptureFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
-	if err != nil {
-		return fmt.Errorf("open log file: %w", err)
+	logf, errO := os.OpenFile(sr.metadata.Spec.CaptureFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if errO != nil {
+		return fmt.Errorf("open log file: %w", errO)
 	}
 
-	if err := sr.updateMetadata(); err != nil {
-		return fmt.Errorf("update metadata: %w", err)
+	if errU := sr.updateMetadata(); errU != nil {
+		return fmt.Errorf("update metadata: %w", errU)
 	}
 
 	// StdIn
@@ -117,7 +134,7 @@ func (sr *SessionRunnerExec) startPTY() error {
 	return nil
 }
 
-func (sr *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writer) error {
+func (sr *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writer) {
 	/*
 	 * PTY READER goroutine
 	 */
@@ -132,15 +149,13 @@ func (sr *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writ
 	go func() {
 		sr.terminalManagerWriter(pipeInR)
 	}()
-
-	return nil
 }
 
-func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
+func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) {
 	go func() {
 		<-sr.ctx.Done()
 		sr.logger.Debug("finishing terminalManagerReader")
-		closePTY.Do(func() { _ = sr.pty.Close() }) // unblocks Read
+		sr.closePTY.Do(func() { _ = sr.pty.Close() }) // unblocks Read
 		sr.logger.Debug("finished terminalManagerReader")
 	}()
 
@@ -148,7 +163,7 @@ func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
 	buf := make([]byte, 8192)
 	for {
 		// READ FROM PTY - WRITE TO PIPE
-		n, err := sr.pty.Read(buf)
+		n, errRead := sr.pty.Read(buf)
 
 		// drain/emit data
 		if n > 0 {
@@ -159,34 +174,49 @@ func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) error {
 			if sr.gates.OutputOn {
 				sr.logger.Debug("read from pty", "bytes", n)
 				sr.logger.Debug("writing to multiOutW")
-				_, err := multiOutW.Write(buf[:n])
+				_, errWrite := multiOutW.Write(buf[:n])
 				sr.logger.Debug("writing to multiOutW done")
-				if err != nil {
-					sr.logger.Error("error writing raw data to client", "err", err)
-					return ErrPipeWrite
+				if errWrite != nil {
+					sr.logger.Error("error writing raw data to client", "err", errWrite)
+					errReturn := fmt.Errorf(
+						"terminalManagerReader multiWriter write error: %w: %w",
+						ErrPipeWrite,
+						errWrite,
+					)
+					trySendEvent(
+						sr.logger,
+						sr.evCh,
+						SessionRunnerEvent{ID: sr.id, Type: EvError, Err: errReturn, When: time.Now()},
+					)
+					return
 				}
 			}
 		}
 
 		// Handle read end/error
-		if err != nil {
+		if errRead != nil {
 			// treat EOF as info, others as error
-			if err == io.EOF {
+			if errRead == io.EOF {
 				sr.logger.Info("pty stdout closed (EOF)")
 			} else {
-				sr.logger.Error("pty stdout error", "err", err)
+				sr.logger.Error("pty stdout error", "err", errRead)
 			}
-			trySendEvent(sr.logger, sr.evCh, SessionRunnerEvent{ID: sr.id, Type: EvError, Err: err, When: time.Now()})
-			return ErrTerminalRead
+			errReturn := fmt.Errorf("terminalManagerReader pty read error: %w: %w", ErrPipeRead, errRead)
+			trySendEvent(
+				sr.logger,
+				sr.evCh,
+				SessionRunnerEvent{ID: sr.id, Type: EvError, Err: errReturn, When: time.Now()},
+			)
+			return
 		}
 	}
 }
 
-func (sr *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
+func (sr *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) {
 	go func() {
 		<-sr.ctx.Done()
 		sr.logger.Debug("finishing terminalManagerWriter")
-		closePTY.Do(func() { _ = sr.pty.Close() }) // unblocks Read
+		sr.closePTY.Do(func() { _ = sr.pty.Close() }) // unblocks Read
 		_ = pipeInR.Close()
 		sr.logger.Debug("finished terminalManagerWriter")
 	}()
@@ -199,32 +229,42 @@ func (sr *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) error {
 		// PTY reads from pipeInR
 		sr.logger.Debug("reading from pipeInR", "iteration", i)
 		i++
-		n, err := pipeInR.Read(buf)
+		n, errRead := pipeInR.Read(buf)
 		sr.logger.Debug("read from pipeInR", "bytes", n)
 		if n > 0 {
 			if sr.gates.StdinOpen {
 				sr.logger.Debug("reading from pipeInR (StdinOpen)")
-				if _, werr := sr.pty.Write(buf[:n]); werr != nil {
-					sr.logger.Error("error writing to PTY", "err", werr)
+				if _, errWrite := sr.pty.Write(buf[:n]); errWrite != nil {
+					errReturn := fmt.Errorf(
+						"terminalManagerWriter multiWriter write error: %w: %w",
+						ErrPipeWrite,
+						errWrite,
+					)
 					trySendEvent(
 						sr.logger,
 						sr.evCh,
-						SessionRunnerEvent{ID: sr.id, Type: EvError, Err: werr, When: time.Now()},
+						SessionRunnerEvent{ID: sr.id, Type: EvError, Err: errReturn, When: time.Now()},
 					)
-					return ErrPipeRead
+					return
 				}
 			}
 			// else: gate closed, drop input
 		}
 
-		if err != nil {
-			if err == io.EOF {
+		if errRead != nil {
+			if errRead == io.EOF {
 				sr.logger.Info("pipeInR closed (EOF)")
 			} else {
-				sr.logger.Error("stdin error", "err", err)
+				sr.logger.Error("stdin error", "err", errRead)
 			}
-			trySendEvent(sr.logger, sr.evCh, SessionRunnerEvent{ID: sr.id, Type: EvError, Err: err, When: time.Now()})
-			return ErrTerminalWrite
+
+			errReturn := fmt.Errorf("terminalManagerWriter pty read error: %w: %w", ErrPipeRead, errRead)
+			trySendEvent(
+				sr.logger,
+				sr.evCh,
+				SessionRunnerEvent{ID: sr.id, Type: EvError, Err: errReturn, When: time.Now()},
+			)
+			return
 		}
 	}
 }

@@ -41,7 +41,7 @@ const (
 	SessSSH                         // ssh -tt user@host ...
 )
 
-// Inputs needed to spawn a session; serialize parts of this into sessions.json.
+// SessionSpec defines how to run a session.
 type SessionSpec struct {
 	ID     ID                `json:"id"`
 	Kind   SessionKind       `json:"kind"`
@@ -51,6 +51,7 @@ type SessionSpec struct {
 	Cwd         string   `json:"cwd,omitempty"`
 	Command     string   `json:"command"`
 	CommandArgs []string `json:"commandArgs"`
+	EnvInherit  bool     `json:"inheritEnv"`
 	Env         []string `json:"env"`
 	Prompt      string   `json:"prompt"`
 

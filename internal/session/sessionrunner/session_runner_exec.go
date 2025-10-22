@@ -63,6 +63,8 @@ type SessionRunnerExec struct {
 	closedCh   chan struct{}
 
 	ptyPipes *ptyPipes
+
+	closePTY *sync.Once
 }
 
 type ptyPipes struct {
@@ -117,6 +119,7 @@ func NewSessionRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.Se
 		closeReqCh: make(chan error),
 		closedCh:   make(chan struct{}),
 		ptyPipes:   &ptyPipes{},
+		closePTY:   &sync.Once{},
 	}
 }
 

@@ -47,11 +47,12 @@ func NewSessionStoreExec() SessionStore {
 
 func NewSupervisedSession(spec *api.SessionSpec) *api.SupervisedSession {
 	return &api.SupervisedSession{
-		Id:          spec.ID,
+		ID:          spec.ID,
 		Kind:        spec.Kind,
 		Name:        spec.Name,
 		Command:     spec.Command,
 		CommandArgs: spec.CommandArgs,
+		EnvInherit:  spec.EnvInherit,
 		Env:         spec.Env,
 		LogFile:     spec.LogFile,
 		SocketFile:  spec.SocketFile,
@@ -64,12 +65,12 @@ func NewSupervisedSession(spec *api.SessionSpec) *api.SupervisedSession {
 func (m *SessionStoreExec) Add(s *api.SupervisedSession) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.sessions[s.Id] != nil {
+	if m.sessions[s.ID] != nil {
 		return errdefs.ErrSessionExists
 	}
-	m.sessions[s.Id] = s
+	m.sessions[s.ID] = s
 	if m.current == "" {
-		m.current = s.Id
+		m.current = s.ID
 	}
 	return nil
 }

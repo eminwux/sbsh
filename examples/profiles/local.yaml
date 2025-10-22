@@ -9,6 +9,7 @@ spec:
     cwd: "~"
     cmd: /bin/bash
     cmdArgs: ["--norc", "--noprofile"]
+    inheritEnv: false
     env:
       LANG: en_US.UTF-8
       EDITOR: vim

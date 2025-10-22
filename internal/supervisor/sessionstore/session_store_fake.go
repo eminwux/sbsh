@@ -54,7 +54,7 @@ func NewSessionStoreTest() *SessionStoreTest {
 			if id == "" {
 				return nil, false
 			}
-			return &api.SupervisedSession{Id: id}, true
+			return &api.SupervisedSession{ID: id}, true
 		},
 		ListLiveFunc: func() []api.ID {
 			return []api.ID{"sess-1", "sess-2"}
