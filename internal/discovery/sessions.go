@@ -173,16 +173,17 @@ func printSessions(w io.Writer, sessions []api.SessionMetadata, printAll bool) e
 		}
 	}
 
-	fmt.Fprintln(tw, "ID\tNAME\tCMD\tTTY\tSTATUS\tATTACHERS\tLABELS")
+	fmt.Fprintln(tw, "ID\tNAME\tPROFILE\tCMD\tTTY\tSTATUS\tATTACHERS\tLABELS")
 	for _, s := range sessions {
 		if s.Status.State != api.Exited || (printAll && s.Status.State == api.Exited) {
 			attachers := "None"
 			if len(s.Status.Attachers) > 0 {
 				attachers = strings.Join(s.Status.Attachers, ",")
 			}
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 				sessionID(s),
 				sessionName(s),
+				sessionProfile(s),
 				sessionCmd(s),
 				sessionTty(s),
 				s.Status.State.String(),
@@ -216,6 +217,10 @@ func sessionCmd(s api.SessionMetadata) string {
 
 func sessionTty(s api.SessionMetadata) string {
 	return s.Status.Tty
+}
+
+func sessionProfile(s api.SessionMetadata) string {
+	return s.Spec.ProfileName
 }
 
 func sessionLabels(s api.SessionMetadata) map[string]string {

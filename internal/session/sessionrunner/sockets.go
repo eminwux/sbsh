@@ -28,7 +28,11 @@ import (
 func (sr *Exec) OpenSocketCtrl() error {
 	sr.logger.Debug("OpenSocketCtrl: preparing to listen", "socket", sr.metadata.Spec.SocketFile)
 	sr.metadata.Status.SocketFile = sr.metadata.Spec.SocketFile
-	sr.updateMetadata()
+	errMetadata := sr.updateMetadata()
+	if errMetadata != nil {
+		sr.logger.Error("OpenSocketCtrl: failed to update metadata", "error", errMetadata)
+		return fmt.Errorf("update metadata: %w", errMetadata)
+	}
 
 	// Remove sockets if they already exist
 	if err := os.Remove(sr.metadata.Spec.SocketFile); err != nil {

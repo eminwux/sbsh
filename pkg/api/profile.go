@@ -56,10 +56,10 @@ type SessionProfileMeta struct {
 }
 
 type SessionProfileSpec struct {
-	RunTarget     RunTarget     `json:"runTarget"        yaml:"runTarget"`
-	RestartPolicy RestartPolicy `json:"restartPolicy"    yaml:"restartPolicy"`
-	Shell         ShellSpec     `json:"shell"            yaml:"shell"`
-	Stages        StagesSpec    `json:"stages,omitempty" yaml:"stages,omitempty"`
+	RunTarget     RunTarget     `json:"runTarget"     yaml:"runTarget"`
+	RestartPolicy RestartPolicy `json:"restartPolicy" yaml:"restartPolicy"`
+	Shell         ShellSpec     `json:"shell"         yaml:"shell"`
+	Stages        StagesSpec    `json:"stages"        yaml:"stages"`
 }
 
 // ShellSpec describes the base interactive process that owns the session lifetime.
