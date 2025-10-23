@@ -41,7 +41,7 @@ func (sr *Exec) StartSession(evCh chan<- Event) error {
 		return fmt.Errorf("failed to run session command for session %s: %w", sr.id, err)
 	}
 
-	if err := sr.startPTY(); err != nil {
+	if err := sr.startPty(); err != nil {
 		sr.logger.Error("failed to start PTY", "id", sr.id, "err", err)
 		return fmt.Errorf("failed to start PTY for session %s: %w", sr.id, err)
 	}
@@ -94,10 +94,10 @@ func (sr *Exec) Close(reason error) error {
 			sr.logger.Warn("could not kill cmd process", "id", sr.id, "err", err)
 		}
 	}
-	if sr.pty != nil {
+	if sr.ptmx != nil {
 		var err error
 		sr.closePTY.Do(func() {
-			err = sr.pty.Close()
+			err = sr.ptmx.Close()
 		})
 		if err != nil {
 			sr.logger.Warn("could not close pty", "id", sr.id, "err", err)
@@ -128,7 +128,7 @@ func (sr *Exec) Close(reason error) error {
 }
 
 func (sr *Exec) Resize(args api.ResizeArgs) {
-	pty.Setsize(sr.pty, &pty.Winsize{
+	_ = pty.Setsize(sr.ptmx, &pty.Winsize{
 		Cols: uint16(args.Cols),
 		Rows: uint16(args.Rows),
 	})
@@ -137,7 +137,7 @@ func (sr *Exec) Resize(args api.ResizeArgs) {
 // Write writes bytes to the session PTY (used by controller or Smart executor).
 func (sr *Exec) Write(p []byte) (int, error) {
 	for i := range p {
-		_, err := sr.pty.Write([]byte{p[i]})
+		_, err := sr.ptmx.Write([]byte{p[i]})
 		if err != nil {
 			return i, err
 		}
