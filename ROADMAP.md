@@ -20,7 +20,6 @@
 - [ ] **A** sbsh cmd as positional argument
 - [ ] **A** Initial E2E testing
 - [ ] **A** Spec sent through Stdin (sbsh run -)
-- [ ] **A** Add profile to sb s l
 - [ ] **A** sb stop
 ```
 
@@ -86,4 +85,5 @@
 - [X] **A** sb attach --name autocomplete hide Exited sessions      DONE
 - [X] **A** Add boolean to ProfileSpec to include current Env Vars  DONE
 - [X] **B** Add tty device to sb l                                  DONE
+- [X] **A** Add profile to sb s l                                   DONE
 ```

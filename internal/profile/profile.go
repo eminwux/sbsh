@@ -130,95 +130,147 @@ type BuildSessionSpecParams struct {
 func BuildSessionSpec(
 	ctx context.Context,
 	logger *slog.Logger,
-	p *BuildSessionSpecParams,
+	input *BuildSessionSpecParams,
 ) (*api.SessionSpec, error) {
-	if p.SessionID == "" {
+	if input.SessionID == "" {
 		// Default session ID to a random one
-		p.SessionID = naming.RandomID()
+		input.SessionID = naming.RandomID()
 	}
 
-	if p.SessionName == "" {
-		p.SessionName = naming.RandomName()
+	if input.SessionName == "" {
+		input.SessionName = naming.RandomName()
 	}
 
-	if p.ProfilesFile == "" {
+	if input.ProfilesFile == "" {
 		// Default profilesFilename to $RUN_PATH/profiles.yaml
-		p.ProfilesFile = filepath.Join(p.RunPath, ".sbsh", "profiles.yaml")
+		input.ProfilesFile = filepath.Join(input.RunPath, ".sbsh", "profiles.yaml")
 	}
 
-	if p.RunPath == "" {
+	if input.RunPath == "" {
 		// Default runPath to $HOME/.sbsh
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			return nil, fmt.Errorf("cannot determine home directory: %w", err)
 		}
-		p.RunPath = filepath.Join(homeDir, ".sbsh", "run")
+		input.RunPath = filepath.Join(homeDir, ".sbsh", "run")
 	}
 
-	if p.SessionCmd == "" {
-		p.SessionCmd = "/bin/bash"
-		p.SessionCmdArgs = []string{"-i"}
+	if input.SessionCmd == "" {
+		input.SessionCmd = "/bin/bash"
+		input.SessionCmdArgs = []string{"-i"}
 	}
 
-	if p.CaptureFile == "" {
-		p.CaptureFile = filepath.Join(
-			p.RunPath,
+	if input.CaptureFile == "" {
+		input.CaptureFile = filepath.Join(
+			input.RunPath,
 			"sessions",
-			p.SessionID,
+			input.SessionID,
 			"capture",
 		)
 	}
 
-	if p.SocketFile == "" {
-		p.SocketFile = filepath.Join(
-			p.RunPath,
+	if input.SocketFile == "" {
+		input.SocketFile = filepath.Join(
+			input.RunPath,
 			"sessions",
-			p.SessionID,
+			input.SessionID,
 			"socket",
 		)
 	}
+	if input.ProfileName == "" {
+		input.ProfileName = "default"
+	}
+
+	logger.DebugContext(
+		ctx,
+		"Profile specified, loading and applying profile",
+		"profile",
+		input.ProfileName,
+		"profilesFile",
+		input.ProfilesFile,
+	)
 
 	var sessionSpec *api.SessionSpec
-	// If no profile is given, build SessionSpec from command-line inputs only.
-	if p.ProfileName == "" {
-		// No profile: build a SessionSpec from command-line inputs only.
-		logger.DebugContext(ctx, "No profile specified, using command-line/session defaults")
+	var profileSpec *api.SessionProfileDoc
+	var errFind error
 
-		// Define the Default SessionSpec
-		sessionSpec = &api.SessionSpec{
-			ID:          api.ID(p.SessionID),
-			Kind:        api.SessionLocal,
-			Name:        p.SessionName,
-			Command:     p.SessionCmd,
-			CommandArgs: p.SessionCmdArgs,
-			EnvInherit:  true,
-			Env:         []string{},
-			Prompt:      "\"(sbsh-$SBSH_SES_ID) $PS1\"",
-			RunPath:     p.RunPath,
-			CaptureFile: p.CaptureFile,
-			LogFile:     p.LogFile,
-			LogLevel:    p.LogLevel,
-			SocketFile:  p.SocketFile,
+	profileSpec, errFind = discovery.FindProfileByName(ctx, logger, input.ProfilesFile, input.ProfileName)
+	if errFind != nil {
+		logger.InfoContext(
+			ctx,
+			"Profile not found",
+			"profile",
+			input.ProfileName,
+		)
+
+		if input.ProfileName != "default" {
+			return nil, errFind
 		}
-	} else {
-		logger.DebugContext(ctx, "Profile specified, loading and applying profile", "profile", p.ProfileName, "profilesFile", p.ProfilesFile)
-		// Profile given: load profiles file, find profile by name, and build SessionSpec from it.
-		profileSpec, err := discovery.FindProfileByName(ctx, logger, p.ProfilesFile, p.ProfileName)
-		if err != nil {
-			return nil, err
+
+		logger.InfoContext(
+			ctx,
+			"Default profile not found, reverting to hardcoded default profile",
+			"profile",
+			input.ProfileName,
+		)
+
+		profileSpec, errFind = GetDefaultHardcodedProfile(ctx, logger, input)
+		if errFind != nil {
+			logger.ErrorContext(ctx, "Failed to get default profile", "error", errFind)
+			return nil, errFind
 		}
-		sessionSpec, err = CreateSessionFromProfile(profileSpec)
-		if err != nil {
-			return nil, err
-		}
-		sessionSpec.ID = api.ID(p.SessionID)
-		sessionSpec.Name = p.SessionName
-		sessionSpec.RunPath = p.RunPath
-		sessionSpec.CaptureFile = p.CaptureFile
-		sessionSpec.LogFile = p.LogFile
-		sessionSpec.LogLevel = p.LogLevel
-		sessionSpec.SocketFile = p.SocketFile
-		sessionSpec.Env = append(sessionSpec.Env, p.EnvVars...)
 	}
+
+	var errCreate error
+	sessionSpec, errCreate = CreateSessionFromProfile(profileSpec)
+	if errCreate != nil {
+		return nil, errCreate
+	}
+	addInputValuesToSession(sessionSpec, input)
+
 	return sessionSpec, nil
+}
+
+// addInputValuesToSession mutates sessionSpec by overriding its fields with non-empty values from input.
+// It sets ID, Name, RunPath, CaptureFile, LogFile, LogLevel, SocketFile, and appends EnvVars, avoiding duplicates.
+func addInputValuesToSession(sessionSpec *api.SessionSpec, input *BuildSessionSpecParams) {
+	sessionSpec.ID = api.ID(input.SessionID)
+	sessionSpec.Name = input.SessionName
+	sessionSpec.RunPath = input.RunPath
+	sessionSpec.CaptureFile = input.CaptureFile
+	sessionSpec.LogFile = input.LogFile
+	sessionSpec.LogLevel = input.LogLevel
+	sessionSpec.SocketFile = input.SocketFile
+	sessionSpec.Env = append(sessionSpec.Env, input.EnvVars...)
+}
+
+// GetDefaultHardcodedProfile constructs a default SessionProfileDoc using command-line or session defaults.
+// Used when no profile is found; logs the fallback and builds the profile from BuildSessionSpecParams.
+func GetDefaultHardcodedProfile(
+	ctx context.Context,
+	logger *slog.Logger,
+	input *BuildSessionSpecParams,
+) (*api.SessionProfileDoc, error) {
+	logger.DebugContext(ctx, "No profile specified, using command-line/session defaults")
+
+	profileSpec := &api.SessionProfileDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindSessionProfile,
+		Metadata: api.SessionProfileMeta{
+			Name:   "default",
+			Labels: map[string]string{},
+		},
+		Spec: api.SessionProfileSpec{
+			RunTarget: api.RunTargetLocal,
+			Shell: api.ShellSpec{
+				Cmd:        input.SessionCmd,
+				CmdArgs:    input.SessionCmdArgs,
+				EnvInherit: true,
+				Env:        map[string]string{},
+				Prompt:     "\"(sbsh-$SBSH_SES_ID) $PS1\"",
+			},
+			Stages: api.StagesSpec{},
+		},
+	}
+	return profileSpec, nil
 }
