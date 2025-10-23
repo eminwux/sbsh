@@ -29,7 +29,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var listAllInput bool
+const listAllInput = "sb.sessions.list.all"
 
 func NewSessionListCmd() *cobra.Command {
 	// sessionsListCmd represents the sessions command.
@@ -58,7 +58,7 @@ By default, it lists only running sessions. Use the --all flag to include exited
 				logger,
 				viper.GetString(config.RUN_PATH.ViperKey),
 				os.Stdout,
-				listAllInput,
+				viper.GetBool(listAllInput),
 			)
 			if err != nil {
 				logger.Debug("error scanning and printing sessions", "error", err)
@@ -75,5 +75,6 @@ By default, it lists only running sessions. Use the --all flag to include exited
 }
 
 func setupSessionsListCmd(sessionsListCmd *cobra.Command) {
-	sessionsListCmd.Flags().BoolVarP(&listAllInput, "all", "a", false, "List all sessions, including Exited")
+	sessionsListCmd.Flags().BoolP("all", "a", false, "List all sessions, including Exited")
+	_ = viper.BindPFlag(listAllInput, sessionsListCmd.Flags().Lookup("all"))
 }

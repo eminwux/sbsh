@@ -67,6 +67,7 @@ type SessionSpec struct {
 
 type SessionStatus struct {
 	Pid            int               `json:"pid"`
+	Tty            string            `json:"tty"`
 	State          SessionStatusMode `json:"state"`
 	SocketFile     string            `json:"socketCtrl"`
 	BaseRunPath    string            `json:"baseRunPath"`

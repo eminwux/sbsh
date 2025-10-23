@@ -39,7 +39,8 @@ type Exec struct {
 
 	// runtime (owned by Session)
 	cmd   *exec.Cmd
-	pty   *os.File // master
+	ptmx  *os.File // master
+	pts   *os.File // slave
 	state api.SessionState
 
 	gates struct {
@@ -96,7 +97,7 @@ func NewSessionRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.Se
 
 		// runtime (initialized but inactive)
 		cmd:   nil,
-		pty:   nil,
+		ptmx:  nil,
 		state: api.SessionBash, // default logical state before start
 
 		clients: make(map[api.ID]*ioClient),

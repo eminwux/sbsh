@@ -29,6 +29,11 @@ import (
 	"github.com/eminwux/sbsh/cmd/config"
 )
 
+const (
+	vt100Rows = 24
+	vt100Cols = 80
+)
+
 // closePTY is used to ensure PTY is closed only once (shared across session lifecycle).
 func (sr *Exec) prepareSessionCommand() error {
 	// Prepare the exec.Cmd based on session metadata
@@ -88,13 +93,44 @@ func (sr *Exec) prepareSessionCommand() error {
 	return nil
 }
 
-func (sr *Exec) startPTY() error {
-	// Start under a PTY and inherit current terminal size
-	ptmx, err := pty.Start(sr.cmd)
-	if err != nil {
-		return err
+func (sr *Exec) startPty() error {
+	// Open a pty
+	ptmx, pts, errOpen := pty.Open()
+
+	if errOpen != nil {
+		return fmt.Errorf("error opening pty: %w", errOpen)
 	}
-	sr.pty = ptmx
+
+	sr.ptmx = ptmx
+	sr.pts = pts
+
+	sr.cmd.Stdin = sr.pts
+	sr.cmd.Stdout = sr.pts
+	sr.cmd.Stderr = sr.pts
+
+	errStart := sr.cmd.Start()
+	if errStart != nil {
+		return fmt.Errorf("error starting command in pty: %w", errStart)
+	}
+
+	errC := sr.pts.Close() // pts is now managed by the child process
+	if errC != nil {
+		sr.logger.Error("error closing pts file descriptor", "err", errC)
+		return fmt.Errorf("error closing pts file descriptor: %w", errC)
+	}
+
+	// Set initial terminal size to VT100 standard 80x24
+	errS := pty.Setsize(sr.ptmx, &pty.Winsize{
+		Rows: uint16(vt100Rows),
+		Cols: uint16(vt100Cols),
+	})
+	if errS != nil {
+		sr.logger.Error("error setting initial pty size", "err", errS)
+		return fmt.Errorf("error setting initial pty size: %w", errS)
+	}
+
+	// Set tty device in status metadata
+	sr.metadata.Status.Tty = sr.pts.Name()
 
 	go func() {
 		sr.logger.Debug("waiting on child process", "parent_pid", os.Getpid(), "child_pid", sr.cmd.Process.Pid)
@@ -155,7 +191,7 @@ func (sr *Exec) terminalManagerReader(multiOutW io.Writer) {
 	go func() {
 		<-sr.ctx.Done()
 		sr.logger.Debug("finishing terminalManagerReader")
-		sr.closePTY.Do(func() { _ = sr.pty.Close() }) // unblocks Read
+		sr.closePTY.Do(func() { _ = sr.ptmx.Close() }) // unblocks Read
 		sr.logger.Debug("finished terminalManagerReader")
 	}()
 
@@ -163,7 +199,7 @@ func (sr *Exec) terminalManagerReader(multiOutW io.Writer) {
 	buf := make([]byte, 8192)
 	for {
 		// READ FROM PTY - WRITE TO PIPE
-		n, errRead := sr.pty.Read(buf)
+		n, errRead := sr.ptmx.Read(buf)
 
 		// drain/emit data
 		if n > 0 {
@@ -216,7 +252,7 @@ func (sr *Exec) terminalManagerWriter(pipeInR *os.File) {
 	go func() {
 		<-sr.ctx.Done()
 		sr.logger.Debug("finishing terminalManagerWriter")
-		sr.closePTY.Do(func() { _ = sr.pty.Close() }) // unblocks Read
+		sr.closePTY.Do(func() { _ = sr.ptmx.Close() }) // unblocks Read
 		_ = pipeInR.Close()
 		sr.logger.Debug("finished terminalManagerWriter")
 	}()
@@ -234,7 +270,7 @@ func (sr *Exec) terminalManagerWriter(pipeInR *os.File) {
 		if n > 0 {
 			if sr.gates.StdinOpen {
 				sr.logger.Debug("reading from pipeInR (StdinOpen)")
-				if _, errWrite := sr.pty.Write(buf[:n]); errWrite != nil {
+				if _, errWrite := sr.ptmx.Write(buf[:n]); errWrite != nil {
 					errReturn := fmt.Errorf(
 						"terminalManagerWriter multiWriter write error: %w: %w",
 						ErrPipeWrite,
