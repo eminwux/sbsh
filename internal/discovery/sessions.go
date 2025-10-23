@@ -119,15 +119,15 @@ func ScanSessions(ctx context.Context, logger *slog.Logger, runPath string) ([]a
 			return nil, ctx.Err()
 		default:
 		}
-		b, err := os.ReadFile(p)
-		if err != nil {
-			logger.ErrorContext(ctx, "ScanSessions: failed to read file", "file", p, "error", err)
-			return nil, fmt.Errorf("read %s: %w", p, err)
+		b, errRead := os.ReadFile(p)
+		if errRead != nil {
+			logger.ErrorContext(ctx, "ScanSessions: failed to read file", "file", p, "error", errRead)
+			return nil, fmt.Errorf("read %s: %w", p, errRead)
 		}
 		var s api.SessionMetadata
-		if err := json.Unmarshal(b, &s); err != nil {
-			logger.ErrorContext(ctx, "ScanSessions: failed to decode file", "file", p, "error", err)
-			return nil, fmt.Errorf("decode %s: %w", p, err)
+		if errUnmarshal := json.Unmarshal(b, &s); errUnmarshal != nil {
+			logger.ErrorContext(ctx, "ScanSessions: failed to decode file", "file", p, "error", errUnmarshal)
+			return nil, fmt.Errorf("decode %s: %w", p, errUnmarshal)
 		}
 		logger.DebugContext(ctx, "ScanSessions: loaded session metadata", "id", sessionID(s), "name", sessionName(s))
 		out = append(out, s)

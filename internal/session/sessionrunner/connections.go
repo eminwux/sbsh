@@ -23,7 +23,7 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-func (sr *SessionRunnerExec) cleanupClient(client *ioClient) {
+func (sr *Exec) cleanupClient(client *ioClient) {
 	sr.logger.Info("client connection handler exiting", "client", client.id)
 	if cerr := client.conn.Close(); cerr != nil {
 		sr.logger.Warn("error closing client connection", "err", cerr, "client", client.id)
@@ -34,7 +34,7 @@ func (sr *SessionRunnerExec) cleanupClient(client *ioClient) {
 	sr.removeClient(client)
 }
 
-func (sr *SessionRunnerExec) handleClient(client *ioClient) {
+func (sr *Exec) handleClient(client *ioClient) {
 	sr.logger.Info("client connection handler started", "client", client.id)
 
 	if err := sr.setupPipes(client); err != nil {
@@ -94,19 +94,19 @@ func (sr *SessionRunnerExec) handleClient(client *ioClient) {
 	}
 }
 
-func (sr *SessionRunnerExec) addClient(c *ioClient) {
+func (sr *Exec) addClient(c *ioClient) {
 	sr.clientsMu.Lock()
 	sr.clients[*c.id] = c
 	sr.clientsMu.Unlock()
 }
 
-func (sr *SessionRunnerExec) removeClient(c *ioClient) {
+func (sr *Exec) removeClient(c *ioClient) {
 	sr.clientsMu.Lock()
 	delete(sr.clients, *c.id)
 	sr.clientsMu.Unlock()
 }
 
-func (sr *SessionRunnerExec) getClient(id api.ID) (*ioClient, bool) {
+func (sr *Exec) getClient(id api.ID) (*ioClient, bool) {
 	sr.clientsMu.RLock()
 	defer sr.clientsMu.RUnlock()
 

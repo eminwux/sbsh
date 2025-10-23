@@ -26,7 +26,8 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-func (sr *SessionRunnerExec) StartServer(
+//nolint:gocognit // long start server
+func (sr *Exec) StartServer(
 	_ context.Context,
 	sc *sessionrpc.SessionControllerRPC,
 	readyCh chan error,
@@ -84,7 +85,19 @@ func (sr *SessionRunnerExec) StartServer(
 			close(doneCh)
 			return
 		}
-		uconn := conn.(*net.UnixConn)
+		uconn, ok := conn.(*net.UnixConn)
+		if !ok {
+			errCast := errors.New("failed to cast connection to *net.UnixConn")
+			if sr.logger != nil {
+				sr.logger.ErrorContext(sr.ctx, "connection cast error", "error", errCast)
+			}
+			select {
+			case doneCh <- errCast:
+			default:
+			}
+			close(doneCh)
+			return
+		}
 		go srv.ServeCodec(sessionrpc.NewUnixJSONServerCodec(uconn, sr.logger))
 	}
 }

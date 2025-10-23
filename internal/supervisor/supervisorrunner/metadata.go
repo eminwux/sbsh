@@ -22,11 +22,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/eminwux/sbsh/internal/common"
+	"github.com/eminwux/sbsh/internal/shared"
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-func (sr *SupervisorRunnerExec) CreateMetadata() error {
+func (sr *Exec) CreateMetadata() error {
 	sr.logger.Debug("creating metadata", "runPath", sr.getSupervisorDir())
 	if err := os.MkdirAll(sr.getSupervisorDir(), 0o700); err != nil {
 		sr.logger.Error("failed to create supervisor dir", "dir", sr.getSupervisorDir(), "error", err)
@@ -51,15 +51,15 @@ func (sr *SupervisorRunnerExec) CreateMetadata() error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) getSupervisorDir() string {
+func (sr *Exec) getSupervisorDir() string {
 	return filepath.Join(sr.metadata.Spec.RunPath, "supervisors", string(sr.id))
 }
 
-func (sr *SupervisorRunnerExec) updateMetadata() error {
-	return common.WriteMetadata(sr.ctx, sr.metadata, sr.getSupervisorDir())
+func (sr *Exec) updateMetadata() error {
+	return shared.WriteMetadata(sr.ctx, sr.metadata, sr.getSupervisorDir())
 }
 
-func (sr *SupervisorRunnerExec) getSessionMetadata() (*api.SessionMetadata, error) {
+func (sr *Exec) getSessionMetadata() (*api.SessionMetadata, error) {
 	if sr.sessionClient == nil {
 		return nil, errors.New("getSessionMetadata: session client is nil")
 	}

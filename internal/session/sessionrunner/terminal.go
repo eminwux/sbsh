@@ -30,7 +30,7 @@ import (
 )
 
 // closePTY is used to ensure PTY is closed only once (shared across session lifecycle).
-func (sr *SessionRunnerExec) prepareSessionCommand() error {
+func (sr *Exec) prepareSessionCommand() error {
 	// Prepare the exec.Cmd based on session metadata
 	//nolint:gosec // User has to specify the command and its args
 	cmd := exec.CommandContext(sr.ctx, sr.metadata.Spec.Command, sr.metadata.Spec.CommandArgs...)
@@ -88,7 +88,7 @@ func (sr *SessionRunnerExec) prepareSessionCommand() error {
 	return nil
 }
 
-func (sr *SessionRunnerExec) startPTY() error {
+func (sr *Exec) startPTY() error {
 	// Start under a PTY and inherit current terminal size
 	ptmx, err := pty.Start(sr.cmd)
 	if err != nil {
@@ -134,7 +134,7 @@ func (sr *SessionRunnerExec) startPTY() error {
 	return nil
 }
 
-func (sr *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writer) {
+func (sr *Exec) terminalManager(pipeInR *os.File, multiOutW io.Writer) {
 	/*
 	 * PTY READER goroutine
 	 */
@@ -151,7 +151,7 @@ func (sr *SessionRunnerExec) terminalManager(pipeInR *os.File, multiOutW io.Writ
 	}()
 }
 
-func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) {
+func (sr *Exec) terminalManagerReader(multiOutW io.Writer) {
 	go func() {
 		<-sr.ctx.Done()
 		sr.logger.Debug("finishing terminalManagerReader")
@@ -186,7 +186,7 @@ func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) {
 					trySendEvent(
 						sr.logger,
 						sr.evCh,
-						SessionRunnerEvent{ID: sr.id, Type: EvError, Err: errReturn, When: time.Now()},
+						Event{ID: sr.id, Type: EvError, Err: errReturn, When: time.Now()},
 					)
 					return
 				}
@@ -205,14 +205,14 @@ func (sr *SessionRunnerExec) terminalManagerReader(multiOutW io.Writer) {
 			trySendEvent(
 				sr.logger,
 				sr.evCh,
-				SessionRunnerEvent{ID: sr.id, Type: EvError, Err: errReturn, When: time.Now()},
+				Event{ID: sr.id, Type: EvError, Err: errReturn, When: time.Now()},
 			)
 			return
 		}
 	}
 }
 
-func (sr *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) {
+func (sr *Exec) terminalManagerWriter(pipeInR *os.File) {
 	go func() {
 		<-sr.ctx.Done()
 		sr.logger.Debug("finishing terminalManagerWriter")
@@ -243,7 +243,7 @@ func (sr *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) {
 					trySendEvent(
 						sr.logger,
 						sr.evCh,
-						SessionRunnerEvent{ID: sr.id, Type: EvError, Err: errReturn, When: time.Now()},
+						Event{ID: sr.id, Type: EvError, Err: errReturn, When: time.Now()},
 					)
 					return
 				}
@@ -262,7 +262,7 @@ func (sr *SessionRunnerExec) terminalManagerWriter(pipeInR *os.File) {
 			trySendEvent(
 				sr.logger,
 				sr.evCh,
-				SessionRunnerEvent{ID: sr.id, Type: EvError, Err: errReturn, When: time.Now()},
+				Event{ID: sr.id, Type: EvError, Err: errReturn, When: time.Now()},
 			)
 			return
 		}

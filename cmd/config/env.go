@@ -49,7 +49,7 @@ func (v Var) EnvKey() string               { return v.Key }
 func (v Var) EnvVar() string               { return Prefix + "_" + v.Key }
 func (v Var) DefaultValue() (string, bool) { return v.Default, v.HasDefault }
 
-// Precedence: viper (if ViperKey set and value present) → OS env → default → "".
+// ValueOrDefault defines precedence: viper (if ViperKey set and value present) → OS env → default → "".
 func (v Var) ValueOrDefault() string {
 	if v.ViperKey != "" && viper.IsSet(v.ViperKey) {
 		return viper.GetString(v.ViperKey)
@@ -63,7 +63,7 @@ func (v Var) ValueOrDefault() string {
 	return ""
 }
 
-// Safe if ViperKey is empty: does nothing.
+// BindEnv is safe if ViperKey is empty: does nothing.
 func (v Var) BindEnv() error {
 	if v.ViperKey == "" {
 		return nil

@@ -28,7 +28,7 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-type SessionRunnerExec struct {
+type Exec struct {
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	logger    *slog.Logger
@@ -52,7 +52,7 @@ type SessionRunnerExec struct {
 	lastRead          time.Time
 
 	// signaling
-	evCh chan<- SessionRunnerEvent // fan-out to controller (send-only from session)
+	evCh chan<- Event // fan-out to controller (send-only from session)
 
 	lnCtrl net.Listener
 
@@ -83,7 +83,7 @@ type ioClient struct {
 func NewSessionRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.SessionSpec) SessionRunner {
 	newCtx, cancel := context.WithCancel(ctx)
 
-	return &SessionRunnerExec{
+	return &Exec{
 		id: spec.ID,
 		metadata: api.SessionMetadata{
 			Spec:   *spec,
@@ -123,6 +123,6 @@ func NewSessionRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.Se
 	}
 }
 
-func (sr *SessionRunnerExec) ID() api.ID {
+func (sr *Exec) ID() api.ID {
 	return sr.id
 }

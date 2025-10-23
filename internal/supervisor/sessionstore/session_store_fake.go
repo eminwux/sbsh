@@ -23,7 +23,7 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-type SessionStoreTest struct {
+type Test struct {
 	// Last-call trackers (useful for assertions)
 	LastAdded        *api.SupervisedSession
 	LastGetID        api.ID
@@ -42,8 +42,8 @@ type SessionStoreTest struct {
 	SetCurrentFunc func(id api.ID) error
 }
 
-func NewSessionStoreTest() *SessionStoreTest {
-	return &SessionStoreTest{
+func NewSessionStoreTest() *Test {
+	return &Test{
 		AddFunc: func(s *api.SupervisedSession) error {
 			if s == nil {
 				return errors.New("nil session")
@@ -74,7 +74,7 @@ func NewSessionStoreTest() *SessionStoreTest {
 	}
 }
 
-func (t *SessionStoreTest) Add(s *api.SupervisedSession) error {
+func (t *Test) Add(s *api.SupervisedSession) error {
 	t.LastAdded = s
 	if t.AddFunc != nil {
 		return t.AddFunc(s)
@@ -82,7 +82,7 @@ func (t *SessionStoreTest) Add(s *api.SupervisedSession) error {
 	return errdefs.ErrFuncNotSet
 }
 
-func (t *SessionStoreTest) Get(id api.ID) (*api.SupervisedSession, bool) {
+func (t *Test) Get(id api.ID) (*api.SupervisedSession, bool) {
 	t.LastGetID = id
 	if t.GetFunc != nil {
 		return t.GetFunc(id)
@@ -90,28 +90,28 @@ func (t *SessionStoreTest) Get(id api.ID) (*api.SupervisedSession, bool) {
 	return nil, false
 }
 
-func (t *SessionStoreTest) ListLive() []api.ID {
+func (t *Test) ListLive() []api.ID {
 	if t.ListLiveFunc != nil {
 		return t.ListLiveFunc()
 	}
 	return nil
 }
 
-func (t *SessionStoreTest) Remove(id api.ID) {
+func (t *Test) Remove(id api.ID) {
 	t.LastRemovedID = id
 	if t.RemoveFunc != nil {
 		t.RemoveFunc(id)
 	}
 }
 
-func (t *SessionStoreTest) Current() api.ID {
+func (t *Test) Current() api.ID {
 	if t.CurrentFunc != nil {
 		return t.CurrentFunc()
 	}
 	return t.CurrentID
 }
 
-func (t *SessionStoreTest) SetCurrent(id api.ID) error {
+func (t *Test) SetCurrent(id api.ID) error {
 	t.LastSetCurrentID = id
 	if t.SetCurrentFunc != nil {
 		return t.SetCurrentFunc(id)

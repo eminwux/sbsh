@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package common
+package shared
 
 import (
 	"context"
@@ -24,17 +24,16 @@ import (
 	"path/filepath"
 )
 
-func WriteMetadata(ctx context.Context, metadata any, dir string) error {
+func WriteMetadata(_ context.Context, metadata any, dir string) error {
 	dst := filepath.Join(dir, "metadata.json")
-	var data []byte
 	marshaled, marshalErr := json.MarshalIndent(metadata, "", "  ")
 	if marshalErr != nil {
 		return fmt.Errorf("marshal %s: %w", dir, marshalErr)
 	}
-	data = append(marshaled, '\n') // gocritic: assign result to same slice
+	marshaled = append(marshaled, '\n') // gocritic: assign result to same slice
 
 	const filePerm = 0o644 // mnd: magic number
-	if writeErr := atomicWriteFile(dst, data, filePerm); writeErr != nil {
+	if writeErr := atomicWriteFile(dst, marshaled, filePerm); writeErr != nil {
 		return fmt.Errorf("write %s: %w", dst, writeErr)
 	}
 	return nil

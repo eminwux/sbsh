@@ -27,7 +27,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/eminwux/sbsh/internal/common"
+	"github.com/eminwux/sbsh/internal/shared"
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
@@ -151,7 +151,7 @@ func (c *client) call(ctx context.Context, logger *slog.Logger, method string, i
 		// If this is a Unix domain socket, use the Unix-aware logger.
 		if u, ok := conn.(*net.UnixConn); ok {
 			logger.DebugContext(ctx, "using LoggingConnUnix for codec", "method", method)
-			luc := &common.LoggingConnUnix{
+			luc := &shared.LoggingConnUnix{
 				UnixConn:    u,
 				Logger:      logger,
 				PrefixWrite: "client->server",
@@ -162,7 +162,7 @@ func (c *client) call(ctx context.Context, logger *slog.Logger, method string, i
 
 		// Otherwise fall back to the generic logger.
 		logger.DebugContext(ctx, "using LoggingConn for codec", "method", method)
-		lc := &common.LoggingConn{
+		lc := &shared.LoggingConn{
 			Conn:        conn,
 			Logger:      logger,
 			PrefixWrite: "client->server",
@@ -174,7 +174,6 @@ func (c *client) call(ctx context.Context, logger *slog.Logger, method string, i
 
 func (c *client) Close() error { return nil } // stateless client
 
-// --- Public methods (no FD passing) ---.
 func (c *client) Ping(ctx context.Context, ping *api.PingMessage, pong *api.PingMessage) error {
 	return c.call(ctx, c.logger, api.SessionMethodPing, ping, pong)
 }
@@ -187,8 +186,7 @@ func (c *client) Detach(ctx context.Context, id *api.ID) error {
 	return c.call(ctx, c.logger, api.SessionMethodDetach, id, &api.Empty{})
 }
 
-// --- Attach (uses FD-aware codec) ---
-// Returns the IO net.Conn built from the FD sent via SCM_RIGHTS; also fills 'out' with JSON result.
+// Attach (uses FD-aware codec) returns the IO net.Conn built from the FD sent via SCM_RIGHTS; also fills 'out' with JSON result.
 func (c *client) Attach(ctx context.Context, id *api.ID, out any) (net.Conn, error) {
 	var gotFDs []int
 

@@ -26,10 +26,10 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-// SupervisorRunnerTest is a test double for SupervisorRunner
+// Test is a test double for SupervisorRunner
 // It allows overriding behavior with function fields and
 // capturing arguments for assertions in unit tests.
-type SupervisorRunnerTest struct {
+type Test struct {
 	Ctx    context.Context
 	Logger *slog.Logger
 	// Last-call trackers
@@ -57,20 +57,20 @@ type SupervisorRunnerTest struct {
 }
 
 // NewSupervisorRunnerTest returns a new SupervisorRunnerTest instance.
-func NewSupervisorRunnerTest(ctx context.Context, _ *api.SupervisorSpec) *SupervisorRunnerTest {
-	return &SupervisorRunnerTest{
+func NewSupervisorRunnerTest(ctx context.Context, _ *api.SupervisorSpec) *Test {
+	return &Test{
 		Ctx: ctx,
 	}
 }
 
-func (t *SupervisorRunnerTest) OpenSocketCtrl() error {
+func (t *Test) OpenSocketCtrl() error {
 	if t.OpenSocketCtrlFunc != nil {
 		return t.OpenSocketCtrlFunc()
 	}
 	return errdefs.ErrFuncNotSet
 }
 
-func (t *SupervisorRunnerTest) StartServer(
+func (t *Test) StartServer(
 	ctx context.Context,
 	sc *supervisorrpc.SupervisorControllerRPC,
 	readyCh chan error,
@@ -83,14 +83,14 @@ func (t *SupervisorRunnerTest) StartServer(
 	}
 }
 
-func (t *SupervisorRunnerTest) ID() api.ID {
+func (t *Test) ID() api.ID {
 	if t.IDFunc != nil {
 		return t.IDFunc()
 	}
 	return "" // default empty ID if not set
 }
 
-func (t *SupervisorRunnerTest) Close(reason error) error {
+func (t *Test) Close(reason error) error {
 	t.LastReason = reason
 	if t.CloseFunc != nil {
 		return t.CloseFunc(reason)
@@ -98,35 +98,35 @@ func (t *SupervisorRunnerTest) Close(reason error) error {
 	return errdefs.ErrFuncNotSet
 }
 
-func (t *SupervisorRunnerTest) Resize(args api.ResizeArgs) {
+func (t *Test) Resize(args api.ResizeArgs) {
 	t.LastResize = args
 	if t.ResizeFunc != nil {
 		t.ResizeFunc(args)
 	}
 }
 
-func (t *SupervisorRunnerTest) Attach(session *api.SupervisedSession) error {
+func (t *Test) Attach(session *api.SupervisedSession) error {
 	if t.AttachFunc != nil {
 		return t.AttachFunc(session)
 	}
 	return errdefs.ErrFuncNotSet
 }
 
-func (t *SupervisorRunnerTest) CreateMetadata() error {
+func (t *Test) CreateMetadata() error {
 	if t.CreateMetadataFunc != nil {
 		return t.CreateMetadataFunc()
 	}
 	return errdefs.ErrFuncNotSet
 }
 
-func (t *SupervisorRunnerTest) Detach() error {
+func (t *Test) Detach() error {
 	if t.DetachFunc != nil {
 		return t.DetachFunc()
 	}
 	return errdefs.ErrFuncNotSet
 }
 
-func (t *SupervisorRunnerTest) StartSessionCmd(session *api.SupervisedSession) error {
+func (t *Test) StartSessionCmd(session *api.SupervisedSession) error {
 	if t.StartSessionCmdFunc != nil {
 		return t.StartSessionCmdFunc(session)
 	}

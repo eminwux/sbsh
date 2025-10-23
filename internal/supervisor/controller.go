@@ -34,13 +34,13 @@ import (
 
 /* ---------- Controller ---------- */
 
-// SupervisorController manages the lifecycle of the supervisor.
-type SupervisorController struct {
+// Controller manages the lifecycle of the supervisor.
+type Controller struct {
 	ctx    context.Context
 	cancel context.CancelCauseFunc
 	logger *slog.Logger
 
-	NewSupervisorRunner func(ctx context.Context, logger *slog.Logger, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.SupervisorRunnerEvent) supervisorrunner.SupervisorRunner
+	NewSupervisorRunner func(ctx context.Context, logger *slog.Logger, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner
 	NewSessionStore     func() sessionstore.SessionStore
 
 	sr supervisorrunner.SupervisorRunner
@@ -52,7 +52,7 @@ type SupervisorController struct {
 	closedCh     chan struct{}
 	shuttingDown bool
 
-	eventsCh chan supervisorrunner.SupervisorRunnerEvent
+	eventsCh chan supervisorrunner.Event
 
 	rpcReadyCh chan error
 	rpcDoneCh  chan error
@@ -63,7 +63,7 @@ func NewSupervisorController(ctx context.Context, logger *slog.Logger) api.Super
 	logger.InfoContext(ctx, "New supervisor controller is being created")
 	newCtx, cancel := context.WithCancelCause(ctx)
 
-	c := &SupervisorController{
+	c := &Controller{
 		ctx:         newCtx,
 		cancel:      cancel,
 		logger:      logger,
@@ -74,14 +74,14 @@ func NewSupervisorController(ctx context.Context, logger *slog.Logger) api.Super
 		rpcDoneCh:   make(chan error),
 		closeReqCh:  make(chan error, 1),
 		//nolint:mnd // event channel buffer size
-		eventsCh:            make(chan supervisorrunner.SupervisorRunnerEvent, 32),
+		eventsCh:            make(chan supervisorrunner.Event, 32),
 		NewSupervisorRunner: supervisorrunner.NewSupervisorRunnerExec,
 		NewSessionStore:     sessionstore.NewSessionStoreExec,
 	}
 	return c
 }
 
-func (s *SupervisorController) WaitReady() error {
+func (s *Controller) WaitReady() error {
 	select {
 	case <-s.ctrlReadyCh:
 		return nil
@@ -91,7 +91,9 @@ func (s *SupervisorController) WaitReady() error {
 }
 
 // Run is the main orchestration loop. It owns all mode transitions.
-func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
+//
+//nolint:gocognit,funlen // long main function
+func (s *Controller) Run(spec *api.SupervisorSpec) error {
 	s.logger.Info("controller loop started", "spec_kind", spec.Kind, "run_path", spec.RunPath)
 	defer s.logger.Info("controller loop stopped", "run_path", spec.RunPath)
 
@@ -243,7 +245,7 @@ func (s *SupervisorController) Run(spec *api.SupervisorSpec) error {
 	}
 }
 
-func (s *SupervisorController) CreateAttachSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
+func (s *Controller) CreateAttachSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
 	var metadata *api.SessionMetadata
 	if spec.AttachID != "" {
 		var err error
@@ -270,7 +272,7 @@ func (s *SupervisorController) CreateAttachSession(spec *api.SupervisorSpec) (*a
 	return session, nil
 }
 
-func (s *SupervisorController) CreateRunNewSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
+func (s *Controller) CreateRunNewSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
 	if spec.SessionSpec == nil {
 		return nil, errors.New("no session spec found")
 	}
@@ -301,7 +303,7 @@ func (s *SupervisorController) CreateRunNewSession(spec *api.SupervisorSpec) (*a
 
 /* ---------- Event handlers ---------- */
 
-func (s *SupervisorController) handleEvent(ev supervisorrunner.SupervisorRunnerEvent) {
+func (s *Controller) handleEvent(ev supervisorrunner.Event) {
 	switch ev.Type {
 	case supervisorrunner.EvCmdExited:
 		s.logger.Info("session EvCmdExited", "id", ev.ID, "err", ev.Err)
@@ -313,12 +315,12 @@ func (s *SupervisorController) handleEvent(ev supervisorrunner.SupervisorRunnerE
 	}
 }
 
-func (s *SupervisorController) onClosed(_ api.ID, err error) {
+func (s *Controller) onClosed(_ api.ID, err error) {
 	s.logger.Warn("onClosed called", "err", err)
 	_ = s.Close(err)
 }
 
-func (s *SupervisorController) Close(reason error) error {
+func (s *Controller) Close(reason error) error {
 	if !s.shuttingDown {
 		s.logger.Info("initiating shutdown sequence", "reason", reason)
 		// Set closing reason
@@ -338,7 +340,7 @@ func (s *SupervisorController) Close(reason error) error {
 	return nil
 }
 
-func (s *SupervisorController) WaitClose() error {
+func (s *Controller) WaitClose() error {
 	select {
 	case <-s.closedCh:
 		s.logger.Debug("controller has fully exited and resources are released")
@@ -346,7 +348,7 @@ func (s *SupervisorController) WaitClose() error {
 	}
 }
 
-func (s *SupervisorController) Detach() error {
+func (s *Controller) Detach() error {
 	// Request detach to session
 	if err := s.sr.Detach(); err != nil {
 		return fmt.Errorf("%w: %w", errdefs.ErrDetachSession, err)

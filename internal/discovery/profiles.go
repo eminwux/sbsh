@@ -14,7 +14,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package profiles provides helpers to load and list SessionProfile YAMLs.
 package discovery
 
 import (
@@ -61,7 +60,7 @@ func LoadProfilesFromPath(
 	return LoadProfilesFromReaderWithContext(ctx, logger, f)
 }
 
-// LoadProfilesFromReader decodes one or more YAML documents from r.
+// LoadProfilesFromReaderWithContext decodes one or more YAML documents from r.
 func LoadProfilesFromReaderWithContext(
 	ctx context.Context,
 	logger *slog.Logger,

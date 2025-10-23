@@ -25,7 +25,7 @@ import (
 )
 
 // toBashUIMode: set terminal to RAW, update flags.
-func (sr *SupervisorRunnerExec) toBashUIMode() error {
+func (sr *Exec) toBashUIMode() error {
 	sr.logger.Debug("toBashUIMode: switching to raw mode")
 	lastTermState, err := toRawMode(sr.logger)
 	if err != nil {
@@ -41,7 +41,7 @@ func (sr *SupervisorRunnerExec) toBashUIMode() error {
 }
 
 // toSupervisorUIMode: set terminal to COOKED for your REPL.
-func (sr *SupervisorRunnerExec) toExitShell() error {
+func (sr *Exec) toExitShell() error {
 	sr.logger.Debug("toExitShell: switching to cooked mode")
 	if sr.lastTermState != nil {
 		err := term.Restore(int(os.Stdin.Fd()), sr.lastTermState)
@@ -56,7 +56,7 @@ func (sr *SupervisorRunnerExec) toExitShell() error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) initTerminal() error {
+func (sr *Exec) initTerminal() error {
 	sr.logger.Debug("initTerminal: supervisor writing to terminal")
 
 	if err := sr.writeTerminal("export SBSH_SUP_SOCKET=" + sr.metadata.Spec.SockerCtrl + "\n"); err != nil {
@@ -68,7 +68,7 @@ func (sr *SupervisorRunnerExec) initTerminal() error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) writeTerminal(input string) error {
+func (sr *Exec) writeTerminal(input string) error {
 	sr.logger.Debug("writeTerminal: writing to terminal", "input_len", len(input))
 	const maxRetries = 10
 	const retrySleepMs = 100

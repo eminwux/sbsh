@@ -25,7 +25,7 @@ import (
 	"net/rpc"
 	"sync"
 
-	"github.com/eminwux/sbsh/internal/common"
+	"github.com/eminwux/sbsh/internal/shared"
 	"github.com/eminwux/sbsh/pkg/api"
 	"golang.org/x/sys/unix"
 )
@@ -33,7 +33,7 @@ import (
 // unixJSONServerCodec: JSON-RPC over *UnixConn with optional FD passing via SCM_RIGHTS.
 type unixJSONServerCodec struct {
 	logger *slog.Logger
-	uc     *common.LoggingConnUnix
+	uc     *shared.LoggingConnUnix
 	dec    *json.Decoder
 	mu     sync.Mutex // serialize writes (including sendmsg)
 
@@ -45,7 +45,7 @@ type unixJSONServerCodec struct {
 }
 
 func NewUnixJSONServerCodec(uc *net.UnixConn, logger *slog.Logger) rpc.ServerCodec {
-	luc := &common.LoggingConnUnix{
+	luc := &shared.LoggingConnUnix{
 		UnixConn:    uc,
 		Logger:      logger,
 		PrefixWrite: "server->client",

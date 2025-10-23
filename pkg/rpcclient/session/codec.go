@@ -24,13 +24,13 @@ import (
 	"net/rpc"
 	"sync"
 
-	"github.com/eminwux/sbsh/internal/common"
+	"github.com/eminwux/sbsh/internal/shared"
 	"golang.org/x/sys/unix"
 )
 
 type unixJSONClientCodec struct {
 	logger *slog.Logger
-	uc     *common.LoggingConnUnix
+	uc     *shared.LoggingConnUnix
 	encMu  sync.Mutex
 	enc    *json.Encoder
 
@@ -42,7 +42,7 @@ type unixJSONClientCodec struct {
 }
 
 func newUnixJSONClientCodec(u *net.UnixConn, logger *slog.Logger) *unixJSONClientCodec {
-	luc := &common.LoggingConnUnix{
+	luc := &shared.LoggingConnUnix{
 		UnixConn:    u,
 		Logger:      logger,
 		PrefixWrite: "client->server",
@@ -64,7 +64,7 @@ func (c *unixJSONClientCodec) WriteRequest(req *rpc.Request, body any) error {
 		ID     uint64         `json:"id"`
 		Method string         `json:"method"`
 		Params [1]interface{} `json:"params"`
-	}{ID: uint64(req.Seq), Method: req.ServiceMethod, Params: [1]any{body}}
+	}{ID: req.Seq, Method: req.ServiceMethod, Params: [1]any{body}}
 
 	// Encode to buffer (so we can inspect it before sending)
 	var buf bytes.Buffer
@@ -93,10 +93,10 @@ func (c *unixJSONClientCodec) ReadResponseHeader(resp *rpc.Response) error {
 	oob := make([]byte, 256)
 
 	c.logger.Debug("ReadResponseHeader: calling ReadMsgUnix")
-	n, oobn, _, err := c.uc.ReadMsgUnix(buf, oob)
-	if err != nil {
-		c.logger.Error("ReadResponseHeader: ReadMsgUnix failed", "error", err)
-		return err
+	n, oobn, _, errRead := c.uc.ReadMsgUnix(buf, oob)
+	if errRead != nil {
+		c.logger.Error("ReadResponseHeader: ReadMsgUnix failed", "error", errRead)
+		return errRead
 	}
 
 	c.logger.Debug("ReadResponseHeader: parsing FDs", "oobn", oobn)
@@ -118,9 +118,9 @@ func (c *unixJSONClientCodec) ReadResponseHeader(resp *rpc.Response) error {
 		Result *json.RawMessage `json:"result"`
 		Error  *string          `json:"error"`
 	}
-	if err := json.Unmarshal(buf[:n], &wire); err != nil {
-		c.logger.Error("ReadResponseHeader: JSON unmarshal failed", "error", err)
-		return err
+	if errUnmarshal := json.Unmarshal(buf[:n], &wire); errUnmarshal != nil {
+		c.logger.Error("ReadResponseHeader: JSON unmarshal failed", "error", errUnmarshal)
+		return errUnmarshal
 	}
 	c.logger.Debug("ReadResponseHeader: JSON unmarshalled", "id", wire.ID)
 

@@ -24,10 +24,10 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-type SessionRunnerTest struct {
+type Test struct {
 	OpenSocketCtrlFunc  func() error
 	StartServerFunc     func(ctx context.Context, sc *sessionrpc.SessionControllerRPC, readyCh chan error, doneCh chan error)
-	StartSessionFunc    func(evCh chan<- SessionRunnerEvent) error
+	StartSessionFunc    func(evCh chan<- Event) error
 	CloseFunc           func(reason error) error
 	ResizeFunc          func(args api.ResizeArgs)
 	IDFunc              func() api.ID
@@ -41,17 +41,17 @@ type SessionRunnerTest struct {
 }
 
 func NewSessionRunnerTest(_ context.Context) SessionRunner {
-	return &SessionRunnerTest{}
+	return &Test{}
 }
 
-func (sr *SessionRunnerTest) OpenSocketCtrl() error {
+func (sr *Test) OpenSocketCtrl() error {
 	if sr.OpenSocketCtrlFunc != nil {
 		return sr.OpenSocketCtrlFunc()
 	}
 	return nil
 }
 
-func (sr *SessionRunnerTest) StartServer(
+func (sr *Test) StartServer(
 	ctx context.Context,
 	sc *sessionrpc.SessionControllerRPC,
 	readyCh chan error,
@@ -62,76 +62,76 @@ func (sr *SessionRunnerTest) StartServer(
 	}
 }
 
-func (sr *SessionRunnerTest) StartSession(evCh chan<- SessionRunnerEvent) error {
+func (sr *Test) StartSession(evCh chan<- Event) error {
 	if sr.OpenSocketCtrlFunc != nil {
 		return sr.StartSessionFunc(evCh)
 	}
 	return nil
 }
 
-func (sr *SessionRunnerTest) ID() api.ID {
+func (sr *Test) ID() api.ID {
 	if sr.IDFunc != nil {
 		return sr.IDFunc()
 	}
 	return api.ID("")
 }
 
-func (sr *SessionRunnerTest) Close(reason error) error {
+func (sr *Test) Close(reason error) error {
 	if sr.CloseFunc != nil {
 		return sr.CloseFunc(reason)
 	}
 	return nil
 }
 
-func (sr *SessionRunnerTest) Resize(args api.ResizeArgs) {
+func (sr *Test) Resize(args api.ResizeArgs) {
 	if sr.ResizeFunc != nil {
 		sr.ResizeFunc(args)
 	}
 }
 
-func (sr *SessionRunnerTest) CreateMetadata() error {
+func (sr *Test) CreateMetadata() error {
 	if sr.CreateMetadataFunc != nil {
-		sr.CreateMetadataFunc()
+		_ = sr.CreateMetadataFunc()
 	}
 	return nil
 }
 
-func (sr *SessionRunnerTest) Attach(id *api.ID, response *api.ResponseWithFD) error {
+func (sr *Test) Attach(id *api.ID, response *api.ResponseWithFD) error {
 	if sr.AttachFunc != nil {
 		return sr.AttachFunc(id, response)
 	}
 	return errdefs.ErrFuncNotSet
 }
 
-func (sr *SessionRunnerTest) Detach(id *api.ID) error {
+func (sr *Test) Detach(id *api.ID) error {
 	if sr.DetachFunc != nil {
-		sr.DetachFunc(id)
+		_ = sr.DetachFunc(id)
 	}
 	return errdefs.ErrFuncNotSet
 }
 
-func (sr *SessionRunnerTest) SetupShell() error {
+func (sr *Test) SetupShell() error {
 	if sr.SetupShellFunc != nil {
 		return sr.SetupShellFunc()
 	}
 	return errdefs.ErrFuncNotSet
 }
 
-func (sr *SessionRunnerTest) OnInitShell() error {
+func (sr *Test) OnInitShell() error {
 	if sr.OnInitShellFunc != nil {
 		return sr.OnInitShellFunc()
 	}
 	return errdefs.ErrFuncNotSet
 }
 
-func (sr *SessionRunnerTest) Metadata() (*api.SessionMetadata, error) {
+func (sr *Test) Metadata() (*api.SessionMetadata, error) {
 	if sr.MetadataFunc != nil {
 		return sr.MetadataFunc()
 	}
 	return nil, errdefs.ErrFuncNotSet
 }
 
-func (sr *SessionRunnerTest) PostAttachShell() error {
+func (sr *Test) PostAttachShell() error {
 	if sr.PostAttachShellFunc != nil {
 		return sr.PostAttachShellFunc()
 	}

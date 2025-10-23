@@ -28,7 +28,7 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-type SessionController struct {
+type Controller struct {
 	ctx    context.Context
 	cancel context.CancelCauseFunc
 	logger *slog.Logger
@@ -43,7 +43,7 @@ type SessionController struct {
 	closedCh     chan struct{}
 	shuttingDown bool
 
-	eventsCh chan sessionrunner.SessionRunnerEvent
+	eventsCh chan sessionrunner.Event
 
 	rpcReadyCh chan error
 	rpcDoneCh  chan error
@@ -56,7 +56,7 @@ func NewSessionController(ctx context.Context, logger *slog.Logger) api.SessionC
 	logger.DebugContext(ctx, "New controller is being created")
 	newCtx, cancel := context.WithCancelCause(ctx)
 
-	c := &SessionController{
+	c := &Controller{
 		ctx:         newCtx,
 		cancel:      cancel,
 		logger:      logger,
@@ -67,7 +67,7 @@ func NewSessionController(ctx context.Context, logger *slog.Logger) api.SessionC
 		ctrlReadyCh: make(chan struct{}, 1),
 
 		//nolint:mnd // event channel buffer size
-		eventsCh:         make(chan sessionrunner.SessionRunnerEvent, 32),
+		eventsCh:         make(chan sessionrunner.Event, 32),
 		closeReqCh:       make(chan error, 1),
 		NewSessionRunner: sessionrunner.NewSessionRunnerExec,
 	}
@@ -75,14 +75,14 @@ func NewSessionController(ctx context.Context, logger *slog.Logger) api.SessionC
 	return c
 }
 
-func (c *SessionController) Ping(in *api.PingMessage) (*api.PingMessage, error) {
+func (c *Controller) Ping(in *api.PingMessage) (*api.PingMessage, error) {
 	if in.Message == "PING" {
 		return &api.PingMessage{Message: "PONG"}, nil
 	}
 	return &api.PingMessage{}, fmt.Errorf("unexpected ping message: %s", in.Message)
 }
 
-func (c *SessionController) WaitReady() error {
+func (c *Controller) WaitReady() error {
 	select {
 	case <-c.ctrlReadyCh:
 		c.logger.DebugContext(c.ctx, "controller is ready")
@@ -93,7 +93,7 @@ func (c *SessionController) WaitReady() error {
 	}
 }
 
-func (c *SessionController) WaitClose() error {
+func (c *Controller) WaitClose() error {
 	select {
 	case <-c.closedCh:
 		c.logger.InfoContext(c.ctx, "controller exited")
@@ -105,7 +105,9 @@ func (c *SessionController) WaitClose() error {
 }
 
 // Run is the main orchestration loop. It owns all mode transitions.
-func (c *SessionController) Run(spec *api.SessionSpec) error {
+//
+//nolint:gocognit,funlen // long main function
+func (c *Controller) Run(spec *api.SessionSpec) error {
 	defer c.logger.InfoContext(c.ctx, "controller stopped")
 
 	c.logger.DebugContext(c.ctx, "creating new session runner")
@@ -118,24 +120,24 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 
 	c.logger.InfoContext(c.ctx, "Starting controller loop")
 
-	err := c.sr.CreateMetadata()
-	if err != nil {
-		c.logger.ErrorContext(c.ctx, "could not write metadata file", "err", err)
-		if errB := c.Close(err); errB != nil {
+	errMetadata := c.sr.CreateMetadata()
+	if errMetadata != nil {
+		c.logger.ErrorContext(c.ctx, "could not write metadata file", "err", errMetadata)
+		if errB := c.Close(errMetadata); errB != nil {
 			c.logger.ErrorContext(c.ctx, "error during Close after metadata failure", "err", errB)
-			err = fmt.Errorf("%w: %w :%w", err, errdefs.ErrOnClose, err)
+			errMetadata = fmt.Errorf("%w: %w :%w", errMetadata, errdefs.ErrOnClose, errB)
 		}
-		return fmt.Errorf("%w: %w", errdefs.ErrWriteMetadata, err)
+		return fmt.Errorf("%w: %w", errdefs.ErrWriteMetadata, errMetadata)
 	}
 
-	err = c.sr.OpenSocketCtrl()
-	if err != nil {
-		c.logger.ErrorContext(c.ctx, "could not open control socket", "err", err)
-		if errC := c.Close(err); errC != nil {
+	errOpen := c.sr.OpenSocketCtrl()
+	if errOpen != nil {
+		c.logger.ErrorContext(c.ctx, "could not open control socket", "err", errOpen)
+		if errC := c.Close(errOpen); errC != nil {
 			c.logger.ErrorContext(c.ctx, "error during Close after socket open failure", "err", errC)
-			err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
+			errOpen = fmt.Errorf("%w: %w: %w", errOpen, errdefs.ErrOnClose, errC)
 		}
-		return fmt.Errorf("%w: %w", errdefs.ErrOpenSocketCtrl, err)
+		return fmt.Errorf("%w: %w", errdefs.ErrOpenSocketCtrl, errOpen)
 	}
 
 	rpc := &sessionrpc.SessionControllerRPC{Core: c}
@@ -146,13 +148,13 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		return fmt.Errorf("%w: %w", errdefs.ErrStartRPCServer, errC)
 	}
 
-	if errB := c.sr.StartSession(c.eventsCh); errB != nil {
-		c.logger.ErrorContext(c.ctx, "failed to start session", "err", errB)
-		if errC := c.Close(errB); errC != nil {
+	if errStart := c.sr.StartSession(c.eventsCh); errStart != nil {
+		c.logger.ErrorContext(c.ctx, "failed to start session", "err", errStart)
+		if errC := c.Close(errStart); errC != nil {
 			c.logger.ErrorContext(c.ctx, "error during Close after session start failure", "err", errC)
-			errB = fmt.Errorf("%w: %w: %w", errB, errdefs.ErrOnClose, errC)
+			errStart = fmt.Errorf("%w: %w: %w", errStart, errdefs.ErrOnClose, errC)
 		}
-		return fmt.Errorf("%w: %w", errdefs.ErrStartSession, errB)
+		return fmt.Errorf("%w: %w", errdefs.ErrStartSession, errStart)
 	}
 
 	if errSetup := c.sr.SetupShell(); errSetup != nil {
@@ -164,13 +166,13 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 		return fmt.Errorf("%w: %w", errdefs.ErrSetupShell, errSetup)
 	}
 
-	if errSetup := c.sr.OnInitShell(); errSetup != nil {
-		c.logger.ErrorContext(c.ctx, "failed on init shell", "err", errSetup)
-		if errClose := c.Close(errSetup); errClose != nil {
+	if errInit := c.sr.OnInitShell(); errInit != nil {
+		c.logger.ErrorContext(c.ctx, "failed on init shell", "err", errInit)
+		if errClose := c.Close(errInit); errClose != nil {
 			c.logger.ErrorContext(c.ctx, "error during Close after init shell failure", "err", errClose)
-			errSetup = fmt.Errorf("%w: %w: %w", errSetup, errdefs.ErrOnClose, errClose)
+			errInit = fmt.Errorf("%w: %w: %w", errInit, errdefs.ErrOnClose, errClose)
 		}
-		return fmt.Errorf("%w: %w", errdefs.ErrInitShell, errSetup)
+		return fmt.Errorf("%w: %w", errdefs.ErrInitShell, errInit)
 	}
 
 	c.logger.InfoContext(c.ctx, "controller ready")
@@ -224,7 +226,7 @@ func (c *SessionController) Run(spec *api.SessionSpec) error {
 
 /* ---------- Event handlers ---------- */
 
-func (c *SessionController) handleEvent(ev sessionrunner.SessionRunnerEvent) {
+func (c *Controller) handleEvent(ev sessionrunner.Event) {
 	switch ev.Type {
 	case sessionrunner.EvError:
 		c.logger.ErrorContext(c.ctx, "session EvError", "id", ev.ID, "error", ev.Err)
@@ -236,7 +238,7 @@ func (c *SessionController) handleEvent(ev sessionrunner.SessionRunnerEvent) {
 	}
 }
 
-func (c *SessionController) Close(reason error) error {
+func (c *Controller) Close(reason error) error {
 	if !c.shuttingDown {
 		c.logger.InfoContext(c.ctx, "initiating shutdown sequence", "reason", reason)
 		// Set closing reason
@@ -256,16 +258,16 @@ func (c *SessionController) Close(reason error) error {
 	return nil
 }
 
-func (c *SessionController) onClosed(err error) {
+func (c *Controller) onClosed(err error) {
 	c.logger.InfoContext(c.ctx, "onClosed triggered")
 	_ = c.Close(err)
 }
 
-func (c *SessionController) Resize(args api.ResizeArgs) {
+func (c *Controller) Resize(args api.ResizeArgs) {
 	c.sr.Resize(args)
 }
 
-func (c *SessionController) Attach(id *api.ID, response *api.ResponseWithFD) error {
+func (c *Controller) Attach(id *api.ID, response *api.ResponseWithFD) error {
 	err := c.sr.Attach(id, response)
 	if err != nil {
 		c.logger.ErrorContext(c.ctx, "Attach failed", "id", id, "error", err)
@@ -282,10 +284,10 @@ func (c *SessionController) Attach(id *api.ID, response *api.ResponseWithFD) err
 	return nil
 }
 
-func (c *SessionController) Detach(id *api.ID) error {
+func (c *Controller) Detach(id *api.ID) error {
 	return c.sr.Detach(id)
 }
 
-func (c *SessionController) Metadata() (*api.SessionMetadata, error) {
+func (c *Controller) Metadata() (*api.SessionMetadata, error) {
 	return c.sr.Metadata()
 }

@@ -35,6 +35,6 @@ type SupervisorRunner interface {
 	StartSessionCmd(session *api.SupervisedSession) error
 }
 
-func (sr *SupervisorRunnerExec) ID() api.ID {
+func (sr *Exec) ID() api.ID {
 	return sr.session.ID
 }

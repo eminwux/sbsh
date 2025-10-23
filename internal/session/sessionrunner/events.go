@@ -24,23 +24,23 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-type SessionRunnerEventType int
+type EventType int
 
-type SessionRunnerEvent struct {
+type Event struct {
 	ID    api.ID
-	Type  SessionRunnerEventType
+	Type  EventType
 	Bytes int   // for EvData
 	Err   error // for EvClosed/EvError
 	When  time.Time
 }
 
 const (
-	EvError SessionRunnerEventType = iota // abnormal error
+	EvError EventType = iota // abnormal error
 	EvCmdExited
 )
 
 // helper: non-blocking event send so the PTY reader never stalls
-func trySendEvent(logger *slog.Logger, ch chan<- SessionRunnerEvent, ev SessionRunnerEvent) {
+func trySendEvent(logger *slog.Logger, ch chan<- Event, ev Event) {
 	logger.Debug(
 		fmt.Sprintf(
 			"[session] send event: id=%s type=%v err=%v when=%s\r\n",

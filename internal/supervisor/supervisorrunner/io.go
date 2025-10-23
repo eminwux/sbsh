@@ -34,10 +34,10 @@ import (
 
 const (
 	// in milliseconds.
-	resizeTimeOut = 100
+	resizeTimeout = 100
 )
 
-func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
+func (sr *Exec) dialSessionCtrlSocket() error {
 	sr.logger.DebugContext(sr.ctx, "dialSessionCtrlSocket: connecting to session",
 		"session_id", sr.session.ID,
 		"pid", sr.session.Pid,
@@ -60,7 +60,7 @@ func (sr *SupervisorRunnerExec) dialSessionCtrlSocket() error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) startConnectionManager() error {
+func (sr *Exec) startConnectionManager() error {
 	// Connected, now we enable raw mode
 	if err := sr.toBashUIMode(); err != nil {
 		sr.logger.ErrorContext(sr.ctx, "attachIOSocket: initial raw mode failed", "error", err)
@@ -98,7 +98,7 @@ func (sr *SupervisorRunnerExec) startConnectionManager() error {
 
 	// MANAGER
 	go dc.CopierManager(uc, func() {
-		trySendEvent(sr.logger, sr.events, SupervisorRunnerEvent{
+		trySendEvent(sr.logger, sr.events, Event{
 			ID:   sr.session.ID,
 			Type: EvError,
 			Err:  errors.New("read/write routines exited"),
@@ -115,7 +115,7 @@ func (sr *SupervisorRunnerExec) startConnectionManager() error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) attach() error {
+func (sr *Exec) attach() error {
 	var response struct{}
 	conn, err := sr.sessionClient.Attach(sr.ctx, &sr.id, &response)
 	if err != nil {
@@ -129,13 +129,14 @@ func (sr *SupervisorRunnerExec) attach() error {
 	return nil
 }
 
-func (sr *SupervisorRunnerExec) forwardResize() error {
+func (sr *Exec) forwardResize() error {
 	// Send initial size once (use the supervisor's TTY: os.Stdin)
-	if rows, cols, err := pty.Getsize(os.Stdin); err == nil {
-		ctx, cancel := context.WithTimeout(sr.ctx, 100*time.Millisecond)
+	if rows, cols, errSize := pty.Getsize(os.Stdin); errSize == nil {
+		const resizeTimeout = 100 * time.Millisecond
+		ctx, cancel := context.WithTimeout(sr.ctx, resizeTimeout)
 		defer cancel()
 
-		if err := sr.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: int(cols), Rows: int(rows)}); err != nil {
+		if err := sr.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: cols, Rows: rows}); err != nil {
 			sr.logger.ErrorContext(sr.ctx, "forwardResize: initial resize failed", "error", err)
 			return fmt.Errorf("status failed: %w", err)
 		}
@@ -161,10 +162,10 @@ func (sr *SupervisorRunnerExec) forwardResize() error {
 					sr.logger.WarnContext(sr.ctx, "forwardResize: Getsize failed", "error", err)
 					continue
 				}
-				ctx, cancel := context.WithTimeout(sr.ctx, resizeTimeOut*time.Millisecond)
+				ctx, cancel := context.WithTimeout(sr.ctx, resizeTimeout*time.Millisecond)
 				defer cancel()
-				if err := sr.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: int(cols), Rows: int(rows)}); err != nil {
-					sr.logger.ErrorContext(sr.ctx, "forwardResize: resize RPC failed", "error", err)
+				if errResize := sr.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: cols, Rows: rows}); errResize != nil {
+					sr.logger.ErrorContext(sr.ctx, "forwardResize: resize RPC failed", "error", errResize)
 				} else {
 					sr.logger.DebugContext(sr.ctx, "forwardResize: resize sent", "rows", rows, "cols", cols)
 				}
@@ -179,7 +180,7 @@ const (
 	waitReadyTickMilliseconds = 50
 )
 
-func (sr *SupervisorRunnerExec) waitReady() error {
+func (sr *Exec) waitReady() error {
 	ctx, cancel := context.WithTimeout(sr.ctx, waitReadyTimeoutSeconds*time.Second)
 	defer cancel()
 

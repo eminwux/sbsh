@@ -24,23 +24,23 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-type SupervisorRunnerEvent struct {
+type Event struct {
 	ID    api.ID
-	Type  SupervisorRunnerEventType
+	Type  EventType
 	Bytes int   // for EvData
 	Err   error // for EvClosed/EvError
 	When  time.Time
 }
 
-type SupervisorRunnerEventType int
+type EventType int
 
 const (
-	EvError SupervisorRunnerEventType = iota // abnormal error
+	EvError EventType = iota // abnormal error
 	EvCmdExited
 )
 
 // helper: non-blocking event send so the PTY reader never stalls
-func trySendEvent(logger *slog.Logger, ch chan<- SupervisorRunnerEvent, ev SupervisorRunnerEvent) {
+func trySendEvent(logger *slog.Logger, ch chan<- Event, ev Event) {
 	logger.Debug(
 		fmt.Sprintf(
 			"[supervisor] send event: id=%s type=%v err=%v when=%s\r\n",

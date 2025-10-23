@@ -395,6 +395,7 @@ func runSupervisor(
 			if errC := ctrl.WaitClose(); err != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrWaitOnClose, errC)
 			}
+			logger.ErrorContext(ctx, "supervisor controller exited with error", "error", err)
 			logger.DebugContext(ctx, "controller exited after error")
 
 			// return nothing to avoid polluting the terminal with errors

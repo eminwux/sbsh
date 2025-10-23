@@ -22,7 +22,7 @@ import (
 	"os"
 )
 
-func (sr *SupervisorRunnerExec) OpenSocketCtrl() error {
+func (sr *Exec) OpenSocketCtrl() error {
 	sr.logger.Debug("OpenSocketCtrl: preparing to listen", "socket", sr.metadata.Spec.SockerCtrl)
 
 	// remove stale socket if it exists
