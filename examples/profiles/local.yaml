@@ -3,7 +3,6 @@ kind: SessionProfile
 metadata:
   name: default
 spec:
-  runTarget: local
   restartPolicy: restart-on-error
   shell:
     cwd: "~"
@@ -17,47 +16,37 @@ spec:
     prompt: "\"[sbsh-$SBSH_SES_ID] \\u@\\h:\\w$ \""
   stages:
     onInit:
-      - script: ls -l $TEST
-        env:
-          TEST: "/tmp"
-      - script: sleep 1
     postAttach:
-      - script: echo "attached"
 ---
 apiVersion: sbsh/v1beta1
 kind: SessionProfile
 metadata:
-  name: prod
+  name: k8s-default
 spec:
-  runTarget: local
   restartPolicy: restart-on-error
   shell:
     cwd: "~/projects"
     cmd: /bin/bash
     cmdArgs: []
     env:
-      KUBE_CONFIG: "$HOME/.kube/config"
-      KUBE_CONTEXT: company-prd
-      KUBE_NAMESPACE: prd
-      JAPON: pepe
-      POD: app
+      KUBECONF: "$HOME/.kube/config"
+      KUBE_CONTEXT: default
+      KUBE_NAMESPACE: default
       HISTSIZE: "5000"
-    prompt: '"\[\e[1;31m\][PRD] sbsh-$SBSH_SES_ID\[\e[0m\] \[\e[1;33m\]\u@\h\[\e[0m\]:\w\$ "'
+    prompt: '"\[\e[1;31m\]sbsh($SBSH_SES_PROFILE/$SBSH_SES_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
   stages:
     onInit:
-      - script: kubectl -n $KUBE_NAMESPACE describe pod $POD
-      - script: bash -c 'echo -e $VAR'
-        env:
-          VAR: "Hello World"
+      - script: kubectl config use-context $KUBE_CONTEXT
+      - script: kubectl config get-contexts
     postAttach:
-      - script: echo "attached"
+      - script: kubectl get ns
+      - script: kubectl -n $KUBE_NAMESPACE get pods
 ---
 apiVersion: sbsh/v1beta1
 kind: SessionProfile
 metadata:
-  name: work-tf-prd-plan
+  name: terraform-prd
 spec:
-  runTarget: local
   restartPolicy: exit
   shell:
     cwd: "~/project/terraform"
@@ -66,60 +55,47 @@ spec:
     env:
       HISTSIZE: "5000"
       TF_VAR_environment: "prd"
-    prompt: '"[sbsh-$SBSH_SES_ID][PRD]\u@\h:\w$ "'
-  stages:
-    onInit:
-      - script: terraform workspace use $TF_VAR_environment
-      - script: terraform init
----
-apiVersion: sbsh/v1beta1
-kind: SessionProfile
-metadata:
-  name: work-tf-prd-apply
-spec:
-  runTarget: local
-  restartPolicy: exit
-  shell:
-    cwd: "~"
-    cmd: /bin/bash
-    cmdArgs: []
-    env:
-      HISTSIZE: "5000"
-      TF_VAR_environment: "prd"
-    prompt: '"[sbsh-$SBSH_SES_ID][PRD]\u@\h:\w$ "'
+    prompt: '"\[\e[1;31m\]sbsh($SBSH_SES_PROFILE/$SBSH_SES_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
   stages:
     onInit:
       - script: terraform workspace use $TF_VAR_environment
       - script: terraform init
       - script: terraform plan -out=tfplan
-      - script: terraform apply tfplan
 ---
 apiVersion: sbsh/v1beta1
 kind: SessionProfile
 metadata:
-  name: diag-pod-prd
+  name: k8s-pod
 spec:
-  runTarget: local
   restartPolicy: exit
   shell:
     cwd: "~"
-    cmd: /bin/kubectl
-    cmdArgs: ["-n prd run -ti --rm --image debian:latest diag-pod"]
+    cmd: /usr/local/bin/kubectl
+    cmdArgs:
+      ["run", "-ti", "--rm", "--image", "debian:stable-slim", "ephemeral"]
     env:
-      KUBECONFIG: "~/.kube/config"
-      KUBE_CONTEXT: "prd"
+      KUBECONF: "~/.kube/config"
+    prompt: '"\[\e[1;31m\]sbsh \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
 ---
 apiVersion: sbsh/v1beta1
 kind: SessionProfile
 metadata:
-  name: diag-docker
+  name: docker-container
 spec:
-  runTarget: local
   restartPolicy: exit
   shell:
     cwd: "~"
     cmd: /usr/bin/docker
-    cmdArgs: ["run", "--rm", "-ti", "debian:latest", "/bin/bash"]
-    env:
-      KUBECONFIG: "~/.kube/config"
-      KUBE_CONTEXT: "prd"
+    cmdArgs: ["run", "--rm", "-ti", "debian:stable-slim", "/bin/bash"]
+    prompt: '"\[\e[1;31m\]sbsh \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+---
+apiVersion: sbsh/v1beta1
+kind: SessionProfile
+metadata:
+  name: ssh-pk
+spec:
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/ssh
+    cmdArgs: ["-t", "pk"]
