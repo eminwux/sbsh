@@ -167,11 +167,11 @@ func LoadConfig() error {
 
 	var runPath string
 	if viper.GetString(config.RUN_PATH.ViperKey) == "" {
-		home, err := os.UserHomeDir()
+		var err error
+		runPath, err = config.DefaultRunPath()
 		if err != nil {
-			return fmt.Errorf("failed to get user home dir: %w", err)
+			return errors.New("cannot determine default run path: " + err.Error())
 		}
-		runPath = filepath.Join(home, ".sbsh", "run")
 	}
 	_ = config.RUN_PATH.BindEnv()
 	config.RUN_PATH.SetDefault(runPath)

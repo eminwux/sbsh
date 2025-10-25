@@ -250,8 +250,8 @@ func buildSupervisorSpec(
 	if sessionID == "" && sessionName != "" {
 		spec = &api.SupervisorSpec{
 			Kind:       api.AttachToSession,
-			ID:         api.ID(naming.RandomID()),
-			Name:       naming.RandomName(),
+			ID:         api.ID(supervisorID),
+			Name:       supervisorName,
 			LogFile:    "/tmp/sbsh-logs/s0",
 			RunPath:    runPath,
 			SockerCtrl: socketFileInput,
