@@ -45,42 +45,42 @@ func ScanAndPrintTerminals(ctx context.Context, logger *slog.Logger, runPath str
 	return printTerminals(w, sessions, printAll)
 }
 
-// ScanAndPruneSessions finds all metadata.json under runPath/sessions/*,
+// ScanAndPruneTerminals finds all metadata.json under runPath/sessions/*,
 // unmarshals them into api.SessionSpec, and removes the session folders
-// for sessions that are in Exited state.
-func ScanAndPruneSessions(ctx context.Context, logger *slog.Logger, runPath string, w io.Writer) error {
-	logger.DebugContext(ctx, "ScanAndPruneSessions: scanning sessions", "runPath", runPath)
-	sessions, err := ScanTerminals(ctx, logger, runPath)
+// for terminals that are in Exited state.
+func ScanAndPruneTerminals(ctx context.Context, logger *slog.Logger, runPath string, w io.Writer) error {
+	logger.DebugContext(ctx, "ScanAndPruneTerminals: scanning terminals", "runPath", runPath)
+	terminals, err := ScanTerminals(ctx, logger, runPath)
 	if err != nil {
-		logger.ErrorContext(ctx, "ScanAndPruneSessions: failed to scan sessions", "error", err)
+		logger.ErrorContext(ctx, "ScanAndPruneTerminals: failed to scan terminals", "error", err)
 		return err
 	}
 	pruned := 0
-	for _, s := range sessions {
+	for _, s := range terminals {
 		if s.Status.State == api.Exited {
-			logger.InfoContext(ctx, "ScanAndPruneSessions: pruning session", "id", terminalID(s))
-			if errC := PruneSession(logger, &s); errC != nil {
+			logger.InfoContext(ctx, "ScanAndPruneTerminals: pruning terminal", "id", terminalID(s))
+			if errC := PruneTerminal(logger, &s); errC != nil {
 				logger.ErrorContext(
 					ctx,
-					"ScanAndPruneSessions: failed to prune session",
+					"ScanAndPruneTerminals: failed to prune terminal",
 					"id",
 					terminalID(s),
 					"error",
 					errC,
 				)
-				return fmt.Errorf("prune session %s: %w", terminalID(s), errC)
+				return fmt.Errorf("prune terminal %s: %w", terminalID(s), errC)
 			}
 			pruned++
 			if w != nil {
-				fmt.Fprintf(w, "Pruned session %s (%s)\n", terminalID(s), terminalName(s))
+				fmt.Fprintf(w, "Pruned terminal %s (%s)\n", terminalID(s), terminalName(s))
 			}
 		}
 	}
-	logger.InfoContext(ctx, "ScanAndPruneSessions: prune complete", "pruned", pruned)
+	logger.InfoContext(ctx, "ScanAndPruneTerminals: prune complete", "pruned", pruned)
 	return nil
 }
 
-func PruneSession(logger *slog.Logger, metadata *api.SessionMetadata) error {
+func PruneTerminal(logger *slog.Logger, metadata *api.SessionMetadata) error {
 	logger.DebugContext(
 		context.Background(),
 		"PruneSession: pruning session folder",

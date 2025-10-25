@@ -31,7 +31,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/sb/detach"
 	"github.com/eminwux/sbsh/cmd/sb/get"
 	"github.com/eminwux/sbsh/cmd/sb/profiles"
-	"github.com/eminwux/sbsh/cmd/sb/sessions"
+	"github.com/eminwux/sbsh/cmd/sb/prune"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -119,7 +119,7 @@ Examples:
 
 func setupRootCmd(rootCmd *cobra.Command) error {
 	rootCmd.AddCommand(autocomplete.NewAutoCompleteCmd(rootCmd))
-	rootCmd.AddCommand(sessions.NewSessionsCmd())
+	rootCmd.AddCommand(prune.NewPruneCmd())
 	rootCmd.AddCommand(detach.NewDetachCmd())
 	rootCmd.AddCommand(profiles.NewProfilesCmd())
 	rootCmd.AddCommand(attach.NewAttachCmd())

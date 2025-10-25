@@ -16,4 +16,6 @@
 
 package discovery
 
-const TerminalsRunPath = "sessions"
+const (
+	TerminalsRunPath = "sessions"
+)

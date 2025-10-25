@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package sessions
+package prune
 
 import (
 	"errors"
@@ -29,45 +29,45 @@ import (
 	"github.com/spf13/viper"
 )
 
-func NewSessionsPruneCmd() *cobra.Command {
-	// sessionsPruneCmd represents the sessions command.
-	sessionsPruneCmd := &cobra.Command{
-		Use:     "prune",
-		Aliases: []string{"p"},
-		Short:   "Prune dead or exited sessions",
-		Long: `Prune dead or exited sessions.
-This will remove all session files for sessions that are not running anymore.`,
+func NewPruneTerminalsCmd() *cobra.Command {
+	// pruneTerminalsCmd represents the sessions command.
+	pruneTerminalsCmd := &cobra.Command{
+		Use:     "terminals",
+		Aliases: []string{"t", "term", "terms"},
+		Short:   "Prune dead or exited terminals",
+		Long: `Prune dead or exited terminals.
+This will remove all terminal files for terminals that are not running anymore.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
 
-			logger.Debug("sessions prune command invoked",
+			logger.Debug("terminals prune command invoked",
 				"run_path", viper.GetString(config.RUN_PATH.ViperKey),
 				"args", cmd.Flags().Args(),
 			)
 
-			err := discovery.ScanAndPruneSessions(
+			err := discovery.ScanAndPruneTerminals(
 				cmd.Context(),
 				logger,
 				viper.GetString(config.RUN_PATH.ViperKey),
 				os.Stdout,
 			)
 			if err != nil {
-				logger.Debug("error pruning sessions", "error", err)
+				logger.Debug("error pruning terminals", "error", err)
 				// Print to stderr and exit 1 as requested
-				_, _ = fmt.Fprintln(os.Stderr, "Could not prune sessions:", err)
+				_, _ = fmt.Fprintln(os.Stderr, "Could not prune terminals:", err)
 				os.Exit(1)
 			}
-			logger.Debug("sessions prune completed successfully")
+			logger.Debug("terminals prune completed successfully")
 			return nil
 		},
 	}
 
-	setupSessionsPruneCmd(sessionsPruneCmd)
-	return sessionsPruneCmd
+	setupTerminalsPruneCmd(pruneTerminalsCmd)
+	return pruneTerminalsCmd
 }
 
-func setupSessionsPruneCmd(_ *cobra.Command) {
+func setupTerminalsPruneCmd(_ *cobra.Command) {
 }
