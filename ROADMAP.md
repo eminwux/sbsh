@@ -10,8 +10,6 @@
 ```markdown
 - [ ] **A** If `sbsh run` fails supervisor must print to Stderr
 - [ ] **A** If supervisor dies session status remains attached
-- [ ] **A** sb detach SBSH_SUP_SOCKET fails on multi-attach
-- [ ] **A** sbsh use default profile if set in profiles.yaml
 ```
 
 ### 🅰️ Must Have
@@ -45,6 +43,8 @@
 - [ ] **C** Detach `sbsh run`, attach if `-i` with logs
 - [ ] **C** Write to many sessions at the same time
 ```
+## 🚫 Limitations
+- [ ] **A** sb detach not working on multi-attach (SBSH_SUP_ID)
 
 ### 🅳️ Won't Have
 
@@ -86,4 +86,5 @@
 - [X] **A** Add boolean to ProfileSpec to include current Env Vars  DONE
 - [X] **B** Add tty device to sb l                                  DONE
 - [X] **A** Add profile to sb s l                                   DONE
+- [X] **A** sbsh use default profile if set in profiles.yaml        DONE
 ```

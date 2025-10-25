@@ -55,11 +55,26 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 
 			// check SBSH_SUP_SOCKET
 			socket := viper.GetString("sb.detach.socket")
-			logger.DebugContext(cmd.Context(), "checking supervisor socket", "socket", socket)
 			if socket == "" {
-				logger.DebugContext(cmd.Context(), "no supervisor socket found, cannot detach")
-				return errors.New("no supervisor socket found")
+				logger.DebugContext(
+					cmd.Context(),
+					"socket not defined with flags, using run path to determine supervisor socket",
+				)
+				id := os.Getenv("SBSH_SUP_ID")
+				if id == "" {
+					logger.DebugContext(cmd.Context(), "no supervisor id found in SBSH_SUP_ID, cannot detach")
+					return errors.New("no supervisor id found in SBSH_SUP_ID")
+				}
+
+				runPath, err := config.GetRunPathFromEnvAndFlags(cmd)
+				if err != nil {
+					logger.ErrorContext(cmd.Context(), "cannot determine run path", "error", err)
+					return fmt.Errorf("cannot determine run path: %w", err)
+				}
+
+				socket = fmt.Sprintf("%s/supervisors/%s/socket", runPath, id)
 			}
+
 			logger.DebugContext(cmd.Context(), "creating supervisor unix client", "socket", socket)
 			sup := supervisor.NewUnix(socket)
 			defer sup.Close()
@@ -88,5 +103,4 @@ func setupDetachCmd(detachCmd *cobra.Command) {
 	detachCmd.Flags().String("socket", "", "Supervisor Socket Path")
 
 	_ = viper.BindPFlag("sb.detach.socket", detachCmd.Flags().Lookup("socket"))
-	_ = viper.BindEnv("sb.detach.socket", config.SUP_SOCKET.Key)
 }
