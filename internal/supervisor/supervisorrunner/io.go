@@ -124,6 +124,13 @@ func (sr *Exec) attach() error {
 	}
 	sr.logger.InfoContext(sr.ctx, "attach: received connection")
 
+	sr.metadata.Status.State = api.SupervisorAttached
+	errM := sr.updateMetadata()
+	if errM != nil {
+		sr.logger.Error("failed to update metadata", "error", errM)
+		return errM
+	}
+	sr.logger.Info("metadata created successfully")
 	sr.ioConn = conn
 
 	return nil

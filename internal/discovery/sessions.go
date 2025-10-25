@@ -374,7 +374,7 @@ func FindAndPrintTerminalMetadata(
 	return printTerminalMetadata(w, sessions, format)
 }
 
-func printTerminalMetadata(w io.Writer, t *api.SessionMetadata, format string) error {
+func printTerminalMetadata(w io.Writer, t any, format string) error {
 	switch format {
 	case "json":
 		enc := json.NewEncoder(w)

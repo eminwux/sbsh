@@ -17,5 +17,6 @@
 package discovery
 
 const (
-	TerminalsRunPath = "sessions"
+	TerminalsRunPath   = "sessions"
+	SupervisorsRunPath = "supervisors"
 )

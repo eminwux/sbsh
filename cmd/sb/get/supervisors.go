@@ -32,42 +32,42 @@ import (
 )
 
 const (
-	listAllInput = "sb.get.terminals.all"
-	outputFormat = "sb.get.terminals.output"
+	listAllSupervisorsInput     = "sb.get.supervisors.all"
+	outputFormatSupervisorInput = "sb.get.supervisors.output"
 )
 
-func NewGetTerminalCmd() *cobra.Command {
-	// GetTerminalCmd represents the get terminal command.
+func NewGetSupervisorCmd() *cobra.Command {
+	// GetSupervisorCmd represents the get supervisor command.
 	cmd := &cobra.Command{
-		Use:     "terminal",
-		Aliases: []string{"terminals", "terms", "term", "t"},
-		Short:   "Get a terminal session",
-		Long:    "Get a terminal session from the sbsh environment.",
+		Use:     "supervisor",
+		Aliases: []string{"supervisors", "supers", "super", "s"},
+		Short:   "Get a supervisor",
+		Long:    "Get a supervisor from the sbsh environment.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				// If user passed -o when listing, reject it
 				if cmd.Flags().Changed("output") {
-					return errors.New("the -o/--output flag is only valid when specifying a terminal name")
+					return errors.New("the -o/--output flag is only valid when specifying a supervisor name")
 				}
-				return listTerminals(cmd, args)
+				return listSupervisors(cmd, args)
 			}
 
-			return getTerminal(cmd, args)
+			return getSupervisor(cmd, args)
 		},
 		// POSitional completion for NAME
-		ValidArgsFunction: completeTerminals,
+		ValidArgsFunction: completeSupervisors,
 	}
 
-	setupNewGetTerminalCmd(cmd)
+	setupNewGetSupervisorCmd(cmd)
 	return cmd
 }
 
-func setupNewGetTerminalCmd(cmd *cobra.Command) {
-	cmd.Flags().BoolP("all", "a", false, "List all sessions, including Exited")
-	_ = viper.BindPFlag(listAllInput, cmd.Flags().Lookup("all"))
+func setupNewGetSupervisorCmd(cmd *cobra.Command) {
+	cmd.Flags().BoolP("all", "a", false, "List all supervisors, including Exited")
+	_ = viper.BindPFlag(listAllSupervisorsInput, cmd.Flags().Lookup("all"))
 
 	cmd.Flags().StringP("output", "o", "", "Output format: json|yaml (default: human-readable)")
-	_ = viper.BindPFlag(outputFormat, cmd.Flags().Lookup("output"))
+	_ = viper.BindPFlag(outputFormatSupervisorInput, cmd.Flags().Lookup("output"))
 
 	_ = cmd.RegisterFlagCompletionFunc(
 		"output",
@@ -77,7 +77,7 @@ func setupNewGetTerminalCmd(cmd *cobra.Command) {
 	)
 }
 
-func listTerminals(cmd *cobra.Command, _ []string) error {
+func listSupervisors(cmd *cobra.Command, _ []string) error {
 	logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
 		return errors.New("logger not found in context")
@@ -85,16 +85,16 @@ func listTerminals(cmd *cobra.Command, _ []string) error {
 
 	logger.Debug("sessions list command invoked",
 		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
-		"list_all", viper.GetBool(listAllInput),
+		"list_all", listAllInput,
 		"args", cmd.Flags().Args(),
 	)
 
-	err := discovery.ScanAndPrintTerminals(
+	err := discovery.ScanAndPrintSupervisors(
 		cmd.Context(),
 		logger,
 		viper.GetString(config.RUN_PATH.ViperKey),
 		os.Stdout,
-		viper.GetBool(listAllInput),
+		viper.GetBool(listAllSupervisorsInput),
 	)
 	if err != nil {
 		logger.Debug("error scanning and printing sessions", "error", err)
@@ -105,7 +105,7 @@ func listTerminals(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func completeTerminals(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+func completeSupervisors(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) > 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
@@ -114,19 +114,19 @@ func completeTerminals(cmd *cobra.Command, args []string, toComplete string) ([]
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	names, err := fetchTerminalNames(cmd.Context(), runPath, toComplete)
+	names, err := fetchSupervisorNames(cmd.Context(), runPath, toComplete)
 	if err != nil {
 		// Optionally show an error message in completion
-		return []string{"__error: cannot list terminals"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"__error: cannot list supervisors"}, cobra.ShellCompDirectiveNoFileComp
 	}
 	return names, cobra.ShellCompDirectiveNoFileComp
 }
 
 // Example source for names (replace with your real backend).
-func fetchTerminalNames(ctx context.Context, runPath string, toComplete string) ([]string, error) {
+func fetchSupervisorNames(ctx context.Context, runPath string, toComplete string) ([]string, error) {
 	logger, _ := ctx.Value(logging.CtxLogger).(*slog.Logger)
 
-	all, err := config.AutoCompleteListTerminals(ctx, logger, runPath, false)
+	all, err := config.AutoCompleteListSupervisors(ctx, logger, runPath, false)
 	if err != nil {
 		return nil, err
 	}
@@ -141,19 +141,19 @@ func fetchTerminalNames(ctx context.Context, runPath string, toComplete string) 
 	return out, nil
 }
 
-func getTerminal(cmd *cobra.Command, args []string) error {
+func getSupervisor(cmd *cobra.Command, args []string) error {
 	logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
 		return errors.New("logger not found in context")
 	}
-	terminalName := args[0]
-	format := viper.GetString(outputFormat)
+	supervisorName := args[0]
+	format := viper.GetString(outputFormatSupervisorInput)
 	if format != "" && format != "json" && format != "yaml" {
 		return fmt.Errorf("invalid output format: %s", format)
 	}
-	logger.Debug("get terminal command invoked",
+	logger.Debug("get supervisor command invoked",
 		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
-		"terminal_name", terminalName,
+		"terminal_name", supervisorName,
 		"output_format", format,
 		"args", cmd.Flags().Args(),
 	)
@@ -162,5 +162,5 @@ func getTerminal(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.New("failed to get run path from env and flags")
 	}
-	return discovery.FindAndPrintTerminalMetadata(cmd.Context(), logger, runPath, os.Stdout, terminalName, format)
+	return discovery.FindAndPrintSupervisorMetadata(cmd.Context(), logger, runPath, os.Stdout, supervisorName, format)
 }

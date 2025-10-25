@@ -79,3 +79,33 @@ func AutoCompleteListTerminals(
 	}
 	return names, nil
 }
+
+func AutoCompleteListSupervisors(
+	ctx context.Context,
+	logger *slog.Logger,
+	runPath string,
+	showExited bool,
+) ([]string, error) {
+	// logger is not set on autocomplete calls
+	if logger == nil {
+		logger = logging.NewNoopLogger()
+	}
+	supervisors, err := discovery.ScanSupervisors(ctx, logger, runPath)
+	if err != nil {
+		if logger != nil {
+			logger.ErrorContext(ctx, "ListSupervisors: failed to load supervisors", "path", runPath, "error", err)
+		}
+		return nil, err
+	}
+	if supervisors == nil {
+		return nil, errors.New("no supervisors found")
+	}
+
+	var names []string
+	for _, t := range supervisors {
+		if showExited || t.Status.State != api.SupervisorExited {
+			names = append(names, t.Spec.Name)
+		}
+	}
+	return names, nil
+}

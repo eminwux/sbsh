@@ -29,45 +29,45 @@ import (
 	"github.com/spf13/viper"
 )
 
-func NewPruneTerminalsCmd() *cobra.Command {
-	// pruneTerminalsCmd represents the sessions command.
-	pruneTerminalsCmd := &cobra.Command{
-		Use:     "terminals",
-		Aliases: []string{"terminals", "terms", "term", "t"},
-		Short:   "Prune dead or exited terminals",
-		Long: `Prune dead or exited terminals.
-This will remove all terminal files for terminals that are not running anymore.`,
+func NewPruneSupervisorsCmd() *cobra.Command {
+	// pruneSupervisorsCmd represents the sessions command.
+	pruneSupervisorsCmd := &cobra.Command{
+		Use:     "supervisors",
+		Aliases: []string{"supervisors", "supers", "super", "s"},
+		Short:   "Prune dead or exited supervisors",
+		Long: `Prune dead or exited supervisors.
+This will remove all supervisors files for terminals that are not running anymore.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
 
-			logger.Debug("terminals prune command invoked",
+			logger.Debug("supervisors prune command invoked",
 				"run_path", viper.GetString(config.RUN_PATH.ViperKey),
 				"args", cmd.Flags().Args(),
 			)
 
-			err := discovery.ScanAndPruneTerminals(
+			err := discovery.ScanAndPruneSupervisors(
 				cmd.Context(),
 				logger,
 				viper.GetString(config.RUN_PATH.ViperKey),
 				os.Stdout,
 			)
 			if err != nil {
-				logger.Debug("error pruning terminals", "error", err)
+				logger.Debug("error pruning supervisors", "error", err)
 				// Print to stderr and exit 1 as requested
-				_, _ = fmt.Fprintln(os.Stderr, "Could not prune terminals:", err)
+				_, _ = fmt.Fprintln(os.Stderr, "Could not prune supervisors:", err)
 				os.Exit(1)
 			}
-			logger.Debug("terminals prune completed successfully")
+			logger.Debug("supervisors prune completed successfully")
 			return nil
 		},
 	}
 
-	setupTerminalsPruneCmd(pruneTerminalsCmd)
-	return pruneTerminalsCmd
+	setupSupervisorsPruneCmd(pruneSupervisorsCmd)
+	return pruneSupervisorsCmd
 }
 
-func setupTerminalsPruneCmd(_ *cobra.Command) {
+func setupSupervisorsPruneCmd(_ *cobra.Command) {
 }

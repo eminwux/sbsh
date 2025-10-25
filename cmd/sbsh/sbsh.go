@@ -135,7 +135,7 @@ You can also use sbsh with parameters. For example:
 			supLogfile := viper.GetString("sbsh.supervisor.logFile")
 
 			supervisorName := viper.GetString("sbsh.supervisor.name")
-			if supervisorName != "" {
+			if supervisorName == "" {
 				supervisorName = naming.RandomName()
 				viper.Set("sbsh.supervisor.name", supervisorName)
 			}

@@ -39,4 +39,5 @@ A stale terminal is one whose supervisor is no longer running.`,
 
 func setupPruneCmd(pruneCmd *cobra.Command) {
 	pruneCmd.AddCommand(NewPruneTerminalsCmd())
+	pruneCmd.AddCommand(NewPruneSupervisorsCmd())
 }
