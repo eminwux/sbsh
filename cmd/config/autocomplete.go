@@ -50,7 +50,7 @@ func AutoCompleteProfiles(ctx context.Context, logger *slog.Logger, profilesFile
 	return names, nil
 }
 
-func AutoCompleteListSessions(
+func AutoCompleteListTerminals(
 	ctx context.Context,
 	logger *slog.Logger,
 	runPath string,
@@ -60,21 +60,21 @@ func AutoCompleteListSessions(
 	if logger == nil {
 		logger = logging.NewNoopLogger()
 	}
-	sessions, err := discovery.ScanSessions(ctx, logger, runPath)
+	terminals, err := discovery.ScanTerminals(ctx, logger, runPath)
 	if err != nil {
 		if logger != nil {
-			logger.ErrorContext(ctx, "ListSessions: failed to load sessions", "path", runPath, "error", err)
+			logger.ErrorContext(ctx, "ListTerminals: failed to load terminals", "path", runPath, "error", err)
 		}
 		return nil, err
 	}
-	if sessions == nil {
-		return nil, errors.New("no sessions found")
+	if terminals == nil {
+		return nil, errors.New("no terminals found")
 	}
 
 	var names []string
-	for _, s := range sessions {
-		if showExited || s.Status.State != api.Exited {
-			names = append(names, s.Spec.Name)
+	for _, t := range terminals {
+		if showExited || t.Status.State != api.Exited {
+			names = append(names, t.Spec.Name)
 		}
 	}
 	return names, nil

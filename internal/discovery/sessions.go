@@ -29,19 +29,20 @@ import (
 	"text/tabwriter"
 
 	"github.com/eminwux/sbsh/pkg/api"
+	"go.yaml.in/yaml/v3"
 )
 
-// ScanAndPrintSessions finds all metadata.json under runPath/sessions/*,
+// ScanAndPrintTerminals finds all metadata.json under runPath/sessions/*,
 // unmarshals them into api.SessionSpec, and prints a table to w.
-func ScanAndPrintSessions(ctx context.Context, logger *slog.Logger, runPath string, w io.Writer, printAll bool) error {
-	logger.DebugContext(ctx, "ScanAndPrintSessions: scanning sessions", "runPath", runPath)
-	sessions, err := ScanSessions(ctx, logger, runPath)
+func ScanAndPrintTerminals(ctx context.Context, logger *slog.Logger, runPath string, w io.Writer, printAll bool) error {
+	logger.DebugContext(ctx, "ScanAndPrintTerminals: scanning terminals", "runPath", runPath)
+	sessions, err := ScanTerminals(ctx, logger, runPath)
 	if err != nil {
-		logger.ErrorContext(ctx, "ScanAndPrintSessions: failed to scan sessions", "error", err)
+		logger.ErrorContext(ctx, "ScanAndPrintTerminals: failed to scan terminals", "error", err)
 		return err
 	}
-	logger.InfoContext(ctx, "ScanAndPrintSessions: scanned sessions", "count", len(sessions))
-	return printSessions(w, sessions, printAll)
+	logger.InfoContext(ctx, "ScanAndPrintTerminals: scanned terminals", "count", len(sessions))
+	return printTerminals(w, sessions, printAll)
 }
 
 // ScanAndPruneSessions finds all metadata.json under runPath/sessions/*,
@@ -49,7 +50,7 @@ func ScanAndPrintSessions(ctx context.Context, logger *slog.Logger, runPath stri
 // for sessions that are in Exited state.
 func ScanAndPruneSessions(ctx context.Context, logger *slog.Logger, runPath string, w io.Writer) error {
 	logger.DebugContext(ctx, "ScanAndPruneSessions: scanning sessions", "runPath", runPath)
-	sessions, err := ScanSessions(ctx, logger, runPath)
+	sessions, err := ScanTerminals(ctx, logger, runPath)
 	if err != nil {
 		logger.ErrorContext(ctx, "ScanAndPruneSessions: failed to scan sessions", "error", err)
 		return err
@@ -57,21 +58,21 @@ func ScanAndPruneSessions(ctx context.Context, logger *slog.Logger, runPath stri
 	pruned := 0
 	for _, s := range sessions {
 		if s.Status.State == api.Exited {
-			logger.InfoContext(ctx, "ScanAndPruneSessions: pruning session", "id", sessionID(s))
+			logger.InfoContext(ctx, "ScanAndPruneSessions: pruning session", "id", terminalID(s))
 			if errC := PruneSession(logger, &s); errC != nil {
 				logger.ErrorContext(
 					ctx,
 					"ScanAndPruneSessions: failed to prune session",
 					"id",
-					sessionID(s),
+					terminalID(s),
 					"error",
 					errC,
 				)
-				return fmt.Errorf("prune session %s: %w", sessionID(s), errC)
+				return fmt.Errorf("prune session %s: %w", terminalID(s), errC)
 			}
 			pruned++
 			if w != nil {
-				fmt.Fprintf(w, "Pruned session %s (%s)\n", sessionID(s), sessionName(s))
+				fmt.Fprintf(w, "Pruned session %s (%s)\n", terminalID(s), terminalName(s))
 			}
 		}
 	}
@@ -102,12 +103,12 @@ func PruneSession(logger *slog.Logger, metadata *api.SessionMetadata) error {
 	return err
 }
 
-func ScanSessions(ctx context.Context, logger *slog.Logger, runPath string) ([]api.SessionMetadata, error) {
-	pattern := filepath.Join(runPath, "sessions", "*", "metadata.json")
-	logger.DebugContext(ctx, "ScanSessions: globbing for session metadata", "pattern", pattern)
+func ScanTerminals(ctx context.Context, logger *slog.Logger, runPath string) ([]api.SessionMetadata, error) {
+	pattern := filepath.Join(runPath, TerminalsRunPath, "*", "metadata.json")
+	logger.DebugContext(ctx, "ScanTerminals: globbing for terminal metadata", "pattern", pattern)
 	paths, err := filepath.Glob(pattern)
 	if err != nil {
-		logger.ErrorContext(ctx, "ScanSessions: glob failed", "error", err)
+		logger.ErrorContext(ctx, "ScanTerminals: glob failed", "error", err)
 		return nil, fmt.Errorf("glob %q: %w", pattern, err)
 	}
 
@@ -115,79 +116,82 @@ func ScanSessions(ctx context.Context, logger *slog.Logger, runPath string) ([]a
 	for _, p := range paths {
 		select {
 		case <-ctx.Done():
-			logger.WarnContext(ctx, "ScanSessions: context done while reading sessions")
+			logger.WarnContext(ctx, "ScanTerminals: context done while reading terminals")
 			return nil, ctx.Err()
 		default:
 		}
 		b, errRead := os.ReadFile(p)
 		if errRead != nil {
-			logger.ErrorContext(ctx, "ScanSessions: failed to read file", "file", p, "error", errRead)
+			logger.ErrorContext(ctx, "ScanTerminals: failed to read file", "file", p, "error", errRead)
 			return nil, fmt.Errorf("read %s: %w", p, errRead)
 		}
 		var s api.SessionMetadata
 		if errUnmarshal := json.Unmarshal(b, &s); errUnmarshal != nil {
-			logger.ErrorContext(ctx, "ScanSessions: failed to decode file", "file", p, "error", errUnmarshal)
+			logger.ErrorContext(ctx, "ScanTerminals: failed to decode file", "file", p, "error", errUnmarshal)
 			return nil, fmt.Errorf("decode %s: %w", p, errUnmarshal)
 		}
-		logger.DebugContext(ctx, "ScanSessions: loaded session metadata", "id", sessionID(s), "name", sessionName(s))
+		logger.DebugContext(
+			ctx,
+			"ScanTerminals: loaded terminal metadata",
+			"id",
+			terminalID(s),
+			"name",
+			terminalName(s),
+		)
 		out = append(out, s)
 	}
 
 	// Optional: stable order by ID (fallback to Name if ID empty)
 	sort.Slice(out, func(i, j int) bool {
-		idi, idj := sessionID(out[i]), sessionID(out[j])
+		idi, idj := terminalID(out[i]), terminalID(out[j])
 		if idi != idj {
 			return idi < idj
 		}
-		return sessionName(out[i]) < sessionName(out[j])
+		return terminalName(out[i]) < terminalName(out[j])
 	})
 
-	logger.InfoContext(ctx, "ScanSessions: finished scanning", "count", len(out))
+	logger.InfoContext(ctx, "ScanTerminals: finished scanning", "count", len(out))
 	return out, nil
 }
 
-func printSessions(w io.Writer, sessions []api.SessionMetadata, printAll bool) error {
+func printTerminals(w io.Writer, terminals []api.SessionMetadata, printAll bool) error {
 	//nolint:mnd // tabwriter padding
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	activeCount := 0
-	for _, s := range sessions {
+	for _, s := range terminals {
 		if s.Status.State != api.Exited {
 			activeCount++
 		}
 	}
 
-	if len(sessions) == 0 {
-		fmt.Fprintln(tw, "no active or inactive sessions found")
+	if len(terminals) == 0 {
+		fmt.Fprintln(tw, "no active or inactive terminals found")
 		return tw.Flush()
 	}
 
 	if printAll {
-		if len(sessions) == 0 {
-			fmt.Fprintln(tw, "no active or inactive sessions found")
+		if len(terminals) == 0 {
+			fmt.Fprintln(tw, "no active or inactive terminals found")
 			return tw.Flush()
 		}
 	} else {
 		if activeCount == 0 {
-			fmt.Fprintln(tw, "no active sessions found")
+			fmt.Fprintln(tw, "no active terminals found")
 			return tw.Flush()
 		}
 	}
 
 	fmt.Fprintln(tw, "ID\tNAME\tPROFILE\tCMD\tTTY\tSTATUS\tATTACHERS\tLABELS")
-	for _, s := range sessions {
+	for _, s := range terminals {
 		if s.Status.State != api.Exited || (printAll && s.Status.State == api.Exited) {
-			attachers := "None"
-			if len(s.Status.Attachers) > 0 {
-				attachers = strings.Join(s.Status.Attachers, ",")
-			}
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-				sessionID(s),
-				sessionName(s),
-				sessionProfile(s),
-				sessionCmd(s),
-				sessionTty(s),
+				terminalID(s),
+				terminalName(s),
+				terminalProfile(s),
+				terminalCmd(s),
+				terminalPty(s),
 				s.Status.State.String(),
-				attachers,
+				terminalAttachers(s),
 				joinLabels(sessionLabels(s)),
 			)
 		}
@@ -197,16 +201,24 @@ func printSessions(w io.Writer, sessions []api.SessionMetadata, printAll bool) e
 
 // --- helpers (adjust to your api.SessionSpec fields if needed) ---
 
-func sessionID(s api.SessionMetadata) string {
+func terminalAttachers(s api.SessionMetadata) string {
+	attachers := "None"
+	if len(s.Status.Attachers) > 0 {
+		attachers = strings.Join(s.Status.Attachers, ",")
+	}
+	return attachers
+}
+
+func terminalID(s api.SessionMetadata) string {
 	// If your type uses Id instead of ID, change to: return s.Id
 	return string(s.Spec.ID)
 }
 
-func sessionName(s api.SessionMetadata) string {
+func terminalName(s api.SessionMetadata) string {
 	return s.Spec.Name
 }
 
-func sessionCmd(s api.SessionMetadata) string {
+func terminalCmd(s api.SessionMetadata) string {
 	parts := make([]string, 0, 1+len(s.Spec.CommandArgs))
 	if s.Spec.Command != "" {
 		parts = append(parts, s.Spec.Command)
@@ -215,11 +227,11 @@ func sessionCmd(s api.SessionMetadata) string {
 	return strings.Join(parts, " ")
 }
 
-func sessionTty(s api.SessionMetadata) string {
+func terminalPty(s api.SessionMetadata) string {
 	return s.Status.Tty
 }
 
-func sessionProfile(s api.SessionMetadata) string {
+func terminalProfile(s api.SessionMetadata) string {
 	return s.Spec.ProfileName
 }
 
@@ -246,15 +258,15 @@ func joinLabels(m map[string]string) string {
 	return strings.Join(parts, ",")
 }
 
-// FindSessionByID scans runPath/sessions/*/metadata.json and returns
+// FindTerminalByID scans runPath/sessions/*/metadata.json and returns
 // the session whose Spec.ID matches the given id. If not found, returns nil.
-func FindSessionByID(
+func FindTerminalByID(
 	ctx context.Context,
 	logger *slog.Logger,
 	runPath string,
 	id string,
 ) (*api.SessionMetadata, error) {
-	sessions, err := ScanSessions(ctx, logger, runPath)
+	sessions, err := ScanTerminals(ctx, logger, runPath)
 	if err != nil {
 		return nil, err
 	}
@@ -268,20 +280,20 @@ func FindSessionByID(
 	return nil, fmt.Errorf("session %q not found", id)
 }
 
-// FindSessionByName scans runPath/sessions/*/metadata.json and returns
+// FindTerminalByName scans runPath/sessions/*/metadata.json and returns
 // the session whose Spec.Name matches the given name. If not found, returns nil.
-func FindSessionByName(
+func FindTerminalByName(
 	ctx context.Context,
 	logger *slog.Logger,
 	runPath string,
 	name string,
 ) (*api.SessionMetadata, error) {
-	sessions, err := ScanSessions(ctx, logger, runPath)
+	sessions, err := ScanTerminals(ctx, logger, runPath)
 	if err != nil {
 		return nil, err
 	}
 	for _, s := range sessions {
-		if sessionName(s) == name {
+		if terminalName(s) == name {
 			ss := s // copy to avoid referencing loop variable
 			return &ss, nil
 		}
@@ -289,13 +301,13 @@ func FindSessionByName(
 	return nil, fmt.Errorf("session with name %q not found", name)
 }
 
-func PrintSessionSpec(s *api.SessionSpec, logger *slog.Logger) error {
+func PrintTerminalSpec(s *api.SessionSpec, logger *slog.Logger) error {
 	if s == nil {
-		logger.Info("nil session spec")
+		logger.Info("nil terminal spec")
 		return nil
 	}
 
-	logger.Info("SessionSpec",
+	logger.Info("TerminalSpec",
 		"ID", s.ID,
 		"NAME", s.Name,
 		"KIND", s.Kind,
@@ -341,4 +353,48 @@ func PrintSessionSpec(s *api.SessionSpec, logger *slog.Logger) error {
 	}
 
 	return nil
+}
+
+// FindAndPrintTerminalMetadata finds all metadata.json under runPath/sessions/*,
+// unmarshals them into api.SessionSpec, and prints a table to w.
+func FindAndPrintTerminalMetadata(
+	ctx context.Context,
+	logger *slog.Logger,
+	runPath string,
+	w io.Writer,
+	terminalName string,
+	format string,
+) error {
+	logger.DebugContext(ctx, "FindAndPrintTerminalMetadata: scanning terminals", "runPath", runPath)
+	sessions, err := FindTerminalByName(ctx, logger, runPath, terminalName)
+	if err != nil {
+		logger.ErrorContext(ctx, "FindAndPrintTerminalMetadata: failed to scan terminals", "error", err)
+		return err
+	}
+	return printTerminalMetadata(w, sessions, format)
+}
+
+func printTerminalMetadata(w io.Writer, t *api.SessionMetadata, format string) error {
+	switch format {
+	case "json":
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		return enc.Encode(t)
+	case "yaml":
+		b, err := yaml.Marshal(t)
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(b)
+		return err
+	case "":
+		// Print all fields of SessionMetadata in a human-readable form.
+		// %+v includes struct field names and their values.
+		fmt.Fprintf(w, "%+v\n", t)
+		PrintHuman(w, t, "")
+
+		return nil
+	default:
+		return fmt.Errorf("unknown output format: %q (use json|yaml)", format)
+	}
 }

@@ -14,29 +14,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package sessions
+package parser
 
 import (
-	"github.com/spf13/cobra"
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
-func NewSessionsCmd() *cobra.Command {
-	// sessionsCmd represents the sessions command
-	sessionsCmd := &cobra.Command{
-		Use:     "sessions",
-		Aliases: []string{"session", "s"},
-		Short:   "Manage sbsh sessions (category, not a final command)",
-		Long: `This is a category command for managing sbsh profiles.
-See 'sb profiles --help' for available subcommands.`,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
+func GetTerminalLabelsString(s api.SessionMetadata) map[string]string {
+	if len(s.Spec.Labels) != 0 {
+		return s.Spec.Labels
 	}
-
-	setupSessionsCmd(sessionsCmd)
-	return sessionsCmd
-}
-
-func setupSessionsCmd(sessionsCmd *cobra.Command) {
-	sessionsCmd.AddCommand(NewSessionsPruneCmd())
+	return map[string]string{}
 }

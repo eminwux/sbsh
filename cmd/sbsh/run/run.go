@@ -127,7 +127,7 @@ If no log filename is provided, a default path under the run directory will be u
 
 			if logger.Enabled(context.Background(), slog.LevelDebug) {
 				logger.DebugContext(cmd.Context(), "printing session spec for debug")
-				if printErr := discovery.PrintSessionSpec(sessionSpec, logger); printErr != nil {
+				if printErr := discovery.PrintTerminalSpec(sessionSpec, logger); printErr != nil {
 					logger.Warn("Failed to print session spec", "error", printErr)
 				}
 			}

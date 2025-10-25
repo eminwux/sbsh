@@ -14,29 +14,27 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package sessions
+package get
 
-import (
-	"github.com/spf13/cobra"
-)
+import "github.com/spf13/cobra"
 
-func NewSessionsCmd() *cobra.Command {
-	// sessionsCmd represents the sessions command
-	sessionsCmd := &cobra.Command{
-		Use:     "sessions",
-		Aliases: []string{"session", "s"},
-		Short:   "Manage sbsh sessions (category, not a final command)",
-		Long: `This is a category command for managing sbsh profiles.
-See 'sb profiles --help' for available subcommands.`,
+func NewGetCmd() *cobra.Command {
+	// GetCmd represents the get command.
+	getCmd := &cobra.Command{
+		Use:     "get",
+		Aliases: []string{"g"},
+		Short:   "Get a resource",
+		Long:    "Get a resource from the sbsh environment.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
 	}
 
-	setupSessionsCmd(sessionsCmd)
-	return sessionsCmd
+	setupListCmd(getCmd)
+
+	return getCmd
 }
 
-func setupSessionsCmd(sessionsCmd *cobra.Command) {
-	sessionsCmd.AddCommand(NewSessionsPruneCmd())
+func setupListCmd(getCmd *cobra.Command) {
+	getCmd.AddCommand(NewGetTerminalCmd())
 }

@@ -195,7 +195,7 @@ You can also use sbsh with parameters. For example:
 			)
 
 			if logger.Enabled(cmd.Context(), slog.LevelDebug) {
-				if printErr := discovery.PrintSessionSpec(sessionSpec, logger); printErr != nil {
+				if printErr := discovery.PrintTerminalSpec(sessionSpec, logger); printErr != nil {
 					logger.Warn("Failed to print session spec", "error", printErr)
 				}
 			}

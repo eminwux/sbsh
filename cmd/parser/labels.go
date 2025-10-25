@@ -14,29 +14,26 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package sessions
+package parser
 
 import (
-	"github.com/spf13/cobra"
+	"fmt"
+	"sort"
+	"strings"
 )
 
-func NewSessionsCmd() *cobra.Command {
-	// sessionsCmd represents the sessions command
-	sessionsCmd := &cobra.Command{
-		Use:     "sessions",
-		Aliases: []string{"session", "s"},
-		Short:   "Manage sbsh sessions (category, not a final command)",
-		Long: `This is a category command for managing sbsh profiles.
-See 'sb profiles --help' for available subcommands.`,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
+func JoinLabels(m map[string]string) string {
+	if len(m) == 0 {
+		return "none"
 	}
-
-	setupSessionsCmd(sessionsCmd)
-	return sessionsCmd
-}
-
-func setupSessionsCmd(sessionsCmd *cobra.Command) {
-	sessionsCmd.AddCommand(NewSessionsPruneCmd())
+	ks := make([]string, 0, len(m))
+	for k := range m {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	parts := make([]string, 0, len(ks))
+	for _, k := range ks {
+		parts = append(parts, fmt.Sprintf("%s=%s", k, m[k]))
+	}
+	return strings.Join(parts, ",")
 }

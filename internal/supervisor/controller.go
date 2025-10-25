@@ -249,13 +249,13 @@ func (s *Controller) CreateAttachSession(spec *api.SupervisorSpec) (*api.Supervi
 	var metadata *api.SessionMetadata
 	if spec.AttachID != "" {
 		var err error
-		metadata, err = discovery.FindSessionByID(s.ctx, s.logger, spec.RunPath, string(spec.AttachID))
+		metadata, err = discovery.FindTerminalByID(s.ctx, s.logger, spec.RunPath, string(spec.AttachID))
 		if err != nil {
 			return nil, errors.New("could not find session by ID")
 		}
 	} else if spec.AttachName != "" {
 		var err error
-		metadata, err = discovery.FindSessionByName(s.ctx, s.logger, spec.RunPath, spec.AttachName)
+		metadata, err = discovery.FindTerminalByName(s.ctx, s.logger, spec.RunPath, spec.AttachName)
 		if err != nil {
 			return nil, errors.New("could not find session by Name")
 		}
