@@ -26,7 +26,7 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-func AutoCompleteProfiles(ctx context.Context, logger *slog.Logger, profilesFile string) ([]string, error) {
+func AutoCompleteListProfiles(ctx context.Context, logger *slog.Logger, profilesFile string) ([]string, error) {
 	// logger is not set on autocomplete calls
 	if logger == nil {
 		logger = logging.NewNoopLogger()
