@@ -38,10 +38,11 @@ const (
 func NewGetProfilesCmd() *cobra.Command {
 	// GetProfilesCmd represents the get profiles command.
 	cmd := &cobra.Command{
-		Use:     "profiles",
-		Aliases: []string{"profile", "prof", "pro", "p"},
-		Short:   "Get profiles",
-		Long:    "Get profiles from the sbsh environment.",
+		Use:          "profiles",
+		Aliases:      []string{"profile", "prof", "pro", "p"},
+		Short:        "Get profiles",
+		Long:         "Get profiles from the sbsh environment.",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				// If user passed -o when listing, reject it
@@ -49,6 +50,8 @@ func NewGetProfilesCmd() *cobra.Command {
 					return errors.New("the -o/--output flag is only valid when specifying a profile name")
 				}
 				return listProfiles(cmd, args)
+			} else if len(args) > 1 {
+				return errors.New("too many arguments; only one profile name is allowed")
 			}
 
 			return getProfile(cmd, args)

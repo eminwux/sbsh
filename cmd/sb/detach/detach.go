@@ -71,6 +71,8 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 				if cmd.Flags().Changed("socket") {
 					return errors.New("the --socket flag is not valid when using positional terminal name")
 				}
+			} else if len(args) > 1 {
+				return errors.New("too many arguments; only one terminal name is allowed")
 			}
 
 			err := runDetachCmd(cmd, args)

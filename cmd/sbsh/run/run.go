@@ -93,7 +93,11 @@ If no log filename is provided, a default path under the run directory will be u
 
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return errors.New("too many arguments; this command does not accept arguments")
+			}
+
 			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")

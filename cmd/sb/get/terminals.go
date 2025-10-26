@@ -39,10 +39,11 @@ const (
 func NewGetTerminalCmd() *cobra.Command {
 	// GetTerminalCmd represents the get terminal command.
 	cmd := &cobra.Command{
-		Use:     "terminal",
-		Aliases: []string{"terminals", "terms", "term", "t"},
-		Short:   "Get a terminal session",
-		Long:    "Get a terminal session from the sbsh environment.",
+		Use:          "terminal",
+		Aliases:      []string{"terminals", "terms", "term", "t"},
+		Short:        "Get a terminal session",
+		Long:         "Get a terminal session from the sbsh environment.",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				// If user passed -o when listing, reject it
@@ -50,6 +51,8 @@ func NewGetTerminalCmd() *cobra.Command {
 					return errors.New("the -o/--output flag is only valid when specifying a terminal name")
 				}
 				return listTerminals(cmd, args)
+			} else if len(args) > 1 {
+				return errors.New("too many arguments; only one terminal name is allowed")
 			}
 
 			return getTerminal(cmd, args)

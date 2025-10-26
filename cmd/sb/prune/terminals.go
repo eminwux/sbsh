@@ -37,6 +37,8 @@ func NewPruneTerminalsCmd() *cobra.Command {
 		Short:   "Prune dead or exited terminals",
 		Long: `Prune dead or exited terminals.
 This will remove all terminal files for terminals that are not running anymore.`,
+		SilenceUsage: true,
+		Args:         cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {

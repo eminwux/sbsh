@@ -37,6 +37,8 @@ func NewPruneSupervisorsCmd() *cobra.Command {
 		Short:   "Prune dead or exited supervisors",
 		Long: `Prune dead or exited supervisors.
 This will remove all supervisors files for terminals that are not running anymore.`,
+		Args:         cobra.ExactArgs(0),
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {

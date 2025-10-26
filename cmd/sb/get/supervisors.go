@@ -39,10 +39,11 @@ const (
 func NewGetSupervisorCmd() *cobra.Command {
 	// GetSupervisorCmd represents the get supervisor command.
 	cmd := &cobra.Command{
-		Use:     "supervisor",
-		Aliases: []string{"supervisors", "supers", "super", "s"},
-		Short:   "Get a supervisor",
-		Long:    "Get a supervisor from the sbsh environment.",
+		Use:          "supervisor",
+		Aliases:      []string{"supervisors", "supers", "super", "s"},
+		Short:        "Get a supervisor",
+		Long:         "Get a supervisor from the sbsh environment.",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				// If user passed -o when listing, reject it
@@ -50,6 +51,8 @@ func NewGetSupervisorCmd() *cobra.Command {
 					return errors.New("the -o/--output flag is only valid when specifying a supervisor name")
 				}
 				return listSupervisors(cmd, args)
+			} else if len(args) > 1 {
+				return errors.New("too many arguments; only one supervisor name is allowed")
 			}
 
 			return getSupervisor(cmd, args)

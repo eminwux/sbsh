@@ -71,7 +71,10 @@ to quickly create a Cobra application.`,
 				if cmd.Flags().Changed("name") {
 					return errors.New("the --name flag is not valid when using positional terminal name")
 				}
+			} else if len(args) > 1 {
+				return errors.New("too many arguments; only one terminal name is allowed")
 			}
+
 			logger.DebugContext(cmd.Context(), "attach command invoked",
 				"args", cmd.Flags().Args(),
 				"sb.attach.id", viper.GetString("sb.attach.id"),
