@@ -159,3 +159,22 @@ func FindProfileByName(ctx context.Context, logger *slog.Logger, path, name stri
 	logger.WarnContext(ctx, "FindProfileByName: profile not found", "name", name, "path", path)
 	return nil, fmt.Errorf("profile %q not found in %s", name, path)
 }
+
+// FindAndPrintProfileMetadata finds all metadata.json under profiles file,
+// unmarshals them into api.ProfileSpec, and prints a table to w.
+func FindAndPrintProfileMetadata(
+	ctx context.Context,
+	logger *slog.Logger,
+	profilesFile string,
+	w io.Writer,
+	terminalName string,
+	format string,
+) error {
+	logger.DebugContext(ctx, "FindAndPrintProfileMetadata: scanning profiles", "profilesFile", profilesFile)
+	profiles, err := FindProfileByName(ctx, logger, profilesFile, terminalName)
+	if err != nil {
+		logger.ErrorContext(ctx, "FindAndPrintProfileMetadata: failed to scan profiles", "error", err)
+		return err
+	}
+	return printTerminalMetadata(w, profiles, format)
+}

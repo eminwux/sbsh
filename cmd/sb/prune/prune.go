@@ -14,30 +14,30 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package sessions
+package prune
 
 import (
 	"github.com/spf13/cobra"
 )
 
-func NewSessionsCmd() *cobra.Command {
-	// sessionsCmd represents the sessions command
-	sessionsCmd := &cobra.Command{
-		Use:     "sessions",
-		Aliases: []string{"session", "s"},
-		Short:   "Manage sbsh sessions (category, not a final command)",
-		Long: `This is a category command for managing sbsh profiles.
-See 'sb profiles --help' for available subcommands.`,
+func NewPruneCmd() *cobra.Command {
+	// pruneCmd represents the sessions command
+	pruneCmd := &cobra.Command{
+		Use:   "prune",
+		Short: "Prune stale supervisors and terminals",
+		Long: `Prune stale supervisors and terminals from the sbsh environment.
+A stale supervisor is one that is no longer running.
+A stale terminal is one whose supervisor is no longer running.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
 	}
 
-	setupSessionsCmd(sessionsCmd)
-	return sessionsCmd
+	setupPruneCmd(pruneCmd)
+	return pruneCmd
 }
 
-func setupSessionsCmd(sessionsCmd *cobra.Command) {
-	sessionsCmd.AddCommand(NewSessionListCmd())
-	sessionsCmd.AddCommand(NewSessionsPruneCmd())
+func setupPruneCmd(pruneCmd *cobra.Command) {
+	pruneCmd.AddCommand(NewPruneTerminalsCmd())
+	pruneCmd.AddCommand(NewPruneSupervisorsCmd())
 }

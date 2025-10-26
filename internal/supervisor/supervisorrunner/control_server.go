@@ -61,6 +61,11 @@ func (sr *Exec) StartServer(
 	// Signal: the accept loop is about to run on an already-listening socket.
 	readyCh <- nil
 	close(readyCh)
+	sr.metadata.Status.State = api.SupervisorReady
+	errM := sr.updateMetadata()
+	if errM != nil {
+		sr.logger.ErrorContext(sr.ctx, "failed to update metadata", "error", errM)
+	}
 
 	for {
 		conn, err := sr.lnCtrl.Accept()

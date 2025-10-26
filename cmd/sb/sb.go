@@ -29,8 +29,8 @@ import (
 	"github.com/eminwux/sbsh/cmd/sb/attach"
 	"github.com/eminwux/sbsh/cmd/sb/autocomplete"
 	"github.com/eminwux/sbsh/cmd/sb/detach"
-	"github.com/eminwux/sbsh/cmd/sb/profiles"
-	"github.com/eminwux/sbsh/cmd/sb/sessions"
+	"github.com/eminwux/sbsh/cmd/sb/get"
+	"github.com/eminwux/sbsh/cmd/sb/prune"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -118,10 +118,10 @@ Examples:
 
 func setupRootCmd(rootCmd *cobra.Command) error {
 	rootCmd.AddCommand(autocomplete.NewAutoCompleteCmd(rootCmd))
-	rootCmd.AddCommand(sessions.NewSessionsCmd())
+	rootCmd.AddCommand(prune.NewPruneCmd())
 	rootCmd.AddCommand(detach.NewDetachCmd())
-	rootCmd.AddCommand(profiles.NewProfilesCmd())
 	rootCmd.AddCommand(attach.NewAttachCmd())
+	rootCmd.AddCommand(get.NewGetCmd())
 
 	rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.sbsh/config.yaml)")
 	if err := viper.BindPFlag("sb.global.config", rootCmd.PersistentFlags().Lookup("config")); err != nil {

@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package sessions
+package prune
 
 import (
 	"errors"
@@ -29,45 +29,47 @@ import (
 	"github.com/spf13/viper"
 )
 
-func NewSessionsPruneCmd() *cobra.Command {
-	// sessionsPruneCmd represents the sessions command.
-	sessionsPruneCmd := &cobra.Command{
-		Use:     "prune",
-		Aliases: []string{"p"},
-		Short:   "Prune dead or exited sessions",
-		Long: `Prune dead or exited sessions.
-This will remove all session files for sessions that are not running anymore.`,
+func NewPruneSupervisorsCmd() *cobra.Command {
+	// pruneSupervisorsCmd represents the sessions command.
+	pruneSupervisorsCmd := &cobra.Command{
+		Use:     "supervisors",
+		Aliases: []string{"supervisors", "supers", "super", "s"},
+		Short:   "Prune dead or exited supervisors",
+		Long: `Prune dead or exited supervisors.
+This will remove all supervisors files for terminals that are not running anymore.`,
+		Args:         cobra.ExactArgs(0),
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
 
-			logger.Debug("sessions prune command invoked",
+			logger.Debug("supervisors prune command invoked",
 				"run_path", viper.GetString(config.RUN_PATH.ViperKey),
 				"args", cmd.Flags().Args(),
 			)
 
-			err := discovery.ScanAndPruneSessions(
+			err := discovery.ScanAndPruneSupervisors(
 				cmd.Context(),
 				logger,
 				viper.GetString(config.RUN_PATH.ViperKey),
 				os.Stdout,
 			)
 			if err != nil {
-				logger.Debug("error pruning sessions", "error", err)
+				logger.Debug("error pruning supervisors", "error", err)
 				// Print to stderr and exit 1 as requested
-				_, _ = fmt.Fprintln(os.Stderr, "Could not prune sessions:", err)
+				_, _ = fmt.Fprintln(os.Stderr, "Could not prune supervisors:", err)
 				os.Exit(1)
 			}
-			logger.Debug("sessions prune completed successfully")
+			logger.Debug("supervisors prune completed successfully")
 			return nil
 		},
 	}
 
-	setupSessionsPruneCmd(sessionsPruneCmd)
-	return sessionsPruneCmd
+	setupSupervisorsPruneCmd(pruneSupervisorsCmd)
+	return pruneSupervisorsCmd
 }
 
-func setupSessionsPruneCmd(_ *cobra.Command) {
+func setupSupervisorsPruneCmd(_ *cobra.Command) {
 }

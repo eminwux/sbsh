@@ -33,6 +33,7 @@ func (sr *Exec) CreateMetadata() error {
 		return fmt.Errorf("mkdir session dir: %w", err)
 	}
 
+	sr.metadata.Status.State = api.SupervisorInitializing
 	sr.metadata.Status.Pid = os.Getpid()
 	sr.metadata.Status.BaseRunPath = sr.metadata.Spec.RunPath
 	sr.metadata.Status.SupervisorRunPath = sr.getSupervisorDir()

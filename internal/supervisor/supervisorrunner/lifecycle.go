@@ -131,6 +131,13 @@ func (sr *Exec) Attach(session *api.SupervisedSession) error {
 func (sr *Exec) Close(_ error) error {
 	sr.logger.Debug("Close: cancelling context and cleaning up")
 	sr.ctxCancel()
+
+	sr.metadata.Status.State = api.SupervisorExiting
+	errM := sr.updateMetadata()
+	if errM != nil {
+		sr.logger.ErrorContext(sr.ctx, "failed to update metadata", "error", errM)
+	}
+
 	// remove sockets and dir
 	if err := os.Remove(sr.metadata.Spec.SockerCtrl); err != nil {
 		sr.logger.Warn("Close: couldn't remove Ctrl socket", "socket", sr.metadata.Spec.SockerCtrl, "error", err)
@@ -149,6 +156,12 @@ func (sr *Exec) Close(_ error) error {
 
 	_ = sr.toExitShell()
 	sr.logger.Debug("Close: cleanup complete")
+
+	sr.metadata.Status.State = api.SupervisorExited
+	errE := sr.updateMetadata()
+	if errE != nil {
+		sr.logger.ErrorContext(sr.ctx, "failed to update metadata", "error", errE)
+	}
 	return nil
 }
 

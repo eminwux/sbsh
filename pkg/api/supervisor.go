@@ -34,17 +34,41 @@ type SupervisorSpec struct {
 	RunPath    string            `json:"runPath"`
 
 	// Only valid when Kind == RunNewSession
-	SessionSpec *SessionSpec `json:"sesion,omitempty"`
-
-	// Only valid when Kind == AttachToSession
-	AttachID   ID     `json:"attachId,omitempty"`
-	AttachName string `json:"attachName,omitempty"`
+	SessionSpec *SessionSpec `json:"session,omitempty"`
 }
 
 type SupervisorStatus struct {
-	Pid               int    `json:"pid"`
-	BaseRunPath       string `json:"baseRunPath"`
-	SupervisorRunPath string `json:"supervisorRunPath"`
+	Pid               int                  `json:"pid"`
+	BaseRunPath       string               `json:"baseRunPath"`
+	SupervisorRunPath string               `json:"supervisorRunPath"`
+	State             SupervisorStatusMode `json:"state"`
+}
+
+type SupervisorStatusMode int
+
+const (
+	SupervisorInitializing SupervisorStatusMode = iota
+	SupervisorReady
+	SupervisorAttached
+	SupervisorExiting
+	SupervisorExited
+)
+
+func (s SupervisorStatusMode) String() string {
+	switch s {
+	case SupervisorInitializing:
+		return "Initializing"
+	case SupervisorReady:
+		return "Ready"
+	case SupervisorAttached:
+		return "Attached"
+	case SupervisorExiting:
+		return "Exiting"
+	case SupervisorExited:
+		return "Exited"
+	default:
+		return "Unknown"
+	}
 }
 
 type SupervisorMetadata struct {

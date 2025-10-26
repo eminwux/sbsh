@@ -162,17 +162,33 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 			return fmt.Errorf("%w: %w", errdefs.ErrStartSessionCmd, errStart)
 		}
 	case api.AttachToSession:
-		s.logger.Info("attaching to existing session", "attach_id", spec.AttachID, "attach_name", spec.AttachName)
+		if spec.SessionSpec == nil || (spec.SessionSpec.ID == "" && spec.SessionSpec.Name == "") {
+			s.logger.Error("no session ID or Name provided for attach")
+			errAttachSpec := errors.New("no session ID or Name provided for attach")
+			if errC := s.Close(errAttachSpec); errC != nil {
+				s.logger.Error("error during Close after attach spec failure", "error", errC)
+				errAttachSpec = fmt.Errorf("%w: %w: %w", errAttachSpec, errdefs.ErrOnClose, errC)
+			}
+			close(s.ctrlReadyCh)
+			return errAttachSpec
+		}
+		s.logger.Info(
+			"attaching to existing session",
+			"attach_id",
+			spec.SessionSpec.ID,
+			"attach_name",
+			spec.SessionSpec.Name,
+		)
 		var errAttach error
 		session, errAttach = s.CreateAttachSession(spec)
 		if errAttach != nil {
-			s.logger.Error("failed to attach to session", "error", errAttach)
+			s.logger.Error("failed to create attach session", "error", errAttach)
 			if errC := s.Close(errAttach); errC != nil {
 				s.logger.Error("error during Close after attach failure", "error", errC)
 				errAttach = fmt.Errorf("%w: %w: %w", errAttach, errdefs.ErrOnClose, errC)
 			}
 			close(s.ctrlReadyCh)
-			return errAttach
+			return fmt.Errorf("%w: %w", errdefs.ErrAttach, errAttach)
 		}
 
 	default:
@@ -247,22 +263,24 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 
 func (s *Controller) CreateAttachSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
 	var metadata *api.SessionMetadata
-	if spec.AttachID != "" {
+	if spec.SessionSpec.ID != "" {
+		s.logger.Debug("resolving terminal by id", "run_path", spec.RunPath, "attach_id", string(spec.SessionSpec.ID))
 		var err error
-		metadata, err = discovery.FindSessionByID(s.ctx, s.logger, spec.RunPath, string(spec.AttachID))
+		metadata, err = discovery.FindTerminalByID(s.ctx, s.logger, spec.RunPath, string(spec.SessionSpec.ID))
 		if err != nil {
 			return nil, errors.New("could not find session by ID")
 		}
-	} else if spec.AttachName != "" {
+	} else if spec.SessionSpec.Name != "" {
+		s.logger.Debug("resolving terminal by name", "run_path", spec.RunPath, "attach_name", spec.SessionSpec.Name)
 		var err error
-		metadata, err = discovery.FindSessionByName(s.ctx, s.logger, spec.RunPath, spec.AttachName)
+		metadata, err = discovery.FindTerminalByName(s.ctx, s.logger, spec.RunPath, spec.SessionSpec.Name)
 		if err != nil {
 			return nil, errors.New("could not find session by Name")
 		}
 	}
 
 	if metadata == nil {
-		return nil, errdefs.ErrAttach
+		return nil, errors.New("no session metadata found to attach")
 	}
 
 	session := sessionstore.NewSupervisedSession(&metadata.Spec)

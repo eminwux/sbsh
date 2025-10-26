@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package sessions
+package prune
 
 import (
 	"errors"
@@ -29,52 +29,47 @@ import (
 	"github.com/spf13/viper"
 )
 
-const listAllInput = "sb.sessions.list.all"
-
-func NewSessionListCmd() *cobra.Command {
-	// sessionsListCmd represents the sessions command.
-	sessionsListCmd := &cobra.Command{
-		Use:     "list",
-		Aliases: []string{"l"},
-		Short:   "List sessions",
-		Long: `List sessions.
-This command scans and lists all sessions in the specified run path.
-By default, it lists only running sessions. Use the --all flag to include exited sessions.`,
+func NewPruneTerminalsCmd() *cobra.Command {
+	// pruneTerminalsCmd represents the sessions command.
+	pruneTerminalsCmd := &cobra.Command{
+		Use:     "terminals",
+		Aliases: []string{"terminals", "terms", "term", "t"},
+		Short:   "Prune dead or exited terminals",
+		Long: `Prune dead or exited terminals.
+This will remove all terminal files for terminals that are not running anymore.`,
 		SilenceUsage: true,
+		Args:         cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
 
-			logger.Debug("sessions list command invoked",
+			logger.Debug("terminals prune command invoked",
 				"run_path", viper.GetString(config.RUN_PATH.ViperKey),
-				"list_all", listAllInput,
 				"args", cmd.Flags().Args(),
 			)
 
-			err := discovery.ScanAndPrintSessions(
+			err := discovery.ScanAndPruneTerminals(
 				cmd.Context(),
 				logger,
 				viper.GetString(config.RUN_PATH.ViperKey),
 				os.Stdout,
-				viper.GetBool(listAllInput),
 			)
 			if err != nil {
-				logger.Debug("error scanning and printing sessions", "error", err)
-				fmt.Fprintln(os.Stderr, "Could not scan sessions")
-				return err
+				logger.Debug("error pruning terminals", "error", err)
+				// Print to stderr and exit 1 as requested
+				_, _ = fmt.Fprintln(os.Stderr, "Could not prune terminals:", err)
+				os.Exit(1)
 			}
-			logger.Debug("sessions list completed successfully")
+			logger.Debug("terminals prune completed successfully")
 			return nil
 		},
 	}
 
-	setupSessionsListCmd(sessionsListCmd)
-	return sessionsListCmd
+	setupTerminalsPruneCmd(pruneTerminalsCmd)
+	return pruneTerminalsCmd
 }
 
-func setupSessionsListCmd(sessionsListCmd *cobra.Command) {
-	sessionsListCmd.Flags().BoolP("all", "a", false, "List all sessions, including Exited")
-	_ = viper.BindPFlag(listAllInput, sessionsListCmd.Flags().Lookup("all"))
+func setupTerminalsPruneCmd(_ *cobra.Command) {
 }

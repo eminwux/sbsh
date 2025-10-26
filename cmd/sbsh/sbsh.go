@@ -135,7 +135,7 @@ You can also use sbsh with parameters. For example:
 			supLogfile := viper.GetString("sbsh.supervisor.logFile")
 
 			supervisorName := viper.GetString("sbsh.supervisor.name")
-			if supervisorName != "" {
+			if supervisorName == "" {
 				supervisorName = naming.RandomName()
 				viper.Set("sbsh.supervisor.name", supervisorName)
 			}
@@ -195,7 +195,7 @@ You can also use sbsh with parameters. For example:
 			)
 
 			if logger.Enabled(cmd.Context(), slog.LevelDebug) {
-				if printErr := discovery.PrintSessionSpec(sessionSpec, logger); printErr != nil {
+				if printErr := discovery.PrintTerminalSpec(sessionSpec, logger); printErr != nil {
 					logger.Warn("Failed to print session spec", "error", printErr)
 				}
 			}
@@ -509,7 +509,7 @@ func setAutoCompleteProfile(rootCmd *cobra.Command) error {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
-			profs, err := config.AutoCompleteProfiles(ctx, nil, profilesFile)
+			profs, err := config.AutoCompleteListProfileNames(ctx, nil, profilesFile)
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
