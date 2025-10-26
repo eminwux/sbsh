@@ -196,11 +196,9 @@ func run(
 
 	if terminalIDFlag != "" {
 		supSpec.SessionSpec.ID = api.ID(terminalIDFlag)
-		supSpec.AttachID = api.ID(terminalIDFlag)
 	}
 	if terminalName != "" {
 		supSpec.SessionSpec.Name = terminalName
-		supSpec.AttachName = terminalName
 	}
 
 	var socket string
@@ -311,8 +309,6 @@ func buildSupervisorSpec(
 		"id", spec.ID,
 		"name", spec.Name,
 		"run_path", spec.RunPath,
-		"attach_id", spec.AttachID,
-		"session_id", spec.SessionSpec.ID,
 	)
 
 	return spec

@@ -35,10 +35,6 @@ type SupervisorSpec struct {
 
 	// Only valid when Kind == RunNewSession
 	SessionSpec *SessionSpec `json:"sesion,omitempty"`
-
-	// Only valid when Kind == AttachToSession
-	AttachID   ID     `json:"attachId,omitempty"`
-	AttachName string `json:"attachName,omitempty"`
 }
 
 type SupervisorStatus struct {

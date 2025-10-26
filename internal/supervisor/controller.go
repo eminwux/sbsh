@@ -162,7 +162,13 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 			return fmt.Errorf("%w: %w", errdefs.ErrStartSessionCmd, errStart)
 		}
 	case api.AttachToSession:
-		s.logger.Info("attaching to existing session", "attach_id", spec.AttachID, "attach_name", spec.AttachName)
+		s.logger.Info(
+			"attaching to existing session",
+			"attach_id",
+			spec.SessionSpec.ID,
+			"attach_name",
+			spec.SessionSpec.Name,
+		)
 		var errAttach error
 		session, errAttach = s.CreateAttachSession(spec)
 		if errAttach != nil {
@@ -248,16 +254,16 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 func (s *Controller) CreateAttachSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
 	var metadata *api.SessionMetadata
 	if spec.SessionSpec.ID != "" {
-		s.logger.Debug("resolving terminal by id", "run_path", spec.RunPath, "attach_id", string(spec.AttachID))
+		s.logger.Debug("resolving terminal by id", "run_path", spec.RunPath, "attach_id", string(spec.SessionSpec.ID))
 		var err error
-		metadata, err = discovery.FindTerminalByID(s.ctx, s.logger, spec.RunPath, string(spec.AttachID))
+		metadata, err = discovery.FindTerminalByID(s.ctx, s.logger, spec.RunPath, string(spec.SessionSpec.ID))
 		if err != nil {
 			return nil, errors.New("could not find session by ID")
 		}
 	} else if spec.SessionSpec.Name != "" {
-		s.logger.Debug("resolving terminal by name", "run_path", spec.RunPath, "attach_name", spec.AttachName)
+		s.logger.Debug("resolving terminal by name", "run_path", spec.RunPath, "attach_name", spec.SessionSpec.Name)
 		var err error
-		metadata, err = discovery.FindTerminalByName(s.ctx, s.logger, spec.RunPath, spec.AttachName)
+		metadata, err = discovery.FindTerminalByName(s.ctx, s.logger, spec.RunPath, spec.SessionSpec.Name)
 		if err != nil {
 			return nil, errors.New("could not find session by Name")
 		}
