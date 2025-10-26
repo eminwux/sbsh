@@ -24,15 +24,6 @@ import (
 	"strings"
 )
 
-const (
-	CtxLogger   = CtxLoggerType("logger")
-	CtxLevelVar = CtxLoggerType("logLevel")
-	CtxHandler  = CtxLoggerType("textHandler")
-	CtxCloser   = CtxLoggerType("closer")
-)
-
-type CtxLoggerType string
-
 type ReformatHandler struct {
 	Inner  slog.Handler
 	Writer io.Writer

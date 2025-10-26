@@ -25,8 +25,8 @@ import (
 	"strings"
 
 	"github.com/eminwux/sbsh/cmd/config"
+	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/discovery"
-	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -77,7 +77,7 @@ func setupNewGetProfilesCmd(cmd *cobra.Command) {
 }
 
 func listProfiles(cmd *cobra.Command, _ []string) error {
-	logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
+	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
 		return errors.New("logger not found in context")
 	}
@@ -120,7 +120,7 @@ func completeProfiles(cmd *cobra.Command, args []string, toComplete string) ([]s
 
 // Example source for names (replace with your real backend).
 func fetchProfileNames(ctx context.Context, runPath string, toComplete string) ([]string, error) {
-	logger, _ := ctx.Value(logging.CtxLogger).(*slog.Logger)
+	logger, _ := ctx.Value(types.CtxLogger).(*slog.Logger)
 
 	all, err := config.AutoCompleteListProfileNames(ctx, logger, runPath)
 	if err != nil {
@@ -138,7 +138,7 @@ func fetchProfileNames(ctx context.Context, runPath string, toComplete string) (
 }
 
 func getProfile(cmd *cobra.Command, args []string) error {
-	logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
+	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
 		return errors.New("logger not found in context")
 	}

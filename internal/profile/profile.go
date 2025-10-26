@@ -127,6 +127,8 @@ type BuildSessionSpecParams struct {
 // It applies defaults for missing values, and if a profile name is given, it loads
 // the profiles file and merges the profile into the spec.
 // The returned SessionSpec is ready to be used to spawn a session.
+//
+//nolint:funlen // For understandability, this function is long but straightforward.
 func BuildSessionSpec(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -158,6 +160,19 @@ func BuildSessionSpec(
 	if input.SessionCmd == "" {
 		input.SessionCmd = "/bin/bash"
 		input.SessionCmdArgs = []string{"-i"}
+	}
+
+	if input.LogFile == "" {
+		input.LogFile = filepath.Join(
+			input.RunPath,
+			"sessions",
+			input.SessionID,
+			"log",
+		)
+	}
+
+	if input.LogLevel == "" {
+		input.LogLevel = "info"
 	}
 
 	if input.CaptureFile == "" {

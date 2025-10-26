@@ -14,27 +14,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package supervisorrunner
+package types
 
-import (
-	"context"
-
-	"github.com/eminwux/sbsh/internal/supervisor/supervisorrpc"
-	"github.com/eminwux/sbsh/pkg/api"
+const (
+	CtxLogger      = CtxLoggerType("logger")
+	CtxLevelVar    = CtxLoggerType("logLevel")
+	CtxHandler     = CtxLoggerType("textHandler")
+	CtxCloser      = CtxLoggerType("closer")
+	CtxSessionSpec = CtxLoggerType("sessionSpec")
 )
 
-type SupervisorRunner interface {
-	OpenSocketCtrl() error
-	StartServer(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error)
-	Attach(session *api.SupervisedSession) error
-	ID() api.ID
-	Close(reason error) error
-	Resize(args api.ResizeArgs)
-	CreateMetadata() error
-	Detach() error
-	StartSessionCmd(session *api.SupervisedSession) error
-}
-
-func (sr *Exec) ID() api.ID {
-	return sr.session.Spec.ID
-}
+type CtxLoggerType string

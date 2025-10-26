@@ -18,12 +18,12 @@ package logging
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 
+	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/spf13/cobra"
 )
 
@@ -45,7 +45,7 @@ func ParseLevel(lvl string) slog.Level {
 
 func SetupFileLogger(cmd *cobra.Command, logfile string, loglevel string) error {
 	if cmd == nil || logfile == "" || loglevel == "" {
-		return errors.New("cmd, logfile, and loglevel must not be empty")
+		return fmt.Errorf("cmd, logfile=%s, loglevel=%s must not be empty", logfile, loglevel)
 	}
 	if err := os.MkdirAll(filepath.Dir(logfile), 0o700); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create log directory: %v\n", err)
@@ -70,9 +70,9 @@ func SetupFileLogger(cmd *cobra.Command, logfile string, loglevel string) error 
 
 	// Store both logger and levelVar in context using struct keys
 	ctx := cmd.Context()
-	ctx = context.WithValue(ctx, CtxLogger, logger)
-	ctx = context.WithValue(ctx, CtxLevelVar, &levelVar)
-	ctx = context.WithValue(ctx, CtxHandler, handler)
+	ctx = context.WithValue(ctx, types.CtxLogger, logger)
+	ctx = context.WithValue(ctx, types.CtxLevelVar, &levelVar)
+	ctx = context.WithValue(ctx, types.CtxHandler, handler)
 
 	cmd.SetContext(ctx)
 	return nil

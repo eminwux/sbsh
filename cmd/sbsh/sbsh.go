@@ -33,6 +33,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sbsh/autocomplete"
 	"github.com/eminwux/sbsh/cmd/sbsh/run"
+	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/logging"
@@ -86,6 +87,12 @@ You can also use sbsh with parameters. For example:
 				supLogLevel = "info"
 			}
 
+			sessionLogLevel := viper.GetString("sbsh.session.logLevel")
+			if sessionLogLevel == "" {
+				sessionLogLevel = supLogLevel
+				viper.Set("sbsh.session.logLevel", sessionLogLevel)
+			}
+
 			supLogfile := viper.GetString("sbsh.supervisor.logFile")
 			if supLogfile == "" {
 				supLogfile = filepath.Join(
@@ -104,7 +111,7 @@ You can also use sbsh with parameters. For example:
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
+			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
@@ -206,7 +213,7 @@ You can also use sbsh with parameters. For example:
 			return runSupervisor(ctx, cancel, logger, ctrl, spec)
 		},
 		PostRunE: func(cmd *cobra.Command, _ []string) error {
-			if c, _ := cmd.Context().Value(logging.CtxCloser).(io.Closer); c != nil {
+			if c, _ := cmd.Context().Value(types.CtxCloser).(io.Closer); c != nil {
 				_ = c.Close()
 			}
 			return nil

@@ -84,18 +84,9 @@ const (
 )
 
 type SupervisedSession struct {
-	ID          ID
-	Kind        SessionKind
-	Name        string // user-friendly name
+	Spec        *SessionSpec
 	Command     string
-	CommandArgs []string          // for local: ["bash","-i"]; for ssh: ["ssh","-tt","user@host"]
-	EnvInherit  bool              // inherit parent env or not
-	Env         []string          // TERM, COLORTERM, etc.
-	Context     map[string]string // kubectl ns, cwd hint, etc.
-	LogFile     string
-	SocketFile  string
-	Pid         int
-	Prompt      string
+	CommandArgs []string // for local: ["bash","-i"]; for ssh: ["ssh","-tt","user@host"]
 }
 
 const SupervisorService = "SupervisorController"

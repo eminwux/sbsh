@@ -141,7 +141,7 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 	case api.RunNewSession:
 		s.logger.Info("creating new session", "spec_id", spec.ID, "spec_name", spec.Name)
 		var errCreate error
-		session, errCreate = s.CreateRunNewSession(spec)
+		session, errCreate = s.createRunNewSession(spec)
 		if errCreate != nil {
 			s.logger.Error("failed to create new session", "error", errCreate)
 			if errC := s.Close(errCreate); errC != nil {
@@ -180,7 +180,7 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 			spec.SessionSpec.Name,
 		)
 		var errAttach error
-		session, errAttach = s.CreateAttachSession(spec)
+		session, errAttach = s.createAttachSession(spec)
 		if errAttach != nil {
 			s.logger.Error("failed to create attach session", "error", errAttach)
 			if errC := s.Close(errAttach); errC != nil {
@@ -261,7 +261,7 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 	}
 }
 
-func (s *Controller) CreateAttachSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
+func (s *Controller) createAttachSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
 	var metadata *api.SessionMetadata
 	if spec.SessionSpec.ID != "" {
 		s.logger.Debug("resolving terminal by id", "run_path", spec.RunPath, "attach_id", string(spec.SessionSpec.ID))
@@ -290,32 +290,28 @@ func (s *Controller) CreateAttachSession(spec *api.SupervisorSpec) (*api.Supervi
 	return session, nil
 }
 
-func (s *Controller) CreateRunNewSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
+func (s *Controller) createRunNewSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
 	if spec.SessionSpec == nil {
 		return nil, errors.New("no session spec found")
 	}
+
 	args := []string{
-		"run", "--id",
-		string(spec.SessionSpec.ID), "--name",
-		spec.SessionSpec.Name,
-		"--log-level=debug",
+		"run", "-",
 	}
 
-	if spec.SessionSpec.ProfileName != "" {
-		args = append(args, "--profile", spec.SessionSpec.ProfileName)
-	}
+	session := sessionstore.NewSupervisedSession(spec.SessionSpec)
 
 	execPath, errExe := os.Executable()
 	if errExe != nil {
 		return nil, fmt.Errorf("%w: %w", errdefs.ErrStartCmd, errExe)
 	}
-	spec.SessionSpec.Command = execPath
-	spec.SessionSpec.CommandArgs = args
+	session.Command = execPath
+	session.CommandArgs = args
 
-	session := sessionstore.NewSupervisedSession(spec.SessionSpec)
 	if errNew := s.ss.Add(session); errNew != nil {
 		return nil, fmt.Errorf("%w: %w", errdefs.ErrSessionStore, errNew)
 	}
+
 	return session, nil
 }
 
