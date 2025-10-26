@@ -13,7 +13,6 @@
 ### 🅰️ Must Have
 ```markdown
 - [ ] **A** Refactor session to terminal
-- [ ] **A** sbsh run - | get terminal spec through Stdin
 - [ ] **A** If `sbsh run` fails supervisor must print and log error
 - [ ] **A** Initial E2E testing
 ```
@@ -24,7 +23,6 @@
 - [ ] **B** sb log id/name (terminal/supervisor) + -f
 - [ ] **B** On sbsh's `sbsh run` print log until socket connect
 - [ ] **B** sb attach --read-only or -r
-- [ ] **B** Sort out architecture for SupervisedSession vs. Session
 - [ ] **B** Add a prompt switch: auto | none — Explicit control without hacks.
 - [ ] **B** If prompt is not set in a profile, use global default
 - [ ] **B** On attach: flag to print all capture; default tail ~100 lines
@@ -95,4 +93,6 @@
 - [X] **A** sb detach  id/name as positional argument               DONE
 - [X] **B** Remove AttachID and AttachName from SessionSpec         DONE
 - [X] **B** sbsh/sb disallow illegal positional arguments           DONE
+- [X] **A** sbsh run - | get terminal spec through Stdin            DONE
+- [X] **B** Sort out architecture for SupervisedSession vs. Session DONE
 ```
