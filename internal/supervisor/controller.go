@@ -162,6 +162,16 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 			return fmt.Errorf("%w: %w", errdefs.ErrStartSessionCmd, errStart)
 		}
 	case api.AttachToSession:
+		if spec.SessionSpec == nil || (spec.SessionSpec.ID == "" && spec.SessionSpec.Name == "") {
+			s.logger.Error("no session ID or Name provided for attach")
+			errAttachSpec := errors.New("no session ID or Name provided for attach")
+			if errC := s.Close(errAttachSpec); errC != nil {
+				s.logger.Error("error during Close after attach spec failure", "error", errC)
+				errAttachSpec = fmt.Errorf("%w: %w: %w", errAttachSpec, errdefs.ErrOnClose, errC)
+			}
+			close(s.ctrlReadyCh)
+			return errAttachSpec
+		}
 		s.logger.Info(
 			"attaching to existing session",
 			"attach_id",
@@ -178,7 +188,7 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 				errAttach = fmt.Errorf("%w: %w: %w", errAttach, errdefs.ErrOnClose, errC)
 			}
 			close(s.ctrlReadyCh)
-			return errAttach
+			return fmt.Errorf("%w: %w", errdefs.ErrAttach, errAttach)
 		}
 
 	default:

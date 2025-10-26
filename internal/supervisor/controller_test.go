@@ -230,6 +230,10 @@ func Test_ErrAttach(t *testing.T) {
 		LogFile: "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
 		Kind:    api.AttachToSession,
+		SessionSpec: &api.SessionSpec{
+			ID:   "sess-1",
+			Name: "session-1",
+		},
 	}
 
 	exitCh := make(chan error)
