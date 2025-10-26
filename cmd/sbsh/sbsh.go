@@ -509,7 +509,7 @@ func setAutoCompleteProfile(rootCmd *cobra.Command) error {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
-			profs, err := config.AutoCompleteListProfiles(ctx, nil, profilesFile)
+			profs, err := config.AutoCompleteListProfileNames(ctx, nil, profilesFile)
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp

@@ -119,7 +119,7 @@ func completeProfiles(cmd *cobra.Command, args []string, toComplete string) ([]s
 func fetchProfileNames(ctx context.Context, runPath string, toComplete string) ([]string, error) {
 	logger, _ := ctx.Value(logging.CtxLogger).(*slog.Logger)
 
-	all, err := config.AutoCompleteListProfiles(ctx, logger, runPath)
+	all, err := config.AutoCompleteListProfileNames(ctx, logger, runPath)
 	if err != nil {
 		return nil, err
 	}

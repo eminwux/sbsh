@@ -55,7 +55,7 @@ func NewGetSupervisorCmd() *cobra.Command {
 			return getSupervisor(cmd, args)
 		},
 		// POSitional completion for NAME
-		ValidArgsFunction: completeSupervisors,
+		ValidArgsFunction: CompleteSupervisors,
 	}
 
 	setupNewGetSupervisorCmd(cmd)
@@ -105,7 +105,7 @@ func listSupervisors(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func completeSupervisors(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+func CompleteSupervisors(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) > 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
@@ -126,7 +126,7 @@ func completeSupervisors(cmd *cobra.Command, args []string, toComplete string) (
 func fetchSupervisorNames(ctx context.Context, runPath string, toComplete string) ([]string, error) {
 	logger, _ := ctx.Value(logging.CtxLogger).(*slog.Logger)
 
-	all, err := config.AutoCompleteListSupervisors(ctx, logger, runPath, false)
+	all, err := config.AutoCompleteListSupervisorNames(ctx, logger, runPath, false)
 	if err != nil {
 		return nil, err
 	}
@@ -163,4 +163,37 @@ func getSupervisor(cmd *cobra.Command, args []string) error {
 		return errors.New("failed to get run path from env and flags")
 	}
 	return discovery.FindAndPrintSupervisorMetadata(cmd.Context(), logger, runPath, os.Stdout, supervisorName, format)
+}
+
+func ResolveSupervisorNameToID(
+	ctx context.Context,
+	logger *slog.Logger,
+	runPath string,
+	supervisorName string,
+) (string, error) {
+	supervisors, err := discovery.ScanSupervisors(ctx, logger, runPath)
+	if err != nil {
+		if logger != nil {
+			logger.ErrorContext(
+				ctx,
+				"ResolveSupervisorNameToID: failed to load supervisors",
+				"path",
+				runPath,
+				"error",
+				err,
+			)
+		}
+		return "", err
+	}
+	if supervisors == nil {
+		return "", errors.New("no supervisors found")
+	}
+
+	for _, t := range supervisors {
+		if t.Spec.Name == supervisorName {
+			return string(t.Spec.ID), nil
+		}
+	}
+
+	return "", fmt.Errorf("supervisor with name '%s' not found", supervisorName)
 }

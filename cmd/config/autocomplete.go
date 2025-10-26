@@ -26,7 +26,7 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-func AutoCompleteListProfiles(ctx context.Context, logger *slog.Logger, profilesFile string) ([]string, error) {
+func AutoCompleteListProfileNames(ctx context.Context, logger *slog.Logger, profilesFile string) ([]string, error) {
 	// logger is not set on autocomplete calls
 	if logger == nil {
 		logger = logging.NewNoopLogger()
@@ -50,7 +50,7 @@ func AutoCompleteListProfiles(ctx context.Context, logger *slog.Logger, profiles
 	return names, nil
 }
 
-func AutoCompleteListTerminals(
+func AutoCompleteListTerminalNames(
 	ctx context.Context,
 	logger *slog.Logger,
 	runPath string,
@@ -80,7 +80,37 @@ func AutoCompleteListTerminals(
 	return names, nil
 }
 
-func AutoCompleteListSupervisors(
+func AutoCompleteListTerminalIDs(
+	ctx context.Context,
+	logger *slog.Logger,
+	runPath string,
+	showExited bool,
+) ([]string, error) {
+	// logger is not set on autocomplete calls
+	if logger == nil {
+		logger = logging.NewNoopLogger()
+	}
+	terminals, err := discovery.ScanTerminals(ctx, logger, runPath)
+	if err != nil {
+		if logger != nil {
+			logger.ErrorContext(ctx, "ListTerminals: failed to load terminals", "path", runPath, "error", err)
+		}
+		return nil, err
+	}
+	if terminals == nil {
+		return nil, errors.New("no terminals found")
+	}
+
+	var ids []string
+	for _, t := range terminals {
+		if showExited || t.Status.State != api.Exited {
+			ids = append(ids, string(t.Spec.ID))
+		}
+	}
+	return ids, nil
+}
+
+func AutoCompleteListSupervisorNames(
 	ctx context.Context,
 	logger *slog.Logger,
 	runPath string,

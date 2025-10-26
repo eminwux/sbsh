@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/eminwux/sbsh/cmd/config"
+	"github.com/eminwux/sbsh/cmd/sb/get"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/eminwux/sbsh/internal/naming"
@@ -56,10 +57,20 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
+			}
+
+			if len(args) == 1 {
+				// If user passed -n when listing, reject it
+				if cmd.Flags().Changed("id") {
+					return errors.New("the --id flag is not valid when using positional terminal name")
+				}
+				if cmd.Flags().Changed("name") {
+					return errors.New("the --name flag is not valid when using positional terminal name")
+				}
 			}
 			logger.DebugContext(cmd.Context(), "attach command invoked",
 				"args", cmd.Flags().Args(),
@@ -74,20 +85,10 @@ to quickly create a Cobra application.`,
 			cmd.InheritedFlags().VisitAll(func(f *pflag.Flag) {
 				logger.DebugContext(cmd.Context(), "inherited flag value", "name", f.Name, "value", f.Value.String())
 			})
-			sessionID := viper.GetString("sb.attach.id")
-			sessionName := viper.GetString("sb.attach.name")
-			runPath := viper.GetString(config.RUN_PATH.ViperKey)
-			socketFile := viper.GetString("sb.attach.socket")
 
-			if sessionID == "" && sessionName == "" {
-				return errors.New("either --id or --name must be defined")
-			}
-			if sessionID != "" && sessionName != "" {
-				return errors.New("only one of --id or --name must be defined")
-			}
-
-			return run(cmd.Context(), logger, sessionID, sessionName, runPath, socketFile)
+			return run(cmd, args)
 		},
+		ValidArgsFunction: get.CompleteTerminals,
 	}
 
 	setupAttachCmdFlags(attachCmd)
@@ -102,6 +103,28 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 	_ = viper.BindPFlag("sb.attach.name", attachCmd.Flags().Lookup("name"))
 
 	_ = attachCmd.RegisterFlagCompletionFunc(
+		"id",
+		func(c *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+			//nolint:mnd // 150ms is a good compromise between snappy completion and enough time to read files
+			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+			defer cancel()
+			runPath, err := config.GetRunPathFromEnvAndFlags(c)
+			if err != nil {
+				// fail silent to keep completion snappy
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			profs, err := config.AutoCompleteListTerminalIDs(ctx, nil, runPath, false)
+			if err != nil {
+				// fail silent to keep completion snappy
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+
+			// Optionally add descriptions: "value\tpath" for nicer columns
+			return profs, cobra.ShellCompDirectiveNoFileComp
+		},
+	)
+
+	_ = attachCmd.RegisterFlagCompletionFunc(
 		"name",
 		func(c *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 			//nolint:mnd // 150ms is a good compromise between snappy completion and enough time to read files
@@ -112,7 +135,7 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
-			profs, err := config.AutoCompleteListTerminals(ctx, nil, runPath, false)
+			profs, err := config.AutoCompleteListTerminalNames(ctx, nil, runPath, false)
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
@@ -127,40 +150,92 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 }
 
 func run(
-	parentCtx context.Context,
-	logger *slog.Logger,
-	sessionID string,
-	sessionName string,
-	runPath string,
-	socketFileInput string,
+	cmd *cobra.Command,
+	args []string,
 ) error {
+	logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
+	if !ok || logger == nil {
+		return errors.New("logger not found in context")
+	}
+
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
-	ctx, cancel := signal.NotifyContext(parentCtx, os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
+	supervisorID := naming.RandomID()
+	socketFileFlag := viper.GetString("sb.attach.socket")
+	runPath := viper.GetString(config.RUN_PATH.ViperKey)
+
+	var terminalNamePositional string
+	if len(args) > 0 {
+		terminalNamePositional = args[0]
+	}
+
+	terminalNameFlag := viper.GetString("sb.attach.name")
+	terminalIDFlag := viper.GetString("sb.attach.id")
+
+	terminalName := terminalNamePositional
+	if terminalNamePositional == "" {
+		terminalName = terminalNameFlag
+	}
 	// Create a new Controller
 
 	logger.DebugContext(ctx, "creating supervisor controller for attach", "run_path", runPath)
 	supCtrl := supervisor.NewSupervisorController(ctx, logger)
 
-	supervisorID := naming.RandomID()
-
-	if socketFileInput == "" {
-		socketFileInput = filepath.Join(runPath, "supervisors", supervisorID, "socket")
+	if socketFileFlag == "" {
+		socketFileFlag = filepath.Join(runPath, "supervisors", supervisorID, "socket")
 	}
 
-	if err := os.MkdirAll(filepath.Dir(socketFileInput), 0o700); err != nil {
-		logger.ErrorContext(ctx, "failed to create supervisor dir", "dir", filepath.Dir(socketFileInput), "error", err)
-		return fmt.Errorf("create supervisor dir %q: %w", filepath.Dir(socketFileInput), err)
+	if err := os.MkdirAll(filepath.Dir(socketFileFlag), 0o700); err != nil {
+		logger.ErrorContext(ctx, "failed to create supervisor dir", "dir", filepath.Dir(socketFileFlag), "error", err)
+		return fmt.Errorf("create supervisor dir %q: %w", filepath.Dir(socketFileFlag), err)
 	}
 
-	supSpec := buildSupervisorSpec(ctx, supervisorID, sessionID, sessionName, runPath, socketFileInput, logger)
+	supSpec := buildSupervisorSpec(ctx, supervisorID, runPath, socketFileFlag, logger)
 
-	if socketFileInput != "" {
-		supSpec.SessionSpec.SocketFile = socketFileInput
+	if terminalIDFlag != "" {
+		supSpec.SessionSpec.ID = api.ID(terminalIDFlag)
+		supSpec.AttachID = api.ID(terminalIDFlag)
+	}
+	if terminalName != "" {
+		supSpec.SessionSpec.Name = terminalName
+		supSpec.AttachName = terminalName
+	}
+
+	var socket string
+	if socketFileFlag != "" {
+		socket = socketFileFlag
 	} else {
-		supSpec.SessionSpec.SocketFile = filepath.Join(runPath, ".sbsh", "sessions", string(supSpec.SessionSpec.ID), "socket")
+		var terminalID string
+		switch {
+		case terminalIDFlag != "":
+			terminalID = terminalIDFlag
+		case terminalName != "":
+			var errR error
+			terminalID, errR = get.ResolveTerminalNameToID(cmd.Context(), logger, runPath, terminalName)
+			if errR != nil {
+				logger.ErrorContext(
+					cmd.Context(),
+					"cannot resolve terminal name to ID",
+					"terminal_name",
+					terminalName,
+					"error",
+					errR,
+				)
+				return fmt.Errorf("cannot resolve terminal name to ID: %w", errR)
+			}
+		default:
+			logger.DebugContext(
+				cmd.Context(),
+				"no terminal identification method provided, cannot detach",
+			)
+		}
+
+		socket = fmt.Sprintf("%s/sessions/%s/socket", runPath, terminalID)
 	}
+
+	supSpec.SessionSpec.SocketFile = socket
 
 	logger.DebugContext(ctx, "Built supervisor spec", "supervisorSpec", fmt.Sprintf("%+v", supSpec))
 
@@ -216,8 +291,6 @@ func run(
 func buildSupervisorSpec(
 	ctx context.Context,
 	supervisorID string,
-	sessionID string,
-	sessionName string,
 	runPath string,
 	socketFileInput string,
 	logger *slog.Logger,
@@ -225,49 +298,22 @@ func buildSupervisorSpec(
 	var spec *api.SupervisorSpec
 
 	supervisorName := naming.RandomName()
-	if sessionID != "" && sessionName == "" {
-		spec = &api.SupervisorSpec{
-			Kind:       api.AttachToSession,
-			ID:         api.ID(supervisorID),
-			Name:       supervisorName,
-			RunPath:    runPath,
-			SockerCtrl: socketFileInput,
-			AttachID:   api.ID(sessionID),
-			SessionSpec: &api.SessionSpec{
-				ID: api.ID(sessionID),
-			},
-		}
-		logger.DebugContext(ctx, "attach spec (by id) created",
-			"kind", spec.Kind,
-			"id", spec.ID,
-			"name", spec.Name,
-			"run_path", spec.RunPath,
-			"attach_id", spec.AttachID,
-			"session_id", spec.SessionSpec.ID,
-		)
+	spec = &api.SupervisorSpec{
+		Kind:        api.AttachToSession,
+		ID:          api.ID(supervisorID),
+		Name:        supervisorName,
+		RunPath:     runPath,
+		SockerCtrl:  socketFileInput,
+		SessionSpec: &api.SessionSpec{},
 	}
+	logger.DebugContext(ctx, "attach spec created",
+		"kind", spec.Kind,
+		"id", spec.ID,
+		"name", spec.Name,
+		"run_path", spec.RunPath,
+		"attach_id", spec.AttachID,
+		"session_id", spec.SessionSpec.ID,
+	)
 
-	if sessionID == "" && sessionName != "" {
-		spec = &api.SupervisorSpec{
-			Kind:       api.AttachToSession,
-			ID:         api.ID(supervisorID),
-			Name:       supervisorName,
-			LogFile:    "/tmp/sbsh-logs/s0",
-			RunPath:    runPath,
-			SockerCtrl: socketFileInput,
-			AttachName: sessionName,
-			SessionSpec: &api.SessionSpec{
-				Name: sessionName,
-			},
-		}
-		logger.DebugContext(ctx, "attach spec (by name) created",
-			"kind", spec.Kind,
-			"id", spec.ID,
-			"name", spec.Name,
-			"log_dir", spec.LogFile,
-			"run_path", spec.RunPath,
-			"session_name", spec.SessionSpec.Name,
-		)
-	}
 	return spec
 }

@@ -166,7 +166,7 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 		var errAttach error
 		session, errAttach = s.CreateAttachSession(spec)
 		if errAttach != nil {
-			s.logger.Error("failed to attach to session", "error", errAttach)
+			s.logger.Error("failed to create attach session", "error", errAttach)
 			if errC := s.Close(errAttach); errC != nil {
 				s.logger.Error("error during Close after attach failure", "error", errC)
 				errAttach = fmt.Errorf("%w: %w: %w", errAttach, errdefs.ErrOnClose, errC)
@@ -247,13 +247,15 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 
 func (s *Controller) CreateAttachSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
 	var metadata *api.SessionMetadata
-	if spec.AttachID != "" {
+	if spec.SessionSpec.ID != "" {
+		s.logger.Debug("resolving terminal by id", "run_path", spec.RunPath, "attach_id", string(spec.AttachID))
 		var err error
 		metadata, err = discovery.FindTerminalByID(s.ctx, s.logger, spec.RunPath, string(spec.AttachID))
 		if err != nil {
 			return nil, errors.New("could not find session by ID")
 		}
-	} else if spec.AttachName != "" {
+	} else if spec.SessionSpec.Name != "" {
+		s.logger.Debug("resolving terminal by name", "run_path", spec.RunPath, "attach_name", spec.AttachName)
 		var err error
 		metadata, err = discovery.FindTerminalByName(s.ctx, s.logger, spec.RunPath, spec.AttachName)
 		if err != nil {
@@ -262,7 +264,7 @@ func (s *Controller) CreateAttachSession(spec *api.SupervisorSpec) (*api.Supervi
 	}
 
 	if metadata == nil {
-		return nil, errdefs.ErrAttach
+		return nil, errors.New("no session metadata found to attach")
 	}
 
 	session := sessionstore.NewSupervisedSession(&metadata.Spec)
