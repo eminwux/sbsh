@@ -83,7 +83,7 @@ func listSupervisors(cmd *cobra.Command, _ []string) error {
 		return errors.New("logger not found in context")
 	}
 
-	logger.Debug("sessions list command invoked",
+	logger.Debug("supervisors list command invoked",
 		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
 		"list_all", listAllInput,
 		"args", cmd.Flags().Args(),
@@ -97,11 +97,11 @@ func listSupervisors(cmd *cobra.Command, _ []string) error {
 		viper.GetBool(listAllSupervisorsInput),
 	)
 	if err != nil {
-		logger.Debug("error scanning and printing sessions", "error", err)
-		fmt.Fprintln(os.Stderr, "Could not scan sessions")
+		logger.Debug("error scanning and printing supervisors", "error", err)
+		fmt.Fprintln(os.Stderr, "Could not scan supervisors")
 		return err
 	}
-	logger.Debug("sessions list completed successfully")
+	logger.Debug("supervisors list completed successfully")
 	return nil
 }
 

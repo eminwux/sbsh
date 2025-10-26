@@ -40,8 +40,8 @@ func NewGetProfilesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "profiles",
 		Aliases: []string{"profile", "prof", "pro", "p"},
-		Short:   "Get a profiles",
-		Long:    "Get a profiles from the sbsh environment.",
+		Short:   "Get profiles",
+		Long:    "Get profiles from the sbsh environment.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				// If user passed -o when listing, reject it
@@ -79,7 +79,7 @@ func listProfiles(cmd *cobra.Command, _ []string) error {
 		return errors.New("logger not found in context")
 	}
 
-	logger.Debug("sessions list command invoked",
+	logger.Debug("profiles list command invoked",
 		"profiles_file", viper.GetString(config.PROFILES_FILE.ViperKey),
 		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
 		"list_all", listAllInput,
@@ -93,11 +93,11 @@ func listProfiles(cmd *cobra.Command, _ []string) error {
 		os.Stdout,
 	)
 	if err != nil {
-		logger.Debug("error scanning and printing sessions", "error", err)
-		fmt.Fprintln(os.Stderr, "Could not scan sessions")
+		logger.Debug("error scanning and printing profiles", "error", err)
+		fmt.Fprintln(os.Stderr, "Could not scan profiles")
 		return err
 	}
-	logger.Debug("sessions list completed successfully")
+	logger.Debug("profiles list completed successfully")
 	return nil
 }
 

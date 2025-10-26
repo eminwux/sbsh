@@ -34,7 +34,7 @@ type SupervisorSpec struct {
 	RunPath    string            `json:"runPath"`
 
 	// Only valid when Kind == RunNewSession
-	SessionSpec *SessionSpec `json:"sesion,omitempty"`
+	SessionSpec *SessionSpec `json:"session,omitempty"`
 }
 
 type SupervisorStatus struct {

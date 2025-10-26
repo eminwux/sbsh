@@ -169,16 +169,9 @@ func printTerminals(w io.Writer, terminals []api.SessionMetadata, printAll bool)
 		return tw.Flush()
 	}
 
-	if printAll {
-		if len(terminals) == 0 {
-			fmt.Fprintln(tw, "no active or inactive terminals found")
-			return tw.Flush()
-		}
-	} else {
-		if activeCount == 0 {
-			fmt.Fprintln(tw, "no active terminals found")
-			return tw.Flush()
-		}
+	if printAll && activeCount == 0 {
+		fmt.Fprintln(tw, "no active terminals found")
+		return tw.Flush()
 	}
 
 	fmt.Fprintln(tw, "ID\tNAME\tPROFILE\tCMD\tTTY\tSTATUS\tATTACHERS\tLABELS")
@@ -266,11 +259,11 @@ func FindTerminalByID(
 	runPath string,
 	id string,
 ) (*api.SessionMetadata, error) {
-	sessions, err := ScanTerminals(ctx, logger, runPath)
+	terminals, err := ScanTerminals(ctx, logger, runPath)
 	if err != nil {
 		return nil, err
 	}
-	for _, s := range sessions {
+	for _, s := range terminals {
 		if string(s.Spec.ID) == id {
 			// return a copy to avoid referencing the loop variable
 			ss := s

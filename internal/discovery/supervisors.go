@@ -189,21 +189,14 @@ func printSupervisors(w io.Writer, supervisors []api.SupervisorMetadata, printAl
 		return tw.Flush()
 	}
 
-	if printAll {
-		if len(supervisors) == 0 {
-			fmt.Fprintln(tw, "no active or inactive supervisors found")
-			return tw.Flush()
-		}
-	} else {
-		if activeCount == 0 {
-			fmt.Fprintln(tw, "no active supervisors found")
-			return tw.Flush()
-		}
+	if printAll && activeCount == 0 {
+		fmt.Fprintln(tw, "no active supervisors found")
+		return tw.Flush()
 	}
 
 	fmt.Fprintln(tw, "ID\tNAME\tSTATUS\tLABELS")
 	for _, s := range supervisors {
-		if s.Status.State != api.SupervisorExited || (printAll && s.Status.State == api.SupervisorExited) {
+		if printAll || s.Status.State != api.SupervisorExited {
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
 				supervisorID(s),
 				supervisorName(s),
