@@ -88,7 +88,7 @@ func listSupervisors(cmd *cobra.Command, _ []string) error {
 
 	logger.Debug("supervisors list command invoked",
 		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
-		"list_all", listAllInput,
+		"list_all", listAllSupervisorsInput,
 		"args", cmd.Flags().Args(),
 	)
 

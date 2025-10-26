@@ -169,7 +169,7 @@ func printTerminals(w io.Writer, terminals []api.SessionMetadata, printAll bool)
 		return tw.Flush()
 	}
 
-	if printAll && activeCount == 0 {
+	if !printAll && activeCount == 0 {
 		fmt.Fprintln(tw, "no active terminals found")
 		return tw.Flush()
 	}
