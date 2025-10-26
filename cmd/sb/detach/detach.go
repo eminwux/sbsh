@@ -26,7 +26,7 @@ import (
 
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sb/get"
-	"github.com/eminwux/sbsh/internal/logging"
+	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/pkg/rpcclient/supervisor"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -53,7 +53,7 @@ This command takes a --socket argument to specify the supervisor socket path.
 If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
+			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
@@ -100,7 +100,7 @@ func setupDetachCmd(detachCmd *cobra.Command) {
 }
 
 func runDetachCmd(cmd *cobra.Command, args []string) error {
-	logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
+	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
 		return errors.New("logger not found in context")
 	}

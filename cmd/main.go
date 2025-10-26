@@ -24,6 +24,7 @@ import (
 
 	"github.com/eminwux/sbsh/cmd/sb"
 	"github.com/eminwux/sbsh/cmd/sbsh"
+	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 )
@@ -37,7 +38,7 @@ func execRoot(root *cobra.Command) int {
 
 func main() {
 	logger := logging.NewNoopLogger()
-	ctx := context.WithValue(context.Background(), logging.CtxLogger, logger)
+	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 
 	// Select which subtree to run based on the executable name
 	exe := filepath.Base(os.Args[0])

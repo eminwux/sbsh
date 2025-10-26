@@ -23,8 +23,8 @@ import (
 	"os"
 
 	"github.com/eminwux/sbsh/cmd/config"
+	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/discovery"
-	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -40,7 +40,7 @@ This will remove all supervisors files for terminals that are not running anymor
 		Args:         cobra.ExactArgs(0),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
+			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}

@@ -18,6 +18,7 @@ package run
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -28,6 +29,7 @@ import (
 	"syscall"
 
 	"github.com/eminwux/sbsh/cmd/config"
+	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/logging"
@@ -43,6 +45,185 @@ const (
 	Command      string = "run"
 	CommandAlias string = "r"
 )
+
+func checkFlag(cmd *cobra.Command, flag string, err string) error {
+	if cmd.Flags().Changed(flag) {
+		return errors.New("the --" + flag + " flag is not valid when using " + err)
+	}
+	return nil
+}
+
+func checkStdInUsage(cmd *cobra.Command, _ []string) error {
+	errorMessage := "positional argument '-'"
+	flagsToCheck := []string{"id", "name", "command", "profile", "log-file", "log-level", "socket", "file"}
+	for _, flag := range flagsToCheck {
+		if err := checkFlag(cmd, flag, errorMessage); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkFileUsage(cmd *cobra.Command, _ []string) error {
+	errorMessage := "the --file flag"
+	flagsToCheck := []string{"id", "name", "command", "profile", "log-file", "log-level", "socket"}
+	for _, flag := range flagsToCheck {
+		if err := checkFlag(cmd, flag, errorMessage); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func buildSessionSpecFromFlags(cmd *cobra.Command, logger *slog.Logger) (*api.SessionSpec, error) {
+	spec, buildErr := profile.BuildSessionSpec(
+		cmd.Context(),
+		logger,
+		&profile.BuildSessionSpecParams{
+			SessionID:    viper.GetString("sbsh.run.id"),
+			SessionName:  viper.GetString("sbsh.run.name"),
+			SessionCmd:   viper.GetString("sbsh.run.command"),
+			CaptureFile:  viper.GetString("sbsh.run.captureFile"),
+			RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
+			ProfilesFile: viper.GetString(config.PROFILES_FILE.ViperKey),
+			ProfileName:  viper.GetString("sbsh.run.profile"),
+			LogFile:      viper.GetString("sbsh.run.logFile"),
+			LogLevel:     viper.GetString("sbsh.run.logLevel"),
+			SocketFile:   viper.GetString("sbsh.run.socket"),
+		},
+	)
+
+	if buildErr != nil {
+		logger.Error("Failed to build session spec", "error", buildErr)
+		return nil, buildErr
+	}
+
+	return spec, nil
+}
+
+func processInput(cmd *cobra.Command, args []string) (*api.SessionSpec, error) {
+	var r io.Reader
+	var f *os.File
+
+	specFileFlag := viper.GetString("sbsh.run.spec")
+	if len(args) > 0 && args[0] == "-" {
+		// Use stdin as input
+		errCheckStdin := checkStdInUsage(cmd, args)
+		if errCheckStdin != nil {
+			return nil, errCheckStdin
+		}
+		fi, errIn := os.Stdin.Stat()
+		if errIn != nil {
+			return nil, fmt.Errorf("failed to stat stdin: %w", errIn)
+		}
+		if (fi.Mode() & os.ModeCharDevice) != 0 {
+			return nil, errors.New("no data on stdin: use a pipe or redirect when using '-'")
+		}
+		r = os.Stdin
+	}
+	if len(args) > 0 && args[0] != "-" {
+		return nil, errors.New("the only accepted positional argument is '-' to read the session spec from stdin")
+	}
+
+	if len(args) == 0 && specFileFlag != "" {
+		// Spec file provided
+		errCheckStdin := checkFileUsage(cmd, args)
+		if errCheckStdin != nil {
+			return nil, errCheckStdin
+		}
+		var err error
+		f, err = os.Open(specFileFlag)
+		if err != nil {
+			return nil, fmt.Errorf("open spec file: %w", err)
+		}
+		defer f.Close()
+		r = f
+	}
+
+	if r == nil {
+		// No stdin or file input
+		return nil, errdefs.ErrNoSpecDefined
+	}
+
+	spec := api.SessionSpec{}
+	dec := json.NewDecoder(r)
+	if err := dec.Decode(&spec); err != nil {
+		return nil, fmt.Errorf("invalid JSON spec: %w", err)
+	}
+
+	return &spec, nil
+}
+
+func setLoggingVarsFromFlags() {
+	sessionID := viper.GetString("sbsh.run.id")
+	if sessionID == "" {
+		sessionID = naming.RandomID()
+		viper.Set("sbsh.run.id", sessionID)
+	}
+
+	sesLogLevel := viper.GetString("sbsh.run.logLevel")
+	if sesLogLevel == "" {
+		sesLogLevel = "info"
+		viper.Set("sbsh.run.logLevel", sesLogLevel)
+	}
+
+	sesLogfile := viper.GetString("sbsh.run.logFile")
+	if sesLogfile == "" {
+		sesLogfile = filepath.Join(
+			viper.GetString(config.RUN_PATH.ViperKey),
+			"sessions",
+			sessionID,
+			"log",
+		)
+		viper.Set("sbsh.run.logFile", sesLogfile)
+	}
+}
+
+func processSpec(cmd *cobra.Command, spec **api.SessionSpec) error {
+	if *spec != nil {
+		// Spec provided via stdin
+		err := logging.SetupFileLogger(cmd, (*spec).LogFile, (*spec).LogLevel)
+		if err != nil {
+			return err
+		}
+
+		logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
+		if !ok || logger == nil {
+			return errors.New("logger not found in context")
+		}
+		return nil
+	}
+	// Build spec from flags
+	setLoggingVarsFromFlags()
+
+	// Setup logger
+	err := logging.SetupFileLogger(cmd, viper.GetString("sbsh.run.logFile"), viper.GetString("sbsh.run.logLevel"))
+	if err != nil {
+		return err
+	}
+
+	// Retrieve logger from context
+	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
+	if !ok || logger == nil {
+		return errors.New("logger not found in context")
+	}
+
+	// Build spec from flags
+	specBuilt, err := buildSessionSpecFromFlags(cmd, logger)
+	if err != nil {
+		return fmt.Errorf("build session spec from flags: %w", err)
+	}
+	// Set built spec in context
+	*spec = specBuilt
+
+	jsonBytes, err := json.MarshalIndent(specBuilt, "", "  ")
+	if err != nil {
+		logger.Warn("failed to marshal session spec to JSON for debug", "error", err)
+	} else {
+		logger.Debug("Built session spec JSON", "sessionSpecJson", string(jsonBytes))
+	}
+	return nil
+}
 
 func NewRunCmd() *cobra.Command {
 	// runCmd represents the run command.
@@ -64,67 +245,40 @@ If no command is provided, /bin/bash will be used by default.
 If no log filename is provided, a default path under the run directory will be used.
 `,
 		SilenceUsage: true,
-		PreRunE: func(cmd *cobra.Command, _ []string) error {
-			sessionID := viper.GetString("sbsh.run.id")
-			if sessionID == "" {
-				sessionID = naming.RandomID()
-				viper.Set("sbsh.run.id", sessionID)
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			// Check if first argument indicates stdin usage
+			var spec *api.SessionSpec
+
+			// Process stdin input if '-' is provided
+			spec, errProcess := processInput(cmd, args)
+			if errProcess != nil && !errors.Is(errProcess, errdefs.ErrNoSpecDefined) {
+				return errProcess
 			}
 
-			sesLogLevel := viper.GetString("sbsh.run.logLevel")
-			if sesLogLevel == "" {
-				sesLogLevel = "info"
+			// Process spec (from stdin or flags)
+			errProcessSpec := processSpec(cmd, &spec)
+			if errProcessSpec != nil {
+				return errProcessSpec
 			}
 
-			sesLogfile := viper.GetString("sbsh.run.logFile")
-			if sesLogfile == "" {
-				sesLogfile = filepath.Join(
-					viper.GetString(config.RUN_PATH.ViperKey),
-					"sessions",
-					sessionID,
-					"log",
-				)
-			}
-
-			err := logging.SetupFileLogger(cmd, sesLogfile, sesLogLevel)
-			if err != nil {
-				return err
-			}
+			// Set session spec in context
+			newCtx := context.WithValue(cmd.Context(), types.CtxSessionSpec, spec)
+			cmd.SetContext(newCtx)
 
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				return errors.New("too many arguments; this command does not accept arguments")
-			}
-
-			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
 
 			logger.Info("Starting sbsh run command")
 
-			sessionSpec, buildErr := profile.BuildSessionSpec(
-				cmd.Context(),
-				logger,
-				&profile.BuildSessionSpecParams{
-					SessionID:    viper.GetString("sbsh.run.id"),
-					SessionName:  viper.GetString("sbsh.run.name"),
-					SessionCmd:   viper.GetString("sbsh.run.command"),
-					CaptureFile:  viper.GetString("sbsh.run.captureFile"),
-					RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
-					ProfilesFile: viper.GetString(config.PROFILES_FILE.ViperKey),
-					ProfileName:  viper.GetString("sbsh.run.profile"),
-					LogFile:      viper.GetString("sbsh.run.logFile"),
-					LogLevel:     viper.GetString("sbsh.run.logLevel"),
-					SocketFile:   viper.GetString("sbsh.run.socket"),
-				},
-			)
-
-			if buildErr != nil {
-				logger.Error("Failed to build session spec", "error", buildErr)
-				return buildErr
+			// Retrieve session spec from context
+			sessionSpec, ok := cmd.Context().Value(types.CtxSessionSpec).(*api.SessionSpec)
+			if !ok || sessionSpec == nil {
+				return errors.New("session spec not found in context")
 			}
 
 			logger.Debug("Built session spec", "sessionSpec", fmt.Sprintf("%+v", sessionSpec))
@@ -149,7 +303,7 @@ If no log filename is provided, a default path under the run directory will be u
 			return nil
 		},
 		PostRunE: func(cmd *cobra.Command, _ []string) error {
-			if c, _ := cmd.Context().Value(logging.CtxCloser).(io.Closer); c != nil {
+			if c, _ := cmd.Context().Value(types.CtxCloser).(io.Closer); c != nil {
 				_ = c.Close()
 			}
 			return nil
@@ -185,6 +339,9 @@ func setupRunCmdFlags(runCmd *cobra.Command) {
 
 	runCmd.Flags().String("socket", "", "Optional socket file for the session")
 	_ = viper.BindPFlag("sbsh.run.socket", runCmd.Flags().Lookup("socket"))
+
+	runCmd.Flags().StringP("file", "f", "", "Optional JSON file with the session spec (use '-' for stdin)")
+	_ = viper.BindPFlag("sbsh.run.spec", runCmd.Flags().Lookup("file"))
 }
 
 func runSession(

@@ -47,16 +47,9 @@ func NewSessionStoreExec() SessionStore {
 
 func NewSupervisedSession(spec *api.SessionSpec) *api.SupervisedSession {
 	return &api.SupervisedSession{
-		ID:          spec.ID,
-		Kind:        spec.Kind,
-		Name:        spec.Name,
+		Spec:        spec,
 		Command:     spec.Command,
 		CommandArgs: spec.CommandArgs,
-		EnvInherit:  spec.EnvInherit,
-		Env:         spec.Env,
-		LogFile:     spec.LogFile,
-		SocketFile:  spec.SocketFile,
-		Prompt:      spec.Prompt,
 	}
 }
 
@@ -65,12 +58,12 @@ func NewSupervisedSession(spec *api.SessionSpec) *api.SupervisedSession {
 func (m *Exec) Add(s *api.SupervisedSession) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.sessions[s.ID] != nil {
+	if m.sessions[s.Spec.ID] != nil {
 		return errdefs.ErrSessionExists
 	}
-	m.sessions[s.ID] = s
+	m.sessions[s.Spec.ID] = s
 	if m.current == "" {
-		m.current = s.ID
+		m.current = s.Spec.ID
 	}
 	return nil
 }

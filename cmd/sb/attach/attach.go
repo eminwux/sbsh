@@ -29,8 +29,8 @@ import (
 
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sb/get"
+	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/errdefs"
-	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/internal/supervisor"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -58,7 +58,7 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
+			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
@@ -156,7 +156,7 @@ func run(
 	cmd *cobra.Command,
 	args []string,
 ) error {
-	logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
+	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
 		return errors.New("logger not found in context")
 	}

@@ -31,6 +31,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/sb/detach"
 	"github.com/eminwux/sbsh/cmd/sb/get"
 	"github.com/eminwux/sbsh/cmd/sb/prune"
+	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -74,9 +75,9 @@ Examples:
 
 				// Store both logger and levelVar in context using struct keys
 				ctx := cmd.Context()
-				ctx = context.WithValue(ctx, logging.CtxLogger, logger)
-				ctx = context.WithValue(ctx, logging.CtxLevelVar, &levelVar)
-				ctx = context.WithValue(ctx, logging.CtxHandler, handler)
+				ctx = context.WithValue(ctx, types.CtxLogger, logger)
+				ctx = context.WithValue(ctx, types.CtxLevelVar, &levelVar)
+				ctx = context.WithValue(ctx, types.CtxHandler, handler)
 				cmd.SetContext(ctx)
 				logger.DebugContext(
 					cmd.Context(),
@@ -94,7 +95,7 @@ Examples:
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			logger, ok := cmd.Context().Value(logging.CtxLogger).(*slog.Logger)
+			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
 				return errors.New("logger not found in context")
 			}
@@ -102,7 +103,7 @@ Examples:
 			return cmd.Help()
 		},
 		PostRunE: func(cmd *cobra.Command, _ []string) error {
-			if c, _ := cmd.Context().Value(logging.CtxCloser).(io.Closer); c != nil {
+			if c, _ := cmd.Context().Value(types.CtxCloser).(io.Closer); c != nil {
 				_ = c.Close()
 			}
 			return nil

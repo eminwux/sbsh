@@ -39,11 +39,10 @@ const (
 
 func (sr *Exec) dialSessionCtrlSocket() error {
 	sr.logger.DebugContext(sr.ctx, "dialSessionCtrlSocket: connecting to session",
-		"session_id", sr.session.ID,
-		"pid", sr.session.Pid,
-		"socket_file", sr.session.SocketFile)
+		"session_id", sr.session.Spec.ID,
+		"socket_file", sr.session.Spec.SocketFile)
 
-	sr.sessionClient = session.NewUnix(sr.session.SocketFile, sr.logger)
+	sr.sessionClient = session.NewUnix(sr.session.Spec.SocketFile, sr.logger)
 	defer sr.sessionClient.Close()
 
 	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)
@@ -99,7 +98,7 @@ func (sr *Exec) startConnectionManager() error {
 	// MANAGER
 	go dc.CopierManager(uc, func() {
 		trySendEvent(sr.logger, sr.events, Event{
-			ID:   sr.session.ID,
+			ID:   sr.session.Spec.ID,
 			Type: EvError,
 			Err:  errors.New("read/write routines exited"),
 			When: time.Now(),
@@ -195,7 +194,7 @@ func (sr *Exec) waitReady() error {
 		sr.ctx,
 		"waitReady: waiting for session to be ready",
 		"session_id",
-		sr.session.ID,
+		sr.session.Spec.ID,
 		"session_name",
 		sr.metadata.Spec.Name,
 	)
@@ -230,7 +229,7 @@ func (sr *Exec) waitReady() error {
 				sr.ctx,
 				"waitReady: session not ready yet",
 				"session_id",
-				sr.session.ID,
+				sr.session.Spec.ID,
 				"session_name",
 				sr.metadata.Spec.Name,
 			)

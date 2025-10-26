@@ -17,6 +17,8 @@
 package supervisorrunner
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -34,14 +36,22 @@ const (
 )
 
 func (sr *Exec) StartSessionCmd(session *api.SupervisedSession) error {
-	sr.logger.Debug("StartSessionCmd: preparing to start session", "session_id", session.ID, "command", session.Command)
-	devNull, _ := os.OpenFile("/dev/null", os.O_RDWR, 0)
+	sr.logger.Debug(
+		"StartSessionCmd: preparing to start session",
+		"session_id",
+		session.Spec.ID,
+		"command",
+		session.Command,
+		"commandArgs",
+		session.CommandArgs,
+	)
+	// devNull, _ := os.OpenFile("/dev/null", os.O_RDWR, 0)
 
 	if session.Command == "" || session.CommandArgs == nil {
 		sr.logger.Error(
 			"StartSessionCmd: command or command args are nil",
 			"session_id",
-			session.ID,
+			session.Spec.ID,
 			"command",
 			session.Command,
 			"command_args",
@@ -52,46 +62,62 @@ func (sr *Exec) StartSessionCmd(session *api.SupervisedSession) error {
 	//nolint:gosec,noctx // User has to specify the command and its args; we explicitly don't want to use context here to avoid killing the process on parent exit
 	cmd := exec.Command(session.Command, session.CommandArgs...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // detach from your pg/ctty
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = devNull, devNull, devNull
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	b, err := json.Marshal(session.Spec)
+	if err != nil {
+		sr.logger.Debug("failed to marshal session spec to JSON", "error", err)
+	} else {
+		sr.logger.Debug("session spec JSON", "session_spec", string(b))
+	}
+
+	cmd.Stdin = bytes.NewReader(b)
 
 	// Inherit Environment Variables - Temporal solution for 'sbsh run' to be able to inherit env vars
-	if session.EnvInherit {
+	if session.Spec.EnvInherit {
 		cmd.Env = os.Environ()
-		sr.logger.Debug("StartSessionCmd: inheriting environment variables", "session_id", session.ID)
+		sr.logger.Debug("StartSessionCmd: inheriting environment variables", "session_id", session.Spec.ID)
 	} else {
 		// sbsh run needs at least HOME in env
 		home := os.Getenv("HOME")
 		if home != "" {
 			cmd.Env = []string{"HOME=" + home}
-			sr.logger.Debug("StartSessionCmd: not inheriting environment variables, only HOME is set", "session_id", session.ID, "HOME", home)
+			sr.logger.Debug("StartSessionCmd: not inheriting environment variables, only HOME is set", "session_id", session.Spec.ID, "HOME", home)
 		} else {
-			sr.logger.Error("StartSessionCmd: not inheriting environment variables, HOME is not set", "session_id", session.ID)
+			sr.logger.Error("StartSessionCmd: not inheriting environment variables, HOME is not set", "session_id", session.Spec.ID)
 			return errors.New("HOME environment variable is not set in parent environment; cannot start session without HOME")
 		}
 	}
 
-	if err := cmd.Start(); err != nil {
-		sr.logger.Error("StartSessionCmd: failed to start command", "session_id", session.ID, "error", err)
-		return fmt.Errorf("%w :%w", errdefs.ErrSessionCmdStart, err)
+	if errS := cmd.Start(); errS != nil {
+		sr.logger.Error("StartSessionCmd: failed to start command", "session_id", session.Spec.ID, "error", errS)
+		return fmt.Errorf("%w :%w", errdefs.ErrSessionCmdStart, errS)
 	}
 
 	// you can return cmd.Process.Pid to record in meta.json
-	session.Pid = cmd.Process.Pid
-	sr.logger.Info("StartSessionCmd: process started", "session_id", session.ID, "pid", session.Pid)
+	// session.Pid = cmd.Process.Pid
+	sr.logger.Info("StartSessionCmd: process started", "session_id", session.Spec.ID, "pid", cmd.Process.Pid)
 
 	// IMPORTANT: reap it in the background so it never zombifies
 	go func() {
-		err := cmd.Wait()
-		if err != nil {
-			sr.logger.Warn("StartSessionCmd: process exited with error", "session_id", session.ID, "error", err)
+		errWait := cmd.Wait()
+		if errWait != nil {
+			sr.logger.Warn(
+				"StartSessionCmd: process exited with error",
+				"session_id",
+				session.Spec.ID,
+				"error",
+				errWait,
+			)
 		} else {
-			sr.logger.Info("StartSessionCmd: process exited", "session_id", session.ID)
+			sr.logger.Info("StartSessionCmd: process exited", "session_id", session.Spec.ID)
 		}
-		eventErr := fmt.Errorf("session %s process has exited", session.ID)
+		eventErr := fmt.Errorf("session %s process has exited", session.Spec.ID)
 		trySendEvent(
 			sr.logger,
 			sr.events,
-			Event{ID: session.ID, Type: EvCmdExited, Err: eventErr, When: time.Now()},
+			Event{ID: session.Spec.ID, Type: EvCmdExited, Err: eventErr, When: time.Now()},
 		)
 	}()
 

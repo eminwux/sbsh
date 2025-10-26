@@ -43,4 +43,5 @@ var (
 	ErrSetupShell      = errors.New("could not setup shell")
 	ErrInitShell       = errors.New("error on init shell stage")
 	ErrProgramExited   = errors.New("program exited")
+	ErrNoSpecDefined   = errors.New("no spec provided")
 )
