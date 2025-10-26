@@ -8,7 +8,6 @@
 
 ### 🐞 Bugs
 ```markdown
-- [ ] **B** sbsh/sb disallow illegal positional arguments
 ```
 
 ### 🅰️ Must Have
@@ -16,22 +15,16 @@
 - [ ] **A** Refactor session to terminal
 - [ ] **A** sbsh run - | get terminal spec through Stdin
 - [ ] **A** If `sbsh run` fails supervisor must print and log error
-- [ ] **A** On sbsh's `sbsh run` print log until socket connect
-- [ ] **A** sb attach id/name as positional argument
-- [ ] **A** sb detach  id/name as positional argument
-- [ ] **A** sb stop id/name (terminal/supervisor)
-- [ ] **A** sb log id/name (terminal/supervisor) + -f
-- [ ] **A** sb get terminals/supervisors/profiles
-- [ ] **A** sb get terminal/supervisor id/name
-- [ ] **A** sb get profile name
 - [ ] **A** Initial E2E testing
 ```
 
 ### 🅱️ Should Have
 ```markdown
+- [ ] **B** sb stop id/name (terminal/supervisor)
+- [ ] **B** sb log id/name (terminal/supervisor) + -f
+- [ ] **B** On sbsh's `sbsh run` print log until socket connect
 - [ ] **B** sb attach --read-only or -r
 - [ ] **B** Sort out architecture for SupervisedSession vs. Session
-- [ ] **B** Remove AttachID and AttachName from SessionSpec
 - [ ] **B** Add a prompt switch: auto | none — Explicit control without hacks.
 - [ ] **B** If prompt is not set in a profile, use global default
 - [ ] **B** On attach: flag to print all capture; default tail ~100 lines
@@ -95,4 +88,11 @@
 - [X] **A** Add profile to sb s l                                   DONE
 - [X] **A** sbsh use default profile if set in profiles.yaml        DONE
 - [ ] **A** If supervisor dies session status remains attached      CANCELLED
+- [X] **A** sb get terminals/supervisors/profiles                   DONE
+- [X] **A** sb get terminal/supervisor id/name                      DONE
+- [X] **A** sb get profile name                                     DONE
+- [X] **A** sb attach id/name as positional argument                DONE
+- [X] **A** sb detach  id/name as positional argument               DONE
+- [X] **B** Remove AttachID and AttachName from SessionSpec         DONE
+- [X] **B** sbsh/sb disallow illegal positional arguments           DONE
 ```
