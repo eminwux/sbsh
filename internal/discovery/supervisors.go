@@ -189,7 +189,7 @@ func printSupervisors(w io.Writer, supervisors []api.SupervisorMetadata, printAl
 		return tw.Flush()
 	}
 
-	if printAll && activeCount == 0 {
+	if !printAll && activeCount == 0 {
 		fmt.Fprintln(tw, "no active supervisors found")
 		return tw.Flush()
 	}
