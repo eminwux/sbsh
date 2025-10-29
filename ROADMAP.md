@@ -15,6 +15,9 @@
 - [ ] **A** Refactor session to terminal
 - [ ] **A** If `sbsh run` fails supervisor must print and log error
 - [ ] **A** Initial E2E testing
+- [ ] **A** Add --version in sb sbsh
+- [ ] **A** Toggle log capture in profile (default:false)
+- [ ] **A** Auto-prune terminals and supervisors
 ```
 
 ### 🅱️ Should Have
