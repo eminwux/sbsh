@@ -15,51 +15,95 @@ sbsh gives terminals persistence, structure, and visibility without changing how
 - Clean separation between the session (the environment) and the supervisor (the controller)
 - Programmable API that lets external programs create, control, or analyze sessions for automation and integration
 
+# Quick Start
+
 ## Install
 
 ```bash
 # Install sbsh
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.1.4/sbsh-linux-amd64 && \
+curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.1.5/sbsh-linux-amd64 && \
 chmod +x sbsh && \
 sudo mv sbsh /usr/local/bin/ && \
 sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
 ```
 
-## Quick Start
+## Autocomplete
 
 ```bash
-# Start a supervisor with the default configuration
-sbsh
+cat >> ~/.bashrc <<EOF
+source <(sbsh autocomplete bash)
+source <(sb autocomplete bash)
+EOF
+```
 
-# Detach the session
-sb detach
-or
-sb d
+## Usage
 
-# List active sessions
-sb sessions list
-or
-sb s l
+Start a supervisor with the default configuration
 
-# List all sessions
-sb sessions list -a
-or
-sb s l -a
+```
+eminwux@capgood:~$ sbsh
+[sbsh-4c51ab35] eminwux@capgood:~$ bash-5.2$ export PS1="[sbsh-$SBSH_SES_ID] \u@\h:\w$ "
+[sbsh-4c51ab35] eminwux@capgood:~$ cd ~
+[sbsh-4c51ab35] eminwux@capgood:~$ export SBSH_SUP_ID=bb46261b
+[sbsh-4c51ab35] eminwux@capgood:~$
+```
 
-# Attach to a running session
-sb attach --id <session-id>
-or
-sb a --id <session-id>
+### Detach the terminal
+
+Once inside the teminal you can detach:
+
+```
+[sbsh-ee4196b6] user@capgood:~$ sb d
+detaching..
+eminwux@capgood:~$
+```
+
+# List active terminals
+
+List active terminals
+
+```
+eminwux@capgood:~$ sb get terminals
+ID        NAME           PROFILE  CMD                           TTY          STATUS  ATTACHERS  LABELS
+bbb4b457  quick_samwise  default  /bin/bash --norc --noprofile  /dev/pts/12  Ready   None       none
+eminwux@capgood:~$
+```
+
+# Attach to a running terminal
+
+```
+eminwux@capgood:~$ sb attach quick_samwise
+bash-5.2$ export PS1="[sbsh-$SBSH_SES_ID] \u@\h:\w$ "
+[sbsh-bbb4b457] eminwux@capgood:~$ cd ~
+[sbsh-bbb4b457] eminwux@capgood:~$ export SBSH_SUP_ID=7e6701dd
+[sbsh-bbb4b457] eminwux@capgood:~$ sb d
+detaching..
+[sbsh-bbb4b457] eminwux@capgood:~$ export SBSH_SUP_ID=2add64d6
+[sbsh-bbb4b457] eminwux@capgood:~$
+```
 
 # List available profiles
-sb profiles list
-or
-sb s l
+
+See [examples/profiles/local.yaml](examples/profiles/local.yaml) to define your own profiles.
+
+```
+eminwux@capgood:~$ sb get profiles
+NAME              TARGET  RESTART           ENVVARS  CMD
+default           local   restart-on-error  3 vars   /bin/bash --norc --noprofile
+k8s-default       local   restart-on-error  4 vars   /bin/bash
+terraform-prd     local   exit              2 vars   /bin/bash
+k8s-pod           local   exit              1 vars   /usr/local/bin/kubectl run -ti --rm --image debian:stable-slim ephemeral
+docker-container  local   exit              0 vars   /usr/bin/docker run --rm -ti debian:stable-slim /bin/bash
+ssh-pk            local   exit              0 vars   /usr/bin/ssh -t pk
+eminwux@capgood:~$
+```
 
 # Start a supervisor with a given profile
-sbsh --profile prod
-or
-sbsh -p prod
+
+```
+eminwux@capgood:~$ sbsh -p docker-container
+sbsh root@a5ad0ede7212:~$ export SBSH_SUP_ID=de8510bb
+sbsh root@a5ad0ede7212:~$
 ```
 
 # Why sbsh exists
