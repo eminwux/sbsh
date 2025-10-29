@@ -81,7 +81,14 @@ test:
 	go test ./cmd/sbsh...
 	go test ./internal/session...
 	go test ./internal/supervisor...
+	E2E_BIN_DIR=$(shell pwd) go test ./e2e
 
 tag:
 	git tag -a v$(SBSH_VERSION) -m "Release version $(SBSH_VERSION)"
 	git push origin v$(SBSH_VERSION)
+
+e2e: test-e2e
+.PHONY: test-e2e
+test-e2e:
+	@echo "Running e2e tests using binaries in project root"
+	HOME=$(HOME) E2E_BIN_DIR=$(CURDIR) go test -v ./e2e -v
