@@ -150,16 +150,11 @@ func setupRootCmd(rootCmd *cobra.Command) error {
 func LoadConfig() error {
 	var configFile string
 	if viper.GetString(config.CONFIG_FILE.ViperKey) == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("failed to get user home dir: %w", err)
-		}
-		configPath := filepath.Join(home, ".sbsh")
-		configFile = filepath.Join(configPath, "config.yaml")
+		configFile = config.DefaultConfigFile()
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
 		// Add the directory containing the config file
-		viper.AddConfigPath(configPath)
+		viper.AddConfigPath(filepath.Dir(configFile))
 	}
 	_ = config.CONFIG_FILE.BindEnv()
 	if err := config.CONFIG_FILE.Set(configFile); err != nil {
@@ -168,22 +163,14 @@ func LoadConfig() error {
 
 	var runPath string
 	if viper.GetString(config.RUN_PATH.ViperKey) == "" {
-		var err error
-		runPath, err = config.DefaultRunPath()
-		if err != nil {
-			return errors.New("cannot determine default run path: " + err.Error())
-		}
+		runPath = config.DefaultRunPath()
 	}
 	_ = config.RUN_PATH.BindEnv()
 	config.RUN_PATH.SetDefault(runPath)
 
 	var profilesFile string
 	if viper.GetString(config.PROFILES_FILE.ViperKey) == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("failed to get user home dir: %w", err)
-		}
-		profilesFile = filepath.Join(home, ".sbsh", "profiles.yaml")
+		profilesFile = config.DefaultProfilesFile()
 	}
 	_ = config.PROFILES_FILE.BindEnv()
 	config.PROFILES_FILE.SetDefault(profilesFile)

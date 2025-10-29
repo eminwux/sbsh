@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -96,7 +95,7 @@ You can also use sbsh with parameters. For example:
 			supLogfile := viper.GetString("sbsh.supervisor.logFile")
 			if supLogfile == "" {
 				supLogfile = filepath.Join(
-					viper.GetString(config.RUN_PATH.ViperKey),
+					viper.GetString(config.SBSH_RUN_PATH.ViperKey),
 					"supervisors",
 					supervisorID,
 					"log",
@@ -123,7 +122,7 @@ You can also use sbsh with parameters. For example:
 
 			logger.DebugContext(
 				cmd.Context(), "parameters received in sbsh",
-				"runPath", viper.GetString(config.RUN_PATH.ViperKey),
+				"runPath", viper.GetString(config.SBSH_RUN_PATH.ViperKey),
 				"configFile", viper.GetString(config.CONFIG_FILE.ViperKey),
 				"logLevel", viper.GetString(config.LOG_LEVEL.ViperKey),
 				"profilesFile", viper.GetString(config.PROFILES_FILE.ViperKey),
@@ -150,7 +149,7 @@ You can also use sbsh with parameters. For example:
 			socketFileInput := viper.GetString("sbsh.supervisor.socket")
 			if socketFileInput == "" {
 				socketFileInput = filepath.Join(
-					viper.GetString(config.RUN_PATH.ViperKey),
+					viper.GetString(config.SBSH_RUN_PATH.ViperKey),
 					"supervisors",
 					supervisorID,
 					"socket",
@@ -165,7 +164,7 @@ You can also use sbsh with parameters. For example:
 					SessionName:  viper.GetString("sbsh.session.name"),
 					SessionCmd:   viper.GetString("sbsh.session.command"),
 					CaptureFile:  viper.GetString("sbsh.session.captureFile"),
-					RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
+					RunPath:      viper.GetString(config.SBSH_RUN_PATH.ViperKey),
 					ProfilesFile: viper.GetString(config.PROFILES_FILE.ViperKey),
 					ProfileName:  viper.GetString("sbsh.session.profile"),
 					LogFile:      viper.GetString("sbsh.session.logFile"),
@@ -186,7 +185,7 @@ You can also use sbsh with parameters. For example:
 				Kind:        api.RunNewSession,
 				ID:          api.ID(supervisorID),
 				Name:        supervisorName,
-				RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
+				RunPath:     viper.GetString(config.SBSH_RUN_PATH.ViperKey),
 				LogFile:     supLogfile,
 				SockerCtrl:  socketFileInput,
 				SessionSpec: sessionSpec,
@@ -230,7 +229,7 @@ You can also use sbsh with parameters. For example:
 
 func setPersistentLoggingFlags(rootCmd *cobra.Command) error {
 	rootCmd.PersistentFlags().String("run-path", "", "Optional run path for the supervisor")
-	if err := viper.BindPFlag(config.RUN_PATH.ViperKey, rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
+	if err := viper.BindPFlag(config.SBSH_RUN_PATH.ViperKey, rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
 		return err
 	}
 
@@ -416,37 +415,25 @@ func runSupervisor(
 func LoadConfig() error {
 	var configFile string
 	if viper.GetString(config.CONFIG_FILE.ViperKey) == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			log.Fatalf("err: %v", err)
-		}
-		configPath := filepath.Join(home, ".sbsh")
-		configFile = filepath.Join(configPath, "config.yaml")
+		configFile = config.DefaultConfigFile()
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
-		viper.AddConfigPath(configFile)
+		// Add the directory containing the config file
+		viper.AddConfigPath(filepath.Dir(configFile))
 	}
 	_ = config.CONFIG_FILE.BindEnv()
 	_ = config.CONFIG_FILE.Set(configFile)
 
 	var runPath string
-	if viper.GetString(config.RUN_PATH.ViperKey) == "" {
-		var err error
-		runPath, err = config.DefaultRunPath()
-		if err != nil {
-			return errors.New("cannot determine default run path: " + err.Error())
-		}
+	if viper.GetString(config.SBSH_RUN_PATH.ViperKey) == "" {
+		runPath = config.DefaultRunPath()
 	}
-	_ = config.RUN_PATH.BindEnv()
-	config.RUN_PATH.SetDefault(runPath)
+	_ = config.SBSH_RUN_PATH.BindEnv()
+	config.SBSH_RUN_PATH.SetDefault(runPath)
 
 	var profilesFile string
 	if viper.GetString(config.PROFILES_FILE.ViperKey) == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			log.Fatalf("err: %v", err)
-		}
-		profilesFile = filepath.Join(home, ".sbsh", "profiles.yaml")
+		profilesFile = config.DefaultProfilesFile()
 	}
 	_ = config.PROFILES_FILE.BindEnv()
 	config.PROFILES_FILE.SetDefault(profilesFile)

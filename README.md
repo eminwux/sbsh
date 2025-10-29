@@ -40,54 +40,54 @@ EOF
 
 Start a supervisor with the default configuration
 
-```bash
-inwx@capgood:~$ sbsh
-[sbsh-4c51ab35] inwx@capgood:~$ bash-5.2$ export PS1="[sbsh-$SBSH_SES_ID] \u@\h:\w$ "
-[sbsh-4c51ab35] inwx@capgood:~$ cd ~
-[sbsh-4c51ab35] inwx@capgood:~$ export SBSH_SUP_ID=bb46261b
-[sbsh-4c51ab35] inwx@capgood:~$
+```
+eminwux@capgood:~$ sbsh
+[sbsh-4c51ab35] eminwux@capgood:~$ bash-5.2$ export PS1="[sbsh-$SBSH_SES_ID] \u@\h:\w$ "
+[sbsh-4c51ab35] eminwux@capgood:~$ cd ~
+[sbsh-4c51ab35] eminwux@capgood:~$ export SBSH_SUP_ID=bb46261b
+[sbsh-4c51ab35] eminwux@capgood:~$
 ```
 
 ### Detach the terminal
 
 Once inside the teminal you can detach:
 
-```bash
-[sbsh-ee4196b6] inwx@capgood:~$ sb d
+```
+[sbsh-ee4196b6] user@capgood:~$ sb d
 detaching..
-inwx@capgood:~$
+eminwux@capgood:~$
 ```
 
 # List active terminals
 
 List active terminals
 
-```bash
-inwx@capgood:~$ sb get terminals
+```
+eminwux@capgood:~$ sb get terminals
 ID        NAME           PROFILE  CMD                           TTY          STATUS  ATTACHERS  LABELS
 bbb4b457  quick_samwise  default  /bin/bash --norc --noprofile  /dev/pts/12  Ready   None       none
-inwx@capgood:~$
+eminwux@capgood:~$
 ```
 
 # Attach to a running terminal
 
-```bash
-inwx@capgood:~$ sb attach quick_samwise
+```
+eminwux@capgood:~$ sb attach quick_samwise
 bash-5.2$ export PS1="[sbsh-$SBSH_SES_ID] \u@\h:\w$ "
-[sbsh-bbb4b457] inwx@capgood:~$ cd ~
-[sbsh-bbb4b457] inwx@capgood:~$ export SBSH_SUP_ID=7e6701dd
-[sbsh-bbb4b457] inwx@capgood:~$ sb d
+[sbsh-bbb4b457] eminwux@capgood:~$ cd ~
+[sbsh-bbb4b457] eminwux@capgood:~$ export SBSH_SUP_ID=7e6701dd
+[sbsh-bbb4b457] eminwux@capgood:~$ sb d
 detaching..
-[sbsh-bbb4b457] inwx@capgood:~$ export SBSH_SUP_ID=2add64d6
-[sbsh-bbb4b457] inwx@capgood:~$
+[sbsh-bbb4b457] eminwux@capgood:~$ export SBSH_SUP_ID=2add64d6
+[sbsh-bbb4b457] eminwux@capgood:~$
 ```
 
 # List available profiles
 
 See [examples/profiles/local.yaml](examples/profiles/local.yaml) to define your own profiles.
 
-```bash
-inwx@capgood:~$ sb get profiles
+```
+eminwux@capgood:~$ sb get profiles
 NAME              TARGET  RESTART           ENVVARS  CMD
 default           local   restart-on-error  3 vars   /bin/bash --norc --noprofile
 k8s-default       local   restart-on-error  4 vars   /bin/bash
@@ -95,13 +95,13 @@ terraform-prd     local   exit              2 vars   /bin/bash
 k8s-pod           local   exit              1 vars   /usr/local/bin/kubectl run -ti --rm --image debian:stable-slim ephemeral
 docker-container  local   exit              0 vars   /usr/bin/docker run --rm -ti debian:stable-slim /bin/bash
 ssh-pk            local   exit              0 vars   /usr/bin/ssh -t pk
-inwx@capgood:~$
+eminwux@capgood:~$
 ```
 
 # Start a supervisor with a given profile
 
-```bash
-inwx@capgood:~$ sbsh -p docker-container
+```
+eminwux@capgood:~$ sbsh -p docker-container
 sbsh root@a5ad0ede7212:~$ export SBSH_SUP_ID=de8510bb
 sbsh root@a5ad0ede7212:~$
 ```

@@ -27,8 +27,8 @@ func TestSb_Help(t *testing.T) {
 	t.Parallel()
 
 	// Check sb helper binary help output
-	_ = runReturningBinary(t, sb, "-h")
-	_ = runReturningBinary(t, sb, "--help")
+	_ = runReturningBinary(t, nil, sb, "-h")
+	_ = runReturningBinary(t, nil, sb, "--help")
 }
 
 func TestSb_NoTerminals(t *testing.T) {
@@ -42,11 +42,14 @@ func TestSb_NoTerminals(t *testing.T) {
 		{"g", "t"},
 	}
 	for _, args := range tests {
-		out = runReturningBinary(t, sb, args...)
+		runPath := getRandomRunPath(t)
+		mkdirRunPath(t, runPath)
+		runPathEnv := buildSbRunPathEnv(t, runPath)
+		out = runReturningBinary(t, []string{runPathEnv}, sb, args...)
 		expected = discovery.NoTerminalsString
 		got = string(out)
 		if got != expected {
-			t.Fatal("expected" + expected + "\n got:\n" + got)
+			t.Fatalf("expected %s\n got:\n%s", expected, got)
 		}
 	}
 }
@@ -62,11 +65,14 @@ func TestSb_NoSupervisors(t *testing.T) {
 		{"g", "s"},
 	}
 	for _, args := range tests {
-		out = runReturningBinary(t, sb, args...)
+		runPath := getRandomRunPath(t)
+		mkdirRunPath(t, runPath)
+		runPathEnv := buildSbRunPathEnv(t, runPath)
+		out = runReturningBinary(t, []string{runPathEnv}, sb, args...)
 		expected = discovery.NoSupervisorsString
 		got = string(out)
 		if got != expected {
-			t.Fatal("expected" + expected + "\n got:\n" + got)
+			t.Fatalf("expected %s\n got:\n%s", expected, got)
 		}
 	}
 }

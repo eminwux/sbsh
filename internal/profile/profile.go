@@ -21,10 +21,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"sort"
 
+	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -150,11 +150,7 @@ func BuildSessionSpec(
 
 	if input.RunPath == "" {
 		// Default runPath to $HOME/.sbsh
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("cannot determine home directory: %w", err)
-		}
-		input.RunPath = filepath.Join(homeDir, ".sbsh", "run")
+		input.RunPath = config.DefaultRunPath()
 	}
 
 	if input.SessionCmd == "" {

@@ -69,6 +69,7 @@ func (sr *Exec) prepareSessionCommand() error {
 		config.KV(config.SES_ID, string(sr.metadata.Spec.ID)),
 		config.KV(config.SES_NAME, sr.metadata.Spec.Name),
 		config.KV(config.SES_PROFILE, sr.metadata.Spec.ProfileName),
+		config.KV(config.RUN_PATH, sr.metadata.Spec.RunPath),
 	)
 	// Start the process in a new session so it has its own process group
 	cmd.SysProcAttr = &syscall.SysProcAttr{

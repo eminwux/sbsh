@@ -105,12 +105,12 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 		return errors.New("logger not found in context")
 	}
 
-	terminalSocketFlag := viper.GetString(detachSocketInput)
-	terminalIDFlag := viper.GetString(detachIDInput)
-	terminalNameFlag := viper.GetString(detachNameInput)
+	supervisorSocketFlag := viper.GetString(detachSocketInput)
+	supervisorIDFlag := viper.GetString(detachIDInput)
+	supervisorNameFlag := viper.GetString(detachNameInput)
 
 	if len(args) == 1 {
-		if terminalIDFlag != "" || terminalNameFlag != "" || terminalSocketFlag != "" {
+		if supervisorIDFlag != "" || supervisorNameFlag != "" || supervisorSocketFlag != "" {
 			return errors.New("when using flags only, a positional terminal name cannot be provided")
 		}
 	}
@@ -120,24 +120,24 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 		terminalNamePositional = args[0]
 	}
 
-	if terminalIDFlag != "" && terminalNameFlag != "" {
+	if supervisorIDFlag != "" && supervisorNameFlag != "" {
 		return errors.New("only one of --id or --name can be provided")
 	}
 
-	if terminalIDFlag != "" && terminalSocketFlag != "" {
+	if supervisorIDFlag != "" && supervisorSocketFlag != "" {
 		return errors.New("only one of --id or --socket can be provided")
 	}
 
-	if terminalNameFlag != "" && terminalSocketFlag != "" {
+	if supervisorNameFlag != "" && supervisorSocketFlag != "" {
 		return errors.New("only one of --name or --socket can be provided")
 	}
 
 	terminalName := terminalNamePositional
 	if terminalNamePositional == "" {
-		terminalName = terminalNameFlag
+		terminalName = supervisorNameFlag
 	}
 
-	socket, errC := buildSocket(cmd, logger, terminalSocketFlag, terminalIDFlag, terminalName)
+	socket, errC := buildSocket(cmd, logger, supervisorSocketFlag, supervisorIDFlag, terminalName)
 	if errC != nil {
 		logger.ErrorContext(cmd.Context(), "cannot build socket path", "error", errC)
 		return fmt.Errorf("cannot build socket path: %w", errC)
@@ -166,13 +166,13 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 func buildSocket(
 	cmd *cobra.Command,
 	logger *slog.Logger,
-	terminalSocketFlag string,
-	terminalIDFlag string,
-	terminalName string,
+	supervisorSocketFlag string,
+	supervisorIDFlag string,
+	supervisorName string,
 ) (string, error) {
 	var socket string
-	if terminalSocketFlag != "" {
-		socket = terminalSocketFlag
+	if supervisorSocketFlag != "" {
+		socket = supervisorSocketFlag
 	} else {
 		runPath, err := config.GetRunPathFromEnvAndFlags(cmd)
 		if err != nil {
@@ -182,16 +182,16 @@ func buildSocket(
 
 		var supervisorID string
 		switch {
-		case terminalIDFlag != "":
-			supervisorID = terminalIDFlag
-		case terminalName != "":
-			supervisorID, err = get.ResolveSupervisorNameToID(cmd.Context(), logger, runPath, terminalName)
+		case supervisorIDFlag != "":
+			supervisorID = supervisorIDFlag
+		case supervisorName != "":
+			supervisorID, err = get.ResolveSupervisorNameToID(cmd.Context(), logger, runPath, supervisorName)
 			if err != nil {
 				logger.ErrorContext(
 					cmd.Context(),
 					"cannot resolve terminal name to ID",
 					"terminal_name",
-					terminalName,
+					supervisorName,
 					"error",
 					err,
 				)

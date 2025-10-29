@@ -20,14 +20,16 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"syscall"
 	"testing"
 	"time"
 
-	"github.com/Netflix/go-expect"
 	"github.com/creack/pty"
+	"github.com/eminwux/sbsh/internal/naming"
+	"github.com/eminwux/sbsh/internal/session/sessionrunner"
 )
 
 const (
@@ -37,7 +39,7 @@ const (
 
 // runReturningBinary runs the provided binary with args, fails the test on non-zero exit or empty output.
 // If the binary file does not exist, the test is skipped.
-func runReturningBinary(t *testing.T, command string, args ...string) []byte {
+func runReturningBinary(t *testing.T, env []string, command string, args ...string) []byte {
 	t.Helper()
 
 	dir := os.Getenv("E2E_BIN_DIR")
@@ -54,6 +56,10 @@ func runReturningBinary(t *testing.T, command string, args ...string) []byte {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, bin, args...)
+	if env != nil {
+		cmd.Env = env
+	}
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("running %s %v failed: %v\noutput:\n%s", bin, args, err, string(out))
@@ -69,6 +75,7 @@ func runPersistentBinaryPty(
 	t *testing.T,
 	fdOut *os.File,
 	waitErr func(*os.ProcessState, error),
+	env []string,
 	command string,
 	args ...string,
 ) {
@@ -84,7 +91,7 @@ func runPersistentBinaryPty(
 		t.Fatalf("binary %s not found, skipping", bin)
 	}
 
-	env := append(os.Environ(),
+	env = append(env,
 		`PS1="__P__ "`,
 		"TERM=xterm",
 		"LANG=C",
@@ -120,11 +127,8 @@ func runPersistentBinaryPty(
 	}(p)
 }
 
-func TestSbsh_Default(t *testing.T) {
-	t.Cleanup(func() {
-		runReturningBinary(t, sb, "prune", "terminals")
-		runReturningBinary(t, sb, "prune", "supervisors")
-	})
+func setupPty(t *testing.T) (*os.File, *os.File) {
+	t.Helper()
 
 	// Open a pty
 	ptmx, pts, errOpen := pty.Open()
@@ -132,20 +136,23 @@ func TestSbsh_Default(t *testing.T) {
 		t.Errorf("error opening pty: %v", errOpen)
 	}
 
-	// Copy cleanup function
-	defer func() {
-		_ = ptmx.Close()
-	}()
-
 	// Set initial size
 	errSize := pty.Setsize(ptmx, &pty.Winsize{Cols: 120, Rows: 40})
 	if errSize != nil {
 		t.Errorf("error setting pty size: %v", errSize)
 	}
 
-	ret := make(chan error, 1)
-	cmdWaitFunc := func(_ *os.ProcessState, err error) {
-		ret <- func(err error) error {
+	// Cancel: close ptmx when ctx is done → unblocks Read.
+	go func() {
+		<-t.Context().Done()
+		_ = ptmx.Close() // Read returns with error
+	}()
+	return ptmx, pts
+}
+
+func cmdWaitFunc(t *testing.T, ret *chan error) func(*os.ProcessState, error) {
+	return func(_ *os.ProcessState, err error) {
+		*ret <- func(err error) error {
 			if err != nil {
 				t.Log(
 					"process exited with error",
@@ -158,65 +165,104 @@ func TestSbsh_Default(t *testing.T) {
 			return nil
 		}(err)
 	}
-	runPersistentBinaryPty(t, pts, cmdWaitFunc, sbsh, "--session-id", "customId")
+}
 
-	////////////////////////////////////////////////////////
-	time.Sleep(1 * time.Second) // wait for sbsh to initialize
+func logTerminal(t *testing.T, r *os.File) {
+	buf := make([]byte, 4096)
 
-	// Cancel: close ptmx when ctx is done → unblocks Read.
-	go func() {
-		<-t.Context().Done()
-		_ = ptmx.Close() // Read returns with error
-	}()
-
-	// Create expect console
-	console, err := expect.NewConsole(
-		expect.WithStdin(ptmx),
-		expect.WithCloser(ptmx),
-	)
-	if err != nil {
-		t.Fatal(err)
+	for {
+		n, errR := r.Read(buf) // blocks until data or close
+		if n > 0 {
+			t.Logf("sbsh output: %q", buf[:n])
+		}
+		if n == 0 {
+			t.Logf("reader read 0 bytes, exiting")
+		}
+		if errR != nil {
+			// io.EOF / use-after-close is expected on cancel
+			t.Logf("reader exit: %v", errR)
+			return
+		}
 	}
-	defer console.Close()
+}
 
-	go func() {
-		buf := make([]byte, 4096)
+func setupPromptDetector(t *testing.T, pipeExpectR *os.File, regex *regexp.Regexp) chan struct{} {
+	t.Helper()
 
+	if regex == nil {
+		regex = regexp.MustCompile(`.*\(sbsh-.+\).*`)
+	}
+
+	promptCh := make(chan struct{}, 1)
+	go func(promptCh chan struct{}) {
+		buf := make([]byte, 1024)
 		for {
-			n, errR := console.Tty().Read(buf) // blocks until data or close
+			n, err := pipeExpectR.Read(buf)
 			if n > 0 {
-				t.Logf("sbsh output: %q", buf[:n])
+				matches := regex.FindSubmatch(buf[:n])
+				if matches != nil {
+					t.Logf("detected sbsh prompt: %q", matches[0])
+					close(promptCh)
+					return
+				}
 			}
 			if n == 0 {
-				t.Logf("reader read 0 bytes, exiting")
+				return
 			}
-			if errR != nil {
-				// io.EOF / use-after-close is expected on cancel
-				t.Logf("reader exit: %v", errR)
+			if err != nil {
+				return
+			}
+		}
+	}(promptCh)
+	return promptCh
+}
+
+func mkdirRunPath(t *testing.T, fullDir string) {
+	t.Helper()
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("could not get working dir: %v", err)
+	}
+	fullDir = filepath.Join(cwd, fullDir)
+	if err = os.MkdirAll(fullDir, 0o755); err != nil {
+		t.Fatalf("could not create dir %s: %v", fullDir, err)
+	}
+}
+
+func getRandomRunPath(t *testing.T) string {
+	t.Helper()
+	rndDir := naming.RandomID()
+	fullDir := path.Join("tmp", rndDir)
+	return fullDir
+}
+
+func buildSbRunPathEnv(t *testing.T, runPath string) string {
+	t.Helper()
+	return "SB_RUN_PATH=" + runPath
+}
+
+func getRandomSbshRunPath(t *testing.T, runPath string) string {
+	t.Helper()
+	return "SBSH_RUN_PATH=" + runPath
+}
+
+func setupMultiWriter(t *testing.T, ptmx *os.File, pipeLogW *os.File) *sessionrunner.DynamicMultiWriter {
+	t.Helper()
+	multiW := sessionrunner.NewDynamicMultiWriter(nil, pipeLogW)
+	go func() {
+		for {
+			buf := make([]byte, 1024)
+			n, err := ptmx.Read(buf)
+			if n > 0 {
+				_, _ = multiW.Write(buf[:n])
+			}
+			if n == 0 {
+				return
+			}
+			if err != nil {
 				return
 			}
 		}
 	}()
-
-	_, errS := console.SendLine("echo hello")
-	if errS != nil {
-		t.Fatalf("error sending to sbsh: %v", errS)
-	}
-
-	// Expect the output
-	re := regexp.MustCompile(`.*\[sbsh-customId\].*`)
-	response, errE := console.Expect(
-		expect.WithTimeout(1*time.Second),
-		expect.Regexp(re),
-	)
-	if errE != nil {
-		t.Fatalf("did not see sbsh output: %v", errE)
-	}
-
-	t.Logf("received sbsh output: %q", response)
-
-	ptmx.WriteString("\x04") // send EOF to sbsh)
-
-	// Wait for process to exit and get error
-	<-ret
+	return multiW
 }

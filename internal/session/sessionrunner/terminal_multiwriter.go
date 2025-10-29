@@ -29,6 +29,9 @@ type DynamicMultiWriter struct {
 }
 
 func NewDynamicMultiWriter(logger *slog.Logger, writers ...io.Writer) *DynamicMultiWriter {
+	if logger == nil {
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
 	return &DynamicMultiWriter{writers: writers, logger: logger}
 }
 
