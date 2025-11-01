@@ -320,12 +320,20 @@ func (s *Controller) createRunNewSession(spec *api.SupervisorSpec) (*api.Supervi
 func (s *Controller) handleEvent(ev supervisorrunner.Event) {
 	switch ev.Type {
 	case supervisorrunner.EvCmdExited:
-		s.logger.Info("session EvCmdExited", "id", ev.ID, "err", ev.Err)
+		s.logger.InfoContext(s.ctx, "session EvCmdExited", "id", ev.ID, "err", ev.Err)
 		s.onClosed(ev.ID, ev.Err)
 
 	case supervisorrunner.EvError:
-		s.logger.Error("session EvError", "id", ev.ID, "err", ev.Err)
+		s.logger.ErrorContext(s.ctx, "session EvError", "id", ev.ID, "err", ev.Err)
 		s.onClosed(ev.ID, ev.Err)
+	case supervisorrunner.EvDetach:
+		s.logger.InfoContext(s.ctx, "session EvDetach", "id", ev.ID)
+		err := s.Detach()
+		if err != nil {
+			s.logger.ErrorContext(s.ctx, "failed to detach session", "id", ev.ID, "error", err)
+		}
+	default:
+		s.logger.WarnContext(s.ctx, "unknown event type received", "type", ev.Type)
 	}
 }
 

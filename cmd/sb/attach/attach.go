@@ -63,7 +63,10 @@ to quickly create a Cobra application.`,
 				return errors.New("logger not found in context")
 			}
 
-			if len(args) == 1 {
+			switch {
+			case len(args) == 0:
+				return errors.New("no terminal identifier provided; terminal name or ID must be specified")
+			case len(args) == 1:
 				// If user passed -n when listing, reject it
 				if cmd.Flags().Changed("id") {
 					return errors.New("the --id flag is not valid when using positional terminal name")
@@ -71,7 +74,7 @@ to quickly create a Cobra application.`,
 				if cmd.Flags().Changed("name") {
 					return errors.New("the --name flag is not valid when using positional terminal name")
 				}
-			} else if len(args) > 1 {
+			case len(args) > 1:
 				return errors.New("too many arguments; only one terminal name is allowed")
 			}
 
@@ -181,8 +184,8 @@ func run(
 	if terminalNamePositional == "" {
 		terminalName = terminalNameFlag
 	}
-	// Create a new Controller
 
+	// Create a new Controller
 	logger.DebugContext(ctx, "creating supervisor controller for attach", "run_path", runPath)
 	supCtrl := supervisor.NewSupervisorController(ctx, logger)
 
@@ -229,8 +232,9 @@ func run(
 		default:
 			logger.DebugContext(
 				cmd.Context(),
-				"no terminal identification method provided, cannot detach",
+				"no terminal identification method provided, cannot attach",
 			)
+			return errors.New("no terminal identification method provided, cannot attach")
 		}
 
 		socket = fmt.Sprintf("%s/sessions/%s/socket", runPath, terminalID)

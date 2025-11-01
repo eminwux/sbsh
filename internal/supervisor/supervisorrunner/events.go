@@ -37,6 +37,7 @@ type EventType int
 const (
 	EvError EventType = iota // abnormal error
 	EvCmdExited
+	EvDetach
 )
 
 // helper: non-blocking event send so the PTY reader never stalls

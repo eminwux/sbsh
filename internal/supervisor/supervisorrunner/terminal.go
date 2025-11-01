@@ -59,12 +59,6 @@ func (sr *Exec) toExitShell() error {
 func (sr *Exec) initTerminal() error {
 	sr.logger.Debug("initTerminal: supervisor writing to terminal")
 
-	idEnvVar := "SBSH_SUP_ID"
-	if err := sr.writeTerminal("export " + idEnvVar + "=" + string(sr.id) + "\n"); err != nil {
-		sr.logger.Error("initTerminal: failed to write terminal", "error", err)
-		return err
-	}
-
 	sr.logger.Info("initTerminal: terminal initialized")
 	return nil
 }

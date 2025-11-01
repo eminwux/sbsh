@@ -254,8 +254,8 @@ func TestSbsh_Detach(t *testing.T) {
 	// Give some time for sbsh to be ready to accept commands
 	time.Sleep(100 * time.Millisecond)
 
-	// Send detach command
-	ptmx.WriteString("sb detach\n")
+	// Send detach sequence to sbsh (Ctrl+] Ctrl+])
+	ptmx.WriteString("\x1d\x1d")
 
 	// Wait for process to exit and get error
 	select {

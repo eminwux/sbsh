@@ -82,6 +82,7 @@ test:
 	go test ./internal/session...
 	go test ./internal/supervisor...
 	E2E_BIN_DIR=$(shell pwd) go test ./e2e
+	rm -rf e2e/tmp
 
 e2e: test-e2e
 .PHONY: test-e2e
