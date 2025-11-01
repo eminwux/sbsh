@@ -23,12 +23,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func DefaultRunPath() (string, error) {
-	home, err := os.UserHomeDir()
+func DefaultRunPath() string {
+	base, err := os.UserHomeDir()
 	if err != nil {
-		return "", err
+		// fallback to tmp if home dir cannot be determined
+		base = "/tmp/sbsh"
 	}
-	return filepath.Join(home, ".sbsh", "run"), nil
+	return filepath.Join(base, ".sbsh", "run")
 }
 
 func GetRunPathFromEnvAndFlags(cmd *cobra.Command) (string, error) {
@@ -38,11 +39,7 @@ func GetRunPathFromEnvAndFlags(cmd *cobra.Command) (string, error) {
 			runPath = env
 		} else {
 			// final fallback: same default you use at runtime
-			var err error
-			runPath, err = DefaultRunPath()
-			if err != nil {
-				return "", err
-			}
+			runPath = DefaultRunPath()
 		}
 	}
 	return runPath, nil
@@ -55,20 +52,28 @@ func GetProfilesFileFromEnvAndFlags(cmd *cobra.Command) (string, error) {
 			profilesFile = env
 		} else {
 			// final fallback: same default you use at runtime
-			var err error
-			profilesFile, err = DefaultProfilesFile()
-			if err != nil {
-				return "", err
-			}
+			profilesFile = DefaultProfilesFile()
 		}
 	}
 	return profilesFile, nil
 }
 
-func DefaultProfilesFile() (string, error) {
-	home, err := os.UserHomeDir()
+func DefaultProfilesFile() string {
+	base, err := os.UserHomeDir()
 	if err != nil {
-		return "", err
+		// fallback to tmp if home dir cannot be determined
+		base = "tmp"
 	}
-	return filepath.Join(home, ".sbsh", "profiles.yaml"), nil
+
+	return filepath.Join(base, ".sbsh", "profiles.yaml")
+}
+
+func DefaultConfigFile() string {
+	base, err := os.UserHomeDir()
+	if err != nil {
+		// fallback to tmp if home dir cannot be determined
+		base = "tmp"
+	}
+
+	return filepath.Join(base, ".sbsh", "config.yaml")
 }

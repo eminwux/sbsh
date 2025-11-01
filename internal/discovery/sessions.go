@@ -165,7 +165,7 @@ func printTerminals(w io.Writer, terminals []api.SessionMetadata, printAll bool)
 	}
 
 	if len(terminals) == 0 {
-		fmt.Fprintln(tw, "no active or inactive terminals found")
+		fmt.Fprint(tw, NoTerminalsString)
 		return tw.Flush()
 	}
 

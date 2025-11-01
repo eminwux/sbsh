@@ -119,10 +119,10 @@ func completeProfiles(cmd *cobra.Command, args []string, toComplete string) ([]s
 }
 
 // Example source for names (replace with your real backend).
-func fetchProfileNames(ctx context.Context, runPath string, toComplete string) ([]string, error) {
+func fetchProfileNames(ctx context.Context, basePath string, toComplete string) ([]string, error) {
 	logger, _ := ctx.Value(types.CtxLogger).(*slog.Logger)
 
-	all, err := config.AutoCompleteListProfileNames(ctx, logger, runPath)
+	all, err := config.AutoCompleteListProfileNames(ctx, logger, basePath)
 	if err != nil {
 		return nil, err
 	}

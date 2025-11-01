@@ -180,6 +180,7 @@ func setLoggingVarsFromFlags() {
 }
 
 func processSpec(cmd *cobra.Command, spec **api.SessionSpec) error {
+	// Check if spec is already provided
 	if *spec != nil {
 		// Spec provided via stdin
 		err := logging.SetupFileLogger(cmd, (*spec).LogFile, (*spec).LogLevel)
@@ -193,7 +194,8 @@ func processSpec(cmd *cobra.Command, spec **api.SessionSpec) error {
 		}
 		return nil
 	}
-	// Build spec from flags
+	// No spec provided, build from flags
+	// Set logging vars from flags
 	setLoggingVarsFromFlags()
 
 	// Setup logger

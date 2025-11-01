@@ -22,8 +22,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const Prefix = "SBSH"
-
 type Var struct {
 	Key        string // e.g. "SBSH_RUN_PATH"
 	ViperKey   string // optional, e.g. "global.runPath"
@@ -33,7 +31,7 @@ type Var struct {
 }
 
 func DefineKV(envName, viperKey string, defaultVal ...string) Var {
-	v := Var{Key: Prefix + "_" + envName, ViperKey: viperKey}
+	v := Var{Key: envName, ViperKey: viperKey}
 	if len(defaultVal) > 0 {
 		v.Default = defaultVal[0]
 		v.HasDefault = true
@@ -46,7 +44,7 @@ func Define(envName string, defaultVal ...string) Var {
 }
 
 func (v Var) EnvKey() string               { return v.Key }
-func (v Var) EnvVar() string               { return Prefix + "_" + v.Key }
+func (v Var) EnvVar() string               { return v.Key }
 func (v Var) DefaultValue() (string, bool) { return v.Default, v.HasDefault }
 
 // ValueOrDefault defines precedence: viper (if ViperKey set and value present) → OS env → default → "".
@@ -85,21 +83,24 @@ func KV(v Var, value string) string { return v.Key + "=" + value }
 // ---- Declare statically (Viper key optional per var) ----.
 var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	RUN_PATH = DefineKV("RUN_PATH", "sbsh.global.runPath") // has viper key
+	RUN_PATH = DefineKV("SB_RUN_PATH", "sb.global.runPath") // has viper key
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	CONFIG_FILE = DefineKV("CONFIG_FILE", "sbsh.global.configFile") // has viper key
+	CONFIG_FILE = DefineKV("SBSH_CONFIG_FILE", "sbsh.global.configFile") // has viper key
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	PROFILES_FILE = DefineKV("PROFILES_FILE", "sbsh.global.profilesFile") // has viper key
+	PROFILES_FILE = DefineKV("SBSH_PROFILES_FILE", "sbsh.global.profilesFile") // has viper key
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	LOG_LEVEL = DefineKV("LOG_LEVEL", "sbsh.global.logLevel", "info") // has viper key
+	LOG_LEVEL = DefineKV("SBSH_LOG_LEVEL", "sbsh.global.logLevel", "info") // has viper key
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SUP_SOCKET = DefineKV("SUP_SOCKET", "sbsh.supervisor.socket") // no viper key, no default
+	SUP_SOCKET = DefineKV("SBSH_SUP_SOCKET", "sbsh.supervisor.socket") // no viper key, no default
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_SOCKET_CTRL = Define("SES_SOCKET_CTRL")
+	SES_SOCKET_CTRL = Define("SBSH_SES_SOCKET_CTRL")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_ID = Define("SES_ID")
+	SES_ID = Define("SBSH_SES_ID")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_NAME = Define("SES_NAME")
+	SES_NAME = Define("SBSH_SES_NAME")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_PROFILE = Define("SES_PROFILE")
+	SES_PROFILE = Define("SBSH_SES_PROFILE")
+
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_RUN_PATH = DefineKV("SBSH_RUN_PATH", "sbsh.global.runPath") // has viper key
 )
