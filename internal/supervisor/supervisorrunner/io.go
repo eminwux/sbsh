@@ -28,6 +28,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/eminwux/sbsh/internal/dualcopier"
+	"github.com/eminwux/sbsh/internal/filter"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/eminwux/sbsh/pkg/rpcclient/session"
 )
@@ -74,6 +75,14 @@ func (sr *Exec) startConnectionManager() error {
 
 	dc := dualcopier.NewCopier(sr.ctx, sr.logger)
 
+	escapeFilter := filter.NewSupervisorEscapeFilter(0, true, func() {
+		sr.logger.InfoContext(sr.ctx, "Escape sequence detected; detaching session")
+		trySendEvent(sr.logger, sr.events, Event{
+			ID:   sr.session.Spec.ID,
+			Type: EvDetach,
+			When: time.Now(),
+		})
+	})
 	// WRITER: stdin -> socket
 	readyWriter := make(chan struct{})
 	go dc.RunCopier(os.Stdin, sr.ioConn, readyWriter, func() {
@@ -81,7 +90,13 @@ func (sr *Exec) startConnectionManager() error {
 			sr.logger.DebugContext(sr.ctx, "stdin->socket: closing write side of UnixConn")
 			_ = uc.CloseWrite()
 		}
-	})
+	}, escapeFilter)
+
+	// _, errHelp := os.Stdout.WriteString("To detach, press ^] twice.\r\n")
+	_, errHelp := os.Stdout.WriteString("\x1b[96mTo detach, press ^] twice\x1b[0m\r\n")
+	if errHelp != nil {
+		sr.logger.WarnContext(sr.ctx, "attachIOSocket: failed to write detach help message", "error", errHelp)
+	}
 
 	// READER: socket  -> stdout
 	readyReader := make(chan struct{})
@@ -90,7 +105,7 @@ func (sr *Exec) startConnectionManager() error {
 			sr.logger.DebugContext(sr.ctx, "socket->stdout: closing read side of UnixConn")
 			_ = uc.CloseRead()
 		}
-	})
+	}, nil)
 
 	<-readyWriter
 	<-readyReader

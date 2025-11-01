@@ -57,7 +57,7 @@ func (sr *Exec) handleClient(client *ioClient) {
 			sr.logger.Debug("closing UnixConn write side", "client", client.id)
 			_ = uc.CloseWrite()
 		}
-	})
+	}, nil)
 
 	// READER: socket  -> stdin
 	readyReader := make(chan struct{})
@@ -66,7 +66,7 @@ func (sr *Exec) handleClient(client *ioClient) {
 			sr.logger.Debug("closing UnixConn read side", "client", client.id)
 			_ = uc.CloseRead()
 		}
-	})
+	}, nil)
 
 	<-readyWriter
 	<-readyReader

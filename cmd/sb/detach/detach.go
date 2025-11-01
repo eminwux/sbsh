@@ -60,7 +60,14 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 
 			logger.DebugContext(cmd.Context(), "detach command invoked")
 
-			if len(args) == 1 {
+			switch {
+			case len(args) == 0:
+				if !cmd.Flags().Changed("id") && !cmd.Flags().Changed("name") && !cmd.Flags().Changed("socket") {
+					return errors.New(
+						"no supervisor identifier provided; supervisor name, ID, or socket must be specified",
+					)
+				}
+			case len(args) == 1:
 				// If user passed -n when listing, reject it
 				if cmd.Flags().Changed("id") {
 					return errors.New("the --id flag is not valid when using positional terminal name")
@@ -71,8 +78,8 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 				if cmd.Flags().Changed("socket") {
 					return errors.New("the --socket flag is not valid when using positional terminal name")
 				}
-			} else if len(args) > 1 {
-				return errors.New("too many arguments; only one terminal name is allowed")
+			case len(args) > 1:
+				return errors.New("too many arguments; only one supervisor name is allowed")
 			}
 
 			err := runDetachCmd(cmd, args)
@@ -115,9 +122,9 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	var terminalNamePositional string
+	var supervisorNamePositional string
 	if len(args) == 1 {
-		terminalNamePositional = args[0]
+		supervisorNamePositional = args[0]
 	}
 
 	if supervisorIDFlag != "" && supervisorNameFlag != "" {
@@ -132,12 +139,12 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 		return errors.New("only one of --name or --socket can be provided")
 	}
 
-	terminalName := terminalNamePositional
-	if terminalNamePositional == "" {
-		terminalName = supervisorNameFlag
+	supervisorName := supervisorNamePositional
+	if supervisorNamePositional == "" {
+		supervisorName = supervisorNameFlag
 	}
 
-	socket, errC := buildSocket(cmd, logger, supervisorSocketFlag, supervisorIDFlag, terminalName)
+	socket, errC := buildSocket(cmd, logger, supervisorSocketFlag, supervisorIDFlag, supervisorName)
 	if errC != nil {
 		logger.ErrorContext(cmd.Context(), "cannot build socket path", "error", errC)
 		return fmt.Errorf("cannot build socket path: %w", errC)
@@ -170,47 +177,41 @@ func buildSocket(
 	supervisorIDFlag string,
 	supervisorName string,
 ) (string, error) {
-	var socket string
 	if supervisorSocketFlag != "" {
-		socket = supervisorSocketFlag
-	} else {
-		runPath, err := config.GetRunPathFromEnvAndFlags(cmd)
-		if err != nil {
-			logger.ErrorContext(cmd.Context(), "cannot determine run path", "error", err)
-			return "", fmt.Errorf("cannot determine run path: %w", err)
-		}
-
-		var supervisorID string
-		switch {
-		case supervisorIDFlag != "":
-			supervisorID = supervisorIDFlag
-		case supervisorName != "":
-			supervisorID, err = get.ResolveSupervisorNameToID(cmd.Context(), logger, runPath, supervisorName)
-			if err != nil {
-				logger.ErrorContext(
-					cmd.Context(),
-					"cannot resolve terminal name to ID",
-					"terminal_name",
-					supervisorName,
-					"error",
-					err,
-				)
-				return "", fmt.Errorf("cannot resolve terminal name to ID: %w", err)
-			}
-		default:
-			logger.DebugContext(
-				cmd.Context(),
-				"no terminal identification method provided, cannot detach",
-			)
-
-			supervisorID = os.Getenv("SBSH_SUP_ID")
-			if supervisorID == "" {
-				logger.DebugContext(cmd.Context(), "no supervisor id found in SBSH_SUP_ID, cannot detach")
-				return "", errors.New("no supervisor id found in SBSH_SUP_ID")
-			}
-		}
-
-		socket = fmt.Sprintf("%s/supervisors/%s/socket", runPath, supervisorID)
+		return supervisorSocketFlag, nil
 	}
+
+	runPath, err := config.GetRunPathFromEnvAndFlags(cmd)
+	if err != nil {
+		logger.ErrorContext(cmd.Context(), "cannot determine run path", "error", err)
+		return "", fmt.Errorf("cannot determine run path: %w", err)
+	}
+
+	var supervisorID string
+	switch {
+	case supervisorIDFlag != "":
+		supervisorID = supervisorIDFlag
+	case supervisorName != "":
+		supervisorID, err = get.ResolveSupervisorNameToID(cmd.Context(), logger, runPath, supervisorName)
+		if err != nil {
+			logger.ErrorContext(
+				cmd.Context(),
+				"cannot resolve terminal name to ID",
+				"terminal_name",
+				supervisorName,
+				"error",
+				err,
+			)
+			return "", fmt.Errorf("cannot resolve terminal name to ID: %w", err)
+		}
+	default:
+		logger.DebugContext(
+			cmd.Context(),
+			"no supervisor identification method provided, cannot detach",
+		)
+		return "", errors.New("no supervisor identification method provided, cannot detach")
+	}
+
+	socket := fmt.Sprintf("%s/supervisors/%s/socket", runPath, supervisorID)
 	return socket, nil
 }

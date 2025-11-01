@@ -204,5 +204,11 @@ func (sr *Exec) Detach() error {
 		return err
 	}
 
+	sr.logger.Info("Supervisor detached", "supervisor_id", sr.id)
+	if _, err := os.Stdout.WriteString("\x1b[93m\r\nDetached\x1b[0m\r\n"); err != nil {
+		sr.logger.Warn("Failed to write detach message to stdout", "error", err)
+		return err
+	}
+
 	return nil
 }

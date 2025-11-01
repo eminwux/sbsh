@@ -235,6 +235,8 @@ func (c *Controller) handleEvent(ev sessionrunner.Event) {
 	case sessionrunner.EvCmdExited:
 		c.logger.InfoContext(c.ctx, "session EvSessionExited", "id", ev.ID, "error", ev.Err)
 		c.onClosed(ev.Err)
+	default:
+		c.logger.WarnContext(c.ctx, "unknown event type received", "type", ev.Type)
 	}
 }
 
