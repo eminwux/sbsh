@@ -14,8 +14,6 @@
 ```markdown
 - [ ] **A** Refactor session to terminal
 - [ ] **A** If `sbsh run` fails supervisor must print and log error
-- [ ] **A** Initial E2E testing
-- [ ] **A** Add --version in sb sbsh
 - [ ] **A** Toggle log capture in profile (default:false)
 - [ ] **A** Auto-prune terminals and supervisors
 ```
@@ -98,4 +96,6 @@
 - [X] **B** sbsh/sb disallow illegal positional arguments           DONE
 - [X] **A** sbsh run - | get terminal spec through Stdin            DONE
 - [X] **B** Sort out architecture for SupervisedSession vs. Session DONE
+- [X] **A** Initial E2E testing                                     DONE
+- [X] **A** Add --version in sb sbsh                                DONE
 ```

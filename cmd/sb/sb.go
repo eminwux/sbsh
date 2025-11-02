@@ -31,6 +31,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/sb/detach"
 	"github.com/eminwux/sbsh/cmd/sb/get"
 	"github.com/eminwux/sbsh/cmd/sb/prune"
+	"github.com/eminwux/sbsh/cmd/sb/version"
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
@@ -118,6 +119,7 @@ Examples:
 }
 
 func setupRootCmd(rootCmd *cobra.Command) error {
+	rootCmd.AddCommand(version.NewVersionCmd())
 	rootCmd.AddCommand(autocomplete.NewAutoCompleteCmd(rootCmd))
 	rootCmd.AddCommand(prune.NewPruneCmd())
 	rootCmd.AddCommand(detach.NewDetachCmd())
