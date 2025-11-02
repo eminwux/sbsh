@@ -32,6 +32,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sbsh/autocomplete"
 	"github.com/eminwux/sbsh/cmd/sbsh/run"
+	"github.com/eminwux/sbsh/cmd/sbsh/version"
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/errdefs"
@@ -329,7 +330,7 @@ func setupRootCmd(rootCmd *cobra.Command) error {
 	// go http.ListenAndServe("127.0.0.1:6060", nil)
 	// runtime.SetBlockProfileRate(1)     // sample ALL blocking events on chans/locks
 	// runtime.SetMutexProfileFraction(1) // sample ALL mutex contention
-
+	rootCmd.AddCommand(version.NewVersionCmd())
 	rootCmd.AddCommand(run.NewRunCmd())
 	rootCmd.AddCommand(autocomplete.NewAutoCompleteCmd(rootCmd))
 

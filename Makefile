@@ -1,30 +1,35 @@
 RELEASE_DIR := release
 
-# Define federid version
-SBSH_VERSION = 0.1.0
+# ----- Version sourcing -----
+MODULE := $(shell go list -m)
 
-# ------------------------------
-# Docker-related Variables
-# ------------------------------
+# CI can pass SBSH_VERSION (e.g., github.ref_name). If not, derive from git.
+ifndef SBSH_VERSION
+SBSH_VERSION = $(shell git describe --tags --always --dirty --match 'v*')
+endif
 
-# Webhook Docker image settings
+# ----- Docker-related Variables (use the SAME version) -----
 SBSH_REGISTRY ?= eminwux
 SBSH_IMAGE_NAME := sbsh
 SBSH_IMAGE_TAG ?= $(SBSH_VERSION)
 SBSH_DOCKER_IMAGE := $(SBSH_REGISTRY)/$(SBSH_IMAGE_NAME):$(SBSH_IMAGE_TAG)
 
+# ----- Build matrix -----
 BINS = sbsh-sb
 OS = linux darwin freebsd
 ARCHS = amd64 arm64
 
-all: clean kill $(BINS)
 
+all: clean kill $(BINS)
 
 .PHONY: release
 release: release-build docker-build docker-push
 
 sbsh-sb:
-	go build -o sbsh ./cmd/
+	go build \
+	-o sbsh \
+	-ldflags="-s -w -X $(MODULE)/cmd/config.Version=$(SBSH_VERSION)" \
+	./cmd/
 	ln sbsh sb
 
 sbsh:
@@ -38,7 +43,11 @@ release-build:
 	# Build for all OS and ARCH combinations
 	for OS in $(OS); do \
 		for ARCH in $(ARCHS); do \
-			GO111MODULE=on CGO_ENABLED=0 GOOS=$$OS GOARCH=$$ARCH go build -a -o sbsh-$$OS-$$ARCH ./cmd; \
+			GO111MODULE=on CGO_ENABLED=0 GOOS=$$OS GOARCH=$$ARCH \
+			go build -a \
+			-o sbsh-$$OS-$$ARCH \
+			-ldflags="-s -w -X $(MODULE)/cmd/config.Version=$(SBSH_VERSION)" \
+			./cmd; \
 		done \
 	done
 
