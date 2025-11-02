@@ -100,5 +100,5 @@ test-e2e:
 	HOME=$(HOME) E2E_BIN_DIR=$(CURDIR) go test -v ./e2e -v
 
 tag:
-	git tag -a v$(SBSH_VERSION) -m "Release version $(SBSH_VERSION)"
+	git tag -s v$(SBSH_VERSION) -m "Release version $(SBSH_VERSION)"
 	git push origin v$(SBSH_VERSION)

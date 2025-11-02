@@ -1,14 +1,14 @@
 # 🚂 sbsh - tty supervisor
 
-sbsh is a terminal supervisor that manages persistent sessions.
-Each session is an independent, long-lived environment that continues running even when no supervisor is attached. Supervisors can attach to existing sessions, create new ones, observe activity, or send input and commands through an API.
+sbsh is a terminal supervisor that manages persistent terminal sessions.
+Each terminal is an independent, long-lived environment that continues running even when no supervisor is attached. Supervisors can attach to existing terminals, create new ones, observe activity, or send input and commands through an API.
 
 sbsh gives terminals persistence, structure, and visibility without changing how programs run inside them. It separates the session (the living environment) from the supervisor (the controller), allowing both humans and programs to interact with terminals in a durable and programmable way.
 
 ## Features
 
 - Persistent terminal sessions that survive disconnects and supervisor restarts
-- Profiles that define how sessions are launched, including commands, environment variables, and policies. See [examples/profiles/local.yaml](examples/profiles/local.yaml).
+- Profiles that define how terminals are launched, including commands, environment variables, and policies. See [examples/profiles/local.yaml](examples/profiles/local.yaml).
 - Session discovery and reattachment to resume work without losing state
 - Multiple supervisors or API clients can connect to the same session concurrently
 - Structured logs and metadata for every session, making state and history easy to inspect
@@ -21,7 +21,7 @@ sbsh gives terminals persistence, structure, and visibility without changing how
 
 ```bash
 # Install sbsh
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.1.5/sbsh-linux-amd64 && \
+curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.2.0/sbsh-linux-amd64 && \
 chmod +x sbsh && \
 sudo mv sbsh /usr/local/bin/ && \
 sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
@@ -38,27 +38,33 @@ EOF
 
 ## Usage
 
-Start a supervisor with the default configuration
+### Launch sbsh
+
+Launch a supervisor with the default configuration
 
 ```
 eminwux@capgood:~$ sbsh
-[sbsh-4c51ab35] eminwux@capgood:~$ bash-5.2$ export PS1="[sbsh-$SBSH_SES_ID] \u@\h:\w$ "
-[sbsh-4c51ab35] eminwux@capgood:~$ cd ~
-[sbsh-4c51ab35] eminwux@capgood:~$ export SBSH_SUP_ID=bb46261b
-[sbsh-4c51ab35] eminwux@capgood:~$
+To detach, press ^] twice
+bash-5.2$ export PS1="[sbsh-$SBSH_SES_ID] \u@\h:\w$ "
+[sbsh-35af93de] inwx@capgood:~/projects/sbsh$ cd ~
+[sbsh-35af93de] inwx@capgood:~$
 ```
 
 ### Detach the terminal
 
-Once inside the teminal you can detach:
+Once inside the terminal, press Ctrl-] twice (shown as ^]) to detach the supervisor and return to your shell. The session will continue running and can be reattached later.
 
 ```
-[sbsh-ee4196b6] user@capgood:~$ sb d
-detaching..
+[sbsh-ee4196b6] eminwux@capgood:~$ sb d
+To detach, press ^] twice
+bash-5.2$ export PS1="[sbsh-$SBSH_SES_ID] \u@\h:\w$ "
+[sbsh-35af93de] inwx@capgood:~/projects/sbsh$ cd ~
+[sbsh-35af93de] inwx@capgood:~$
+Detached
 eminwux@capgood:~$
 ```
 
-# List active terminals
+### List active terminals
 
 List active terminals
 
@@ -69,40 +75,36 @@ bbb4b457  quick_samwise  default  /bin/bash --norc --noprofile  /dev/pts/12  Rea
 eminwux@capgood:~$
 ```
 
-# Attach to a running terminal
+### Attach to a running terminal
 
 ```
 eminwux@capgood:~$ sb attach quick_samwise
+To detach, press ^] twice
 bash-5.2$ export PS1="[sbsh-$SBSH_SES_ID] \u@\h:\w$ "
-[sbsh-bbb4b457] eminwux@capgood:~$ cd ~
-[sbsh-bbb4b457] eminwux@capgood:~$ export SBSH_SUP_ID=7e6701dd
-[sbsh-bbb4b457] eminwux@capgood:~$ sb d
-detaching..
-[sbsh-bbb4b457] eminwux@capgood:~$ export SBSH_SUP_ID=2add64d6
-[sbsh-bbb4b457] eminwux@capgood:~$
+[sbsh-bbb4b457] inwx@capgood:~/projects/sbsh$ cd ~
+[sbsh-bbb4b457] inwx@capgood:~$
 ```
 
-# List available profiles
+### List available profiles
 
 See [examples/profiles/local.yaml](examples/profiles/local.yaml) to define your own profiles.
 
 ```
 eminwux@capgood:~$ sb get profiles
-NAME              TARGET  RESTART           ENVVARS  CMD
-default           local   restart-on-error  3 vars   /bin/bash --norc --noprofile
-k8s-default       local   restart-on-error  4 vars   /bin/bash
-terraform-prd     local   exit              2 vars   /bin/bash
-k8s-pod           local   exit              1 vars   /usr/local/bin/kubectl run -ti --rm --image debian:stable-slim ephemeral
-docker-container  local   exit              0 vars   /usr/bin/docker run --rm -ti debian:stable-slim /bin/bash
-ssh-pk            local   exit              0 vars   /usr/bin/ssh -t pk
+NAME              TARGET  ENVVARS  CMD
+default           local   3 vars   /bin/bash --norc --noprofile
+k8s-default       local   4 vars   /bin/bash
+terraform-prd     local   2 vars   /bin/bash
+k8s-pod           local   1 vars   /usr/local/bin/kubectl run -ti --rm --image debian:stable-slim ephemeral
+docker-container  local   0 vars   /usr/bin/docker run --rm -ti debian:stable-slim /bin/bash
+ssh-pk            local   0 vars   /usr/bin/ssh -t pk
 eminwux@capgood:~$
 ```
 
-# Start a supervisor with a given profile
+### Start a supervisor with a given profile
 
 ```
 eminwux@capgood:~$ sbsh -p docker-container
-sbsh root@a5ad0ede7212:~$ export SBSH_SUP_ID=de8510bb
 sbsh root@a5ad0ede7212:~$
 ```
 
