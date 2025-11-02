@@ -112,7 +112,7 @@ func PrintProfilesTable(w io.Writer, profiles []api.SessionProfileDoc) error {
 		return tw.Flush()
 	}
 
-	fmt.Fprintln(tw, "NAME\tTARGET\tRESTART\tENVVARS\tCMD")
+	fmt.Fprintln(tw, "NAME\tTARGET\tENVVARS\tCMD")
 	for _, p := range profiles {
 		args := strings.Join(p.Spec.Shell.CmdArgs, " ")
 		var cmd string
@@ -127,10 +127,9 @@ func PrintProfilesTable(w io.Writer, profiles []api.SessionProfileDoc) error {
 		}
 		fmt.Fprintf(
 			tw,
-			"%s\t%s\t%s\t%d vars\t%s\n",
+			"%s\t%s\t%d vars\t%s\n",
 			p.Metadata.Name,
 			p.Spec.RunTarget,
-			p.Spec.RestartPolicy,
 			envCount,
 			cmd,
 		)
