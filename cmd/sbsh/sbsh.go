@@ -390,16 +390,19 @@ func runSupervisor(
 		var err error
 		logger.DebugContext(ctx, "context canceled, waiting for controller to exit")
 		if errC := ctrl.WaitClose(); errC != nil {
-			err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrWaitOnClose, errC)
+			err = fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, errC)
 		}
 		logger.DebugContext(ctx, "context canceled, controller exited")
-		return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
+		if err != nil {
+			return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
+		}
+		return errdefs.ErrContextDone
 
 	case err := <-errCh:
 		logger.DebugContext(ctx, "controller stopped", "error", err)
 		if err != nil && !errors.Is(err, context.Canceled) {
 			err = fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
-			if errC := ctrl.WaitClose(); err != nil {
+			if errC := ctrl.WaitClose(); errC != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrWaitOnClose, errC)
 			}
 			logger.ErrorContext(ctx, "supervisor controller exited with error", "error", err)
