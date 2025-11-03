@@ -7,18 +7,27 @@ sbsh makes terminal sessions **persistent, discoverable, and resumable**. Your w
 ## The Problem You Know
 
 ❌ **Lost SSH session during debugging?** — All your work is gone
+
 ❌ **Terraform plan died on disconnect?** — Start over from scratch
+
 ❌ **Can't resume work after laptop sleep?** — Rebuild your entire context
+
 ❌ **Need to switch between projects?** — Lose state when you leave
+
 ❌ **Collaborate on a terminal session?** — Not possible
+
 ❌ **Audit what happened in a session?** — No structured logs
 
 ## The Solution
 
 ✅ **Connection drops?** → `sb attach mysession` → Continue exactly where you left off
+
 ✅ **Long-running task?** → Detach, come back hours later, it's still running
+
 ✅ **Switch contexts?** → Sessions stay alive, switch anytime
+
 ✅ **Share sessions?** → Multiple people can attach to the same session
+
 ✅ **Full history?** → Structured logs and metadata for every session
 
 **sbsh separates the terminal session (your work environment) from the supervisor (the controller)**, making terminals as durable and manageable as background services.
