@@ -67,6 +67,44 @@ func Test_ErrSpecCmdMissing(t *testing.T) {
 	}
 }
 
+func Test_ErrWriteMetadata(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(ctx, logger).(*Controller)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
+		return &sessionrunner.Test{
+			IDFunc: func() api.ID {
+				return spec.ID
+			},
+			CreateMetadataFunc: func() error {
+				return errors.New("error creating metadata file")
+			},
+		}
+	}
+
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
+
+	exitCh := make(chan error)
+
+	go func() {
+		exitCh <- sessionCtrl.Run(&spec)
+	}()
+
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrWriteMetadata) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrWriteMetadata, err)
+	}
+}
+
 func Test_ErrOpenSocketCtrl(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -185,6 +223,99 @@ func Test_ErrStartSession(t *testing.T) {
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartSession) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartSession, err)
+	}
+}
+
+func Test_ErrSetupShell(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(ctx, logger).(*Controller)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
+		return &sessionrunner.Test{
+			IDFunc: func() api.ID {
+				return spec.ID
+			},
+			OpenSocketCtrlFunc: func() error {
+				return nil
+			},
+			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
+				readyCh <- nil
+			},
+			StartSessionFunc: func(_ chan<- sessionrunner.Event) error {
+				return nil
+			},
+			SetupShellFunc: func() error {
+				return errors.New("make setup shell fail")
+			},
+		}
+	}
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
+
+	exitCh := make(chan error)
+
+	go func() {
+		exitCh <- sessionCtrl.Run(&spec)
+	}()
+
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrSetupShell) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrSetupShell, err)
+	}
+}
+
+func Test_ErrInitShell(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(ctx, logger).(*Controller)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
+		return &sessionrunner.Test{
+			IDFunc: func() api.ID {
+				return spec.ID
+			},
+			OpenSocketCtrlFunc: func() error {
+				return nil
+			},
+			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
+				readyCh <- nil
+			},
+			StartSessionFunc: func(_ chan<- sessionrunner.Event) error {
+				return nil
+			},
+			SetupShellFunc: func() error {
+				return nil
+			},
+			OnInitShellFunc: func() error {
+				return errors.New("make init shell fail")
+			},
+		}
+	}
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
+
+	exitCh := make(chan error)
+
+	go func() {
+		exitCh <- sessionCtrl.Run(&spec)
+	}()
+
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrInitShell) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInitShell, err)
 	}
 }
 
@@ -346,6 +477,61 @@ func Test_WaitReady(t *testing.T) {
 	}
 	cancel()
 	<-exitCh
+}
+
+func Test_ErrCloseReq(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sessionCtrl := NewSessionController(ctx, logger).(*Controller)
+	sessionCtrl.NewSessionRunner = func(_ context.Context, _ *slog.Logger, spec *api.SessionSpec) sessionrunner.SessionRunner {
+		return &sessionrunner.Test{
+			IDFunc: func() api.ID {
+				return spec.ID
+			},
+			OpenSocketCtrlFunc: func() error {
+				return nil
+			},
+			StartServerFunc: func(_ context.Context, _ *sessionrpc.SessionControllerRPC, readyCh chan error, _ chan error) {
+				readyCh <- nil
+			},
+			StartSessionFunc: func(_ chan<- sessionrunner.Event) error {
+				return nil
+			},
+			SetupShellFunc: func() error {
+				return nil
+			},
+			OnInitShellFunc: func() error {
+				return nil
+			},
+		}
+	}
+
+	// Define a new Session
+	spec := api.SessionSpec{
+		ID:          api.ID("abcdef"),
+		Kind:        api.SessionLocal,
+		Name:        "default",
+		Command:     "/bin/bash",
+		CommandArgs: nil,
+		Env:         os.Environ(),
+	}
+
+	exitCh := make(chan error)
+
+	go func() {
+		exitCh <- sessionCtrl.Run(&spec)
+	}()
+
+	// Wait for controller to be ready
+	time.Sleep(500 * time.Microsecond)
+
+	// Send direct close request
+	sessionCtrl.closeReqCh <- errors.New("direct close request")
+
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrCloseReq) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrCloseReq, err)
+	}
 }
 
 func Test_HandleEvent_EvCmdExited(t *testing.T) {
