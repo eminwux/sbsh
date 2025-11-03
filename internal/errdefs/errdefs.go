@@ -64,4 +64,18 @@ var (
 	ErrCreateSupervisorDir      = errors.New("failed to create supervisor directory")
 	ErrResolveTerminalName      = errors.New("cannot resolve terminal name to ID")
 	ErrNoTerminalIdentification = errors.New("no terminal identification method provided, cannot attach")
+	ErrNoSupervisorIdentifier   = errors.New(
+		"no supervisor identifier provided; supervisor name, ID, or socket must be specified",
+	)
+	ErrConflictingFlags           = errors.New("conflicting flags provided; only one flag option can be used")
+	ErrBuildSocketPath            = errors.New("cannot build socket path")
+	ErrDetermineRunPath           = errors.New("cannot determine run path")
+	ErrNoSupervisorIdentification = errors.New("no supervisor identification method provided, cannot detach")
+	ErrPositionalWithFlags        = errors.New("positional argument cannot be used with flags")
+	ErrInvalidOutputFormat        = errors.New("invalid output format")
+	ErrGetRunPath                 = errors.New("failed to get run path from env and flags")
+	ErrNoTerminalsFound           = errors.New("no terminals found")
+	ErrNoSupervisorsFound         = errors.New("no supervisors found")
+	ErrTerminalNotFound           = errors.New("terminal not found")
+	ErrSupervisorNotFound         = errors.New("supervisor not found")
 )

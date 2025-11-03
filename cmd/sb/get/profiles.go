@@ -18,7 +18,6 @@ package get
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -27,6 +26,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/discovery"
+	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -47,11 +47,14 @@ func NewGetProfilesCmd() *cobra.Command {
 			if len(args) == 0 {
 				// If user passed -o when listing, reject it
 				if cmd.Flags().Changed("output") {
-					return errors.New("the -o/--output flag is only valid when specifying a profile name")
+					return fmt.Errorf(
+						"%w: the -o/--output flag is only valid when specifying a profile name",
+						errdefs.ErrInvalidFlag,
+					)
 				}
 				return listProfiles(cmd, args)
 			} else if len(args) > 1 {
-				return errors.New("too many arguments; only one profile name is allowed")
+				return errdefs.ErrTooManyArguments
 			}
 
 			return getProfile(cmd, args)
@@ -79,7 +82,7 @@ func setupNewGetProfilesCmd(cmd *cobra.Command) {
 func listProfiles(cmd *cobra.Command, _ []string) error {
 	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
-		return errors.New("logger not found in context")
+		return errdefs.ErrLoggerNotFound
 	}
 
 	logger.Debug("profiles list command invoked",
@@ -140,12 +143,12 @@ func fetchProfileNames(ctx context.Context, basePath string, toComplete string) 
 func getProfile(cmd *cobra.Command, args []string) error {
 	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
-		return errors.New("logger not found in context")
+		return errdefs.ErrLoggerNotFound
 	}
 	profileName := args[0]
 	format := viper.GetString(outputFormatProfilesInput)
 	if format != "" && format != "json" && format != "yaml" {
-		return fmt.Errorf("invalid output format: %s", format)
+		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
 	}
 	logger.Debug("get profile command invoked",
 		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
