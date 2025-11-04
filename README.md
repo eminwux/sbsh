@@ -4,6 +4,16 @@
 
 sbsh makes terminal sessions **persistent, discoverable, and resumable**. Your work survives network drops, computer restarts, and accidental disconnects.
 
+**Demo 1 - Launch a terminal with default profile**
+[![asciicast](https://asciinema.org/a/chXZV5kG3OYR7gubis6B8nvKE.svg)](https://asciinema.org/a/chXZV5kG3OYR7gubis6B8nvKE)
+
+**Demo 2 - Launch a terminal with a Kubernetes profile**
+[![asciicast](https://asciinema.org/a/753754.svg)](https://asciinema.org/a/753754)
+
+**Demo 3 - Launch a terminal with a terraform profile**
+
+[![asciicast](https://asciinema.org/a/vBogwCwOzFm1xChDi1FPDyKpw.svg)](https://asciinema.org/a/vBogwCwOzFm1xChDi1FPDyKpw)
+
 ## The Problem You Know
 
 ❌ **Lost SSH session during debugging?** — All your work is gone

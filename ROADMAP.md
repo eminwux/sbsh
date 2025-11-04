@@ -8,14 +8,23 @@
 
 ### 🐞 Bugs
 ```markdown
+- [ ] **A** `sbsh` does not run as shell terminal
+- [ ] **A** `sbsh run` does not expose tty in ps
+- [ ] **A** dettach does not remove attacher from metadata
 ```
 
 ### 🅰️ Must Have
 ```markdown
 - [ ] **A** Refactor session to terminal
+- [ ] **A** Disable detach for nested case
 - [ ] **A** If `sbsh run` fails supervisor must print and log error
+- [ ] **A** `sbsh run` change to `sbsh terminal`
+- [ ] **A** `sbsh run` should detach by default, allowing attach
+- [ ] **A** `sbsh run` new --log-mode=file/stdout, file by default
 - [ ] **A** Toggle log capture in profile (default:false)
 - [ ] **A** Auto-prune terminals and supervisors
+- [ ] **A** Add API in pkg to spawn supervisor and terminal
+- [ ] **A** Add basic API call set to supervisor and terminal
 ```
 
 ### 🅱️ Should Have
