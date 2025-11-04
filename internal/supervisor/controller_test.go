@@ -516,7 +516,7 @@ func Test_ErrCloseReq(t *testing.T) {
 	}
 }
 
-func Test_ErrStartSessionCmd(t *testing.T) {
+func Test_ErrStartCmd(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*Controller)
 	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner {
@@ -600,8 +600,8 @@ func Test_ErrStartSessionCmd(t *testing.T) {
 
 	//	<-ctrlReady
 
-	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartSessionCmd) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartSessionCmd, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartCmd) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartCmd, err)
 	}
 }
 

@@ -29,7 +29,6 @@ var (
 	ErrStartRPCServer           = errors.New("error starting RPC server")
 	ErrStartSession             = errors.New("error starting session")
 	ErrAttach                   = errors.New("error attaching supervisor")
-	ErrStartSessionCmd          = errors.New("error starting session cmd")
 	ErrSupervisorKind           = errors.New("error supervisor kind not implemented")
 	ErrRPCServerExited          = errors.New("RPC Server exited with error")
 	ErrOnClose                  = errors.New("error closing")

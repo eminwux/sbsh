@@ -164,7 +164,7 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 				errStart = fmt.Errorf("%w: %w: %w", errStart, errdefs.ErrOnClose, errC)
 			}
 			close(s.ctrlReadyCh)
-			return fmt.Errorf("%w: %w", errdefs.ErrStartSessionCmd, errStart)
+			return fmt.Errorf("%w: %w", errdefs.ErrStartCmd, errStart)
 		}
 	case api.AttachToSession:
 		if spec.SessionSpec == nil || (spec.SessionSpec.ID == "" && spec.SessionSpec.Name == "") {
