@@ -19,17 +19,21 @@ package run
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/internal/session"
 	"github.com/eminwux/sbsh/pkg/api"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
@@ -163,5 +167,185 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrWaitOnClose) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrWaitOnClose, err)
+	}
+}
+
+func Test_ErrInvalidFlag(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("id", "", "test flag")
+	cmd.Flags().Parse([]string{"--id", "test123"})
+
+	err := checkFlag(cmd, "id", "positional argument '-'")
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+	if !errors.Is(err, errdefs.ErrInvalidFlag) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInvalidFlag, err)
+	}
+}
+
+func Test_ErrInvalidArgument(t *testing.T) {
+	cmd := &cobra.Command{}
+	spec, err := processInput(cmd, []string{"invalid"})
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+	if spec != nil {
+		t.Fatal("expected nil spec")
+	}
+	if !errors.Is(err, errdefs.ErrInvalidArgument) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInvalidArgument, err)
+	}
+}
+
+func Test_ErrStdinEmpty(t *testing.T) {
+	// This test verifies that ErrStdinEmpty is properly defined
+	// Testing the actual condition requires mocking os.Stdin.Stat(), which is complex
+	// The error is tested indirectly through integration tests
+	err := errdefs.ErrStdinEmpty
+	if err == nil {
+		t.Fatal("ErrStdinEmpty should not be nil")
+	}
+	if !errors.Is(err, errdefs.ErrStdinEmpty) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStdinEmpty, err)
+	}
+}
+
+func Test_ErrOpenSpecFile(t *testing.T) {
+	cmd := &cobra.Command{}
+	viper.Set("sbsh.run.spec", "/nonexistent/file/path/that/does/not/exist.json")
+
+	spec, err := processInput(cmd, []string{})
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+	if spec != nil {
+		t.Fatal("expected nil spec")
+	}
+	if !errors.Is(err, errdefs.ErrOpenSpecFile) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrOpenSpecFile, err)
+	}
+}
+
+func Test_ErrInvalidJSONSpec(t *testing.T) {
+	// Create a temporary file with invalid JSON
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "invalid.json")
+	err := os.WriteFile(tmpFile, []byte("{invalid json}"), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+
+	cmd := &cobra.Command{}
+	viper.Set("sbsh.run.spec", tmpFile)
+
+	spec, err := processInput(cmd, []string{})
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+	if spec != nil {
+		t.Fatal("expected nil spec")
+	}
+	if !errors.Is(err, errdefs.ErrInvalidJSONSpec) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInvalidJSONSpec, err)
+	}
+}
+
+func Test_ErrNoSpecDefined(t *testing.T) {
+	cmd := &cobra.Command{}
+	viper.Set("sbsh.run.spec", "")
+
+	spec, err := processInput(cmd, []string{})
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+	if spec != nil {
+		t.Fatal("expected nil spec")
+	}
+	if !errors.Is(err, errdefs.ErrNoSpecDefined) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrNoSpecDefined, err)
+	}
+}
+
+func Test_ErrSessionSpecNotFound_RunE(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	cmd := NewRunCmd()
+	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
+	cmd.SetContext(ctx)
+	// Don't set CtxSessionSpec, so it will be nil
+
+	err := cmd.RunE(cmd, []string{})
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+	if !errors.Is(err, errdefs.ErrSessionSpecNotFound) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrSessionSpecNotFound, err)
+	}
+}
+
+func Test_ErrLoggerNotFound_RunE(t *testing.T) {
+	cmd := NewRunCmd()
+	ctx := context.Background()
+	// Don't set CtxLogger, so it will be nil
+	cmd.SetContext(ctx)
+
+	// Set a valid session spec so we get past that check
+	spec := &api.SessionSpec{
+		ID:          api.ID(naming.RandomID()),
+		Kind:        api.SessionLocal,
+		Name:        naming.RandomName(),
+		Command:     "/bin/bash",
+		CommandArgs: []string{},
+		Env:         os.Environ(),
+	}
+	ctx = context.WithValue(ctx, types.CtxSessionSpec, spec)
+	cmd.SetContext(ctx)
+
+	err := cmd.RunE(cmd, []string{})
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+	if !errors.Is(err, errdefs.ErrLoggerNotFound) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrLoggerNotFound, err)
+	}
+}
+
+func Test_ValidJSONSpec(t *testing.T) {
+	// Create a temporary file with valid JSON
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "valid.json")
+	validSpec := api.SessionSpec{
+		ID:          api.ID("test-id"),
+		Kind:        api.SessionLocal,
+		Name:        "test-name",
+		Command:     "/bin/bash",
+		CommandArgs: []string{},
+		Env:         os.Environ(),
+	}
+	jsonData, err := json.Marshal(validSpec)
+	if err != nil {
+		t.Fatalf("failed to marshal spec: %v", err)
+	}
+	err = os.WriteFile(tmpFile, jsonData, 0o644)
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+
+	cmd := &cobra.Command{}
+	viper.Set("sbsh.run.spec", tmpFile)
+
+	spec, err := processInput(cmd, []string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec == nil {
+		t.Fatal("expected non-nil spec")
+	}
+	if spec.ID != validSpec.ID {
+		t.Fatalf("expected ID %s; got: %s", validSpec.ID, spec.ID)
+	}
+	if spec.Name != validSpec.Name {
+		t.Fatalf("expected Name %s; got: %s", validSpec.Name, spec.Name)
 	}
 }

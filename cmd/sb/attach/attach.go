@@ -60,22 +60,28 @@ to quickly create a Cobra application.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
-				return errors.New("logger not found in context")
+				return errdefs.ErrLoggerNotFound
 			}
 
 			switch {
 			case len(args) == 0:
-				return errors.New("no terminal identifier provided; terminal name or ID must be specified")
+				return errdefs.ErrNoTerminalIdentifier
 			case len(args) == 1:
 				// If user passed -n when listing, reject it
 				if cmd.Flags().Changed("id") {
-					return errors.New("the --id flag is not valid when using positional terminal name")
+					return fmt.Errorf(
+						"%w: the --id flag is not valid when using positional terminal name",
+						errdefs.ErrInvalidFlag,
+					)
 				}
 				if cmd.Flags().Changed("name") {
-					return errors.New("the --name flag is not valid when using positional terminal name")
+					return fmt.Errorf(
+						"%w: the --name flag is not valid when using positional terminal name",
+						errdefs.ErrInvalidFlag,
+					)
 				}
 			case len(args) > 1:
-				return errors.New("too many arguments; only one terminal name is allowed")
+				return errdefs.ErrTooManyArguments
 			}
 
 			logger.DebugContext(cmd.Context(), "attach command invoked",
@@ -161,7 +167,7 @@ func run(
 ) error {
 	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
-		return errors.New("logger not found in context")
+		return errdefs.ErrLoggerNotFound
 	}
 
 	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
@@ -195,7 +201,7 @@ func run(
 
 	if err := os.MkdirAll(filepath.Dir(socketFileFlag), 0o700); err != nil {
 		logger.ErrorContext(ctx, "failed to create supervisor dir", "dir", filepath.Dir(socketFileFlag), "error", err)
-		return fmt.Errorf("create supervisor dir %q: %w", filepath.Dir(socketFileFlag), err)
+		return fmt.Errorf("%w: %w", errdefs.ErrCreateSupervisorDir, err)
 	}
 
 	supSpec := buildSupervisorSpec(ctx, supervisorID, runPath, socketFileFlag, logger)
@@ -227,14 +233,14 @@ func run(
 					"error",
 					errR,
 				)
-				return fmt.Errorf("cannot resolve terminal name to ID: %w", errR)
+				return fmt.Errorf("%w: %w", errdefs.ErrResolveTerminalName, errR)
 			}
 		default:
 			logger.DebugContext(
 				cmd.Context(),
 				"no terminal identification method provided, cannot attach",
 			)
-			return errors.New("no terminal identification method provided, cannot attach")
+			return errdefs.ErrNoTerminalIdentification
 		}
 
 		socket = fmt.Sprintf("%s/sessions/%s/socket", runPath, terminalID)

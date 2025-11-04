@@ -18,7 +18,6 @@ package get
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -27,6 +26,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/discovery"
+	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -48,11 +48,14 @@ func NewGetSupervisorCmd() *cobra.Command {
 			if len(args) == 0 {
 				// If user passed -o when listing, reject it
 				if cmd.Flags().Changed("output") {
-					return errors.New("the -o/--output flag is only valid when specifying a supervisor name")
+					return fmt.Errorf(
+						"%w: the -o/--output flag is only valid when specifying a supervisor name",
+						errdefs.ErrInvalidFlag,
+					)
 				}
 				return listSupervisors(cmd, args)
 			} else if len(args) > 1 {
-				return errors.New("too many arguments; only one supervisor name is allowed")
+				return errdefs.ErrTooManyArguments
 			}
 
 			return getSupervisor(cmd, args)
@@ -83,7 +86,7 @@ func setupNewGetSupervisorCmd(cmd *cobra.Command) {
 func listSupervisors(cmd *cobra.Command, _ []string) error {
 	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
-		return errors.New("logger not found in context")
+		return errdefs.ErrLoggerNotFound
 	}
 
 	logger.Debug("supervisors list command invoked",
@@ -147,12 +150,12 @@ func fetchSupervisorNames(ctx context.Context, runPath string, toComplete string
 func getSupervisor(cmd *cobra.Command, args []string) error {
 	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
-		return errors.New("logger not found in context")
+		return errdefs.ErrLoggerNotFound
 	}
 	supervisorName := args[0]
 	format := viper.GetString(outputFormatSupervisorInput)
 	if format != "" && format != "json" && format != "yaml" {
-		return fmt.Errorf("invalid output format: %s", format)
+		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
 	}
 	logger.Debug("get supervisor command invoked",
 		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
@@ -163,7 +166,7 @@ func getSupervisor(cmd *cobra.Command, args []string) error {
 
 	runPath, err := config.GetRunPathFromEnvAndFlags(cmd)
 	if err != nil {
-		return errors.New("failed to get run path from env and flags")
+		return fmt.Errorf("%w: %w", errdefs.ErrGetRunPath, err)
 	}
 	return discovery.FindAndPrintSupervisorMetadata(cmd.Context(), logger, runPath, os.Stdout, supervisorName, format)
 }
@@ -189,7 +192,7 @@ func ResolveSupervisorNameToID(
 		return "", err
 	}
 	if supervisors == nil {
-		return "", errors.New("no supervisors found")
+		return "", errdefs.ErrNoSupervisorsFound
 	}
 
 	for _, t := range supervisors {
@@ -198,5 +201,5 @@ func ResolveSupervisorNameToID(
 		}
 	}
 
-	return "", fmt.Errorf("supervisor with name '%s' not found", supervisorName)
+	return "", fmt.Errorf("%w: supervisor with name '%s' not found", errdefs.ErrSupervisorNotFound, supervisorName)
 }

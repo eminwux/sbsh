@@ -33,6 +33,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/sb/prune"
 	"github.com/eminwux/sbsh/cmd/sb/version"
 	"github.com/eminwux/sbsh/cmd/types"
+	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -91,14 +92,14 @@ Examples:
 			err := LoadConfig()
 			if err != nil {
 				logger.DebugContext(cmd.Context(), "config error", "error", err)
-				return fmt.Errorf("config error: %w", err)
+				return fmt.Errorf("%w: %w", errdefs.ErrConfig, err)
 			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
-				return errors.New("logger not found in context")
+				return errdefs.ErrLoggerNotFound
 			}
 			logger.DebugContext(cmd.Context(), "sb root command invoked", "args", cmd.Flags().Args())
 			return cmd.Help()
@@ -160,7 +161,7 @@ func LoadConfig() error {
 	}
 	_ = config.CONFIG_FILE.BindEnv()
 	if err := config.CONFIG_FILE.Set(configFile); err != nil {
-		return fmt.Errorf("failed to set config file: %w", err)
+		return fmt.Errorf("%w: failed to set config file: %w", errdefs.ErrConfig, err)
 	}
 
 	var runPath string
@@ -184,7 +185,7 @@ func LoadConfig() error {
 		// File not found is OK if ENV is set
 		var configFileNotFoundError viper.ConfigFileNotFoundError
 		if !errors.As(err, &configFileNotFoundError) {
-			return err // Config file was found but another error was produced
+			return fmt.Errorf("%w: %w", errdefs.ErrConfig, err)
 		}
 	}
 

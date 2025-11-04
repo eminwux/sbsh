@@ -18,7 +18,6 @@ package detach
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -27,6 +26,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sb/get"
 	"github.com/eminwux/sbsh/cmd/types"
+	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/pkg/rpcclient/supervisor"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -55,7 +55,7 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
-				return errors.New("logger not found in context")
+				return errdefs.ErrLoggerNotFound
 			}
 
 			logger.DebugContext(cmd.Context(), "detach command invoked")
@@ -63,23 +63,30 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 			switch {
 			case len(args) == 0:
 				if !cmd.Flags().Changed("id") && !cmd.Flags().Changed("name") && !cmd.Flags().Changed("socket") {
-					return errors.New(
-						"no supervisor identifier provided; supervisor name, ID, or socket must be specified",
-					)
+					return errdefs.ErrNoSupervisorIdentifier
 				}
 			case len(args) == 1:
 				// If user passed -n when listing, reject it
 				if cmd.Flags().Changed("id") {
-					return errors.New("the --id flag is not valid when using positional terminal name")
+					return fmt.Errorf(
+						"%w: the --id flag is not valid when using positional terminal name",
+						errdefs.ErrInvalidFlag,
+					)
 				}
 				if cmd.Flags().Changed("name") {
-					return errors.New("the --name flag is not valid when using positional terminal name")
+					return fmt.Errorf(
+						"%w: the --name flag is not valid when using positional terminal name",
+						errdefs.ErrInvalidFlag,
+					)
 				}
 				if cmd.Flags().Changed("socket") {
-					return errors.New("the --socket flag is not valid when using positional terminal name")
+					return fmt.Errorf(
+						"%w: the --socket flag is not valid when using positional terminal name",
+						errdefs.ErrInvalidFlag,
+					)
 				}
 			case len(args) > 1:
-				return errors.New("too many arguments; only one supervisor name is allowed")
+				return errdefs.ErrTooManyArguments
 			}
 
 			err := runDetachCmd(cmd, args)
@@ -109,7 +116,7 @@ func setupDetachCmd(detachCmd *cobra.Command) {
 func runDetachCmd(cmd *cobra.Command, args []string) error {
 	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
-		return errors.New("logger not found in context")
+		return errdefs.ErrLoggerNotFound
 	}
 
 	supervisorSocketFlag := viper.GetString(detachSocketInput)
@@ -118,7 +125,7 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 
 	if len(args) == 1 {
 		if supervisorIDFlag != "" || supervisorNameFlag != "" || supervisorSocketFlag != "" {
-			return errors.New("when using flags only, a positional terminal name cannot be provided")
+			return errdefs.ErrPositionalWithFlags
 		}
 	}
 
@@ -128,15 +135,15 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if supervisorIDFlag != "" && supervisorNameFlag != "" {
-		return errors.New("only one of --id or --name can be provided")
+		return fmt.Errorf("%w: only one of --id or --name can be provided", errdefs.ErrConflictingFlags)
 	}
 
 	if supervisorIDFlag != "" && supervisorSocketFlag != "" {
-		return errors.New("only one of --id or --socket can be provided")
+		return fmt.Errorf("%w: only one of --id or --socket can be provided", errdefs.ErrConflictingFlags)
 	}
 
 	if supervisorNameFlag != "" && supervisorSocketFlag != "" {
-		return errors.New("only one of --name or --socket can be provided")
+		return fmt.Errorf("%w: only one of --name or --socket can be provided", errdefs.ErrConflictingFlags)
 	}
 
 	supervisorName := supervisorNamePositional
@@ -147,7 +154,7 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 	socket, errC := buildSocket(cmd, logger, supervisorSocketFlag, supervisorIDFlag, supervisorName)
 	if errC != nil {
 		logger.ErrorContext(cmd.Context(), "cannot build socket path", "error", errC)
-		return fmt.Errorf("cannot build socket path: %w", errC)
+		return fmt.Errorf("%w: %w", errdefs.ErrBuildSocketPath, errC)
 	}
 
 	logger.DebugContext(cmd.Context(), "creating supervisor unix client", "socket", socket)
@@ -163,7 +170,7 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 		logger.DebugContext(ctx, "detach failed", "error", err)
 		fmt.Fprintf(os.Stderr, "Could not detach: %v\n", err)
 		cancel()
-		return fmt.Errorf("could not detach: %w", err)
+		return fmt.Errorf("%w: %w", errdefs.ErrDetachSession, err)
 	}
 
 	logger.DebugContext(ctx, "detach successful")
@@ -184,7 +191,7 @@ func buildSocket(
 	runPath, err := config.GetRunPathFromEnvAndFlags(cmd)
 	if err != nil {
 		logger.ErrorContext(cmd.Context(), "cannot determine run path", "error", err)
-		return "", fmt.Errorf("cannot determine run path: %w", err)
+		return "", fmt.Errorf("%w: %w", errdefs.ErrDetermineRunPath, err)
 	}
 
 	var supervisorID string
@@ -202,14 +209,14 @@ func buildSocket(
 				"error",
 				err,
 			)
-			return "", fmt.Errorf("cannot resolve terminal name to ID: %w", err)
+			return "", fmt.Errorf("%w: %w", errdefs.ErrResolveTerminalName, err)
 		}
 	default:
 		logger.DebugContext(
 			cmd.Context(),
 			"no supervisor identification method provided, cannot detach",
 		)
-		return "", errors.New("no supervisor identification method provided, cannot detach")
+		return "", errdefs.ErrNoSupervisorIdentification
 	}
 
 	socket := fmt.Sprintf("%s/supervisors/%s/socket", runPath, supervisorID)

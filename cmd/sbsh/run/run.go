@@ -48,7 +48,7 @@ const (
 
 func checkFlag(cmd *cobra.Command, flag string, err string) error {
 	if cmd.Flags().Changed(flag) {
-		return errors.New("the --" + flag + " flag is not valid when using " + err)
+		return fmt.Errorf("%w: the --%s flag is not valid when using %s", errdefs.ErrInvalidFlag, flag, err)
 	}
 	return nil
 }
@@ -114,15 +114,18 @@ func processInput(cmd *cobra.Command, args []string) (*api.SessionSpec, error) {
 		}
 		fi, errIn := os.Stdin.Stat()
 		if errIn != nil {
-			return nil, fmt.Errorf("failed to stat stdin: %w", errIn)
+			return nil, fmt.Errorf("%w: %w", errdefs.ErrStdinStat, errIn)
 		}
 		if (fi.Mode() & os.ModeCharDevice) != 0 {
-			return nil, errors.New("no data on stdin: use a pipe or redirect when using '-'")
+			return nil, errdefs.ErrStdinEmpty
 		}
 		r = os.Stdin
 	}
 	if len(args) > 0 && args[0] != "-" {
-		return nil, errors.New("the only accepted positional argument is '-' to read the session spec from stdin")
+		return nil, fmt.Errorf(
+			"%w: the only accepted positional argument is '-' to read the session spec from stdin",
+			errdefs.ErrInvalidArgument,
+		)
 	}
 
 	if len(args) == 0 && specFileFlag != "" {
@@ -134,7 +137,7 @@ func processInput(cmd *cobra.Command, args []string) (*api.SessionSpec, error) {
 		var err error
 		f, err = os.Open(specFileFlag)
 		if err != nil {
-			return nil, fmt.Errorf("open spec file: %w", err)
+			return nil, fmt.Errorf("%w: %w", errdefs.ErrOpenSpecFile, err)
 		}
 		defer f.Close()
 		r = f
@@ -148,7 +151,7 @@ func processInput(cmd *cobra.Command, args []string) (*api.SessionSpec, error) {
 	spec := api.SessionSpec{}
 	dec := json.NewDecoder(r)
 	if err := dec.Decode(&spec); err != nil {
-		return nil, fmt.Errorf("invalid JSON spec: %w", err)
+		return nil, fmt.Errorf("%w: %w", errdefs.ErrInvalidJSONSpec, err)
 	}
 
 	return &spec, nil
@@ -190,7 +193,7 @@ func processSpec(cmd *cobra.Command, spec **api.SessionSpec) error {
 
 		logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 		if !ok || logger == nil {
-			return errors.New("logger not found in context")
+			return errdefs.ErrLoggerNotFound
 		}
 		return nil
 	}
@@ -207,13 +210,13 @@ func processSpec(cmd *cobra.Command, spec **api.SessionSpec) error {
 	// Retrieve logger from context
 	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
-		return errors.New("logger not found in context")
+		return errdefs.ErrLoggerNotFound
 	}
 
 	// Build spec from flags
 	specBuilt, err := buildSessionSpecFromFlags(cmd, logger)
 	if err != nil {
-		return fmt.Errorf("build session spec from flags: %w", err)
+		return fmt.Errorf("%w: %w", errdefs.ErrBuildSessionSpec, err)
 	}
 	// Set built spec in context
 	*spec = specBuilt
@@ -272,7 +275,7 @@ If no log filename is provided, a default path under the run directory will be u
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
-				return errors.New("logger not found in context")
+				return errdefs.ErrLoggerNotFound
 			}
 
 			logger.Info("Starting sbsh run command")
@@ -280,7 +283,7 @@ If no log filename is provided, a default path under the run directory will be u
 			// Retrieve session spec from context
 			sessionSpec, ok := cmd.Context().Value(types.CtxSessionSpec).(*api.SessionSpec)
 			if !ok || sessionSpec == nil {
-				return errors.New("session spec not found in context")
+				return errdefs.ErrSessionSpecNotFound
 			}
 
 			logger.Debug("Built session spec", "sessionSpec", fmt.Sprintf("%+v", sessionSpec))

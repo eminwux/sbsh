@@ -17,7 +17,6 @@
 package prune
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -25,6 +24,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/discovery"
+	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -42,7 +42,7 @@ This will remove all terminal files for terminals that are not running anymore.`
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 			if !ok || logger == nil {
-				return errors.New("logger not found in context")
+				return errdefs.ErrLoggerNotFound
 			}
 
 			logger.Debug("terminals prune command invoked",

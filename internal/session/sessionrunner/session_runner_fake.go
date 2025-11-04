@@ -91,7 +91,7 @@ func (sr *Test) Resize(args api.ResizeArgs) {
 
 func (sr *Test) CreateMetadata() error {
 	if sr.CreateMetadataFunc != nil {
-		_ = sr.CreateMetadataFunc()
+		return sr.CreateMetadataFunc()
 	}
 	return nil
 }
