@@ -8,7 +8,6 @@
 
 ### 🐞 Bugs
 ```markdown
-- [ ] **A** `sbsh` does not run as shell terminal
 - [ ] **A** `sbsh run` does not expose tty in ps
 - [ ] **A** dettach does not remove attacher from metadata
 ```
@@ -107,4 +106,5 @@
 - [X] **A** Initial E2E testing                                     DONE
 - [X] **A** Add --version in sb sbsh                                DONE
 - [X] **A** Refactor session to terminal                            DONE
+- [X] **A** `sbsh` does not run as shell terminal                   DONE
 ```
