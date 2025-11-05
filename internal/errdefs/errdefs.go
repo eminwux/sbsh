@@ -27,7 +27,7 @@ var (
 	ErrSpecCmdMissing           = errors.New("spec is missing Cmd")
 	ErrOpenSocketCtrl           = errors.New("could not open ctrl socket")
 	ErrStartRPCServer           = errors.New("error starting RPC server")
-	ErrStartTerminal            = errors.New("error starting terminal terminal")
+	ErrStartTerminal            = errors.New("error starting terminal")
 	ErrAttach                   = errors.New("error attaching supervisor")
 	ErrSupervisorKind           = errors.New("error supervisor kind not implemented")
 	ErrRPCServerExited          = errors.New("RPC Server exited with error")
