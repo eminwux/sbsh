@@ -31,32 +31,32 @@ import (
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
-	"github.com/eminwux/sbsh/internal/session"
+	"github.com/eminwux/sbsh/internal/terminal"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-func TestRunSession_ErrContextCancelled(t *testing.T) {
+func TestRunTerminal_ErrContextCancelled(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	newSessionController := func(_ context.Context) api.SessionController {
-		return &session.FakeSessionController{
+	newTerminalController := func(_ context.Context) api.TerminalController {
+		return &terminal.ControllerTest{
 			Exit:          nil,
-			RunFunc:       func(_ *api.SessionSpec) error { return nil },
+			RunFunc:       func(_ *api.TerminalSpec) error { return nil },
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() error { return nil },
 			PingFunc:      func(_ *api.PingMessage) (*api.PingMessage, error) { return &api.PingMessage{Message: "PONG"}, nil },
 		}
 	}
 
-	ctrl := newSessionController(context.Background())
+	ctrl := newTerminalController(context.Background())
 
 	t.Cleanup(func() {})
 
-	spec := api.SessionSpec{
+	spec := api.TerminalSpec{
 		ID:          api.ID(naming.RandomID()),
-		Kind:        api.SessionLocal,
+		Kind:        api.TerminalLocal,
 		Name:        naming.RandomName(),
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
@@ -68,7 +68,7 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSession(ctx, cancel, logger, ctrl, &spec) // will block until ctx.Done()
+		done <- runTerminal(ctx, cancel, logger, ctrl, &spec) // will block until ctx.Done()
 		defer close(done)
 	}()
 
@@ -82,23 +82,23 @@ func TestRunSession_ErrContextCancelled(t *testing.T) {
 			t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrContextDone, err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for runSession to return after SIGTERM")
+		t.Fatal("timeout waiting for runTerminal to return after SIGTERM")
 	}
 }
 
-func TestRunSession_ErrWaitOnReady(t *testing.T) {
+func TestRunTerminal_ErrWaitOnReady(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	newSessionController := func(_ context.Context) api.SessionController {
-		return &session.FakeSessionController{
+	newTerminalController := func(_ context.Context) api.TerminalController {
+		return &terminal.ControllerTest{
 			Exit:          nil,
-			RunFunc:       func(_ *api.SessionSpec) error { return nil },
+			RunFunc:       func(_ *api.TerminalSpec) error { return nil },
 			WaitReadyFunc: func() error { return errors.New("not ready") },
 			WaitCloseFunc: func() error { return nil },
 		}
 	}
 
-	ctrl := newSessionController(context.Background())
+	ctrl := newTerminalController(context.Background())
 
 	t.Cleanup(func() {})
 
@@ -107,9 +107,9 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	spec := api.SessionSpec{
+	spec := api.TerminalSpec{
 		ID:          api.ID(naming.RandomID()),
-		Kind:        api.SessionLocal,
+		Kind:        api.TerminalLocal,
 		Name:        naming.RandomName(),
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
@@ -117,34 +117,34 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 		RunPath:     viper.GetString("global.runPath"),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	if err := runSession(ctx, cancel, logger, ctrl, &spec); err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
+	if err := runTerminal(ctx, cancel, logger, ctrl, &spec); err != nil && !errors.Is(err, errdefs.ErrWaitOnReady) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrWaitOnReady, err)
 	}
 }
 
-func TestRunSession_ErrWaitOnClose(t *testing.T) {
+func TestRunTerminal_ErrWaitOnClose(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	newSessionController := func(_ context.Context) api.SessionController {
-		return &session.FakeSessionController{
+	newTerminalController := func(_ context.Context) api.TerminalController {
+		return &terminal.ControllerTest{
 			Exit:          nil,
-			RunFunc:       func(_ *api.SessionSpec) error { return nil },
+			RunFunc:       func(_ *api.TerminalSpec) error { return nil },
 			WaitReadyFunc: func() error { return nil },
 			WaitCloseFunc: func() error { return errors.New("error on close") },
 		}
 	}
 	t.Cleanup(func() {})
 
-	ctrl := newSessionController(context.Background())
+	ctrl := newTerminalController(context.Background())
 
 	var buf bytes.Buffer
 	old := log.Writer()
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(old) })
 
-	spec := api.SessionSpec{
+	spec := api.TerminalSpec{
 		ID:          api.ID(naming.RandomID()),
-		Kind:        api.SessionLocal,
+		Kind:        api.TerminalLocal,
 		Name:        naming.RandomName(),
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
@@ -157,7 +157,7 @@ func TestRunSession_ErrWaitOnClose(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func(exitCh chan error) {
-		exitCh <- runSession(ctx, cancel, logger, ctrl, &spec)
+		exitCh <- runTerminal(ctx, cancel, logger, ctrl, &spec)
 		defer close(exitCh)
 	}(exitCh)
 
@@ -267,20 +267,20 @@ func Test_ErrNoSpecDefined(t *testing.T) {
 	}
 }
 
-func Test_ErrSessionSpecNotFound_RunE(t *testing.T) {
+func Test_ErrTerminalSpecNotFound_RunE(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	cmd := NewRunCmd()
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	cmd.SetContext(ctx)
-	// Don't set CtxSessionSpec, so it will be nil
+	// Don't set CtxTerminalSpec, so it will be nil
 
 	err := cmd.RunE(cmd, []string{})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
-	if !errors.Is(err, errdefs.ErrSessionSpecNotFound) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrSessionSpecNotFound, err)
+	if !errors.Is(err, errdefs.ErrTerminalSpecNotFound) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrTerminalSpecNotFound, err)
 	}
 }
 
@@ -290,16 +290,16 @@ func Test_ErrLoggerNotFound_RunE(t *testing.T) {
 	// Don't set CtxLogger, so it will be nil
 	cmd.SetContext(ctx)
 
-	// Set a valid session spec so we get past that check
-	spec := &api.SessionSpec{
+	// Set a valid terminal spec so we get past that check
+	spec := &api.TerminalSpec{
 		ID:          api.ID(naming.RandomID()),
-		Kind:        api.SessionLocal,
+		Kind:        api.TerminalLocal,
 		Name:        naming.RandomName(),
 		Command:     "/bin/bash",
 		CommandArgs: []string{},
 		Env:         os.Environ(),
 	}
-	ctx = context.WithValue(ctx, types.CtxSessionSpec, spec)
+	ctx = context.WithValue(ctx, types.CtxTerminalSpec, spec)
 	cmd.SetContext(ctx)
 
 	err := cmd.RunE(cmd, []string{})
@@ -315,9 +315,9 @@ func Test_ValidJSONSpec(t *testing.T) {
 	// Create a temporary file with valid JSON
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "valid.json")
-	validSpec := api.SessionSpec{
+	validSpec := api.TerminalSpec{
 		ID:          api.ID("test-id"),
-		Kind:        api.SessionLocal,
+		Kind:        api.TerminalLocal,
 		Name:        "test-name",
 		Command:     "/bin/bash",
 		CommandArgs: []string{},

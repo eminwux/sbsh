@@ -34,6 +34,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/sbsh/run"
 	"github.com/eminwux/sbsh/cmd/sbsh/version"
 	"github.com/eminwux/sbsh/cmd/types"
+	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/logging"
@@ -51,12 +52,11 @@ func NewSbshRootCmd() (*cobra.Command, error) {
 	rootCmd := &cobra.Command{
 		Use:   "sbsh",
 		Short: "sbsh command line tool",
-		Long: `sbsh is a command line tool to manage sbsh sessions and profiles.
-
+		Long: `sbsh is a command line tool to launch sbsh supervisors and terminals
 You can see available options and commands with:
   sbsh help
 
-If you run sbsh with no options, a default session will start.
+If you run sbsh with no options, a default terminal will start.
 
 You can also use sbsh with parameters. For example:
   sbsh --log-level=debug
@@ -87,17 +87,17 @@ You can also use sbsh with parameters. For example:
 				supLogLevel = "info"
 			}
 
-			sessionLogLevel := viper.GetString("sbsh.session.logLevel")
-			if sessionLogLevel == "" {
-				sessionLogLevel = supLogLevel
-				viper.Set("sbsh.session.logLevel", sessionLogLevel)
+			terminalLogLevel := viper.GetString("sbsh.terminal.logLevel")
+			if terminalLogLevel == "" {
+				terminalLogLevel = supLogLevel
+				viper.Set("sbsh.terminal.logLevel", terminalLogLevel)
 			}
 
 			supLogfile := viper.GetString("sbsh.supervisor.logFile")
 			if supLogfile == "" {
 				supLogfile = filepath.Join(
 					viper.GetString(config.SBSH_RUN_PATH.ViperKey),
-					"supervisors",
+					defaults.SupervisorsRunPath,
 					supervisorID,
 					"log",
 				)
@@ -127,12 +127,12 @@ You can also use sbsh with parameters. For example:
 				"configFile", viper.GetString(config.CONFIG_FILE.ViperKey),
 				"logLevel", viper.GetString(config.LOG_LEVEL.ViperKey),
 				"profilesFile", viper.GetString(config.PROFILES_FILE.ViperKey),
-				"sessionID", viper.GetString("sbsh.session.id"),
-				"sessionCommand", viper.GetString("sbsh.session.command"),
-				"sessionName", viper.GetString("sbsh.session.name"),
-				"sessionLogFilename", viper.GetString("sbsh.session.logFile"),
-				"sessionProfile", viper.GetString("sbsh.session.profile"),
-				"sessionSocket", viper.GetString("sbsh.session.socket"),
+				"terminalID", viper.GetString("sbsh.terminal.id"),
+				"terminalCommand", viper.GetString("sbsh.terminal.command"),
+				"terminalName", viper.GetString("sbsh.terminal.name"),
+				"terminalLogFilename", viper.GetString("sbsh.terminal.logFile"),
+				"terminalProfile", viper.GetString("sbsh.terminal.profile"),
+				"terminalSocket", viper.GetString("sbsh.terminal.socket"),
 				"supervisorSocket", viper.GetString("sbsh.supervisor.socket"),
 				"detach", viper.GetBool("sbsh.supervisor.detach"),
 			)
@@ -151,45 +151,45 @@ You can also use sbsh with parameters. For example:
 			if socketFileInput == "" {
 				socketFileInput = filepath.Join(
 					viper.GetString(config.SBSH_RUN_PATH.ViperKey),
-					"supervisors",
+					defaults.SupervisorsRunPath,
 					supervisorID,
 					"socket",
 				)
 			}
 
-			sessionSpec, buildErr := profile.BuildSessionSpec(
+			terminalSpec, buildErr := profile.BuildTerminalSpec(
 				cmd.Context(),
 				logger,
-				&profile.BuildSessionSpecParams{
-					SessionID:    viper.GetString("sbsh.session.id"),
-					SessionName:  viper.GetString("sbsh.session.name"),
-					SessionCmd:   viper.GetString("sbsh.session.command"),
-					CaptureFile:  viper.GetString("sbsh.session.captureFile"),
+				&profile.BuildTerminalSpecParams{
+					TerminalID:   viper.GetString("sbsh.terminal.id"),
+					TerminalName: viper.GetString("sbsh.terminal.name"),
+					TerminalCmd:  viper.GetString("sbsh.terminal.command"),
+					CaptureFile:  viper.GetString("sbsh.terminal.captureFile"),
 					RunPath:      viper.GetString(config.SBSH_RUN_PATH.ViperKey),
 					ProfilesFile: viper.GetString(config.PROFILES_FILE.ViperKey),
-					ProfileName:  viper.GetString("sbsh.session.profile"),
-					LogFile:      viper.GetString("sbsh.session.logFile"),
-					LogLevel:     viper.GetString("sbsh.session.logLevel"),
-					SocketFile:   viper.GetString("sbsh.session.socket"),
+					ProfileName:  viper.GetString("sbsh.terminal.profile"),
+					LogFile:      viper.GetString("sbsh.terminal.logFile"),
+					LogLevel:     viper.GetString("sbsh.terminal.logLevel"),
+					SocketFile:   viper.GetString("sbsh.terminal.socket"),
 				},
 			)
 
 			if buildErr != nil {
-				logger.Error("Failed to build session spec", "error", buildErr)
+				logger.Error("Failed to build terminal spec", "error", buildErr)
 				return buildErr
 			}
 
-			logger.Debug("Built session spec", "sessionSpec", fmt.Sprintf("%+v", sessionSpec))
+			logger.Debug("Built terminal spec", "terminalSpec", fmt.Sprintf("%+v", terminalSpec))
 
 			// Define a new SupervisorSpec
 			spec := &api.SupervisorSpec{
-				Kind:        api.RunNewSession,
-				ID:          api.ID(supervisorID),
-				Name:        supervisorName,
-				RunPath:     viper.GetString(config.SBSH_RUN_PATH.ViperKey),
-				LogFile:     supLogfile,
-				SockerCtrl:  socketFileInput,
-				SessionSpec: sessionSpec,
+				Kind:         api.RunNewTerminal,
+				ID:           api.ID(supervisorID),
+				Name:         supervisorName,
+				RunPath:      viper.GetString(config.SBSH_RUN_PATH.ViperKey),
+				LogFile:      supLogfile,
+				SockerCtrl:   socketFileInput,
+				TerminalSpec: terminalSpec,
 			}
 
 			logger.DebugContext(cmd.Context(), "SupervisorSpec values",
@@ -198,12 +198,12 @@ You can also use sbsh with parameters. For example:
 				"Name", spec.Name,
 				"RunPath", spec.RunPath,
 				"SockerCtrl", spec.SockerCtrl,
-				"SessionSpec", spec.SessionSpec,
+				"TerminalSpec", spec.TerminalSpec,
 			)
 
 			if logger.Enabled(cmd.Context(), slog.LevelDebug) {
-				if printErr := discovery.PrintTerminalSpec(sessionSpec, logger); printErr != nil {
-					logger.Warn("Failed to print session spec", "error", printErr)
+				if printErr := discovery.PrintTerminalSpec(terminalSpec, logger); printErr != nil {
+					logger.Warn("Failed to print terminal spec", "error", printErr)
 				}
 			}
 
@@ -253,7 +253,7 @@ func setSupervisorFlags(rootCmd *cobra.Command) error {
 		return err
 	}
 
-	rootCmd.Flags().String("socket", "", "Optional socket file for the session")
+	rootCmd.Flags().String("socket", "", "Optional socket file for the supervisor")
 	if err := viper.BindPFlag("sbsh.supervisor.socket", rootCmd.Flags().Lookup("socket")); err != nil {
 		return err
 	}
@@ -268,7 +268,7 @@ func setSupervisorFlags(rootCmd *cobra.Command) error {
 		return err
 	}
 
-	rootCmd.Flags().BoolP("detach", "d", false, "Optional socket file for the session")
+	rootCmd.Flags().BoolP("detach", "d", false, "Optional detach flag for the supervisor")
 	if err := viper.BindPFlag("sbsh.supervisor.detach", rootCmd.Flags().Lookup("detach")); err != nil {
 		return err
 	}
@@ -276,50 +276,50 @@ func setSupervisorFlags(rootCmd *cobra.Command) error {
 	return nil
 }
 
-func setSessionFlags(rootCmd *cobra.Command) error {
-	rootCmd.Flags().String("session-id", "", "Optional session ID (random if omitted)")
-	if err := viper.BindPFlag("sbsh.session.id", rootCmd.Flags().Lookup("session-id")); err != nil {
+func setTerminalFlags(rootCmd *cobra.Command) error {
+	rootCmd.Flags().String("terminal-id", "", "Optional terminal ID (random if omitted)")
+	if err := viper.BindPFlag("sbsh.terminal.id", rootCmd.Flags().Lookup("terminal-id")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().String("session-command", "", "Optional command (default: /bin/bash)")
-	if err := viper.BindPFlag("sbsh.session.command", rootCmd.Flags().Lookup("session-command")); err != nil {
+	rootCmd.Flags().String("terminal-command", "", "Optional command (default: /bin/bash)")
+	if err := viper.BindPFlag("sbsh.terminal.command", rootCmd.Flags().Lookup("terminal-command")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().String("session-name", "", "Optional name for the session")
-	if err := viper.BindPFlag("sbsh.session.name", rootCmd.Flags().Lookup("session-name")); err != nil {
+	rootCmd.Flags().String("terminal-name", "", "Optional name for the terminal")
+	if err := viper.BindPFlag("sbsh.terminal.name", rootCmd.Flags().Lookup("terminal-name")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().String("capture-file", "", "Optional filename for the session log")
-	if err := viper.BindPFlag("sbsh.session.captureFile", rootCmd.Flags().Lookup("capture-file")); err != nil {
+	rootCmd.Flags().String("capture-file", "", "Optional filename for the terminal log")
+	if err := viper.BindPFlag("sbsh.terminal.captureFile", rootCmd.Flags().Lookup("capture-file")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().String("session-logfile", "", "Optional filename for the session log")
-	if err := viper.BindPFlag("sbsh.session.logFile", rootCmd.Flags().Lookup("session-logfile")); err != nil {
+	rootCmd.Flags().String("terminal-logfile", "", "Optional filename for the terminal log")
+	if err := viper.BindPFlag("sbsh.terminal.logFile", rootCmd.Flags().Lookup("terminal-logfile")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().String("session-loglevel", "", "Optional log level for the session")
-	if err := viper.BindPFlag("sbsh.session.logLevel", rootCmd.Flags().Lookup("session-loglevel")); err != nil {
+	rootCmd.Flags().String("terminal-loglevel", "", "Optional log level for the terminal")
+	if err := viper.BindPFlag("sbsh.terminal.logLevel", rootCmd.Flags().Lookup("terminal-loglevel")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().StringP("profile", "p", "", "Optional profile for the session")
-	if err := viper.BindPFlag("sbsh.session.profile", rootCmd.Flags().Lookup("profile")); err != nil {
+	rootCmd.Flags().StringP("profile", "p", "", "Optional profile for the terminal")
+	if err := viper.BindPFlag("sbsh.terminal.profile", rootCmd.Flags().Lookup("profile")); err != nil {
 		return err
 	}
-	if err := viper.BindEnv("sbsh.session.profile", config.SES_PROFILE.EnvVar()); err != nil {
+	if err := viper.BindEnv("sbsh.terminal.profile", config.TERM_PROFILE.EnvVar()); err != nil {
 		return err
 	}
 	if err := setAutoCompleteProfile(rootCmd); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().String("session-socket", "", "Optional socket file for the session")
-	if err := viper.BindPFlag("sbsh.session.socket", rootCmd.Flags().Lookup("session-socket")); err != nil {
+	rootCmd.Flags().String("terminal-socket", "", "Optional socket file for the terminal")
+	if err := viper.BindPFlag("sbsh.terminal.socket", rootCmd.Flags().Lookup("terminal-socket")); err != nil {
 		return err
 	}
 
@@ -345,8 +345,8 @@ func setupRootCmd(rootCmd *cobra.Command) error {
 		return err
 	}
 
-	// Session flags
-	if err := setSessionFlags(rootCmd); err != nil {
+	// Terminals flags
+	if err := setTerminalFlags(rootCmd); err != nil {
 		return err
 	}
 

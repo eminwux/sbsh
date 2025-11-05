@@ -32,7 +32,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func TestRunSession_ErrContextDone(t *testing.T) {
+func TestRunTerminal_ErrContextDone(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
@@ -61,12 +61,12 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
-		Kind:        api.RunNewSession,
-		ID:          api.ID(naming.RandomID()),
-		Name:        naming.RandomName(),
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
-		SessionSpec: nil,
+		Kind:         api.RunNewTerminal,
+		ID:           api.ID(naming.RandomID()),
+		Name:         naming.RandomName(),
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
+		TerminalSpec: nil,
 	}
 
 	done := make(chan error)
@@ -87,11 +87,11 @@ func TestRunSession_ErrContextDone(t *testing.T) {
 			t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrContextDone, err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for runSession to return after close")
+		t.Fatal("timeout waiting for runSupervisor to return after close")
 	}
 }
 
-func TestRunSession_ErrWaitOnReady(t *testing.T) {
+func TestRunTerminal_ErrWaitOnReady(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	expectedErr := errdefs.ErrStartRPCServer
@@ -118,12 +118,12 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
-		Kind:        api.RunNewSession,
-		ID:          api.ID(naming.RandomID()),
-		Name:        naming.RandomName(),
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
-		SessionSpec: nil,
+		Kind:         api.RunNewTerminal,
+		ID:           api.ID(naming.RandomID()),
+		Name:         naming.RandomName(),
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
+		TerminalSpec: nil,
 	}
 	done := make(chan error)
 	defer close(done)
@@ -149,7 +149,7 @@ func TestRunSession_ErrWaitOnReady(t *testing.T) {
 	}
 }
 
-func TestRunSession_ErrContextDoneWithWaitCloseError(t *testing.T) {
+func TestRunTerminal_ErrContextDoneWithWaitCloseError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	waitCloseErr := errdefs.ErrOnClose
@@ -178,12 +178,12 @@ func TestRunSession_ErrContextDoneWithWaitCloseError(t *testing.T) {
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
-		Kind:        api.RunNewSession,
-		ID:          api.ID(naming.RandomID()),
-		Name:        naming.RandomName(),
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
-		SessionSpec: nil,
+		Kind:         api.RunNewTerminal,
+		ID:           api.ID(naming.RandomID()),
+		Name:         naming.RandomName(),
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
+		TerminalSpec: nil,
 	}
 
 	done := make(chan error)
@@ -217,7 +217,7 @@ func TestRunSession_ErrContextDoneWithWaitCloseError(t *testing.T) {
 	}
 }
 
-func TestRunSession_ErrChildExit(t *testing.T) {
+func TestRunTerminal_ErrChildExit(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	runErr := errdefs.ErrRPCServerExited
@@ -244,12 +244,12 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
-		Kind:        api.RunNewSession,
-		ID:          api.ID(naming.RandomID()),
-		Name:        naming.RandomName(),
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
-		SessionSpec: nil,
+		Kind:         api.RunNewTerminal,
+		ID:           api.ID(naming.RandomID()),
+		Name:         naming.RandomName(),
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
+		TerminalSpec: nil,
 	}
 
 	done := make(chan error)
@@ -273,7 +273,7 @@ func TestRunSession_ErrChildExit(t *testing.T) {
 	}
 }
 
-func TestRunSession_ErrChildExitWithWaitCloseError(t *testing.T) {
+func TestRunTerminal_ErrChildExitWithWaitCloseError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	runErr := errdefs.ErrRPCServerExited
@@ -301,12 +301,12 @@ func TestRunSession_ErrChildExitWithWaitCloseError(t *testing.T) {
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
-		Kind:        api.RunNewSession,
-		ID:          api.ID(naming.RandomID()),
-		Name:        naming.RandomName(),
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
-		SessionSpec: nil,
+		Kind:         api.RunNewTerminal,
+		ID:           api.ID(naming.RandomID()),
+		Name:         naming.RandomName(),
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
+		TerminalSpec: nil,
 	}
 
 	done := make(chan error)
@@ -330,7 +330,7 @@ func TestRunSession_ErrChildExitWithWaitCloseError(t *testing.T) {
 	}
 }
 
-func TestRunSession_SuccessWithNilError(t *testing.T) {
+func TestRunTerminal_SuccessWithNilError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
@@ -356,12 +356,12 @@ func TestRunSession_SuccessWithNilError(t *testing.T) {
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
-		Kind:        api.RunNewSession,
-		ID:          api.ID(naming.RandomID()),
-		Name:        naming.RandomName(),
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
-		SessionSpec: nil,
+		Kind:         api.RunNewTerminal,
+		ID:           api.ID(naming.RandomID()),
+		Name:         naming.RandomName(),
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
+		TerminalSpec: nil,
 	}
 
 	done := make(chan error)
@@ -383,7 +383,7 @@ func TestRunSession_SuccessWithNilError(t *testing.T) {
 	}
 }
 
-func TestRunSession_SuccessWithContextCanceled(t *testing.T) {
+func TestRunTerminal_SuccessWithContextCanceled(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -412,12 +412,12 @@ func TestRunSession_SuccessWithContextCanceled(t *testing.T) {
 
 	// Define a new Supervisor
 	spec := &api.SupervisorSpec{
-		Kind:        api.RunNewSession,
-		ID:          api.ID(naming.RandomID()),
-		Name:        naming.RandomName(),
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString(config.RUN_PATH.ViperKey),
-		SessionSpec: nil,
+		Kind:         api.RunNewTerminal,
+		ID:           api.ID(naming.RandomID()),
+		Name:         naming.RandomName(),
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
+		TerminalSpec: nil,
 	}
 
 	done := make(chan error)

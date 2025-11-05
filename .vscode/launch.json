@@ -31,7 +31,7 @@
       "mode": "debug",
       "program": "cmd/sbsh/",
       "console": "integratedTerminal",
-      "args": ["--session-profile", "prod"]
+      "args": ["--terminal-profile", "prod"]
     },
     {
       "name": "Debug sbsh run",
@@ -52,11 +52,11 @@
       "args": ["run -test.v"]
     },
     {
-      "name": "Debug Tests in pkg/session",
+      "name": "Debug Tests in pkg/terminal",
       "type": "go",
       "request": "launch",
       "mode": "test",
-      "program": "${workspaceFolder}/pkg/session",
+      "program": "${workspaceFolder}/pkg/terminal",
       "console": "integratedTerminal",
       "args": ["-test.v"]
     },

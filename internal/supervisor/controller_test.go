@@ -26,9 +26,9 @@ import (
 
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
-	"github.com/eminwux/sbsh/internal/supervisor/sessionstore"
 	"github.com/eminwux/sbsh/internal/supervisor/supervisorrpc"
 	"github.com/eminwux/sbsh/internal/supervisor/supervisorrunner"
+	"github.com/eminwux/sbsh/internal/supervisor/terminalstore"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/viper"
 )
@@ -174,8 +174,8 @@ func Test_ErrAttach(t *testing.T) {
 				default:
 				}
 			},
-			AttachFunc: func(_ *api.SupervisedSession) error {
-				return errors.New("force session start fail")
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
+				return errors.New("force terminal start fail")
 			},
 			IDFunc: func() api.ID {
 				// default: empty ID
@@ -191,18 +191,18 @@ func Test_ErrAttach(t *testing.T) {
 			CreateMetadataFunc: func() error {
 				return nil
 			},
-			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return errors.New("force add fail")
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -229,10 +229,10 @@ func Test_ErrAttach(t *testing.T) {
 		Name:    "default",
 		LogFile: "/tmp/sbsh-logs/s0",
 		RunPath: viper.GetString("global.runPath"),
-		Kind:    api.AttachToSession,
-		SessionSpec: &api.SessionSpec{
-			ID:   "sess-1",
-			Name: "session-1",
+		Kind:    api.AttachToTerminal,
+		TerminalSpec: &api.TerminalSpec{
+			ID:   "term-1",
+			Name: "terminal-1",
 		},
 	}
 
@@ -265,7 +265,7 @@ func Test_ErrContextDone(t *testing.T) {
 				default:
 				}
 			},
-			AttachFunc: func(_ *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
@@ -282,18 +282,18 @@ func Test_ErrContextDone(t *testing.T) {
 			CreateMetadataFunc: func() error {
 				return nil
 			},
-			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -316,11 +316,11 @@ func Test_ErrContextDone(t *testing.T) {
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		SessionSpec: &api.SessionSpec{},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		TerminalSpec: &api.TerminalSpec{},
 	}
 
 	exitCh := make(chan error)
@@ -355,7 +355,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 				default:
 				}
 			},
-			AttachFunc: func(_ *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
@@ -372,18 +372,18 @@ func Test_ErrRPCServerExited(t *testing.T) {
 			CreateMetadataFunc: func() error {
 				return nil
 			},
-			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -408,11 +408,11 @@ func Test_ErrRPCServerExited(t *testing.T) {
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		SessionSpec: &api.SessionSpec{},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		TerminalSpec: &api.TerminalSpec{},
 	}
 	go func() {
 		exitCh <- sc.Run(&spec)
@@ -444,7 +444,7 @@ func Test_ErrCloseReq(t *testing.T) {
 				default:
 				}
 			},
-			AttachFunc: func(_ *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
@@ -461,18 +461,18 @@ func Test_ErrCloseReq(t *testing.T) {
 			CreateMetadataFunc: func() error {
 				return nil
 			},
-			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -497,11 +497,11 @@ func Test_ErrCloseReq(t *testing.T) {
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		SessionSpec: &api.SessionSpec{},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		TerminalSpec: &api.TerminalSpec{},
 	}
 
 	go func() {
@@ -534,7 +534,7 @@ func Test_ErrStartCmd(t *testing.T) {
 				default:
 				}
 			},
-			AttachFunc: func(_ *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
@@ -551,18 +551,18 @@ func Test_ErrStartCmd(t *testing.T) {
 			CreateMetadataFunc: func() error {
 				return nil
 			},
-			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
 				return errors.New("force cmd start fail")
 			},
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -587,11 +587,11 @@ func Test_ErrStartCmd(t *testing.T) {
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		SessionSpec: &api.SessionSpec{},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		TerminalSpec: &api.TerminalSpec{},
 	}
 
 	go func() {
@@ -605,7 +605,7 @@ func Test_ErrStartCmd(t *testing.T) {
 	}
 }
 
-func Test_ErrSessionStore(t *testing.T) {
+func Test_ErrTerminalStore(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*Controller)
 	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner {
@@ -623,7 +623,7 @@ func Test_ErrSessionStore(t *testing.T) {
 				default:
 				}
 			},
-			AttachFunc: func(_ *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
@@ -642,12 +642,12 @@ func Test_ErrSessionStore(t *testing.T) {
 			},
 		}
 	}
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return errors.New("force add fail")
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -672,19 +672,19 @@ func Test_ErrSessionStore(t *testing.T) {
 	supervisorID := naming.RandomID()
 	// Define a new Supervisor
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		SessionSpec: &api.SessionSpec{},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		TerminalSpec: &api.TerminalSpec{},
 	}
 
 	go func() {
 		exitCh <- sc.Run(&spec)
 	}()
 
-	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrSessionStore) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrSessionStore, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrTerminalStore) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrTerminalStore, err)
 	}
 }
 
@@ -731,7 +731,7 @@ func Test_ErrWriteMetadata(t *testing.T) {
 	}
 }
 
-func Test_ErrNoSessionSpec(t *testing.T) {
+func Test_ErrNoTerminalSpec(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*Controller)
 	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner {
@@ -754,12 +754,12 @@ func Test_ErrNoSessionSpec(t *testing.T) {
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -780,12 +780,12 @@ func Test_ErrNoSessionSpec(t *testing.T) {
 
 	supervisorID := naming.RandomID()
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		Kind:        api.RunNewSession,
-		SessionSpec: nil, // This should trigger ErrNoSessionSpec
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		Kind:         api.RunNewTerminal,
+		TerminalSpec: nil, // This should trigger ErrNoTerminalSpec
 	}
 
 	exitCh := make(chan error)
@@ -793,12 +793,12 @@ func Test_ErrNoSessionSpec(t *testing.T) {
 		exitCh <- sc.Run(&spec)
 	}()
 
-	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrNoSessionSpec) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrNoSessionSpec, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrNoTerminalSpec) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrNoTerminalSpec, err)
 	}
 }
 
-func Test_ErrSessionExists(t *testing.T) {
+func Test_ErrTerminalExists(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*Controller)
 	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner {
@@ -821,12 +821,12 @@ func Test_ErrSessionExists(t *testing.T) {
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
-				return errdefs.ErrSessionExists
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
+				return errdefs.ErrTerminalExists
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -847,12 +847,12 @@ func Test_ErrSessionExists(t *testing.T) {
 
 	supervisorID := naming.RandomID()
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		Kind:        api.RunNewSession,
-		SessionSpec: &api.SessionSpec{ID: "test-session"},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		Kind:         api.RunNewTerminal,
+		TerminalSpec: &api.TerminalSpec{ID: "test-terminal"},
 	}
 
 	exitCh := make(chan error)
@@ -861,20 +861,20 @@ func Test_ErrSessionExists(t *testing.T) {
 	}()
 
 	if err := <-exitCh; err != nil {
-		// Should be wrapped with ErrSessionStore
-		if !errors.Is(err, errdefs.ErrSessionStore) {
-			t.Fatalf("expected error to wrap '%v'; got: '%v'", errdefs.ErrSessionStore, err)
+		// Should be wrapped with ErrTerminalStore
+		if !errors.Is(err, errdefs.ErrTerminalStore) {
+			t.Fatalf("expected error to wrap '%v'; got: '%v'", errdefs.ErrTerminalStore, err)
 		}
-		// Should also contain ErrSessionExists
-		if !errors.Is(err, errdefs.ErrSessionExists) {
-			t.Fatalf("expected error to wrap '%v'; got: '%v'", errdefs.ErrSessionExists, err)
+		// Should also contain ErrTerminalExists
+		if !errors.Is(err, errdefs.ErrTerminalExists) {
+			t.Fatalf("expected error to wrap '%v'; got: '%v'", errdefs.ErrTerminalExists, err)
 		}
 	} else {
 		t.Fatal("expected error but got nil")
 	}
 }
 
-func Test_ErrAttachNoSessionSpec(t *testing.T) {
+func Test_ErrAttachNoTerminalSpec(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*Controller)
 	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner {
@@ -899,12 +899,12 @@ func Test_ErrAttachNoSessionSpec(t *testing.T) {
 
 	supervisorID := naming.RandomID()
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		Kind:        api.AttachToSession,
-		SessionSpec: nil, // This should trigger ErrAttachNoSessionSpec
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		Kind:         api.AttachToTerminal,
+		TerminalSpec: nil, // This should trigger ErrAttachNoTerminalSpec
 	}
 
 	exitCh := make(chan error)
@@ -912,8 +912,8 @@ func Test_ErrAttachNoSessionSpec(t *testing.T) {
 		exitCh <- sc.Run(&spec)
 	}()
 
-	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrAttachNoSessionSpec) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrAttachNoSessionSpec, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrAttachNoTerminalSpec) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrAttachNoTerminalSpec, err)
 	}
 }
 
@@ -942,12 +942,12 @@ func Test_ErrAttachNoIDOrName(t *testing.T) {
 
 	supervisorID := naming.RandomID()
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		Kind:        api.AttachToSession,
-		SessionSpec: &api.SessionSpec{ID: "", Name: ""}, // Both empty should trigger ErrAttachNoSessionSpec
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		Kind:         api.AttachToTerminal,
+		TerminalSpec: &api.TerminalSpec{ID: "", Name: ""}, // Both empty should trigger ErrAttachNoTerminalSpec
 	}
 
 	exitCh := make(chan error)
@@ -955,8 +955,8 @@ func Test_ErrAttachNoIDOrName(t *testing.T) {
 		exitCh <- sc.Run(&spec)
 	}()
 
-	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrAttachNoSessionSpec) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrAttachNoSessionSpec, err)
+	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrAttachNoTerminalSpec) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrAttachNoTerminalSpec, err)
 	}
 }
 
@@ -985,12 +985,12 @@ func Test_ErrSupervisorKind(t *testing.T) {
 
 	supervisorID := naming.RandomID()
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		Kind:        api.SupervisorKind(999), // Invalid kind
-		SessionSpec: &api.SessionSpec{},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		Kind:         api.SupervisorKind(999), // Invalid kind
+		TerminalSpec: &api.TerminalSpec{},
 	}
 
 	exitCh := make(chan error)
@@ -1020,11 +1020,11 @@ func Test_EventCmdExited(t *testing.T) {
 				default:
 				}
 			},
-			AttachFunc: func(_ *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
-				return "test-session"
+				return "test-terminal"
 			},
 			CloseFunc: func(_ error) error {
 				select {
@@ -1035,18 +1035,18 @@ func Test_EventCmdExited(t *testing.T) {
 			},
 			ResizeFunc:         func(_ api.ResizeArgs) {},
 			CreateMetadataFunc: func() error { return nil },
-			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -1067,12 +1067,12 @@ func Test_EventCmdExited(t *testing.T) {
 
 	supervisorID := naming.RandomID()
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		Kind:        api.RunNewSession,
-		SessionSpec: &api.SessionSpec{ID: "test-session"},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		Kind:         api.RunNewTerminal,
+		TerminalSpec: &api.TerminalSpec{ID: "test-terminal"},
 	}
 
 	exitCh := make(chan error)
@@ -1085,7 +1085,7 @@ func Test_EventCmdExited(t *testing.T) {
 
 	// Send EvCmdExited event
 	ev := supervisorrunner.Event{
-		ID:   "test-session",
+		ID:   "test-terminal",
 		Type: supervisorrunner.EvCmdExited,
 		Err:  nil,
 		When: time.Now(),
@@ -1122,11 +1122,11 @@ func Test_EventError(t *testing.T) {
 				default:
 				}
 			},
-			AttachFunc: func(_ *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
-				return "test-session"
+				return "test-terminal"
 			},
 			CloseFunc: func(_ error) error {
 				select {
@@ -1137,18 +1137,18 @@ func Test_EventError(t *testing.T) {
 			},
 			ResizeFunc:         func(_ api.ResizeArgs) {},
 			CreateMetadataFunc: func() error { return nil },
-			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -1169,12 +1169,12 @@ func Test_EventError(t *testing.T) {
 
 	supervisorID := naming.RandomID()
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		Kind:        api.RunNewSession,
-		SessionSpec: &api.SessionSpec{ID: "test-session"},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		Kind:         api.RunNewTerminal,
+		TerminalSpec: &api.TerminalSpec{ID: "test-terminal"},
 	}
 
 	exitCh := make(chan error)
@@ -1187,7 +1187,7 @@ func Test_EventError(t *testing.T) {
 
 	// Send EvError event
 	ev := supervisorrunner.Event{
-		ID:   "test-session",
+		ID:   "test-terminal",
 		Type: supervisorrunner.EvError,
 		Err:  errors.New("test error"),
 		When: time.Now(),
@@ -1224,16 +1224,16 @@ func Test_EventDetach(t *testing.T) {
 				default:
 				}
 			},
-			AttachFunc: func(_ *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
-				return "test-session"
+				return "test-terminal"
 			},
 			CloseFunc:          func(_ error) error { return nil },
 			ResizeFunc:         func(_ api.ResizeArgs) {},
 			CreateMetadataFunc: func() error { return nil },
-			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			DetachFunc: func() error {
@@ -1246,12 +1246,12 @@ func Test_EventDetach(t *testing.T) {
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -1272,12 +1272,12 @@ func Test_EventDetach(t *testing.T) {
 
 	supervisorID := naming.RandomID()
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		Kind:        api.RunNewSession,
-		SessionSpec: &api.SessionSpec{ID: "test-session"},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		Kind:         api.RunNewTerminal,
+		TerminalSpec: &api.TerminalSpec{ID: "test-terminal"},
 	}
 
 	exitCh := make(chan error)
@@ -1290,7 +1290,7 @@ func Test_EventDetach(t *testing.T) {
 
 	// Send EvDetach event
 	ev := supervisorrunner.Event{
-		ID:   "test-session",
+		ID:   "test-terminal",
 		Type: supervisorrunner.EvDetach,
 		Err:  nil,
 		When: time.Now(),
@@ -1327,16 +1327,16 @@ func Test_EventDetachFailure(t *testing.T) {
 				default:
 				}
 			},
-			AttachFunc: func(_ *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
-				return "test-session"
+				return "test-terminal"
 			},
 			CloseFunc:          func(_ error) error { return nil },
 			ResizeFunc:         func(_ api.ResizeArgs) {},
 			CreateMetadataFunc: func() error { return nil },
-			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			DetachFunc: func() error {
@@ -1349,12 +1349,12 @@ func Test_EventDetachFailure(t *testing.T) {
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -1375,12 +1375,12 @@ func Test_EventDetachFailure(t *testing.T) {
 
 	supervisorID := naming.RandomID()
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		Kind:        api.RunNewSession,
-		SessionSpec: &api.SessionSpec{ID: "test-session"},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		Kind:         api.RunNewTerminal,
+		TerminalSpec: &api.TerminalSpec{ID: "test-terminal"},
 	}
 
 	exitCh := make(chan error)
@@ -1393,7 +1393,7 @@ func Test_EventDetachFailure(t *testing.T) {
 
 	// Send EvDetach event
 	ev := supervisorrunner.Event{
-		ID:   "test-session",
+		ID:   "test-terminal",
 		Type: supervisorrunner.EvDetach,
 		Err:  nil,
 		When: time.Now(),
@@ -1429,27 +1429,27 @@ func Test_EventUnknown(_ *testing.T) {
 				default:
 				}
 			},
-			AttachFunc: func(_ *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
-				return "test-session"
+				return "test-terminal"
 			},
 			CloseFunc:          func(_ error) error { return nil },
 			ResizeFunc:         func(_ api.ResizeArgs) {},
 			CreateMetadataFunc: func() error { return nil },
-			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -1470,12 +1470,12 @@ func Test_EventUnknown(_ *testing.T) {
 
 	supervisorID := naming.RandomID()
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		Kind:        api.RunNewSession,
-		SessionSpec: &api.SessionSpec{ID: "test-session"},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		Kind:         api.RunNewTerminal,
+		TerminalSpec: &api.TerminalSpec{ID: "test-terminal"},
 	}
 
 	exitCh := make(chan error)
@@ -1488,7 +1488,7 @@ func Test_EventUnknown(_ *testing.T) {
 
 	// Send unknown event type
 	ev := supervisorrunner.Event{
-		ID:   "test-session",
+		ID:   "test-terminal",
 		Type: supervisorrunner.EventType(999), // Unknown event type
 		Err:  nil,
 		When: time.Now(),
@@ -1576,7 +1576,7 @@ func Test_DetachSuccess(t *testing.T) {
 	}
 }
 
-func Test_ErrDetachSession(t *testing.T) {
+func Test_ErrDetachTerminal(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*Controller)
 	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner {
@@ -1595,8 +1595,8 @@ func Test_ErrDetachSession(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from Detach")
 	}
-	if !errors.Is(err, errdefs.ErrDetachSession) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrDetachSession, err)
+	if !errors.Is(err, errdefs.ErrDetachTerminal) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrDetachTerminal, err)
 	}
 }
 
@@ -1681,7 +1681,7 @@ func Test_CloseErrorHandling(t *testing.T) {
 	}
 }
 
-func Test_RunNewSessionSuccess(t *testing.T) {
+func Test_RunNewTerminalSuccess(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewSupervisorController(context.Background(), logger).(*Controller)
 	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner {
@@ -1697,27 +1697,27 @@ func Test_RunNewSessionSuccess(t *testing.T) {
 				default:
 				}
 			},
-			AttachFunc: func(_ *api.SupervisedSession) error {
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 			IDFunc: func() api.ID {
-				return "test-session"
+				return "test-terminal"
 			},
 			CloseFunc:          func(_ error) error { return nil },
 			ResizeFunc:         func(_ api.ResizeArgs) {},
 			CreateMetadataFunc: func() error { return nil },
-			StartSessionCmdFunc: func(_ *api.SupervisedSession) error {
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
 		}
 	}
 
-	sc.NewSessionStore = func() sessionstore.SessionStore {
-		return &sessionstore.Test{
-			AddFunc: func(_ *api.SupervisedSession) error {
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.SupervisedSession, bool) {
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
 				return nil, false
 			},
 			ListLiveFunc: func() []api.ID {
@@ -1738,12 +1738,12 @@ func Test_RunNewSessionSuccess(t *testing.T) {
 
 	supervisorID := naming.RandomID()
 	spec := api.SupervisorSpec{
-		ID:          api.ID(supervisorID),
-		Name:        "default",
-		LogFile:     "/tmp/sbsh-logs/s0",
-		RunPath:     viper.GetString("global.runPath"),
-		Kind:        api.RunNewSession,
-		SessionSpec: &api.SessionSpec{ID: "test-session"},
+		ID:           api.ID(supervisorID),
+		Name:         "default",
+		LogFile:      "/tmp/sbsh-logs/s0",
+		RunPath:      viper.GetString("global.runPath"),
+		Kind:         api.RunNewTerminal,
+		TerminalSpec: &api.TerminalSpec{ID: "test-terminal"},
 	}
 
 	readyCh := make(chan error)

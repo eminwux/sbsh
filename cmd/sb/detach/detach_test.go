@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/eminwux/sbsh/cmd/types"
+	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -246,16 +247,16 @@ func Test_ErrNoSupervisorIdentification_BuildSocket(t *testing.T) {
 	}
 }
 
-func Test_ErrDetachSession(t *testing.T) {
-	// This test verifies that ErrDetachSession is properly defined
+func Test_ErrDetachTerminal(t *testing.T) {
+	// This test verifies that ErrDetachTerminal is properly defined
 	// Testing the actual detach flow requires a real supervisor socket
 	// The error type is verified through integration tests
-	err := errdefs.ErrDetachSession
+	err := errdefs.ErrDetachTerminal
 	if err == nil {
-		t.Fatal("ErrDetachSession should not be nil")
+		t.Fatal("ErrDetachTerminal should not be nil")
 	}
-	if !errors.Is(err, errdefs.ErrDetachSession) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrDetachSession, err)
+	if !errors.Is(err, errdefs.ErrDetachTerminal) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrDetachTerminal, err)
 	}
 }
 
@@ -324,7 +325,7 @@ func Test_BuildSocket_WithIDFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	expectedSocket := filepath.Join(tmpDir, "supervisors", supervisorID, "socket")
+	expectedSocket := filepath.Join(tmpDir, defaults.SupervisorsRunPath, supervisorID, "socket")
 	if socket != expectedSocket {
 		t.Fatalf("expected socket '%s'; got: '%s'", expectedSocket, socket)
 	}

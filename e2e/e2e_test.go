@@ -29,7 +29,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/eminwux/sbsh/internal/naming"
-	"github.com/eminwux/sbsh/internal/session/sessionrunner"
+	"github.com/eminwux/sbsh/internal/terminal/terminalrunner"
 )
 
 const (
@@ -246,9 +246,9 @@ func getRandomSbshRunPath(t *testing.T, runPath string) string {
 	return "SBSH_RUN_PATH=" + runPath
 }
 
-func setupMultiWriter(t *testing.T, ptmx *os.File, pipeLogW *os.File) *sessionrunner.DynamicMultiWriter {
+func setupMultiWriter(t *testing.T, ptmx *os.File, pipeLogW *os.File) *terminalrunner.DynamicMultiWriter {
 	t.Helper()
-	multiW := sessionrunner.NewDynamicMultiWriter(nil, pipeLogW)
+	multiW := terminalrunner.NewDynamicMultiWriter(nil, pipeLogW)
 	go func() {
 		for {
 			buf := make([]byte, 1024)

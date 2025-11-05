@@ -30,12 +30,13 @@ import (
 
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/types"
+	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/internal/profile"
-	"github.com/eminwux/sbsh/internal/session"
+	"github.com/eminwux/sbsh/internal/terminal"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -75,14 +76,14 @@ func checkFileUsage(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func buildSessionSpecFromFlags(cmd *cobra.Command, logger *slog.Logger) (*api.SessionSpec, error) {
-	spec, buildErr := profile.BuildSessionSpec(
+func buildTerminalSpecFromFlags(cmd *cobra.Command, logger *slog.Logger) (*api.TerminalSpec, error) {
+	spec, buildErr := profile.BuildTerminalSpec(
 		cmd.Context(),
 		logger,
-		&profile.BuildSessionSpecParams{
-			SessionID:    viper.GetString("sbsh.run.id"),
-			SessionName:  viper.GetString("sbsh.run.name"),
-			SessionCmd:   viper.GetString("sbsh.run.command"),
+		&profile.BuildTerminalSpecParams{
+			TerminalID:   viper.GetString("sbsh.run.id"),
+			TerminalName: viper.GetString("sbsh.run.name"),
+			TerminalCmd:  viper.GetString("sbsh.run.command"),
 			CaptureFile:  viper.GetString("sbsh.run.captureFile"),
 			RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
 			ProfilesFile: viper.GetString(config.PROFILES_FILE.ViperKey),
@@ -94,14 +95,14 @@ func buildSessionSpecFromFlags(cmd *cobra.Command, logger *slog.Logger) (*api.Se
 	)
 
 	if buildErr != nil {
-		logger.Error("Failed to build session spec", "error", buildErr)
+		logger.Error("Failed to build terminal spec", "error", buildErr)
 		return nil, buildErr
 	}
 
 	return spec, nil
 }
 
-func processInput(cmd *cobra.Command, args []string) (*api.SessionSpec, error) {
+func processInput(cmd *cobra.Command, args []string) (*api.TerminalSpec, error) {
 	var r io.Reader
 	var f *os.File
 
@@ -123,7 +124,7 @@ func processInput(cmd *cobra.Command, args []string) (*api.SessionSpec, error) {
 	}
 	if len(args) > 0 && args[0] != "-" {
 		return nil, fmt.Errorf(
-			"%w: the only accepted positional argument is '-' to read the session spec from stdin",
+			"%w: the only accepted positional argument is '-' to read the terminal spec from stdin",
 			errdefs.ErrInvalidArgument,
 		)
 	}
@@ -148,7 +149,7 @@ func processInput(cmd *cobra.Command, args []string) (*api.SessionSpec, error) {
 		return nil, errdefs.ErrNoSpecDefined
 	}
 
-	spec := api.SessionSpec{}
+	spec := api.TerminalSpec{}
 	dec := json.NewDecoder(r)
 	if err := dec.Decode(&spec); err != nil {
 		return nil, fmt.Errorf("%w: %w", errdefs.ErrInvalidJSONSpec, err)
@@ -158,10 +159,10 @@ func processInput(cmd *cobra.Command, args []string) (*api.SessionSpec, error) {
 }
 
 func setLoggingVarsFromFlags() {
-	sessionID := viper.GetString("sbsh.run.id")
-	if sessionID == "" {
-		sessionID = naming.RandomID()
-		viper.Set("sbsh.run.id", sessionID)
+	terminalID := viper.GetString("sbsh.run.id")
+	if terminalID == "" {
+		terminalID = naming.RandomID()
+		viper.Set("sbsh.run.id", terminalID)
 	}
 
 	sesLogLevel := viper.GetString("sbsh.run.logLevel")
@@ -174,15 +175,15 @@ func setLoggingVarsFromFlags() {
 	if sesLogfile == "" {
 		sesLogfile = filepath.Join(
 			viper.GetString(config.RUN_PATH.ViperKey),
-			"sessions",
-			sessionID,
+			defaults.TerminalsRunPath,
+			terminalID,
 			"log",
 		)
 		viper.Set("sbsh.run.logFile", sesLogfile)
 	}
 }
 
-func processSpec(cmd *cobra.Command, spec **api.SessionSpec) error {
+func processSpec(cmd *cobra.Command, spec **api.TerminalSpec) error {
 	// Check if spec is already provided
 	if *spec != nil {
 		// Spec provided via stdin
@@ -214,18 +215,18 @@ func processSpec(cmd *cobra.Command, spec **api.SessionSpec) error {
 	}
 
 	// Build spec from flags
-	specBuilt, err := buildSessionSpecFromFlags(cmd, logger)
+	specBuilt, err := buildTerminalSpecFromFlags(cmd, logger)
 	if err != nil {
-		return fmt.Errorf("%w: %w", errdefs.ErrBuildSessionSpec, err)
+		return fmt.Errorf("%w: %w", errdefs.ErrBuildTerminalSpec, err)
 	}
 	// Set built spec in context
 	*spec = specBuilt
 
 	jsonBytes, err := json.MarshalIndent(specBuilt, "", "  ")
 	if err != nil {
-		logger.Warn("failed to marshal session spec to JSON for debug", "error", err)
+		logger.Warn("failed to marshal terminal spec to JSON for debug", "error", err)
 	} else {
-		logger.Debug("Built session spec JSON", "sessionSpecJson", string(jsonBytes))
+		logger.Debug("Built terminal spec JSON", "terminalSpecJson", string(jsonBytes))
 	}
 	return nil
 }
@@ -235,24 +236,24 @@ func NewRunCmd() *cobra.Command {
 	runCmd := &cobra.Command{
 		Use:     Command,
 		Aliases: []string{CommandAlias},
-		Short:   "Run a new sbsh session",
-		Long: `Run a new sbsh session.
-The session can be customized via command-line options or by specifying a profile.
+		Short:   "Run a new sbsh terminal",
+		Long: `Run a new sbsh terminal.
+The terminal can be customized via command-line options or by specifying a profile.
 If no profile is specified, a default profile is used with the provided command or /bin/bash.
 
 Examples:
-  sbsh run --name mysession --command "/bin/zsh"
+  sbsh run --name myterminal --command "/bin/zsh"
   sbsh run --profile devprofile
   sbsh run --profile devprofile --name customname --command "/usr/bin/fish"
 
-If no session name is provided, a random name will be generated.
+If no terminal name is provided, a random name will be generated.
 If no command is provided, /bin/bash will be used by default.
 If no log filename is provided, a default path under the run directory will be used.
 `,
 		SilenceUsage: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Check if first argument indicates stdin usage
-			var spec *api.SessionSpec
+			var spec *api.TerminalSpec
 
 			// Process stdin input if '-' is provided
 			spec, errProcess := processInput(cmd, args)
@@ -266,8 +267,8 @@ If no log filename is provided, a default path under the run directory will be u
 				return errProcessSpec
 			}
 
-			// Set session spec in context
-			newCtx := context.WithValue(cmd.Context(), types.CtxSessionSpec, spec)
+			// Set terminal spec in context
+			newCtx := context.WithValue(cmd.Context(), types.CtxTerminalSpec, spec)
 			cmd.SetContext(newCtx)
 
 			return nil
@@ -280,31 +281,31 @@ If no log filename is provided, a default path under the run directory will be u
 
 			logger.Info("Starting sbsh run command")
 
-			// Retrieve session spec from context
-			sessionSpec, ok := cmd.Context().Value(types.CtxSessionSpec).(*api.SessionSpec)
-			if !ok || sessionSpec == nil {
-				return errdefs.ErrSessionSpecNotFound
+			// Retrieve terminal spec from context
+			terminalSpec, ok := cmd.Context().Value(types.CtxTerminalSpec).(*api.TerminalSpec)
+			if !ok || terminalSpec == nil {
+				return errdefs.ErrTerminalSpecNotFound
 			}
 
-			logger.Debug("Built session spec", "sessionSpec", fmt.Sprintf("%+v", sessionSpec))
+			logger.Debug("Built terminal spec", "terminalSpec", fmt.Sprintf("%+v", terminalSpec))
 
 			if logger.Enabled(context.Background(), slog.LevelDebug) {
-				logger.DebugContext(cmd.Context(), "printing session spec for debug")
-				if printErr := discovery.PrintTerminalSpec(sessionSpec, logger); printErr != nil {
-					logger.Warn("Failed to print session spec", "error", printErr)
+				logger.DebugContext(cmd.Context(), "printing terminal spec for debug")
+				if printErr := discovery.PrintTerminalSpec(terminalSpec, logger); printErr != nil {
+					logger.Warn("Failed to print terminal spec", "error", printErr)
 				}
 			}
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-			ctrl := session.NewSessionController(ctx, logger)
+			ctrl := terminal.NewTerminalController(ctx, logger)
 
-			logger.Info("Starting session controller")
-			runErr := runSession(ctx, cancel, logger, ctrl, sessionSpec)
+			logger.Info("Starting terminal controller")
+			runErr := runTerminal(ctx, cancel, logger, ctrl, terminalSpec)
 			if runErr != nil {
-				logger.Error("Session controller returned error", "error", runErr)
+				logger.Error("Terminal controller returned error", "error", runErr)
 				return runErr
 			}
-			logger.Info("Session controller completed successfully")
+			logger.Info("Terminal controller completed successfully")
 			return nil
 		},
 		PostRunE: func(cmd *cobra.Command, _ []string) error {
@@ -320,78 +321,85 @@ If no log filename is provided, a default path under the run directory will be u
 }
 
 func setupRunCmdFlags(runCmd *cobra.Command) {
-	runCmd.Flags().String("id", "", "Optional session ID (random if omitted)")
+	runCmd.Flags().String("id", "", "Optional terminal ID (random if omitted)")
 	_ = viper.BindPFlag("sbsh.run.id", runCmd.Flags().Lookup("id"))
 
 	runCmd.Flags().String("command", "", "Optional command (default: /bin/bash)")
 	_ = viper.BindPFlag("sbsh.run.command", runCmd.Flags().Lookup("command"))
 
-	runCmd.Flags().String("name", "", "Optional name for the session")
+	runCmd.Flags().String("name", "", "Optional name for the terminal (random if omitted)")
 	_ = viper.BindPFlag("sbsh.run.name", runCmd.Flags().Lookup("name"))
 
-	runCmd.Flags().String("session-log", "", "Optional filename for the session log")
-	_ = viper.BindPFlag("sbsh.run.sessionLog", runCmd.Flags().Lookup("session-log"))
+	runCmd.Flags().String("terminal-log", "", "Optional filename for the terminal log")
+	_ = viper.BindPFlag("sbsh.run.terminalLog", runCmd.Flags().Lookup("terminal-log"))
 
-	runCmd.Flags().String("log-file", "", "Optional filename for the session log")
+	runCmd.Flags().String("log-file", "", "Optional filename for the terminal log")
 	_ = viper.BindPFlag("sbsh.run.logFile", runCmd.Flags().Lookup("log-file"))
 
-	runCmd.Flags().String("log-level", "", "Optional log level for the session")
+	runCmd.Flags().String("log-level", "", "Optional log level for the terminal logger")
 	_ = viper.BindPFlag("sbsh.run.logLevel", runCmd.Flags().Lookup("log-level"))
 
-	runCmd.Flags().StringP("profile", "p", "", "Optional profile for the session")
+	runCmd.Flags().StringP("profile", "p", "", "Optional profile for the terminal")
 	_ = viper.BindPFlag("sbsh.run.profile", runCmd.Flags().Lookup("profile"))
-	_ = viper.BindEnv("sbsh.run.profile", config.SES_PROFILE.EnvVar())
+	_ = viper.BindEnv("sbsh.run.profile", config.TERM_PROFILE.EnvVar())
 
-	runCmd.Flags().String("socket", "", "Optional socket file for the session")
+	runCmd.Flags().String("socket", "", "Optional socket file for the terminal")
 	_ = viper.BindPFlag("sbsh.run.socket", runCmd.Flags().Lookup("socket"))
 
-	runCmd.Flags().StringP("file", "f", "", "Optional JSON file with the session spec (use '-' for stdin)")
+	runCmd.Flags().StringP("file", "f", "", "Optional JSON file with the terminal spec (use '-' for stdin)")
 	_ = viper.BindPFlag("sbsh.run.spec", runCmd.Flags().Lookup("file"))
 }
 
-func runSession(
+func runTerminal(
 	ctx context.Context,
 	cancel context.CancelFunc,
 	logger *slog.Logger,
-	ctrl api.SessionController,
-	spec *api.SessionSpec,
+	ctrl api.TerminalController,
+	spec *api.TerminalSpec,
 ) error {
 	defer cancel()
 
-	logger.DebugContext(ctx, "starting session controller goroutine", "session_name", spec.Name, "session_id", spec.ID)
+	logger.DebugContext(
+		ctx,
+		"starting terminal controller goroutine",
+		"terminal_name",
+		spec.Name,
+		"terminal_id",
+		spec.ID,
+	)
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- ctrl.Run(spec)
 		close(errCh)
-		logger.DebugContext(ctx, "session controller goroutine exited")
+		logger.DebugContext(ctx, "terminal controller goroutine exited")
 	}()
 
-	logger.DebugContext(ctx, "waiting for session controller to signal ready")
+	logger.DebugContext(ctx, "waiting for terminal controller to signal ready")
 	if err := ctrl.WaitReady(); err != nil {
-		logger.DebugContext(ctx, "session controller not ready", "error", err)
+		logger.DebugContext(ctx, "terminal controller not ready", "error", err)
 		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
 	}
 
-	logger.DebugContext(ctx, "session controller ready, entering event loop")
+	logger.DebugContext(ctx, "terminal controller ready, entering event loop")
 	select {
 	case <-ctx.Done():
-		logger.DebugContext(ctx, "context canceled, waiting for session controller to exit")
+		logger.DebugContext(ctx, "context canceled, waiting for terminal controller to exit")
 		var waitErr error
 		if errC := ctrl.WaitClose(); errC != nil {
 			waitErr = fmt.Errorf("%w %w: %w", waitErr, errdefs.ErrWaitOnClose, errC)
-			logger.DebugContext(ctx, "error waiting for session controller to close", "error", waitErr)
+			logger.DebugContext(ctx, "error waiting for terminal controller to close", "error", waitErr)
 		}
-		logger.DebugContext(ctx, "context canceled, session controller exited")
+		logger.DebugContext(ctx, "context canceled, terminal controller exited")
 		return nil
 
 	case err := <-errCh:
-		logger.DebugContext(ctx, "session controller stopped", "error", err)
+		logger.DebugContext(ctx, "terminal controller stopped", "error", err)
 		if err != nil && !errors.Is(err, context.Canceled) {
 			childErr := fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
 			if errC := ctrl.WaitClose(); errC != nil {
 				_ = fmt.Errorf("%w: %w: %w", childErr, errdefs.ErrWaitOnClose, errC)
 			}
-			logger.DebugContext(ctx, "session controller exited after error")
+			logger.DebugContext(ctx, "terminal controller exited after error")
 			// return nothing to avoid polluting the terminal with errors
 			return nil
 		}

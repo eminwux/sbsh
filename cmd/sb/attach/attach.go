@@ -30,6 +30,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sb/get"
 	"github.com/eminwux/sbsh/cmd/types"
+	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/internal/supervisor"
@@ -108,10 +109,10 @@ to quickly create a Cobra application.`,
 }
 
 func setupAttachCmdFlags(attachCmd *cobra.Command) {
-	attachCmd.Flags().String("id", "", "Session ID, cannot be set together with --name")
+	attachCmd.Flags().String("id", "", "Terminal ID, cannot be set together with --name")
 	_ = viper.BindPFlag("sb.attach.id", attachCmd.Flags().Lookup("id"))
 
-	attachCmd.Flags().StringP("name", "n", "", "Optional session name, cannot be set together with --id")
+	attachCmd.Flags().StringP("name", "n", "", "Optional terminal name, cannot be set together with --id")
 	_ = viper.BindPFlag("sb.attach.name", attachCmd.Flags().Lookup("name"))
 
 	_ = attachCmd.RegisterFlagCompletionFunc(
@@ -157,7 +158,7 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 			return profs, cobra.ShellCompDirectiveNoFileComp
 		},
 	)
-	attachCmd.Flags().String("socket", "", "Optional socket file for the session")
+	attachCmd.Flags().String("socket", "", "Optional socket file for the terminal")
 	_ = viper.BindPFlag("sb.attach.socket", attachCmd.Flags().Lookup("socket"))
 }
 
@@ -196,7 +197,7 @@ func run(
 	supCtrl := supervisor.NewSupervisorController(ctx, logger)
 
 	if socketFileFlag == "" {
-		socketFileFlag = filepath.Join(runPath, "supervisors", supervisorID, "socket")
+		socketFileFlag = filepath.Join(runPath, defaults.SupervisorsRunPath, supervisorID, "socket")
 	}
 
 	if err := os.MkdirAll(filepath.Dir(socketFileFlag), 0o700); err != nil {
@@ -207,10 +208,10 @@ func run(
 	supSpec := buildSupervisorSpec(ctx, supervisorID, runPath, socketFileFlag, logger)
 
 	if terminalIDFlag != "" {
-		supSpec.SessionSpec.ID = api.ID(terminalIDFlag)
+		supSpec.TerminalSpec.ID = api.ID(terminalIDFlag)
 	}
 	if terminalName != "" {
-		supSpec.SessionSpec.Name = terminalName
+		supSpec.TerminalSpec.Name = terminalName
 	}
 
 	var socket string
@@ -243,10 +244,10 @@ func run(
 			return errdefs.ErrNoTerminalIdentification
 		}
 
-		socket = fmt.Sprintf("%s/sessions/%s/socket", runPath, terminalID)
+		socket = fmt.Sprintf("%s/%s/%s/socket", runPath, defaults.TerminalsRunPath, terminalID)
 	}
 
-	supSpec.SessionSpec.SocketFile = socket
+	supSpec.TerminalSpec.SocketFile = socket
 
 	logger.DebugContext(ctx, "Built supervisor spec", "supervisorSpec", fmt.Sprintf("%+v", supSpec))
 
@@ -310,12 +311,12 @@ func buildSupervisorSpec(
 
 	supervisorName := naming.RandomName()
 	spec = &api.SupervisorSpec{
-		Kind:        api.AttachToSession,
-		ID:          api.ID(supervisorID),
-		Name:        supervisorName,
-		RunPath:     runPath,
-		SockerCtrl:  socketFileInput,
-		SessionSpec: &api.SessionSpec{},
+		Kind:         api.AttachToTerminal,
+		ID:           api.ID(supervisorID),
+		Name:         supervisorName,
+		RunPath:      runPath,
+		SockerCtrl:   socketFileInput,
+		TerminalSpec: &api.TerminalSpec{},
 	}
 	logger.DebugContext(ctx, "attach spec created",
 		"kind", spec.Kind,

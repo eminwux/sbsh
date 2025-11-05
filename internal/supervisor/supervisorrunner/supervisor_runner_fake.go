@@ -47,13 +47,13 @@ type Test struct {
 		readyCh chan error,
 		doneCh chan error,
 	)
-	IDFunc              func() api.ID
-	CloseFunc           func(reason error) error
-	ResizeFunc          func(args api.ResizeArgs)
-	AttachFunc          func(session *api.SupervisedSession) error
-	CreateMetadataFunc  func() error
-	DetachFunc          func() error
-	StartSessionCmdFunc func(session *api.SupervisedSession) error
+	IDFunc               func() api.ID
+	CloseFunc            func(reason error) error
+	ResizeFunc           func(args api.ResizeArgs)
+	AttachFunc           func(terminal *api.SupervisedTerminal) error
+	CreateMetadataFunc   func() error
+	DetachFunc           func() error
+	StartTerminalCmdFunc func(terminal *api.SupervisedTerminal) error
 }
 
 // NewSupervisorRunnerTest returns a new SupervisorRunnerTest instance.
@@ -105,9 +105,9 @@ func (t *Test) Resize(args api.ResizeArgs) {
 	}
 }
 
-func (t *Test) Attach(session *api.SupervisedSession) error {
+func (t *Test) Attach(terminal *api.SupervisedTerminal) error {
 	if t.AttachFunc != nil {
-		return t.AttachFunc(session)
+		return t.AttachFunc(terminal)
 	}
 	return errdefs.ErrFuncNotSet
 }
@@ -126,9 +126,9 @@ func (t *Test) Detach() error {
 	return errdefs.ErrFuncNotSet
 }
 
-func (t *Test) StartSessionCmd(session *api.SupervisedSession) error {
-	if t.StartSessionCmdFunc != nil {
-		return t.StartSessionCmdFunc(session)
+func (t *Test) StartTerminalCmd(terminal *api.SupervisedTerminal) error {
+	if t.StartTerminalCmdFunc != nil {
+		return t.StartTerminalCmdFunc(terminal)
 	}
 	return errdefs.ErrFuncNotSet
 }

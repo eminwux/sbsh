@@ -15,7 +15,6 @@
 
 ### 🅰️ Must Have
 ```markdown
-- [ ] **A** Refactor session to terminal
 - [ ] **A** Disable detach for nested case
 - [ ] **A** If `sbsh run` fails supervisor must print and log error
 - [ ] **A** `sbsh run` change to `sbsh terminal`
@@ -107,4 +106,5 @@
 - [X] **B** Sort out architecture for SupervisedSession vs. Session DONE
 - [X] **A** Initial E2E testing                                     DONE
 - [X] **A** Add --version in sb sbsh                                DONE
+- [X] **A** Refactor session to terminal                            DONE
 ```

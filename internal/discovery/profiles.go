@@ -43,12 +43,12 @@ func ScanAndPrintProfiles(ctx context.Context, logger *slog.Logger, path string,
 	return PrintProfilesTable(w, profiles)
 }
 
-// LoadProfilesFromPath reads a multi-document YAML file into []api.SessionProfileDoc.
+// LoadProfilesFromPath reads a multi-document YAML file into []api.TerminalProfileDoc.
 func LoadProfilesFromPath(
 	ctx context.Context,
 	logger *slog.Logger,
 	profilesFile string,
-) ([]api.SessionProfileDoc, error) {
+) ([]api.TerminalProfileDoc, error) {
 	logger.DebugContext(ctx, "LoadProfilesFromPath: opening file", "path", profilesFile)
 	f, err := os.Open(profilesFile)
 	if err != nil {
@@ -65,14 +65,14 @@ func LoadProfilesFromReaderWithContext(
 	ctx context.Context,
 	logger *slog.Logger,
 	r io.Reader,
-) ([]api.SessionProfileDoc, error) {
+) ([]api.TerminalProfileDoc, error) {
 	logger.DebugContext(ctx, "LoadProfilesFromReader: decoding YAML documents")
 	dec := yaml.NewDecoder(r)
 
-	var out []api.SessionProfileDoc
+	var out []api.TerminalProfileDoc
 	docCount := 0
 	for {
-		var p api.SessionProfileDoc
+		var p api.TerminalProfileDoc
 		if err := dec.Decode(&p); err != nil {
 			if errors.Is(err, io.EOF) {
 				logger.InfoContext(ctx, "LoadProfilesFromReader: reached EOF", "count", docCount)
@@ -102,8 +102,7 @@ func LoadProfilesFromReaderWithContext(
 	return out, nil
 }
 
-// PrintProfilesTable renders a compact table of profiles similar to printSessions().
-func PrintProfilesTable(w io.Writer, profiles []api.SessionProfileDoc) error {
+func PrintProfilesTable(w io.Writer, profiles []api.TerminalProfileDoc) error {
 	//nolint:mnd // tabwriter padding
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 
@@ -140,7 +139,7 @@ func PrintProfilesTable(w io.Writer, profiles []api.SessionProfileDoc) error {
 
 // FindProfileByName scans the YAML file at path and returns the profile whose metadata.name matches.
 // The match is case-sensitive; use strings.EqualFold if you prefer case-insensitive lookup.
-func FindProfileByName(ctx context.Context, logger *slog.Logger, path, name string) (*api.SessionProfileDoc, error) {
+func FindProfileByName(ctx context.Context, logger *slog.Logger, path, name string) (*api.TerminalProfileDoc, error) {
 	logger.DebugContext(ctx, "FindProfileByName: searching for profile", "name", name, "path", path)
 	profiles, err := LoadProfilesFromPath(ctx, logger, path)
 	if err != nil {

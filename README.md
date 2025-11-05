@@ -1,8 +1,8 @@
 # 🚂 sbsh - Persistent Terminal Sessions
 
-**Never lose your work when connections drop. Never restart long-running tasks. Never lose your place in a debugging session.**
+**Never lose your work when connections drop. Never restart long-running tasks. Never lose your place in a debugging terminal.**
 
-sbsh makes terminal sessions **persistent, discoverable, and resumable**. Your work survives network drops, computer restarts, and accidental disconnects.
+sbsh makes terminals **persistent, discoverable, and resumable**. Your work survives network drops, computer restarts, and accidental disconnects.
 
 **Demo 1 - Launch a terminal with default profile**
 [![asciicast](https://asciinema.org/a/chXZV5kG3OYR7gubis6B8nvKE.svg)](https://asciinema.org/a/chXZV5kG3OYR7gubis6B8nvKE)
@@ -16,7 +16,7 @@ sbsh makes terminal sessions **persistent, discoverable, and resumable**. Your w
 
 ## The Problem You Know
 
-❌ **Lost SSH session during debugging?** — All your work is gone
+❌ **Lost SSH terminal during debugging?** — All your work is gone
 
 ❌ **Terraform plan died on disconnect?** — Start over from scratch
 
@@ -24,29 +24,29 @@ sbsh makes terminal sessions **persistent, discoverable, and resumable**. Your w
 
 ❌ **Need to switch between projects?** — Lose state when you leave
 
-❌ **Collaborate on a terminal session?** — Not possible
+❌ **Collaborate on a terminal?** — Not possible
 
-❌ **Audit what happened in a session?** — No structured logs
+❌ **Audit what happened in a terminal?** — No structured logs
 
 ## The Solution
 
-✅ **Connection drops?** → `sb attach mysession` → Continue exactly where you left off
+✅ **Connection drops?** → `sb attach myterminal` → Continue exactly where you left off
 
 ✅ **Long-running task?** → Detach, come back hours later, it's still running
 
-✅ **Switch contexts?** → Sessions stay alive, switch anytime
+✅ **Switch contexts?** → Terminals stay alive, switch anytime
 
-✅ **Share sessions?** → Multiple people can attach to the same session
+✅ **Share terminals?** → Multiple people can attach to the same terminal
 
-✅ **Full history?** → Structured logs and metadata for every session
+✅ **Full history?** → Structured logs and metadata for every terminal
 
-**sbsh separates the terminal session (your work environment) from the supervisor (the controller)**, making terminals as durable and manageable as background services.
+**sbsh separates the terminal (your work environment) from the supervisor (the controller)**, making terminals as durable and manageable as background services.
 
 ## Who Is This For?
 
 **DevOps & Infrastructure Engineers**
 
-- Managing Kubernetes clusters with persistent kubectl sessions
+- Managing Kubernetes clusters with persistent kubectl terminals
 - Running Terraform plans/applies that survive disconnects
 - Debugging containers without losing context
 
@@ -58,31 +58,31 @@ sbsh makes terminal sessions **persistent, discoverable, and resumable**. Your w
 
 **System Administrators & SREs**
 
-- Server management sessions that persist
+- Server management terminals that persist
 - Incident response workflows that can't be interrupted
-- Auditable, logged terminal sessions for compliance
+- Auditable, logged terminals for compliance
 
 **Automation Engineers**
 
-- API-driven session management for CI/CD
-- Scripted operations across persistent sessions
+- API-driven terminal management for CI/CD
+- Scripted operations across persistent terminals
 - Tool integration and observability
 
 ## Key Benefits
 
 ### 🔄 Survive Any Disconnect
 
-Your terminal sessions continue running even when:
+Your terminals continue running even when:
 
-- SSH connection drops (remote sessions keep running after local disconnect)
-- Network temporarily disconnects (session resumes when you reconnect)
-- Supervisor process crashes (session is independent and keeps running)
+- SSH connection drops (remote terminals keep running after local disconnect)
+- Network temporarily disconnects (terminal resumes when you reconnect)
+- Supervisor process crashes (terminal is independent and keeps running)
 
-**Example:** Start a 2-hour Terraform plan on a remote server via SSH, your local connection drops, come back later: `sb attach terraform-session` and it's still running on the remote server.
+**Example:** Start a 2-hour Terraform plan on a remote server via SSH, your local connection drops, come back later: `sb attach terraform-terminal` and it's still running on the remote server.
 
-### 📋 Session Discovery & Management
+### 📋 Terminal Discovery & Management
 
-List, find, and reattach to any running session:
+List, find, and reattach to any running terminal:
 
 ```bash
 $ sb get terminals
@@ -108,21 +108,21 @@ Define once, use everywhere. Profiles configure:
 - `k8s-default` — Auto-configure kubectl context, show pods on attach
 - `terraform-prd` — Select workspace, run init, create plan
 - `docker-container` — Persistent container shells
-- `ssh-pk` — SSH sessions that survive disconnects
+- `ssh-pk` — SSH terminals that survive disconnects
 
 See [examples/profiles/README.md](examples/profiles/README.md) for full documentation.
 
 ### 👥 Multi-Attach Support
 
-Multiple supervisors can connect to the same session concurrently:
+Multiple supervisors can connect to the same terminal concurrently:
 
 - Pair programming
-- Team debugging sessions
-- Shared infrastructure sessions
+- Team debugging terminals
+- Shared infrastructure terminals
 
 ### 📊 Structured Logs & Metadata
 
-Every session exposes:
+Every terminal exposes:
 
 - Complete I/O capture
 - Structured metadata
@@ -133,35 +133,35 @@ Perfect for auditing, debugging, and automation.
 
 ### 🔌 Programmable API
 
-Control sessions programmatically for automation:
+Control terminals programmatically for automation:
 
-- Create and manage sessions via API
+- Create and manage terminals via API
 - Integrate with existing tooling
 - Build custom workflows
 - Automate operations
 
 ## How sbsh Differs from screen and tmux
 
-sbsh, `screen`, and `tmux` all provide persistent terminal sessions, but sbsh is designed for different needs:
+sbsh, `screen`, and `tmux` all provide persistent terminals, but sbsh is designed for different needs:
 
 ### Architecture
 
 | Feature                             | screen / tmux                        | sbsh                                    |
 | ----------------------------------- | ------------------------------------ | --------------------------------------- |
-| **Session Process**                 | Tied to the terminal multiplexer     | Independent, runs separately            |
-| **Supervisor**                      | The multiplexer IS the session       | Separate supervisor and session         |
-| **After Supervisor Dies**           | Session typically dies with it       | Session continues running               |
+| **Terminal Process**                | Tied to the terminal multiplexer     | Independent, runs separately            |
+| **Supervisor**                      | The multiplexer IS the terminal      | Separate supervisor and terminal        |
+| **After Supervisor Dies**           | Terminal typically dies with it      | Terminal continues running              |
 | **Reattach from Different Machine** | Requires shared socket files / setup | Built-in discovery, works from anywhere |
 
-### Session Discovery
+### Terminal Discovery
 
 **screen / tmux:**
 
 ```bash
 # Manual socket management
-screen -S mysession
+screen -S myterminal
 screen -list
-screen -r mysession
+screen -r myterminal
 
 # Or find socket files manually
 ls -la /tmp/screen-*/
@@ -172,7 +172,7 @@ ls -la /tmp/screen-*/
 ```bash
 # Built-in discovery by name or ID
 sb get terminals
-sb attach mysession
+sb attach myterminal
 sb attach abc123
 # Works from any machine, no socket management
 ```
@@ -183,7 +183,7 @@ sb attach abc123
 
 - Configuration via dotfiles (`.screenrc`, `.tmux.conf`)
 - Manual script setup for environments
-- Per-session setup requires manual commands
+- Per-terminal setup requires manual commands
 
 **sbsh:**
 
@@ -240,7 +240,7 @@ With tmux, you'd need custom scripts or manual setup each time.
 
 **sbsh:**
 
-- **Structured logs** for every session
+- **Structured logs** for every terminal
 - Complete I/O capture
 - Metadata (status, attachers, lifecycle events)
 - Built for auditing and debugging
@@ -251,17 +251,17 @@ With tmux, you'd need custom scripts or manual setup each time.
 
 - Simple terminal persistence
 - Window/panel management (tmux)
-- Quick session recovery
+- Quick terminal recovery
 - Traditional terminal multiplexing needs
 
 **sbsh is better for:**
 
 - Infrastructure work (k8s, terraform, containers)
-- Session discovery and management at scale
-- Team collaboration and shared sessions
+- Terminal discovery and management at scale
+- Team collaboration and shared terminals
 - Automation and CI/CD integration
 - Environments that need to survive supervisor restarts
-- Auditable, logged terminal sessions
+- Auditable, logged terminals
 
 ### When to Use Each
 
@@ -275,21 +275,21 @@ With tmux, you'd need custom scripts or manual setup each time.
 **Use sbsh if:**
 
 - You work with Kubernetes, Terraform, or infrastructure
-- You need session discovery across machines
+- You need terminal discovery across machines
 - You want reproducible environment profiles
 - You need API access for automation
 - You want structured logging and metadata
-- Multiple people need to share sessions
-- Sessions must survive supervisor crashes
+- Multiple people need to share terminals
+- Terminals must survive supervisor crashes
 
 ### Summary
 
 Think of it this way:
 
-- **screen/tmux**: Terminal multiplexers that happen to persist sessions
-- **sbsh**: A session supervisor that treats terminals as managed services
+- **screen/tmux**: Terminal multiplexers that happen to persist terminals
+- **sbsh**: A terminal supervisor that treats terminals as managed services
 
-sbsh is like having `systemd` for terminal sessions — structured, observable, discoverable, and designed for automation. screen and tmux are like having `nohup` with better UX — simple, effective, but less structured.
+sbsh is like having `systemd` for terminals — structured, observable, discoverable, and designed for automation. screen and tmux are like having `nohup` with better UX — simple, effective, but less structured.
 
 Both have their place. Choose sbsh when you need the structure, profiles, discovery, and API access. Choose screen/tmux for traditional multiplexing and simple persistence needs.
 
@@ -304,7 +304,7 @@ Use profiles for pre-commit hooks, local testing, and development workflows:
 ```yaml
 # ~/.sbsh/profiles.yaml
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: test-env
 spec:
@@ -328,7 +328,7 @@ sbsh -p test-env --name "pre-commit-$(date +%s)"
 
 ### GitHub Actions
 
-Create a profile once, use it in CI. Failed runs can be inspected via persistent sessions:
+Create a profile once, use it in CI. Failed runs can be inspected via persistent terminals:
 
 ```yaml
 # .github/workflows/test.yml
@@ -348,7 +348,7 @@ jobs:
           mkdir -p ~/.sbsh
           cat > ~/.sbsh/profiles.yaml <<EOF
           apiVersion: sbsh/v1beta1
-          kind: SessionProfile
+          kind: TerminalProfile
           metadata:
             name: ci-test
           spec:
@@ -363,17 +363,17 @@ jobs:
           EOF
       - name: Run tests
         run: sbsh -p ci-test --name "ci-${{ github.run_id }}"
-      - name: Upload session logs
+      - name: Upload terminal logs
         if: failure()
         uses: actions/upload-artifact@v3
         with:
-          name: session-logs
-          path: ~/.sbsh/run/sessions/ci-${{ github.run_id }}/*
+          name: terminal-logs
+          path: ~/.sbsh/run/terminals/ci-${{ github.run_id }}/*
 ```
 
 ### GitLab CI
 
-Same profile, different platform. Sessions persist for debugging failed runs:
+Same profile, different platform. Terminals persist for debugging failed runs:
 
 ```yaml
 # .gitlab-ci.yml
@@ -383,7 +383,7 @@ test:
       mkdir -p ~/.sbsh
       cat > ~/.sbsh/profiles.yaml <<EOF
       apiVersion: sbsh/v1beta1
-      kind: SessionProfile
+      kind: TerminalProfile
       metadata:
         name: gitlab-test
       spec:
@@ -400,14 +400,14 @@ test:
   artifacts:
     when: always
     paths:
-      - ~/.sbsh/run/sessions/gitlab-$CI_JOB_ID/*
+      - ~/.sbsh/run/terminals/gitlab-$CI_JOB_ID/*
     expire_in: 1 week
 ```
 
 **Key Benefits:**
 
 - **Reproducibility**: Same profile works locally and in CI
-- **Debugging**: Failed CI runs create persistent sessions for inspection
+- **Debugging**: Failed CI runs create persistent terminals for inspection
 - **Version Control**: Profiles are checked into your repo
 - **Structured Logs**: Complete I/O capture available as CI artifacts
 - **Team Consistency**: Everyone uses the same environment configuration
@@ -439,7 +439,7 @@ sbsh uses a single binary with hard links (busybox-style) to provide different b
 
 ### `sbsh` - Interactive Supervisor + Terminal
 
-When you run `sbsh` with no arguments, it launches a **supervisor attached to a terminal session**. This is designed for interactive use and can be set as your login shell in `/etc/passwd`:
+When you run `sbsh` with no arguments, it launches a **supervisor attached to a terminal**. This is designed for interactive use and can be set as your login shell in `/etc/passwd`:
 
 ```bash
 # Use as login shell
@@ -454,27 +454,27 @@ $ sbsh
 **How it works:**
 
 - Launches a supervisor that stays attached to the terminal
-- Internally uses `sbsh run` to create the terminal session
+- Internally uses `sbsh run` to create the terminal
 - Uses the default profile automatically (unless `-p` is specified)
-- You interact directly with the terminal session
+- You interact directly with the terminal
 - Press `Ctrl-]` twice to detach and return to your shell
 
-### `sbsh run` - Terminal Session Only
+### `sbsh run` - Terminal Only
 
-The `sbsh run` command launches **just a terminal session** (no attached supervisor):
+The `sbsh run` command launches **just a terminal** (no attached supervisor):
 
 ```bash
-$ sbsh run --name my-session
-# Terminal session runs in background
-# You can attach later with: sb attach my-session
+$ sbsh run --name my-terminal
+# Terminal runs in background
+# You can attach later with: sb attach my-terminal
 ```
 
 **How it works:**
 
-- Creates a terminal session that runs independently
+- Creates a terminal that runs independently
 - Supervisor runs in background (detached mode)
-- Terminal session continues even after you exit
-- Perfect for background tasks, automation, or when you want sessions to persist without an attached supervisor
+- Terminal continues even after you exit
+- Perfect for background tasks, automation, or when you want terminals to persist without an attached supervisor
 
 **Key difference:**
 
@@ -487,7 +487,7 @@ The `sb` command is a **pure client tool** that manages existing supervisors and
 
 ```bash
 $ sb get terminals          # List all terminals
-$ sb attach mysession       # Attach to a terminal
+$ sb attach myterminal       # Attach to a terminal
 $ sb detach                 # Detach from supervisor
 $ sb get profiles           # List available profiles
 ```
@@ -495,21 +495,21 @@ $ sb get profiles           # List available profiles
 **How it works:**
 
 - Only connects to existing supervisors/terminals via Unix sockets
-- Never launches new sessions (that's `sbsh`'s job)
+- Never launches new terminals (that's `sbsh`'s job)
 - Pure client-side management tool
 - Works from any machine that can access the socket files
 
 ### Architecture Summary
 
 - **`sbsh`**: Server-side launcher (supervisor + terminal, uses `sbsh run` internally)
-- **`sbsh run`**: Terminal-only launcher (can be called directly for detached sessions)
-- **`sb`**: Client-side manager (socket-based, never launches sessions)
+- **`sbsh run`**: Terminal-only launcher (can be called directly for detached terminals)
+- **`sb`**: Client-side manager (socket-based, never launches terminals)
 
 All three are the same binary accessed via hard links (`ln sbsh sb`), with behavior determined at runtime by the executable name.
 
 ## Usage Examples
 
-### Start a Session
+### Start a Terminal
 
 ```bash
 $ sbsh
@@ -517,17 +517,17 @@ To detach, press ^] twice
 [sbsh-35af93de] user@host:~/projects$
 ```
 
-### Detach (Session Keeps Running)
+### Detach (Terminal Keeps Running)
 
 Press `Ctrl-]` twice or run `sb detach`:
 
 ```bash
 [sbsh-35af93de] user@host:~/projects$ # Press Ctrl-] twice
 Detached
-$  # Back to your shell, but session is still running
+$  # Back to your shell, but terminal is still running
 ```
 
-### List Active Sessions
+### List Active Terminals
 
 ```bash
 $ sb get terminals
@@ -535,7 +535,7 @@ ID        NAME           PROFILE  CMD                           STATUS
 bbb4b457  quick_samwise  default  /bin/bash --norc --noprofile  Ready
 ```
 
-### Reattach to a Session
+### Reattach to a Terminal
 
 ```bash
 $ sb attach quick_samwise
@@ -569,27 +569,27 @@ See [examples/profiles/README.md](examples/profiles/README.md) to learn how to c
 
 ## Features
 
-- **Persistent terminal sessions** — Survive disconnects and supervisor restarts
-- **Session discovery** — Find and reattach to any running session by ID or name
+- **Persistent terminals** — Survive disconnects and supervisor restarts
+- **Terminal discovery** — Find and reattach to any running terminal by ID or name
 - **Profiles** — Reproducible environments with commands, env vars, and lifecycle hooks
-- **Multi-attach** — Multiple supervisors can connect to the same session
-- **Structured logs** — Complete I/O capture and metadata for every session
-- **Programmable API** — Control sessions via API for automation and integration
-- **Clean architecture** — Separates session (environment) from supervisor (controller)
+- **Multi-attach** — Multiple supervisors can connect to the same terminal
+- **Structured logs** — Complete I/O capture and metadata for every terminal
+- **Programmable API** — Control terminals via API for automation and integration
+- **Clean architecture** — Separates terminal (environment) from supervisor (controller)
 
 ## How It Works
 
-sbsh creates **independent terminal sessions** that run separately from the supervisor process. When you detach:
+sbsh creates **independent terminals** that run separately from the supervisor process. When you detach:
 
-1. Your session keeps running in the background
+1. Your terminal keeps running in the background
 2. All I/O is captured and logged
-3. Session metadata is stored for discovery
+3. Terminal metadata is stored for discovery
 4. You can reattach anytime, from anywhere
-5. Multiple people can attach to the same session
+5. Multiple people can attach to the same terminal
 
 Think of it like `screen` or `tmux`, but with:
 
-- Built-in session discovery
+- Built-in terminal discovery
 - Structured profiles
 - API access
 - Better separation of concerns
@@ -598,9 +598,9 @@ Think of it like `screen` or `tmux`, but with:
 
 Terminals are still treated as ephemeral. Once a shell closes or a connection drops, the environment dies with it.
 
-sbsh changes that by giving terminals persistence and structure. Each sbsh session is an independent environment that continues running even if the supervisor exits or restarts. Sessions can be discovered later, reattached, observed, or controlled by new supervisors or API clients.
+sbsh changes that by giving terminals persistence and structure. Each sbsh terminal is an independent environment that continues running even if the supervisor exits or restarts. Terminals can be discovered later, reattached, observed, or controlled by new supervisors or API clients.
 
-**sbsh supervises the terminal itself** — the space where people and programs interact — making terminal sessions durable, observable, and programmable.
+**sbsh supervises the terminal itself** — the space where people and programs interact — making terminals durable, observable, and programmable.
 
 ## Philosophy
 
@@ -616,7 +616,7 @@ Work in progress, planned features, and the project roadmap can be found in the 
 
 ## Contribute
 
-sbsh is an open project that welcomes thoughtful contributions. The goal is to build a simple, reliable foundation for persistent terminal sessions, not a large framework. Discussions, code reviews, and design proposals are encouraged, especially around clarity, portability, and correctness.
+sbsh is an open project that welcomes thoughtful contributions. The goal is to build a simple, reliable foundation for persistent terminals, not a large framework. Discussions, code reviews, and design proposals are encouraged, especially around clarity, portability, and correctness.
 
 ## License
 

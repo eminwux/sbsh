@@ -36,7 +36,7 @@ Bash:
 
   $ source <(sb autocomplete bash)
 
-  # To load completions for each session, execute once:
+  # To load completions, execute once:
   # Linux:
   $ sb autocomplete bash > /etc/bash_completion.d/sb
   # macOS:
@@ -57,7 +57,7 @@ Fish:
 
   $ sb autocomplete fish | source
 
-  # To load completions for each session, execute once:
+  # To load completions, execute once:
   $ sb autocomplete fish > ~/.config/fish/completions/sb.fish
 `,
 		DisableFlagsInUseLine: true,

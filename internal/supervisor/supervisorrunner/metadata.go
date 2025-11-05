@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/shared"
 	"github.com/eminwux/sbsh/pkg/api"
 )
@@ -30,7 +31,7 @@ func (sr *Exec) CreateMetadata() error {
 	sr.logger.Debug("creating metadata", "runPath", sr.getSupervisorDir())
 	if err := os.MkdirAll(sr.getSupervisorDir(), 0o700); err != nil {
 		sr.logger.Error("failed to create supervisor dir", "dir", sr.getSupervisorDir(), "error", err)
-		return fmt.Errorf("mkdir session dir: %w", err)
+		return fmt.Errorf("mkdir terminal dir: %w", err)
 	}
 
 	sr.metadata.Status.State = api.SupervisorInitializing
@@ -53,23 +54,23 @@ func (sr *Exec) CreateMetadata() error {
 }
 
 func (sr *Exec) getSupervisorDir() string {
-	return filepath.Join(sr.metadata.Spec.RunPath, "supervisors", string(sr.id))
+	return filepath.Join(sr.metadata.Spec.RunPath, defaults.SupervisorsRunPath, string(sr.id))
 }
 
 func (sr *Exec) updateMetadata() error {
 	return shared.WriteMetadata(sr.ctx, sr.metadata, sr.getSupervisorDir())
 }
 
-func (sr *Exec) getSessionMetadata() (*api.SessionMetadata, error) {
-	if sr.sessionClient == nil {
-		return nil, errors.New("getSessionMetadata: session client is nil")
+func (sr *Exec) getTerminalMetadata() (*api.TerminalMetadata, error) {
+	if sr.terminalClient == nil {
+		return nil, errors.New("getTerminalMetadata: terminal client is nil")
 	}
 
-	var metadata api.SessionMetadata
-	if err := sr.sessionClient.Metadata(sr.ctx, &metadata); err != nil {
-		sr.logger.ErrorContext(sr.ctx, "getSessionMetadata: failed to get metadata", "error", err)
+	var metadata api.TerminalMetadata
+	if err := sr.terminalClient.Metadata(sr.ctx, &metadata); err != nil {
+		sr.logger.ErrorContext(sr.ctx, "getTerminalMetadata: failed to get metadata", "error", err)
 		return nil, fmt.Errorf("get metadata RPC failed: %w", err)
 	}
-	sr.logger.InfoContext(sr.ctx, "getSessionMetadata: metadata retrieved", "metadata", metadata)
+	sr.logger.InfoContext(sr.ctx, "getTerminalMetadata: metadata retrieved", "metadata", metadata)
 	return &metadata, nil
 }

@@ -20,7 +20,7 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-func GetTerminalLabelsString(s api.SessionMetadata) map[string]string {
+func GetTerminalLabelsString(s api.TerminalMetadata) map[string]string {
 	if len(s.Spec.Labels) != 0 {
 		return s.Spec.Labels
 	}

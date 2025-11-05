@@ -35,99 +35,99 @@ const (
 	deleteSupervisorDir bool = false
 )
 
-func (sr *Exec) StartSessionCmd(session *api.SupervisedSession) error {
+func (sr *Exec) StartTerminalCmd(terminal *api.SupervisedTerminal) error {
 	sr.logger.Debug(
-		"StartSessionCmd: preparing to start session",
-		"session_id",
-		session.Spec.ID,
+		"StartTerminalCmd: preparing to start terminal",
+		"terminal_id",
+		terminal.Spec.ID,
 		"command",
-		session.Command,
+		terminal.Command,
 		"commandArgs",
-		session.CommandArgs,
+		terminal.CommandArgs,
 	)
 	// devNull, _ := os.OpenFile("/dev/null", os.O_RDWR, 0)
 
-	if session.Command == "" || session.CommandArgs == nil {
+	if terminal.Command == "" || terminal.CommandArgs == nil {
 		sr.logger.Error(
-			"StartSessionCmd: command or command args are nil",
-			"session_id",
-			session.Spec.ID,
+			"StartTerminalCmd: command or command args are nil",
+			"terminal_id",
+			terminal.Spec.ID,
 			"command",
-			session.Command,
+			terminal.Command,
 			"command_args",
-			session.CommandArgs,
+			terminal.CommandArgs,
 		)
-		return fmt.Errorf("%w: command or command args are nil", errdefs.ErrSessionCmdStart)
+		return fmt.Errorf("%w: command or command args are nil", errdefs.ErrTerminalCmdStart)
 	}
 	//nolint:gosec,noctx // User has to specify the command and its args; we explicitly don't want to use context here to avoid killing the process on parent exit
-	cmd := exec.Command(session.Command, session.CommandArgs...)
+	cmd := exec.Command(terminal.Command, terminal.CommandArgs...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // detach from your pg/ctty
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	b, err := json.Marshal(session.Spec)
+	b, err := json.Marshal(terminal.Spec)
 	if err != nil {
-		sr.logger.Debug("failed to marshal session spec to JSON", "error", err)
+		sr.logger.Debug("failed to marshal terminal spec to JSON", "error", err)
 	} else {
-		sr.logger.Debug("session spec JSON", "session_spec", string(b))
+		sr.logger.Debug("terminal spec JSON", "terminal_spec", string(b))
 	}
 
 	cmd.Stdin = bytes.NewReader(b)
 
 	// Inherit Environment Variables - Temporal solution for 'sbsh run' to be able to inherit env vars
-	if session.Spec.EnvInherit {
+	if terminal.Spec.EnvInherit {
 		cmd.Env = os.Environ()
-		sr.logger.Debug("StartSessionCmd: inheriting environment variables", "session_id", session.Spec.ID)
+		sr.logger.Debug("StartTerminalCmd: inheriting environment variables", "terminal_id", terminal.Spec.ID)
 	} else {
 		// sbsh run needs at least HOME in env
 		home := os.Getenv("HOME")
 		if home != "" {
 			cmd.Env = []string{"HOME=" + home}
-			sr.logger.Debug("StartSessionCmd: not inheriting environment variables, only HOME is set", "session_id", session.Spec.ID, "HOME", home)
+			sr.logger.Debug("StartTerminalCmd: not inheriting environment variables, only HOME is set", "terminal_id", terminal.Spec.ID, "HOME", home)
 		} else {
-			sr.logger.Error("StartSessionCmd: not inheriting environment variables, HOME is not set", "session_id", session.Spec.ID)
-			return errors.New("HOME environment variable is not set in parent environment; cannot start session without HOME")
+			sr.logger.Error("StartTerminalCmd: not inheriting environment variables, HOME is not set", "terminal_id", terminal.Spec.ID)
+			return errors.New("HOME environment variable is not set in parent environment; cannot start terminal without HOME")
 		}
 	}
 
 	if errS := cmd.Start(); errS != nil {
-		sr.logger.Error("StartSessionCmd: failed to start command", "session_id", session.Spec.ID, "error", errS)
-		return fmt.Errorf("%w :%w", errdefs.ErrSessionCmdStart, errS)
+		sr.logger.Error("StartTerminalCmd: failed to start command", "terminal_id", terminal.Spec.ID, "error", errS)
+		return fmt.Errorf("%w :%w", errdefs.ErrTerminalCmdStart, errS)
 	}
 
 	// you can return cmd.Process.Pid to record in meta.json
-	// session.Pid = cmd.Process.Pid
-	sr.logger.Info("StartSessionCmd: process started", "session_id", session.Spec.ID, "pid", cmd.Process.Pid)
+	// terminal.Pid = cmd.Process.Pid
+	sr.logger.Info("StartTerminalCmd: process started", "terminal_id", terminal.Spec.ID, "pid", cmd.Process.Pid)
 
 	// IMPORTANT: reap it in the background so it never zombifies
 	go func() {
 		errWait := cmd.Wait()
 		if errWait != nil {
 			sr.logger.Warn(
-				"StartSessionCmd: process exited with error",
-				"session_id",
-				session.Spec.ID,
+				"StartTerminalCmd: process exited with error",
+				"terminal_id",
+				terminal.Spec.ID,
 				"error",
 				errWait,
 			)
 		} else {
-			sr.logger.Info("StartSessionCmd: process exited", "session_id", session.Spec.ID)
+			sr.logger.Info("StartTerminalCmd: process exited", "terminal_id", terminal.Spec.ID)
 		}
-		eventErr := fmt.Errorf("session %s process has exited", session.Spec.ID)
+		eventErr := fmt.Errorf("terminal %s process has exited", terminal.Spec.ID)
 		trySendEvent(
 			sr.logger,
 			sr.events,
-			Event{ID: session.Spec.ID, Type: EvCmdExited, Err: eventErr, When: time.Now()},
+			Event{ID: terminal.Spec.ID, Type: EvCmdExited, Err: eventErr, When: time.Now()},
 		)
 	}()
 
 	return nil
 }
 
-func (sr *Exec) Attach(session *api.SupervisedSession) error {
-	sr.session = session
+func (sr *Exec) Attach(terminal *api.SupervisedTerminal) error {
+	sr.terminal = terminal
 
-	if err := sr.dialSessionCtrlSocket(); err != nil {
+	if err := sr.dialTerminalCtrlSocket(); err != nil {
 		return err
 	}
 
@@ -200,7 +200,7 @@ func (sr *Exec) Resize(_ api.ResizeArgs) {
 }
 
 func (sr *Exec) Detach() error {
-	if err := sr.sessionClient.Detach(sr.ctx, &sr.id); err != nil {
+	if err := sr.terminalClient.Detach(sr.ctx, &sr.id); err != nil {
 		return err
 	}
 

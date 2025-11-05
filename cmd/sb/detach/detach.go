@@ -42,7 +42,6 @@ const (
 )
 
 func NewDetachCmd() *cobra.Command {
-	// sessionsCmd represents the sessions command
 	detachCmd := &cobra.Command{
 		Use:     "detach",
 		Aliases: []string{"d"},
@@ -105,9 +104,9 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 }
 
 func setupDetachCmd(detachCmd *cobra.Command) {
-	detachCmd.Flags().String("id", "", "Session ID, cannot be set together with --name")
+	detachCmd.Flags().String("id", "", "Terminal ID, cannot be set together with --name")
 	_ = viper.BindPFlag(detachIDInput, detachCmd.Flags().Lookup("id"))
-	detachCmd.Flags().StringP("name", "n", "", "Optional session name, cannot be set together with --id")
+	detachCmd.Flags().StringP("name", "n", "", "Optional terminal name, cannot be set together with --id")
 	_ = viper.BindPFlag(detachNameInput, detachCmd.Flags().Lookup("name"))
 	detachCmd.Flags().String("socket", "", "Supervisor Socket Path")
 	_ = viper.BindPFlag(detachSocketInput, detachCmd.Flags().Lookup("socket"))
@@ -170,7 +169,7 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 		logger.DebugContext(ctx, "detach failed", "error", err)
 		fmt.Fprintf(os.Stderr, "Could not detach: %v\n", err)
 		cancel()
-		return fmt.Errorf("%w: %w", errdefs.ErrDetachSession, err)
+		return fmt.Errorf("%w: %w", errdefs.ErrDetachTerminal, err)
 	}
 
 	logger.DebugContext(ctx, "detach successful")

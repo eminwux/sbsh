@@ -17,11 +17,11 @@
 package types
 
 const (
-	CtxLogger      = CtxLoggerType("logger")
-	CtxLevelVar    = CtxLoggerType("logLevel")
-	CtxHandler     = CtxLoggerType("textHandler")
-	CtxCloser      = CtxLoggerType("closer")
-	CtxSessionSpec = CtxLoggerType("sessionSpec")
+	CtxLogger       = CtxLoggerType("logger")
+	CtxLevelVar     = CtxLoggerType("logLevel")
+	CtxHandler      = CtxLoggerType("textHandler")
+	CtxCloser       = CtxLoggerType("closer")
+	CtxTerminalSpec = CtxLoggerType("terminalSpec")
 )
 
 type CtxLoggerType string

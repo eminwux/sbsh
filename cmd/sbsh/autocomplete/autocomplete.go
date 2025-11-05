@@ -28,13 +28,13 @@ func NewAutoCompleteCmd(root *cobra.Command) *cobra.Command {
 		Short: "Generate shell autocompletion scripts",
 		Long: `Generate shell autocompletion scripts for sbsh.
 
-To load completions in your current shell session:
+To load completions in your current shell:
 
 Bash:
 
   $ source <(sbsh autocomplete bash)
 
-  # To load completions for each session, execute once:
+  # To load completions, execute once:
   # Linux:
   $ sbsh autocomplete bash > /etc/bash_completion.d/sbsh
   # macOS:
@@ -55,7 +55,7 @@ Fish:
 
   $ sbsh autocomplete fish | source
 
-  # To load completions for each session, execute once:
+  # To load completions, execute once:
   $ sbsh autocomplete fish > ~/.config/fish/completions/sbsh.fish
 `,
 		DisableFlagsInUseLine: true,
