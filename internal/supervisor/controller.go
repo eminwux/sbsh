@@ -301,7 +301,7 @@ func (s *Controller) createRunNewTerminal(spec *api.SupervisorSpec) (*api.Superv
 	}
 
 	args := []string{
-		"run", "-",
+		"terminal", "-",
 	}
 
 	terminal := terminalstore.NewSupervisedTerminal(spec.TerminalSpec)
