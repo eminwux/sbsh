@@ -52,7 +52,7 @@ func main() {
 		}
 		os.Exit(execRoot(cmd)) // <- sbsh IS the root; no wrapper
 
-	case "sbsh":
+	case "sbsh", "-sbsh":
 		cmd, err := sbsh.NewSbshRootCmd()
 		cmd.SetContext(ctx)
 		if err != nil {
@@ -82,7 +82,7 @@ func main() {
 				os.Exit(1)
 			}
 			os.Exit(execRoot(cmd))
-		case "sbsh":
+		case "sbsh", "-sbsh":
 			cmd, err := sbsh.NewSbshRootCmd()
 			cmd.SetContext(ctx)
 			if err != nil {
