@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 // Copyright 2025 Emiliano Spinella (eminwux)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,11 +31,12 @@ import (
 
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/types"
+	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // Helper Functions
@@ -90,25 +88,25 @@ func createTestProfileFile(t *testing.T, dir string, profilesYAML string) string
 	return profilesFile
 }
 
-func createTestTerminalMetadata(t *testing.T, runPath string, id string, name string, state api.SessionStatusMode) {
-	// Create directory: runPath/sessions/{id}/
-	sessDir := filepath.Join(runPath, "sessions", id)
-	if err := os.MkdirAll(sessDir, 0o755); err != nil {
-		t.Fatalf("failed to create session dir: %v", err)
+func createTestTerminalMetadata(t *testing.T, runPath string, id string, name string, state api.TerminalStatusMode) {
+	// Create directory: runPath/terminals/{id}/
+	terminalsDir := filepath.Join(runPath, defaults.TerminalsRunPath, id)
+	if err := os.MkdirAll(terminalsDir, 0o755); err != nil {
+		t.Fatalf("failed to create terminal dir: %v", err)
 	}
 
-	// Create metadata.json with SessionMetadata structure
-	metadata := api.SessionMetadata{
-		Spec: api.SessionSpec{
+	// Create metadata.json with TerminalMetadata structure
+	metadata := api.TerminalMetadata{
+		Spec: api.TerminalSpec{
 			ID:          api.ID(id),
-			Kind:        api.SessionLocal,
+			Kind:        api.TerminalLocal,
 			Name:        name,
 			Command:     "/bin/bash",
 			CommandArgs: []string{"-i"},
 			EnvInherit:  true,
 			RunPath:     runPath,
 		},
-		Status: api.SessionStatus{
+		Status: api.TerminalStatus{
 			Pid:   12345,
 			Tty:   "/dev/pts/0",
 			State: state,
@@ -119,9 +117,9 @@ func createTestTerminalMetadata(t *testing.T, runPath string, id string, name st
 	if err != nil {
 		t.Fatalf("failed to marshal metadata: %v", err)
 	}
-	metaPath := filepath.Join(sessDir, "metadata.json")
-	if err := os.WriteFile(metaPath, data, 0o644); err != nil {
-		t.Fatalf("failed to write metadata: %v", err)
+	metaPath := filepath.Join(terminalsDir, "metadata.json")
+	if errWrite := os.WriteFile(metaPath, data, 0o644); errWrite != nil {
+		t.Fatalf("failed to write metadata: %v", errWrite)
 	}
 }
 
@@ -133,7 +131,7 @@ func createTestSupervisorMetadata(
 	state api.SupervisorStatusMode,
 ) {
 	// Create directory: runPath/supervisors/{id}/
-	supDir := filepath.Join(runPath, "supervisors", id)
+	supDir := filepath.Join(runPath, defaults.SupervisorsRunPath, id)
 	if err := os.MkdirAll(supDir, 0o755); err != nil {
 		t.Fatalf("failed to create supervisor dir: %v", err)
 	}
@@ -142,7 +140,7 @@ func createTestSupervisorMetadata(
 	metadata := api.SupervisorMetadata{
 		Spec: api.SupervisorSpec{
 			ID:   api.ID(id),
-			Kind: api.RunNewSession,
+			Kind: api.RunNewTerminal,
 			Name: name,
 		},
 		Status: api.SupervisorStatus{
@@ -156,8 +154,8 @@ func createTestSupervisorMetadata(
 		t.Fatalf("failed to marshal metadata: %v", err)
 	}
 	metaPath := filepath.Join(supDir, "metadata.json")
-	if err := os.WriteFile(metaPath, data, 0o644); err != nil {
-		t.Fatalf("failed to write metadata: %v", err)
+	if errWrite := os.WriteFile(metaPath, data, 0o644); errWrite != nil {
+		t.Fatalf("failed to write metadata: %v", errWrite)
 	}
 }
 
@@ -170,7 +168,7 @@ func Test_FetchProfileNames_Integration(t *testing.T) {
 	t.Run("success with multiple profiles", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		profilesYAML := `apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: default
 spec:
@@ -178,7 +176,7 @@ spec:
     cmd: /bin/bash
 ---
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: k8s-default
 spec:
@@ -186,7 +184,7 @@ spec:
     cmd: /bin/bash
 ---
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: terraform-prd
 spec:
@@ -220,7 +218,7 @@ spec:
 	t.Run("success with prefix filtering", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		profilesYAML := `apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: default
 spec:
@@ -228,7 +226,7 @@ spec:
     cmd: /bin/bash
 ---
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: k8s-default
 spec:
@@ -236,7 +234,7 @@ spec:
     cmd: /bin/bash
 ---
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: terraform-prd
 spec:
@@ -260,7 +258,7 @@ spec:
 	t.Run("success with empty prefix", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		profilesYAML := `apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: default
 spec:
@@ -268,7 +266,7 @@ spec:
     cmd: /bin/bash
 ---
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: k8s-default
 spec:
@@ -276,7 +274,7 @@ spec:
     cmd: /bin/bash
 ---
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: terraform-prd
 spec:
@@ -341,7 +339,7 @@ func Test_ListProfiles_Integration(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 		tmpDir := t.TempDir()
 		profilesYAML := `apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: default
 spec:
@@ -349,7 +347,7 @@ spec:
     cmd: /bin/bash
 ---
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: k8s-default
 spec:
@@ -422,7 +420,7 @@ func Test_GetProfile_Integration(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 		tmpDir := t.TempDir()
 		profilesYAML := `apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: default
 spec:
@@ -454,7 +452,7 @@ spec:
 		cmd, _ := setupTestCmd(t, logger)
 		tmpDir := t.TempDir()
 		profilesYAML := `apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: default
 spec:
@@ -477,9 +475,9 @@ spec:
 			t.Fatalf("failed to capture stdout: %v", err)
 		}
 
-		var result api.SessionProfileDoc
-		if err := json.Unmarshal([]byte(output), &result); err != nil {
-			t.Fatalf("output is not valid JSON: %v, output: %s", err, output)
+		var result api.TerminalProfileDoc
+		if errUnmarshal := json.Unmarshal([]byte(output), &result); errUnmarshal != nil {
+			t.Fatalf("output is not valid JSON: %v, output: %s", errUnmarshal, output)
 		}
 		if result.Metadata.Name != "default" {
 			t.Errorf("expected name 'default', got %q", result.Metadata.Name)
@@ -490,7 +488,7 @@ spec:
 		cmd, _ := setupTestCmd(t, logger)
 		tmpDir := t.TempDir()
 		profilesYAML := `apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: default
 spec:
@@ -513,9 +511,9 @@ spec:
 			t.Fatalf("failed to capture stdout: %v", err)
 		}
 
-		var result api.SessionProfileDoc
-		if err := yaml.Unmarshal([]byte(output), &result); err != nil {
-			t.Fatalf("output is not valid YAML: %v, output: %s", err, output)
+		var result api.TerminalProfileDoc
+		if errUnmarshal := yaml.Unmarshal([]byte(output), &result); errUnmarshal != nil {
+			t.Fatalf("output is not valid YAML: %v, output: %s", errUnmarshal, output)
 		}
 		if result.Metadata.Name != "default" {
 			t.Errorf("expected name 'default', got %q", result.Metadata.Name)
@@ -526,7 +524,7 @@ spec:
 		cmd, _ := setupTestCmd(t, logger)
 		tmpDir := t.TempDir()
 		profilesYAML := `apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: default
 spec:
@@ -677,11 +675,11 @@ func Test_ResolveTerminalNameToID_Integration(t *testing.T) {
 
 	t.Run("error: invalid metadata file", func(t *testing.T) {
 		runPath := t.TempDir()
-		sessDir := filepath.Join(runPath, "sessions", "term123")
-		if err := os.MkdirAll(sessDir, 0o755); err != nil {
-			t.Fatalf("failed to create session dir: %v", err)
+		terminalsDir := filepath.Join(runPath, defaults.TerminalsRunPath, "term123")
+		if err := os.MkdirAll(terminalsDir, 0o755); err != nil {
+			t.Fatalf("failed to create terminal dir: %v", err)
 		}
-		metaPath := filepath.Join(sessDir, "metadata.json")
+		metaPath := filepath.Join(terminalsDir, "metadata.json")
 		if err := os.WriteFile(metaPath, []byte("{invalid json}"), 0o644); err != nil {
 			t.Fatalf("failed to write invalid metadata: %v", err)
 		}
@@ -824,9 +822,9 @@ func Test_GetTerminal_Integration(t *testing.T) {
 			t.Fatalf("failed to capture stdout: %v", err)
 		}
 
-		var result api.SessionMetadata
-		if err := json.Unmarshal([]byte(output), &result); err != nil {
-			t.Fatalf("output is not valid JSON: %v, output: %s", err, output)
+		var result api.TerminalMetadata
+		if errUnmarshal := json.Unmarshal([]byte(output), &result); errUnmarshal != nil {
+			t.Fatalf("output is not valid JSON: %v, output: %s", errUnmarshal, output)
 		}
 		if result.Spec.Name != "twilight_anarion" {
 			t.Errorf("expected name 'twilight_anarion', got %q", result.Spec.Name)
@@ -853,9 +851,9 @@ func Test_GetTerminal_Integration(t *testing.T) {
 			t.Fatalf("failed to capture stdout: %v", err)
 		}
 
-		var result api.SessionMetadata
-		if err := yaml.Unmarshal([]byte(output), &result); err != nil {
-			t.Fatalf("output is not valid YAML: %v, output: %s", err, output)
+		var result api.TerminalMetadata
+		if errUnmarshal := yaml.Unmarshal([]byte(output), &result); errUnmarshal != nil {
+			t.Fatalf("output is not valid YAML: %v, output: %s", errUnmarshal, output)
 		}
 		if result.Spec.Name != "twilight_anarion" {
 			t.Errorf("expected name 'twilight_anarion', got %q", result.Spec.Name)
@@ -1126,8 +1124,8 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 		}
 
 		var result api.SupervisorMetadata
-		if err := json.Unmarshal([]byte(output), &result); err != nil {
-			t.Fatalf("output is not valid JSON: %v, output: %s", err, output)
+		if errUnmarshal := json.Unmarshal([]byte(output), &result); errUnmarshal != nil {
+			t.Fatalf("output is not valid JSON: %v, output: %s", errUnmarshal, output)
 		}
 		if result.Spec.Name != "super_one" {
 			t.Errorf("expected name 'super_one', got %q", result.Spec.Name)
@@ -1155,8 +1153,8 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 		}
 
 		var result api.SupervisorMetadata
-		if err := yaml.Unmarshal([]byte(output), &result); err != nil {
-			t.Fatalf("output is not valid YAML: %v, output: %s", err, output)
+		if errUnmarshal := yaml.Unmarshal([]byte(output), &result); errUnmarshal != nil {
+			t.Fatalf("output is not valid YAML: %v, output: %s", errUnmarshal, output)
 		}
 		if result.Spec.Name != "super_one" {
 			t.Errorf("expected name 'super_one', got %q", result.Spec.Name)

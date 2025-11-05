@@ -30,7 +30,7 @@ import (
 	"github.com/eminwux/sbsh/internal/dualcopier"
 	"github.com/eminwux/sbsh/internal/filter"
 	"github.com/eminwux/sbsh/pkg/api"
-	"github.com/eminwux/sbsh/pkg/rpcclient/session"
+	"github.com/eminwux/sbsh/pkg/rpcclient/terminal"
 )
 
 const (
@@ -38,25 +38,25 @@ const (
 	resizeTimeout = 100
 )
 
-func (sr *Exec) dialSessionCtrlSocket() error {
-	sr.logger.DebugContext(sr.ctx, "dialSessionCtrlSocket: connecting to session",
-		"session_id", sr.session.Spec.ID,
-		"socket_file", sr.session.Spec.SocketFile)
+func (sr *Exec) dialTerminalCtrlSocket() error {
+	sr.logger.DebugContext(sr.ctx, "dialTerminalCtrlSocket: connecting to terminal",
+		"terminal_id", sr.terminal.Spec.ID,
+		"socket_file", sr.terminal.Spec.SocketFile)
 
-	sr.sessionClient = session.NewUnix(sr.session.Spec.SocketFile, sr.logger)
-	defer sr.sessionClient.Close()
+	sr.terminalClient = terminal.NewUnix(sr.terminal.Spec.SocketFile, sr.logger)
+	defer sr.terminalClient.Close()
 
 	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)
 	defer cancel()
 
 	ping := api.PingMessage{Message: "PING"}
 	var pong api.PingMessage
-	if err := sr.sessionClient.Ping(ctx, &ping, &pong); err != nil {
-		sr.logger.ErrorContext(sr.ctx, "dialSessionCtrlSocket: ping failed", "error", err)
+	if err := sr.terminalClient.Ping(ctx, &ping, &pong); err != nil {
+		sr.logger.ErrorContext(sr.ctx, "dialTerminalCtrlSocket: ping failed", "error", err)
 		return fmt.Errorf("ping failed: %w", err)
 	}
 
-	sr.logger.InfoContext(sr.ctx, "dialSessionCtrlSocket: session ping successful", "response", pong.Message)
+	sr.logger.InfoContext(sr.ctx, "dialTerminalCtrlSocket: terminal ping successful", "response", pong.Message)
 	return nil
 }
 
@@ -76,9 +76,9 @@ func (sr *Exec) startConnectionManager() error {
 	dc := dualcopier.NewCopier(sr.ctx, sr.logger)
 
 	escapeFilter := filter.NewSupervisorEscapeFilter(0, true, func() {
-		sr.logger.InfoContext(sr.ctx, "Escape sequence detected; detaching session")
+		sr.logger.InfoContext(sr.ctx, "Escape sequence detected; detaching terminal")
 		trySendEvent(sr.logger, sr.events, Event{
-			ID:   sr.session.Spec.ID,
+			ID:   sr.terminal.Spec.ID,
 			Type: EvDetach,
 			When: time.Now(),
 		})
@@ -113,14 +113,14 @@ func (sr *Exec) startConnectionManager() error {
 	// MANAGER
 	go dc.CopierManager(uc, func() {
 		trySendEvent(sr.logger, sr.events, Event{
-			ID:   sr.session.Spec.ID,
+			ID:   sr.terminal.Spec.ID,
 			Type: EvError,
 			Err:  errors.New("read/write routines exited"),
 			When: time.Now(),
 		})
 	})
 
-	// // Force an initial terminal resize event to ensure the session starts with correct dimensions
+	// // Force an initial terminal resize event to ensure the terminal starts with correct dimensions
 	// sr.logger.DebugContext(sr.ctx, "attachIOSocket: sending initial SIGWINCH to self")
 	// if err := syscall.Kill(syscall.Getpid(), syscall.SIGWINCH); err != nil {
 	// 	sr.logger.WarnContext(sr.ctx, "attachIOSocket: failed to send SIGWINCH", "error", err)
@@ -131,7 +131,7 @@ func (sr *Exec) startConnectionManager() error {
 
 func (sr *Exec) attach() error {
 	var response struct{}
-	conn, err := sr.sessionClient.Attach(sr.ctx, &sr.id, &response)
+	conn, err := sr.terminalClient.Attach(sr.ctx, &sr.id, &response)
 	if err != nil {
 		sr.logger.ErrorContext(sr.ctx, "attach: failed to attach", "error", err)
 		return err
@@ -157,7 +157,7 @@ func (sr *Exec) forwardResize() error {
 		ctx, cancel := context.WithTimeout(sr.ctx, resizeTimeout)
 		defer cancel()
 
-		if err := sr.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: cols, Rows: rows}); err != nil {
+		if err := sr.terminalClient.Resize(ctx, &api.ResizeArgs{Cols: cols, Rows: rows}); err != nil {
 			sr.logger.ErrorContext(sr.ctx, "forwardResize: initial resize failed", "error", err)
 			return fmt.Errorf("status failed: %w", err)
 		}
@@ -185,7 +185,7 @@ func (sr *Exec) forwardResize() error {
 				}
 				ctx, cancel := context.WithTimeout(sr.ctx, resizeTimeout*time.Millisecond)
 				defer cancel()
-				if errResize := sr.sessionClient.Resize(ctx, &api.ResizeArgs{Cols: cols, Rows: rows}); errResize != nil {
+				if errResize := sr.terminalClient.Resize(ctx, &api.ResizeArgs{Cols: cols, Rows: rows}); errResize != nil {
 					sr.logger.ErrorContext(sr.ctx, "forwardResize: resize RPC failed", "error", errResize)
 				} else {
 					sr.logger.DebugContext(sr.ctx, "forwardResize: resize sent", "rows", rows, "cols", cols)
@@ -207,10 +207,10 @@ func (sr *Exec) waitReady() error {
 
 	sr.logger.InfoContext(
 		sr.ctx,
-		"waitReady: waiting for session to be ready",
-		"session_id",
-		sr.session.Spec.ID,
-		"session_name",
+		"waitReady: waiting for terminal to be ready",
+		"terminal_id",
+		sr.terminal.Spec.ID,
+		"terminal_name",
 		sr.metadata.Spec.Name,
 	)
 
@@ -224,28 +224,28 @@ func (sr *Exec) waitReady() error {
 			return fmt.Errorf("context done before ready: %w", ctx.Err())
 		case <-ticker.C:
 			// refresh metadata
-			metadata, err := sr.getSessionMetadata()
+			metadata, err := sr.getTerminalMetadata()
 			if err != nil {
-				sr.logger.ErrorContext(sr.ctx, "waitReady: getSessionMetadata failed during wait", "error", err)
-				return fmt.Errorf("get session metadata failed during wait: %w", err)
+				sr.logger.ErrorContext(sr.ctx, "waitReady: getTerminalMetadata failed during wait", "error", err)
+				return fmt.Errorf("get terminal metadata failed during wait: %w", err)
 			}
 			if metadata.Status.State == api.Ready {
 				sr.logger.InfoContext(
 					sr.ctx,
-					"waitReady: session is ready",
-					"session_id",
+					"waitReady: terminal is ready",
+					"terminal_id",
 					metadata.Spec.ID,
-					"session_name",
+					"terminal_name",
 					metadata.Spec.Name,
 				)
 				return nil
 			}
 			sr.logger.DebugContext(
 				sr.ctx,
-				"waitReady: session not ready yet",
-				"session_id",
-				sr.session.Spec.ID,
-				"session_name",
+				"waitReady: terminal not ready yet",
+				"terminal_id",
+				sr.terminal.Spec.ID,
+				"terminal_name",
 				sr.metadata.Spec.Name,
 			)
 		}

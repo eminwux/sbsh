@@ -30,7 +30,7 @@ import (
 )
 
 func NewPruneSupervisorsCmd() *cobra.Command {
-	// pruneSupervisorsCmd represents the sessions command.
+	// pruneSupervisorsCmd represents the supervisors command.
 	pruneSupervisorsCmd := &cobra.Command{
 		Use:     "supervisors",
 		Aliases: []string{"supervisors", "supers", "super", "s"},

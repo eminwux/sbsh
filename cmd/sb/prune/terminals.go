@@ -30,7 +30,7 @@ import (
 )
 
 func NewPruneTerminalsCmd() *cobra.Command {
-	// pruneTerminalsCmd represents the sessions command.
+	// pruneTerminalsCmd represents the terminals command.
 	pruneTerminalsCmd := &cobra.Command{
 		Use:     "terminals",
 		Aliases: []string{"terminals", "terms", "term", "t"},

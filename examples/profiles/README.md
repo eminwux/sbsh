@@ -1,6 +1,6 @@
-# Session Profiles for sbsh
+# Terminal Profiles for sbsh
 
-Profiles define how sbsh starts and manages terminal sessions. They let you customize the command, environment, working directory, and lifecycle hooks for your sessions.
+Profiles define how sbsh starts and manages terminal terminals. They let you customize the command, environment, working directory, and lifecycle hooks for your terminals.
 
 ## Quick Start
 
@@ -33,9 +33,9 @@ Here's the simplest profile you can create:
 
 ```yaml
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
-  name: my-session
+  name: my-terminal
 spec:
   runTarget: local
   restartPolicy: exit
@@ -46,10 +46,10 @@ spec:
 To use it, run:
 
 ```bash
-sbsh -p my-session
+sbsh -p my-terminal
 ```
 
-That's it! This will start a bash session with default settings.
+That's it! This will start a bash terminal with default settings.
 
 ## Profile Structure
 
@@ -57,7 +57,7 @@ Each profile is a YAML document (multiple profiles are separated by `---`). Here
 
 ```yaml
 apiVersion: sbsh/v1beta1 # Always use this version
-kind: SessionProfile # Always use this kind
+kind: TerminalProfile # Always use this kind
 metadata:
   name: profile-name # Your profile identifier
 spec:
@@ -82,35 +82,35 @@ spec:
 
 ### Required fields
 
-- **`metadata.name`**: A unique identifier for this profile. Use it with `sbsh -p <name>` to start a session.
+- **`metadata.name`**: A unique identifier for this profile. Use it with `sbsh -p <name>` to start a terminal.
 
 ### spec fields
 
 #### `runTarget`
 
-Where the session runs. Currently only `local` is supported.
+Where the terminal runs. Currently only `local` is supported.
 
 #### `restartPolicy`
 
-Controls what happens when the session exits:
+Controls what happens when the terminal exits:
 
-- **`exit`**: Don't restart — session terminates (default for most use cases)
+- **`exit`**: Don't restart — terminal terminates (default for most use cases)
 - **`restart-on-error`**: Only restart if the process exits with a non-zero code
-- **`restart-unlimited`**: Always restart the session when it exits
+- **`restart-unlimited`**: Always restart the terminal when it exits
 
 **When to use each:**
 
-- Use `exit` for SSH sessions, container shells, or when you want the session to stay dead after it exits
+- Use `exit` for SSH terminals, container shells, or when you want the terminal to stay dead after it exits
 - Use `restart-on-error` for persistent services or when you want automatic recovery from crashes
 - Use `restart-unlimited` for services that should always be running
 
 #### `shell` section
 
-Defines the command and environment for your session.
+Defines the command and environment for your terminal.
 
 **`cwd`** (optional)
 
-- Working directory where the session starts
+- Working directory where the terminal starts
 - Use `~` for home directory (expands to `$HOME`)
 - Use `$HOME/path` for paths relative to home
 - Use absolute paths like `/tmp` for specific directories
@@ -129,8 +129,8 @@ Defines the command and environment for your session.
 
 **`inheritEnv`** (optional, default: `true`)
 
-- When `true`: session inherits all environment variables from the parent process
-- When `false`: session starts with a minimal environment; only variables you specify in `env` are available
+- When `true`: terminal inherits all environment variables from the parent process
+- When `false`: terminal starts with a minimal environment; only variables you specify in `env` are available
 - Use `false` for reproducible, isolated environments
 - Use `true` when you want access to your full environment (PATH, SSH_AUTH_SOCK, etc.)
 
@@ -145,15 +145,15 @@ Defines the command and environment for your session.
 - Custom shell prompt string
 - Useful for identifying which profile you're using
 - Supports shell escape sequences and sbsh variables:
-  - `$SBSH_SES_ID`: Current session ID
-  - `$SBSH_SES_PROFILE`: Current profile name
+  - `$SBSH_TERM_ID`: Current terminal ID
+  - `$SBSH_TERM_PROFILE`: Current profile name
 - **Quoting in YAML**: Complex prompts with escape sequences need careful quoting
   - Single quotes: `prompt: '"\[\e[1;31m\]...\[\e[0m\]" '`
-  - Double quotes with escapes: `prompt: "\"[sbsh-$SBSH_SES_ID] \\u@\\h:\\w$ \""`
+  - Double quotes with escapes: `prompt: "\"[sbsh-$SBSH_TERM_ID] \\u@\\h:\\w$ \""`
 
 #### `stages` section (optional)
 
-Lifecycle hooks that run at specific points in the session lifecycle.
+Lifecycle hooks that run at specific points in the terminal lifecycle.
 
 **`onInit`**
 
@@ -172,7 +172,7 @@ Lifecycle hooks that run at specific points in the session lifecycle.
 
 **`postAttach`**
 
-- List of commands that run **after** you attach to the session
+- List of commands that run **after** you attach to the terminal
 - Useful for showing status or context when you reconnect
 - Common uses:
   - Showing current state (`kubectl get pods`)
@@ -186,13 +186,13 @@ Lifecycle hooks that run at specific points in the session lifecycle.
 
 ## Example Profiles Explained
 
-### 1. `default` - Minimal bash session
+### 1. `default` - Minimal bash terminal
 
-A clean bash session with minimal environment variables:
+A clean bash terminal with minimal environment variables:
 
 ```yaml
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: default
 spec:
@@ -207,22 +207,22 @@ spec:
       LANG: en_US.UTF-8
       EDITOR: vim
       HISTSIZE: "5000"
-    prompt: "\"[sbsh-$SBSH_SES_ID] \\u@\\h:\\w$ \""
+    prompt: "\"[sbsh-$SBSH_TERM_ID] \\u@\\h:\\w$ \""
 ```
 
 **Key points:**
 
 - `inheritEnv: false` creates a minimal, reproducible environment
 - `--norc --noprofile` prevents bash from loading your `.bashrc`
-- Custom prompt shows the session ID so you know which sbsh session you're in
+- Custom prompt shows the terminal ID so you know which sbsh terminal you're in
 
-### 2. `k8s-default` - Kubernetes development session
+### 2. `k8s-default` - Kubernetes development terminal
 
 Sets up kubectl context and shows cluster info on attach:
 
 ```yaml
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: k8s-default
 spec:
@@ -235,7 +235,7 @@ spec:
       KUBECONF: "$HOME/.kube/config"
       KUBE_CONTEXT: default
       KUBE_NAMESPACE: default
-    prompt: '"\[\e[1;31m\]sbsh($SBSH_SES_PROFILE/$SBSH_SES_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+    prompt: '"\[\e[1;31m\]sbsh($SBSH_TERM_PROFILE/$SBSH_TERM_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
   stages:
     onInit:
       - script: kubectl config use-context $KUBE_CONTEXT
@@ -257,7 +257,7 @@ Prepares a Terraform workspace and runs planning:
 
 ```yaml
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: terraform-prd
 spec:
@@ -287,7 +287,7 @@ Starts a temporary Docker container and drops you into a shell:
 
 ```yaml
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: docker-container
 spec:
@@ -311,7 +311,7 @@ Connects to a remote host using SSH:
 
 ```yaml
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: ssh-pk
 spec:
@@ -347,7 +347,7 @@ spec:
 3. **Use `inheritEnv: false` for isolation**: Better for reproducible environments
 4. **Use `inheritEnv: true` for convenience**: When you need full PATH and other tools
 5. **Quote numbers in env**: `HISTSIZE: "5000"` not `HISTSIZE: 5000`
-6. **Use `~` for home directory**: It's expanded at session start
+6. **Use `~` for home directory**: It's expanded at terminal start
 7. **Use `restartPolicy: exit` for containers/SSH**: These should exit cleanly
 8. **Use `restartPolicy: restart-on-error` for services**: When you want resilience
 
@@ -366,7 +366,7 @@ spec:
 
 ### Environment variables not working
 
-**Problem**: Environment variables aren't available in the session
+**Problem**: Environment variables aren't available in the terminal
 
 **Solutions:**
 
@@ -411,10 +411,10 @@ spec:
 
 1. **Validate syntax**: Use a YAML validator or check with `yaml` tools
 2. **List profiles**: Run `sb get profiles` to see if your profile appears
-3. **Test the profile**: Run `sbsh -p <profile-name>` to start a session
+3. **Test the profile**: Run `sbsh -p <profile-name>` to start a terminal
 4. **Check environment**: Run `env` to verify variables are set correctly
 5. **Test stages**: Detach and reattach to verify `postAttach` runs
-6. **Test restart policy**: Exit the session and see if it restarts as expected
+6. **Test restart policy**: Exit the terminal and see if it restarts as expected
 
 ## Viewing Available Profiles
 

@@ -93,13 +93,13 @@ var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SUP_SOCKET = DefineKV("SBSH_SUP_SOCKET", "sbsh.supervisor.socket") // no viper key, no default
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_SOCKET_CTRL = Define("SBSH_SES_SOCKET_CTRL")
+	TERM_SOCKET_CTRL = Define("SBSH_TERM_SOCKET_CTRL")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_ID = Define("SBSH_SES_ID")
+	TERM_ID = Define("SBSH_TERM_ID")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_NAME = Define("SBSH_SES_NAME")
+	TERM_NAME = Define("SBSH_TERM_NAME")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SES_PROFILE = Define("SBSH_SES_PROFILE")
+	TERM_PROFILE = Define("SBSH_TERM_PROFILE")
 
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_RUN_PATH = DefineKV("SBSH_RUN_PATH", "sbsh.global.runPath") // has viper key

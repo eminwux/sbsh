@@ -26,15 +26,15 @@ import (
 type SupervisorRunner interface {
 	OpenSocketCtrl() error
 	StartServer(ctx context.Context, sc *supervisorrpc.SupervisorControllerRPC, readyCh chan error, doneCh chan error)
-	Attach(session *api.SupervisedSession) error
+	Attach(terminal *api.SupervisedTerminal) error
 	ID() api.ID
 	Close(reason error) error
 	Resize(args api.ResizeArgs)
 	CreateMetadata() error
 	Detach() error
-	StartSessionCmd(session *api.SupervisedSession) error
+	StartTerminalCmd(terminal *api.SupervisedTerminal) error
 }
 
 func (sr *Exec) ID() api.ID {
-	return sr.session.Spec.ID
+	return sr.terminal.Spec.ID
 }

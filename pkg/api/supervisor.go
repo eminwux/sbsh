@@ -33,8 +33,8 @@ type SupervisorSpec struct {
 	SockerCtrl string            `json:"socketCtrl"`
 	RunPath    string            `json:"runPath"`
 
-	// Only valid when Kind == RunNewSession
-	SessionSpec *SessionSpec `json:"session,omitempty"`
+	// Only valid when Kind == RunNewTerminal
+	TerminalSpec *TerminalSpec `json:"terminal,omitempty"`
 }
 
 type SupervisorStatus struct {
@@ -79,12 +79,12 @@ type SupervisorMetadata struct {
 type SupervisorKind int
 
 const (
-	RunNewSession SupervisorKind = iota
-	AttachToSession
+	RunNewTerminal SupervisorKind = iota
+	AttachToTerminal
 )
 
-type SupervisedSession struct {
-	Spec        *SessionSpec
+type SupervisedTerminal struct {
+	Spec        *TerminalSpec
 	Command     string
 	CommandArgs []string // for local: ["bash","-i"]; for ssh: ["ssh","-tt","user@host"]
 }

@@ -41,8 +41,8 @@ func NewGetTerminalCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "terminal",
 		Aliases:      []string{"terminals", "terms", "term", "t"},
-		Short:        "Get a terminal session",
-		Long:         "Get a terminal session from the sbsh environment.",
+		Short:        "Get a terminal",
+		Long:         "Get a terminal from the sbsh environment.",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -69,7 +69,7 @@ func NewGetTerminalCmd() *cobra.Command {
 }
 
 func setupNewGetTerminalCmd(cmd *cobra.Command) {
-	cmd.Flags().BoolP("all", "a", false, "List all sessions, including Exited")
+	cmd.Flags().BoolP("all", "a", false, "List all terminals, including Exited")
 	_ = viper.BindPFlag(listAllInput, cmd.Flags().Lookup("all"))
 
 	cmd.Flags().StringP("output", "o", "", "Output format: json|yaml (default: human-readable)")
@@ -89,7 +89,7 @@ func listTerminals(cmd *cobra.Command, _ []string) error {
 		return errdefs.ErrLoggerNotFound
 	}
 
-	logger.Debug("sessions list command invoked",
+	logger.Debug("terminals list command invoked",
 		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
 		"list_all", viper.GetBool(listAllInput),
 		"args", cmd.Flags().Args(),
@@ -103,11 +103,11 @@ func listTerminals(cmd *cobra.Command, _ []string) error {
 		viper.GetBool(listAllInput),
 	)
 	if err != nil {
-		logger.Debug("error scanning and printing sessions", "error", err)
-		fmt.Fprintln(os.Stderr, "Could not scan sessions")
+		logger.Debug("error scanning and printing terminals", "error", err)
+		fmt.Fprintln(os.Stderr, "Could not scan terminals")
 		return err
 	}
-	logger.Debug("sessions list completed successfully")
+	logger.Debug("terminals list completed successfully")
 	return nil
 }
 

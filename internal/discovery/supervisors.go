@@ -18,15 +18,14 @@ package discovery
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"sort"
 	"text/tabwriter"
 
+	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
@@ -53,73 +52,38 @@ func ScanAndPrintSupervisors(
 // unmarshals them into api.SupervisorSpec, and removes the supervisor folders
 // for supervisors that are in Exited state.
 func ScanAndPruneSupervisors(ctx context.Context, logger *slog.Logger, runPath string, w io.Writer) error {
-	logger.DebugContext(ctx, "ScanAndPruneSupervisors: scanning supervisors", "runPath", runPath)
 	supervisors, err := ScanSupervisors(ctx, logger, runPath)
 	if err != nil {
 		logger.ErrorContext(ctx, "ScanAndPruneSupervisors: failed to scan supervisors", "error", err)
 		return err
 	}
-	pruned := 0
-	for _, s := range supervisors {
-		if s.Status.State == api.SupervisorExited {
-			logger.InfoContext(ctx, "ScanAndPruneSupervisors: pruning supervisor", "id", supervisorID(s))
-			if errC := PruneSupervisor(logger, &s); errC != nil {
-				logger.ErrorContext(
-					ctx,
-					"ScanAndPruneSupervisors: failed to prune supervisor",
-					"id",
-					supervisorID(s),
-					"error",
-					errC,
-				)
-				return fmt.Errorf("prune supervisor %s: %w", supervisorID(s), errC)
-			}
-			pruned++
-			if w != nil {
-				fmt.Fprintf(w, "Pruned supervisor %s (%s)\n", supervisorID(s), supervisorName(s))
-			}
-		}
-	}
-	logger.InfoContext(ctx, "ScanAndPruneSupervisors: prune complete", "pruned", pruned)
-	return nil
+	_, err = scanAndPruneMetadata(
+		ctx,
+		logger,
+		w,
+		supervisors,
+		"ScanAndPruneSupervisors",
+		"supervisor",
+		func(s api.SupervisorMetadata) bool { return s.Status.State == api.SupervisorExited },
+		PruneSupervisor,
+		supervisorID,
+		supervisorName,
+	)
+	return err
 }
 
 func ScanSupervisors(ctx context.Context, logger *slog.Logger, runPath string) ([]api.SupervisorMetadata, error) {
-	pattern := filepath.Join(runPath, SupervisorsRunPath, "*", "metadata.json")
-	logger.DebugContext(ctx, "ScanSupervisors: globbing for supervisor metadata", "pattern", pattern)
-	paths, err := filepath.Glob(pattern)
+	out, err := scanMetadataFiles(
+		ctx,
+		logger,
+		runPath,
+		defaults.SupervisorsRunPath,
+		"ScanSupervisors",
+		supervisorID,
+		supervisorName,
+	)
 	if err != nil {
-		logger.ErrorContext(ctx, "ScanSupervisors: glob failed", "error", err)
-		return nil, fmt.Errorf("glob %q: %w", pattern, err)
-	}
-
-	out := make([]api.SupervisorMetadata, 0, len(paths))
-	for _, p := range paths {
-		select {
-		case <-ctx.Done():
-			logger.WarnContext(ctx, "ScanSupervisors: context done while reading supervisors")
-			return nil, ctx.Err()
-		default:
-		}
-		b, errRead := os.ReadFile(p)
-		if errRead != nil {
-			logger.ErrorContext(ctx, "ScanSupervisors: failed to read file", "file", p, "error", errRead)
-			return nil, fmt.Errorf("read %s: %w", p, errRead)
-		}
-		var s api.SupervisorMetadata
-		if errUnmarshal := json.Unmarshal(b, &s); errUnmarshal != nil {
-			logger.ErrorContext(ctx, "ScanSupervisors: failed to decode file", "file", p, "error", errUnmarshal)
-			return nil, fmt.Errorf("decode %s: %w", p, errUnmarshal)
-		}
-		logger.DebugContext(
-			ctx,
-			"ScanSupervisors: loaded supervisor metadata",
-			"id",
-			supervisorID(s),
-			"name",
-			supervisorName(s),
-		)
-		out = append(out, s)
+		return nil, err
 	}
 
 	// Optional: stable order by ID (fallback to Name if ID empty)
@@ -131,7 +95,6 @@ func ScanSupervisors(ctx context.Context, logger *slog.Logger, runPath string) (
 		return supervisorName(out[i]) < supervisorName(out[j])
 	})
 
-	logger.InfoContext(ctx, "ScanSupervisors: finished scanning", "count", len(out))
 	return out, nil
 }
 
@@ -220,13 +183,11 @@ func FindSupervisorByName(
 	if err != nil {
 		return nil, err
 	}
-	for _, s := range supervisors {
-		if supervisorName(s) == name {
-			ss := s // copy to avoid referencing loop variable
-			return &ss, nil
-		}
-	}
-	return nil, fmt.Errorf("supervisor with name %q not found", name)
+	return findMetadataBy(
+		supervisors,
+		func(s api.SupervisorMetadata) bool { return supervisorName(s) == name },
+		fmt.Sprintf("supervisor with name %q not found", name),
+	)
 }
 
 // FindAndPrintSupervisorMetadata finds all metadata.json under runPath/supervisors/*,

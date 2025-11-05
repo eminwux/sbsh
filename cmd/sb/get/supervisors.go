@@ -159,7 +159,7 @@ func getSupervisor(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debug("get supervisor command invoked",
 		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
-		"terminal_name", supervisorName,
+		"supervisor_name", supervisorName,
 		"output_format", format,
 		"args", cmd.Flags().Args(),
 	)

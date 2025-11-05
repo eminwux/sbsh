@@ -44,17 +44,11 @@ func NewSbRootCmd() (*cobra.Command, error) {
 	rootCmd := &cobra.Command{
 		Use:   "sb",
 		Short: "sb command line tool",
-		Long: `sb is a command line tool to manage sbsh sessions and profiles.
+		Long: `sb is a command line tool to manage sbsh terminals and profiles.
 
 You can see available options and commands with:
 	sb help
 
-Examples:
-	sb sessions list
-	sb sessions prune
-	sb detach
-	sb attach --id abcdf0
-	sb profiles list
 `,
 		CompletionOptions: cobra.CompletionOptions{
 			DisableDefaultCmd: true,

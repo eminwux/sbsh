@@ -1,5 +1,5 @@
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: default
 spec:
@@ -14,13 +14,13 @@ spec:
       LANG: en_US.UTF-8
       EDITOR: vim
       HISTSIZE: "5000"
-    prompt: "\"[sbsh-$SBSH_SES_ID] \\u@\\h:\\w$ \""
+    prompt: "\"[sbsh-$SBSH_TERM_ID] \\u@\\h:\\w$ \""
   stages:
     onInit:
     postAttach:
 ---
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: k8s-default
 spec:
@@ -35,7 +35,7 @@ spec:
       KUBE_CONTEXT: default
       KUBE_NAMESPACE: default
       HISTSIZE: "5000"
-    prompt: '"\[\e[1;31m\]sbsh($SBSH_SES_PROFILE/$SBSH_SES_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+    prompt: '"\[\e[1;31m\]sbsh($SBSH_TERM_PROFILE/$SBSH_TERM_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
   stages:
     onInit:
       - script: kubectl config use-context $KUBE_CONTEXT
@@ -45,7 +45,7 @@ spec:
       - script: kubectl -n $KUBE_NAMESPACE get pods
 ---
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: terraform-prd
 spec:
@@ -58,7 +58,7 @@ spec:
     env:
       HISTSIZE: "5000"
       TF_VAR_environment: "prd"
-    prompt: '"\[\e[1;31m\]sbsh($SBSH_SES_PROFILE/$SBSH_SES_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+    prompt: '"\[\e[1;31m\]sbsh($SBSH_TERM_PROFILE/$SBSH_TERM_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
   stages:
     onInit:
       - script: terraform workspace use $TF_VAR_environment
@@ -66,7 +66,7 @@ spec:
       - script: terraform plan -out=tfplan
 ---
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: k8s-pod
 spec:
@@ -82,7 +82,7 @@ spec:
     prompt: '"\[\e[1;31m\]sbsh \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
 ---
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: docker-container
 spec:
@@ -95,7 +95,7 @@ spec:
     prompt: '"\[\e[1;31m\]sbsh \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
 ---
 apiVersion: sbsh/v1beta1
-kind: SessionProfile
+kind: TerminalProfile
 metadata:
   name: ssh-pk
 spec:

@@ -21,9 +21,9 @@ import (
 	"log/slog"
 	"net"
 
-	"github.com/eminwux/sbsh/internal/supervisor/sessionstore"
+	"github.com/eminwux/sbsh/internal/supervisor/terminalstore"
 	"github.com/eminwux/sbsh/pkg/api"
-	"github.com/eminwux/sbsh/pkg/rpcclient/session"
+	"github.com/eminwux/sbsh/pkg/rpcclient/terminal"
 	"golang.org/x/term"
 )
 
@@ -38,14 +38,14 @@ type Exec struct {
 	uiMode        UIMode
 	lastTermState *term.State
 
-	events  chan<- Event
-	session *api.SupervisedSession
-	Mgr     *sessionstore.Exec
+	events   chan<- Event
+	terminal *api.SupervisedTerminal
+	Mgr      *terminalstore.Exec
 
 	lnCtrl net.Listener
 
-	sessionClient session.Client
-	ioConn        net.Conn
+	terminalClient terminal.Client
+	ioConn         net.Conn
 }
 
 type UIMode int

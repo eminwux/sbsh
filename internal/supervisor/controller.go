@@ -26,9 +26,9 @@ import (
 
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/errdefs"
-	"github.com/eminwux/sbsh/internal/supervisor/sessionstore"
 	"github.com/eminwux/sbsh/internal/supervisor/supervisorrpc"
 	"github.com/eminwux/sbsh/internal/supervisor/supervisorrunner"
+	"github.com/eminwux/sbsh/internal/supervisor/terminalstore"
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
@@ -41,10 +41,10 @@ type Controller struct {
 	logger *slog.Logger
 
 	NewSupervisorRunner func(ctx context.Context, logger *slog.Logger, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner
-	NewSessionStore     func() sessionstore.SessionStore
+	NewTerminalStore    func() terminalstore.TerminalStore
 
 	sr supervisorrunner.SupervisorRunner
-	ss sessionstore.SessionStore
+	ss terminalstore.TerminalStore
 
 	ctrlReadyCh  chan struct{}
 	closeReqCh   chan error
@@ -58,7 +58,7 @@ type Controller struct {
 	rpcDoneCh  chan error
 }
 
-// NewSupervisorController wires the manager and the shared event channel from sessions.
+// NewSupervisorController wires the manager and the shared event channel from terminals.
 func NewSupervisorController(ctx context.Context, logger *slog.Logger) api.SupervisorController {
 	logger.InfoContext(ctx, "New supervisor controller is being created")
 	newCtx, cancel := context.WithCancelCause(ctx)
@@ -76,7 +76,7 @@ func NewSupervisorController(ctx context.Context, logger *slog.Logger) api.Super
 		//nolint:mnd // event channel buffer size
 		eventsCh:            make(chan supervisorrunner.Event, 32),
 		NewSupervisorRunner: supervisorrunner.NewSupervisorRunnerExec,
-		NewSessionStore:     sessionstore.NewSessionStoreExec,
+		NewTerminalStore:    terminalstore.NewTerminalStoreExec,
 	}
 	return c
 }
@@ -98,7 +98,7 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 	defer s.logger.Info("controller loop stopped", "run_path", spec.RunPath)
 
 	s.sr = s.NewSupervisorRunner(s.ctx, s.logger, spec, s.eventsCh)
-	s.ss = s.NewSessionStore()
+	s.ss = s.NewTerminalStore()
 
 	errMetadata := s.sr.CreateMetadata()
 	if errMetadata != nil {
@@ -135,41 +135,41 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 		return fmt.Errorf("%w: %w", errdefs.ErrStartRPCServer, errRPC)
 	}
 
-	var session *api.SupervisedSession
+	var terminal *api.SupervisedTerminal
 
 	switch spec.Kind {
-	case api.RunNewSession:
-		s.logger.Info("creating new session", "spec_id", spec.ID, "spec_name", spec.Name)
+	case api.RunNewTerminal:
+		s.logger.Info("creating new terminal", "spec_id", spec.ID, "spec_name", spec.Name)
 		var errCreate error
-		session, errCreate = s.createRunNewSession(spec)
+		terminal, errCreate = s.createRunNewTerminal(spec)
 		if errCreate != nil {
-			s.logger.Error("failed to create new session", "error", errCreate)
+			s.logger.Error("failed to create new terminal", "error", errCreate)
 			if errC := s.Close(errCreate); errC != nil {
-				s.logger.Error("error during Close after new session failure", "error", errC)
+				s.logger.Error("error during Close after new terminal failure", "error", errC)
 				errCreate = fmt.Errorf("%w: %w: %w", errCreate, errdefs.ErrOnClose, errC)
 			}
 			close(s.ctrlReadyCh)
 			// Wrap with appropriate errdefs error if not already wrapped
-			if !errors.Is(errCreate, errdefs.ErrNoSessionSpec) && !errors.Is(errCreate, errdefs.ErrStartCmd) &&
-				!errors.Is(errCreate, errdefs.ErrSessionStore) {
-				return fmt.Errorf("%w: %w", errdefs.ErrStartSession, errCreate)
+			if !errors.Is(errCreate, errdefs.ErrNoTerminalSpec) && !errors.Is(errCreate, errdefs.ErrStartCmd) &&
+				!errors.Is(errCreate, errdefs.ErrTerminalStore) {
+				return fmt.Errorf("%w: %w", errdefs.ErrStartTerminal, errCreate)
 			}
 			return errCreate
 		}
 
-		if errStart := s.sr.StartSessionCmd(session); errStart != nil {
-			s.logger.Error("failed to start session command", "error", errStart)
+		if errStart := s.sr.StartTerminalCmd(terminal); errStart != nil {
+			s.logger.Error("failed to start terminal command", "error", errStart)
 			if errC := s.Close(errStart); errC != nil {
-				s.logger.Error("error during Close after session command failure", "error", errC)
+				s.logger.Error("error during Close after terminal command failure", "error", errC)
 				errStart = fmt.Errorf("%w: %w: %w", errStart, errdefs.ErrOnClose, errC)
 			}
 			close(s.ctrlReadyCh)
 			return fmt.Errorf("%w: %w", errdefs.ErrStartCmd, errStart)
 		}
-	case api.AttachToSession:
-		if spec.SessionSpec == nil || (spec.SessionSpec.ID == "" && spec.SessionSpec.Name == "") {
-			s.logger.Error("no session ID or Name provided for attach")
-			errAttachSpec := errdefs.ErrAttachNoSessionSpec
+	case api.AttachToTerminal:
+		if spec.TerminalSpec == nil || (spec.TerminalSpec.ID == "" && spec.TerminalSpec.Name == "") {
+			s.logger.Error("no terminal ID or Name provided for attach")
+			errAttachSpec := errdefs.ErrAttachNoTerminalSpec
 			if errC := s.Close(errAttachSpec); errC != nil {
 				s.logger.Error("error during Close after attach spec failure", "error", errC)
 				errAttachSpec = fmt.Errorf("%w: %w: %w", errAttachSpec, errdefs.ErrOnClose, errC)
@@ -178,16 +178,16 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 			return fmt.Errorf("%w", errAttachSpec)
 		}
 		s.logger.Info(
-			"attaching to existing session",
+			"attaching to existing terminal",
 			"attach_id",
-			spec.SessionSpec.ID,
+			spec.TerminalSpec.ID,
 			"attach_name",
-			spec.SessionSpec.Name,
+			spec.TerminalSpec.Name,
 		)
 		var errAttach error
-		session, errAttach = s.createAttachSession(spec)
+		terminal, errAttach = s.createAttachTerminal(spec)
 		if errAttach != nil {
-			s.logger.Error("failed to create attach session", "error", errAttach)
+			s.logger.Error("failed to create attach terminal", "error", errAttach)
 			if errC := s.Close(errAttach); errC != nil {
 				s.logger.Error("error during Close after attach failure", "error", errC)
 				errAttach = fmt.Errorf("%w: %w: %w", errAttach, errdefs.ErrOnClose, errC)
@@ -207,8 +207,8 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 		return errReturn
 	}
 
-	if errAttach := s.sr.Attach(session); errAttach != nil {
-		s.logger.Error("failed to attach to session", "error", errAttach)
+	if errAttach := s.sr.Attach(terminal); errAttach != nil {
+		s.logger.Error("failed to attach to terminal", "error", errAttach)
 		if errC := s.Close(errAttach); errC != nil {
 			s.logger.Error("error during Close after attach failure", "error", errC)
 			errAttach = fmt.Errorf("%w: %w: %w", errAttach, errdefs.ErrOnClose, errC)
@@ -266,58 +266,58 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 	}
 }
 
-func (s *Controller) createAttachSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
-	var metadata *api.SessionMetadata
-	if spec.SessionSpec.ID != "" {
-		s.logger.Debug("resolving terminal by id", "run_path", spec.RunPath, "attach_id", string(spec.SessionSpec.ID))
+func (s *Controller) createAttachTerminal(spec *api.SupervisorSpec) (*api.SupervisedTerminal, error) {
+	var metadata *api.TerminalMetadata
+	if spec.TerminalSpec.ID != "" {
+		s.logger.Debug("resolving terminal by id", "run_path", spec.RunPath, "attach_id", string(spec.TerminalSpec.ID))
 		var err error
-		metadata, err = discovery.FindTerminalByID(s.ctx, s.logger, spec.RunPath, string(spec.SessionSpec.ID))
+		metadata, err = discovery.FindTerminalByID(s.ctx, s.logger, spec.RunPath, string(spec.TerminalSpec.ID))
 		if err != nil {
-			return nil, fmt.Errorf("%w: %w", errdefs.ErrSessionNotFoundByID, err)
+			return nil, fmt.Errorf("%w: %w", errdefs.ErrTerminalNotFoundByID, err)
 		}
-	} else if spec.SessionSpec.Name != "" {
-		s.logger.Debug("resolving terminal by name", "run_path", spec.RunPath, "attach_name", spec.SessionSpec.Name)
+	} else if spec.TerminalSpec.Name != "" {
+		s.logger.Debug("resolving terminal by name", "run_path", spec.RunPath, "attach_name", spec.TerminalSpec.Name)
 		var err error
-		metadata, err = discovery.FindTerminalByName(s.ctx, s.logger, spec.RunPath, spec.SessionSpec.Name)
+		metadata, err = discovery.FindTerminalByName(s.ctx, s.logger, spec.RunPath, spec.TerminalSpec.Name)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %w", errdefs.ErrSessionNotFoundByName, err)
+			return nil, fmt.Errorf("%w: %w", errdefs.ErrTerminalNotFoundByName, err)
 		}
 	}
 
 	if metadata == nil {
-		return nil, errdefs.ErrSessionMetadataNotFound
+		return nil, errdefs.ErrTerminalMetadataNotFound
 	}
 
-	session := sessionstore.NewSupervisedSession(&metadata.Spec)
-	if err := s.ss.Add(session); err != nil {
-		return nil, fmt.Errorf("%w: %w", errdefs.ErrSessionStore, err)
+	terminal := terminalstore.NewSupervisedTerminal(&metadata.Spec)
+	if err := s.ss.Add(terminal); err != nil {
+		return nil, fmt.Errorf("%w: %w", errdefs.ErrTerminalStore, err)
 	}
-	return session, nil
+	return terminal, nil
 }
 
-func (s *Controller) createRunNewSession(spec *api.SupervisorSpec) (*api.SupervisedSession, error) {
-	if spec.SessionSpec == nil {
-		return nil, errdefs.ErrNoSessionSpec
+func (s *Controller) createRunNewTerminal(spec *api.SupervisorSpec) (*api.SupervisedTerminal, error) {
+	if spec.TerminalSpec == nil {
+		return nil, errdefs.ErrNoTerminalSpec
 	}
 
 	args := []string{
 		"run", "-",
 	}
 
-	session := sessionstore.NewSupervisedSession(spec.SessionSpec)
+	terminal := terminalstore.NewSupervisedTerminal(spec.TerminalSpec)
 
 	execPath, errExe := os.Executable()
 	if errExe != nil {
 		return nil, fmt.Errorf("%w: %w", errdefs.ErrStartCmd, errExe)
 	}
-	session.Command = execPath
-	session.CommandArgs = args
+	terminal.Command = execPath
+	terminal.CommandArgs = args
 
-	if errNew := s.ss.Add(session); errNew != nil {
-		return nil, fmt.Errorf("%w: %w", errdefs.ErrSessionStore, errNew)
+	if errNew := s.ss.Add(terminal); errNew != nil {
+		return nil, fmt.Errorf("%w: %w", errdefs.ErrTerminalStore, errNew)
 	}
 
-	return session, nil
+	return terminal, nil
 }
 
 /* ---------- Event handlers ---------- */
@@ -325,17 +325,17 @@ func (s *Controller) createRunNewSession(spec *api.SupervisorSpec) (*api.Supervi
 func (s *Controller) handleEvent(ev supervisorrunner.Event) {
 	switch ev.Type {
 	case supervisorrunner.EvCmdExited:
-		s.logger.InfoContext(s.ctx, "session EvCmdExited", "id", ev.ID, "err", ev.Err)
+		s.logger.InfoContext(s.ctx, "terminal EvCmdExited", "id", ev.ID, "err", ev.Err)
 		s.onClosed(ev.ID, ev.Err)
 
 	case supervisorrunner.EvError:
-		s.logger.ErrorContext(s.ctx, "session EvError", "id", ev.ID, "err", ev.Err)
+		s.logger.ErrorContext(s.ctx, "terminal EvError", "id", ev.ID, "err", ev.Err)
 		s.onClosed(ev.ID, ev.Err)
 	case supervisorrunner.EvDetach:
-		s.logger.InfoContext(s.ctx, "session EvDetach", "id", ev.ID)
+		s.logger.InfoContext(s.ctx, "terminal EvDetach", "id", ev.ID)
 		err := s.Detach()
 		if err != nil {
-			s.logger.ErrorContext(s.ctx, "failed to detach session", "id", ev.ID, "error", err)
+			s.logger.ErrorContext(s.ctx, "failed to detach terminal", "id", ev.ID, "error", err)
 		}
 	default:
 		s.logger.WarnContext(s.ctx, "unknown event type received", "type", ev.Type)
@@ -353,7 +353,7 @@ func (s *Controller) Close(reason error) error {
 		// Set closing reason
 		s.closingCh <- reason
 
-		// Notify session runner to close all sessions
+		// Notify terminal runner to close all terminals
 		_ = s.sr.Close(reason)
 
 		// Notify Run to exit
@@ -376,9 +376,9 @@ func (s *Controller) WaitClose() error {
 }
 
 func (s *Controller) Detach() error {
-	// Request detach to session
+	// Request detach from terminal
 	if err := s.sr.Detach(); err != nil {
-		return fmt.Errorf("%w: %w", errdefs.ErrDetachSession, err)
+		return fmt.Errorf("%w: %w", errdefs.ErrDetachTerminal, err)
 	}
 	return nil
 }

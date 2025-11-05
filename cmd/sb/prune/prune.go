@@ -21,7 +21,6 @@ import (
 )
 
 func NewPruneCmd() *cobra.Command {
-	// pruneCmd represents the sessions command
 	pruneCmd := &cobra.Command{
 		Use:   "prune",
 		Short: "Prune stale supervisors and terminals",

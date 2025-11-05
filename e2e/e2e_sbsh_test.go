@@ -166,7 +166,7 @@ func TestSbsh_CustomId(t *testing.T) {
 	ret := make(chan error, 1)
 	cmdWaitFunc := cmdWaitFunc(t, &ret)
 	env := append([]string{}, getRandomSbshRunPath(t, runPath))
-	runPersistentBinaryPty(t, pts, cmdWaitFunc, env, sbsh, "--session-id", "customId")
+	runPersistentBinaryPty(t, pts, cmdWaitFunc, env, sbsh, "--terminal-id", "customId")
 
 	// Wait for prompt detection
 	<-promptCh

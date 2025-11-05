@@ -17,7 +17,7 @@
 package api
 
 // apiVersion: sbsh/v1beta1
-// kind: SessionProfile
+// kind: TerminalProfile
 
 type (
 	Version string
@@ -25,8 +25,8 @@ type (
 )
 
 const (
-	APIVersionV1Beta1  Version = "sbsh/v1beta1"
-	KindSessionProfile Kind    = "SessionProfile"
+	APIVersionV1Beta1   Version = "sbsh/v1beta1"
+	KindTerminalProfile Kind    = "TerminalProfile"
 )
 
 type (
@@ -41,28 +41,28 @@ const (
 	RestartOnError   RestartPolicy = "restart-on-error"
 )
 
-// SessionProfileDoc models one YAML document containing a SessionProfile.
-type SessionProfileDoc struct {
-	APIVersion Version            `json:"apiVersion" yaml:"apiVersion"`
-	Kind       Kind               `json:"kind"       yaml:"kind"`
-	Metadata   SessionProfileMeta `json:"metadata"   yaml:"metadata"`
-	Spec       SessionProfileSpec `json:"spec"       yaml:"spec"`
+// TerminalProfileDoc models one YAML document containing a TerminalProfile.
+type TerminalProfileDoc struct {
+	APIVersion Version                 `json:"apiVersion" yaml:"apiVersion"`
+	Kind       Kind                    `json:"kind"       yaml:"kind"`
+	Metadata   TerminalProfileMetadata `json:"metadata"   yaml:"metadata"`
+	Spec       TerminalProfileSpec     `json:"spec"       yaml:"spec"`
 }
 
-type SessionProfileMeta struct {
+type TerminalProfileMetadata struct {
 	Name        string            `json:"name"                  yaml:"name"`
 	Labels      map[string]string `json:"labels,omitempty"      yaml:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
 }
 
-type SessionProfileSpec struct {
+type TerminalProfileSpec struct {
 	RunTarget     RunTarget     `json:"runTarget"     yaml:"runTarget"`
 	RestartPolicy RestartPolicy `json:"restartPolicy" yaml:"restartPolicy"`
 	Shell         ShellSpec     `json:"shell"         yaml:"shell"`
 	Stages        StagesSpec    `json:"stages"        yaml:"stages"`
 }
 
-// ShellSpec describes the base interactive process that owns the session lifetime.
+// ShellSpec describes the base interactive process that owns the terminal lifetime.
 type ShellSpec struct {
 	Cwd        string            `json:"cwd,omitempty"        yaml:"cwd,omitempty"`
 	Cmd        string            `json:"cmd"                  yaml:"cmd"`

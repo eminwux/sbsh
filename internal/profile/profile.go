@@ -25,16 +25,17 @@ import (
 	"sort"
 
 	"github.com/eminwux/sbsh/cmd/config"
+	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-// CreateSessionFromProfile converts a SessionProfileDoc (profile YAML) into a SessionSpec
-// that sbsh can use to spawn a session. It maps only what's available in the profile
+// CreateTerminalFromProfile converts a TerminalProfileDoc (profile YAML) into a TerminalSpec
+// that sbsh can use to spawn a terminal. It maps only what's available in the profile
 // schema today: name, runTarget -> kind, shell.{cmd,cmdArgs,env}. Other fields in
-// SessionSpec (ID, LogFilename, Socket paths, RunPath) are left for the caller to fill.
-func CreateSessionFromProfile(profile *api.SessionProfileDoc) (*api.SessionSpec, error) {
+// TerminalSpec (ID, LogFilename, Socket paths, RunPath) are left for the caller to fill.
+func CreateTerminalFromProfile(profile *api.TerminalProfileDoc) (*api.TerminalSpec, error) {
 	if profile == nil {
 		return nil, errors.New("profile is nil")
 	}
@@ -43,8 +44,8 @@ func CreateSessionFromProfile(profile *api.SessionProfileDoc) (*api.SessionSpec,
 		return nil, errors.New("invalid profile: missing apiVersion/kind")
 	}
 
-	if profile.Kind != api.KindSessionProfile {
-		return nil, fmt.Errorf("invalid kind %q (expected %q)", profile.Kind, api.KindSessionProfile)
+	if profile.Kind != api.KindTerminalProfile {
+		return nil, fmt.Errorf("invalid kind %q (expected %q)", profile.Kind, api.KindTerminalProfile)
 	}
 
 	if profile.Metadata.Name == "" {
@@ -55,15 +56,15 @@ func CreateSessionFromProfile(profile *api.SessionProfileDoc) (*api.SessionSpec,
 		return nil, fmt.Errorf("invalid profile %q: shell.cmd is required", profile.Metadata.Name)
 	}
 
-	// Map runTarget -> SessionKind (limited to local for now).
-	var kind api.SessionKind
+	// Map runTarget -> TerminalKind (limited to local for now).
+	var kind api.TerminalKind
 	switch profile.Spec.RunTarget {
 	case api.RunTargetLocal, "":
-		kind = api.SessionLocal
+		kind = api.TerminalLocal
 	default:
 		// For now, default unknown/unsupported targets to local so the caller can still run it,
 		// or change this to return an error if you prefer strict behavior.
-		kind = api.SessionLocal
+		kind = api.TerminalLocal
 	}
 
 	// Map env (map[string]string) -> []string {"KEY=VAL"} with stable ordering.
@@ -80,7 +81,7 @@ func CreateSessionFromProfile(profile *api.SessionProfileDoc) (*api.SessionSpec,
 		}
 	}
 
-	spec := &api.SessionSpec{
+	spec := &api.TerminalSpec{
 		// ID: zero; caller should set.
 		Kind:        kind,
 		Cwd:         profile.Spec.Shell.Cwd,
@@ -108,39 +109,39 @@ func copyStringMap(in map[string]string) map[string]string {
 	return out
 }
 
-type BuildSessionSpecParams struct {
-	SessionID      string
-	SessionName    string
-	SessionCmd     string
-	SessionCmdArgs []string
-	CaptureFile    string
-	RunPath        string
-	ProfilesFile   string
-	ProfileName    string
-	LogFile        string
-	LogLevel       string
-	SocketFile     string
-	EnvVars        []string
+type BuildTerminalSpecParams struct {
+	TerminalID      string
+	TerminalName    string
+	TerminalCmd     string
+	TerminalCmdArgs []string
+	CaptureFile     string
+	RunPath         string
+	ProfilesFile    string
+	ProfileName     string
+	LogFile         string
+	LogLevel        string
+	SocketFile      string
+	EnvVars         []string
 }
 
-// BuildSessionSpec builds a SessionSpec from command-line inputs and/or a profile.
+// BuildTerminalSpec builds a TerminalSpec from command-line inputs and/or a profile.
 // It applies defaults for missing values, and if a profile name is given, it loads
 // the profiles file and merges the profile into the spec.
-// The returned SessionSpec is ready to be used to spawn a session.
+// The returned TerminalSpec is ready to be used to spawn a terminal.
 //
 //nolint:funlen // For understandability, this function is long but straightforward.
-func BuildSessionSpec(
+func BuildTerminalSpec(
 	ctx context.Context,
 	logger *slog.Logger,
-	input *BuildSessionSpecParams,
-) (*api.SessionSpec, error) {
-	if input.SessionID == "" {
-		// Default session ID to a random one
-		input.SessionID = naming.RandomID()
+	input *BuildTerminalSpecParams,
+) (*api.TerminalSpec, error) {
+	if input.TerminalID == "" {
+		// Default terminal ID to a random one
+		input.TerminalID = naming.RandomID()
 	}
 
-	if input.SessionName == "" {
-		input.SessionName = naming.RandomName()
+	if input.TerminalName == "" {
+		input.TerminalName = naming.RandomName()
 	}
 
 	if input.ProfilesFile == "" {
@@ -153,16 +154,16 @@ func BuildSessionSpec(
 		input.RunPath = config.DefaultRunPath()
 	}
 
-	if input.SessionCmd == "" {
-		input.SessionCmd = "/bin/bash"
-		input.SessionCmdArgs = []string{"-i"}
+	if input.TerminalCmd == "" {
+		input.TerminalCmd = "/bin/bash"
+		input.TerminalCmdArgs = []string{"-i"}
 	}
 
 	if input.LogFile == "" {
 		input.LogFile = filepath.Join(
 			input.RunPath,
-			"sessions",
-			input.SessionID,
+			defaults.TerminalsRunPath,
+			input.TerminalID,
 			"log",
 		)
 	}
@@ -174,8 +175,8 @@ func BuildSessionSpec(
 	if input.CaptureFile == "" {
 		input.CaptureFile = filepath.Join(
 			input.RunPath,
-			"sessions",
-			input.SessionID,
+			defaults.TerminalsRunPath,
+			input.TerminalID,
 			"capture",
 		)
 	}
@@ -183,8 +184,8 @@ func BuildSessionSpec(
 	if input.SocketFile == "" {
 		input.SocketFile = filepath.Join(
 			input.RunPath,
-			"sessions",
-			input.SessionID,
+			defaults.TerminalsRunPath,
+			input.TerminalID,
 			"socket",
 		)
 	}
@@ -201,8 +202,8 @@ func BuildSessionSpec(
 		input.ProfilesFile,
 	)
 
-	var sessionSpec *api.SessionSpec
-	var profileSpec *api.SessionProfileDoc
+	var terminalSpec *api.TerminalSpec
+	var profileSpec *api.TerminalProfileDoc
 	var errFind error
 
 	profileSpec, errFind = discovery.FindProfileByName(ctx, logger, input.ProfilesFile, input.ProfileName)
@@ -233,52 +234,52 @@ func BuildSessionSpec(
 	}
 
 	var errCreate error
-	sessionSpec, errCreate = CreateSessionFromProfile(profileSpec)
+	terminalSpec, errCreate = CreateTerminalFromProfile(profileSpec)
 	if errCreate != nil {
 		return nil, errCreate
 	}
-	addInputValuesToSession(sessionSpec, input)
+	addInputValuesToTerminal(terminalSpec, input)
 
-	return sessionSpec, nil
+	return terminalSpec, nil
 }
 
-// addInputValuesToSession mutates sessionSpec by overriding its fields with non-empty values from input.
+// addInputValuesToTerminal mutates terminalSpec by overriding its fields with non-empty values from input.
 // It sets ID, Name, RunPath, CaptureFile, LogFile, LogLevel, SocketFile, and appends EnvVars, avoiding duplicates.
-func addInputValuesToSession(sessionSpec *api.SessionSpec, input *BuildSessionSpecParams) {
-	sessionSpec.ID = api.ID(input.SessionID)
-	sessionSpec.Name = input.SessionName
-	sessionSpec.RunPath = input.RunPath
-	sessionSpec.CaptureFile = input.CaptureFile
-	sessionSpec.LogFile = input.LogFile
-	sessionSpec.LogLevel = input.LogLevel
-	sessionSpec.SocketFile = input.SocketFile
-	sessionSpec.Env = append(sessionSpec.Env, input.EnvVars...)
+func addInputValuesToTerminal(terminalSpec *api.TerminalSpec, input *BuildTerminalSpecParams) {
+	terminalSpec.ID = api.ID(input.TerminalID)
+	terminalSpec.Name = input.TerminalName
+	terminalSpec.RunPath = input.RunPath
+	terminalSpec.CaptureFile = input.CaptureFile
+	terminalSpec.LogFile = input.LogFile
+	terminalSpec.LogLevel = input.LogLevel
+	terminalSpec.SocketFile = input.SocketFile
+	terminalSpec.Env = append(terminalSpec.Env, input.EnvVars...)
 }
 
-// GetDefaultHardcodedProfile constructs a default SessionProfileDoc using command-line or session defaults.
-// Used when no profile is found; logs the fallback and builds the profile from BuildSessionSpecParams.
+// GetDefaultHardcodedProfile constructs a default TerminalProfileDoc using command-line or terminal defaults.
+// Used when no profile is found; logs the fallback and builds the profile from BuildTerminalSpecParams.
 func GetDefaultHardcodedProfile(
 	ctx context.Context,
 	logger *slog.Logger,
-	input *BuildSessionSpecParams,
-) (*api.SessionProfileDoc, error) {
-	logger.DebugContext(ctx, "No profile specified, using command-line/session defaults")
+	input *BuildTerminalSpecParams,
+) (*api.TerminalProfileDoc, error) {
+	logger.DebugContext(ctx, "No profile specified, using command-line/terminal defaults")
 
-	profileSpec := &api.SessionProfileDoc{
+	profileSpec := &api.TerminalProfileDoc{
 		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindSessionProfile,
-		Metadata: api.SessionProfileMeta{
+		Kind:       api.KindTerminalProfile,
+		Metadata: api.TerminalProfileMetadata{
 			Name:   "default",
 			Labels: map[string]string{},
 		},
-		Spec: api.SessionProfileSpec{
+		Spec: api.TerminalProfileSpec{
 			RunTarget: api.RunTargetLocal,
 			Shell: api.ShellSpec{
-				Cmd:        input.SessionCmd,
-				CmdArgs:    input.SessionCmdArgs,
+				Cmd:        input.TerminalCmd,
+				CmdArgs:    input.TerminalCmdArgs,
 				EnvInherit: true,
 				Env:        map[string]string{},
-				Prompt:     "\"(sbsh-$SBSH_SES_ID) $PS1\"",
+				Prompt:     "\"(sbsh-$SBSH_TERM_ID) $PS1\"",
 			},
 			Stages: api.StagesSpec{},
 		},
