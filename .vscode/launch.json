@@ -40,7 +40,7 @@
       "mode": "debug",
       "program": "cmd/sbsh",
       "console": "integratedTerminal",
-      "args": ["run", "--id", "test"]
+      "args": ["terminal", "--id", "test"]
     },
     {
       "name": "Debug Tests in cmd/sbsh run",
@@ -49,7 +49,7 @@
       "mode": "test",
       "program": "${workspaceFolder}/cmd/sbsh",
       "console": "integratedTerminal",
-      "args": ["run -test.v"]
+      "args": ["terminal -test.v"]
     },
     {
       "name": "Debug Tests in pkg/terminal",

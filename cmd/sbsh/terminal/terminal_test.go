@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package run
+package terminal
 
 import (
 	"bytes"
@@ -213,7 +213,7 @@ func Test_ErrStdinEmpty(t *testing.T) {
 
 func Test_ErrOpenSpecFile(t *testing.T) {
 	cmd := &cobra.Command{}
-	viper.Set("sbsh.run.spec", "/nonexistent/file/path/that/does/not/exist.json")
+	viper.Set("sbsh.terminal.spec", "/nonexistent/file/path/that/does/not/exist.json")
 
 	spec, err := processInput(cmd, []string{})
 	if err == nil {
@@ -237,7 +237,7 @@ func Test_ErrInvalidJSONSpec(t *testing.T) {
 	}
 
 	cmd := &cobra.Command{}
-	viper.Set("sbsh.run.spec", tmpFile)
+	viper.Set("sbsh.terminal.spec", tmpFile)
 
 	spec, err := processInput(cmd, []string{})
 	if err == nil {
@@ -253,7 +253,7 @@ func Test_ErrInvalidJSONSpec(t *testing.T) {
 
 func Test_ErrNoSpecDefined(t *testing.T) {
 	cmd := &cobra.Command{}
-	viper.Set("sbsh.run.spec", "")
+	viper.Set("sbsh.terminal.spec", "")
 
 	spec, err := processInput(cmd, []string{})
 	if err == nil {
@@ -270,7 +270,7 @@ func Test_ErrNoSpecDefined(t *testing.T) {
 func Test_ErrTerminalSpecNotFound_RunE(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	cmd := NewRunCmd()
+	cmd := NewTerminalCmd()
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	cmd.SetContext(ctx)
 	// Don't set CtxTerminalSpec, so it will be nil
@@ -285,7 +285,7 @@ func Test_ErrTerminalSpecNotFound_RunE(t *testing.T) {
 }
 
 func Test_ErrLoggerNotFound_RunE(t *testing.T) {
-	cmd := NewRunCmd()
+	cmd := NewTerminalCmd()
 	ctx := context.Background()
 	// Don't set CtxLogger, so it will be nil
 	cmd.SetContext(ctx)
@@ -333,7 +333,7 @@ func Test_ValidJSONSpec(t *testing.T) {
 	}
 
 	cmd := &cobra.Command{}
-	viper.Set("sbsh.run.spec", tmpFile)
+	viper.Set("sbsh.terminal.spec", tmpFile)
 
 	spec, err := processInput(cmd, []string{})
 	if err != nil {

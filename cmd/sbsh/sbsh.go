@@ -31,7 +31,7 @@ import (
 
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sbsh/autocomplete"
-	"github.com/eminwux/sbsh/cmd/sbsh/run"
+	"github.com/eminwux/sbsh/cmd/sbsh/terminal"
 	"github.com/eminwux/sbsh/cmd/sbsh/version"
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/defaults"
@@ -60,7 +60,7 @@ If you run sbsh with no options, a default terminal will start.
 
 You can also use sbsh with parameters. For example:
   sbsh --log-level=debug
-  sbsh run
+  sbsh terminal
 `,
 		CompletionOptions: cobra.CompletionOptions{
 			DisableDefaultCmd: true,
@@ -331,7 +331,7 @@ func setupRootCmd(rootCmd *cobra.Command) error {
 	// runtime.SetBlockProfileRate(1)     // sample ALL blocking events on chans/locks
 	// runtime.SetMutexProfileFraction(1) // sample ALL mutex contention
 	rootCmd.AddCommand(version.NewVersionCmd())
-	rootCmd.AddCommand(run.NewRunCmd())
+	rootCmd.AddCommand(terminal.NewTerminalCmd())
 	rootCmd.AddCommand(autocomplete.NewAutoCompleteCmd(rootCmd))
 
 	// Persistent flags

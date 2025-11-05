@@ -32,4 +32,4 @@ COPY --from=builder /workspace/sbsh-${OS}-${ARCH} /bin/sbsh
 RUN ln /bin/sbsh /bin/sb
 RUN chmod 0755 /bin/sbsh /bin/sb
 
-CMD ["/bin/sbsh", "run"]
+CMD ["/bin/sbsh", "terminal"]
