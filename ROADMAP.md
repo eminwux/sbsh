@@ -10,10 +10,12 @@
 ```markdown
 - [ ] **A** `sbsh run` does not expose tty in ps
 - [ ] **A** dettach does not remove attacher from metadata
+- [ ] **A** only show prompt by default for shells
 ```
 
 ### 🅰️ Must Have
 ```markdown
+- [ ] **A** sb attach works with one active terminal
 - [ ] **A** Disable detach for nested case
 - [ ] **A** If `sbsh run` fails supervisor must print and log error
 - [ ] **A** `sbsh run` change to `sbsh terminal`
