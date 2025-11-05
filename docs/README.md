@@ -395,7 +395,7 @@ The standard installation process creates the hard link:
 
 ```bash
 # Install binary
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.3.0/sbsh-linux-amd64
+curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.4.0/sbsh-linux-amd64
 chmod +x sbsh
 sudo mv sbsh /usr/local/bin/
 
