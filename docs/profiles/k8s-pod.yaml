@@ -1,0 +1,14 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: k8s-pod
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/local/bin/kubectl
+    cmdArgs:
+      ["run", "-ti", "--rm", "--image", "debian:stable-slim", "ephemeral"]
+    env:
+      KUBECONF: "~/.kube/config"

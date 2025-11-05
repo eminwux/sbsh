@@ -1,0 +1,22 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: postgres
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/psql
+    cmdArgs:
+      - "-h"
+      - "${PGHOST:-localhost}"
+      - "-U"
+      - "${PGUSER:-postgres}"
+      - "-d"
+      - "${PGDATABASE:-postgres}"
+    env:
+      PGHOST: "localhost"
+      PGUSER: "postgres"
+      PGDATABASE: "postgres"
+      PGPORT: "5432"

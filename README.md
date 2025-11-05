@@ -42,6 +42,8 @@ sbsh makes terminals **persistent, discoverable, and resumable**. Your work surv
 
 **sbsh separates the terminal (your work environment) from the supervisor (the controller)**, making terminals as durable and manageable as background services.
 
+sbsh was built to make environment setup **reproducible and shareable**, especially for projects that rely on many environment variables such as Terraform workspaces, Kubernetes clusters, Python virtual environments, and containerized development setups. Using declarative YAML manifests, teams can define terminal environments once and share them to ensure identical setup across local development and CI/CD pipelines. Color-coded prompts for production environments help reduce human error by making it immediately clear which environment you're working in.
+
 ## Who Is This For?
 
 **DevOps & Infrastructure Engineers**
@@ -49,6 +51,7 @@ sbsh makes terminals **persistent, discoverable, and resumable**. Your work surv
 - Managing Kubernetes clusters with persistent kubectl terminals
 - Running Terraform plans/applies that survive disconnects
 - Debugging containers without losing context
+- Preventing mistakes through reproducible profiles and visual environment indicators
 
 **Software Developers**
 
@@ -70,7 +73,7 @@ sbsh makes terminals **persistent, discoverable, and resumable**. Your work surv
 
 ## Key Benefits
 
-### 🔄 Survive Any Disconnect
+### Survive Any Disconnect
 
 Your terminals continue running even when:
 
@@ -80,7 +83,9 @@ Your terminals continue running even when:
 
 **Example:** Start a 2-hour Terraform plan on a remote server via SSH, your local connection drops, come back later: `sb attach terraform-terminal` and it's still running on the remote server.
 
-### 📋 Terminal Discovery & Management
+### Terminal Discovery & Management
+
+While screen and tmux only list sockets, sbsh maintains a metadata directory with full session information. This enables true session discovery, better observability, and reproducibility across teams.
 
 List, find, and reattach to any running terminal:
 
@@ -94,25 +99,7 @@ $ sb attach quick_samwise
 # You're back exactly where you left off
 ```
 
-### 🎯 Profiles for Reproducible Environments
-
-Define once, use everywhere. Profiles configure:
-
-- Commands and arguments
-- Environment variables
-- Working directories
-- Lifecycle hooks (onInit, postAttach)
-
-**Example profiles included:**
-
-- `k8s-default` — Auto-configure kubectl context, show pods on attach
-- `terraform-prd` — Select workspace, run init, create plan
-- `docker-container` — Persistent container shells
-- `ssh-pk` — SSH terminals that survive disconnects
-
-See [examples/profiles/README.md](examples/profiles/README.md) for full documentation.
-
-### 👥 Multi-Attach Support
+### Multi-Attach Support
 
 Multiple supervisors can connect to the same terminal concurrently:
 
@@ -120,7 +107,7 @@ Multiple supervisors can connect to the same terminal concurrently:
 - Team debugging terminals
 - Shared infrastructure terminals
 
-### 📊 Structured Logs & Metadata
+### Structured Logs & Metadata
 
 Every terminal exposes:
 
@@ -131,7 +118,7 @@ Every terminal exposes:
 
 Perfect for auditing, debugging, and automation.
 
-### 🔌 Programmable API
+### Programmable API
 
 Control terminals programmatically for automation:
 
@@ -140,277 +127,85 @@ Control terminals programmatically for automation:
 - Build custom workflows
 - Automate operations
 
-## How sbsh Differs from screen and tmux
+## Profiles: Declarative Environment Manifests
 
-sbsh, `screen`, and `tmux` all provide persistent terminals, but sbsh is designed for different needs:
+sbsh uses **declarative YAML manifests** to define terminal environments. These manifests specify everything needed for reproducible environments:
 
-### Architecture
+- **Environment variables**: Define all required variables (Terraform workspaces, Kubernetes contexts, Python paths, etc.)
+- **Commands and startup scripts**: Configure the command to run and any initialization steps
+- **Prompts and colors**: Visual indicators that help prevent mistakes (e.g., red prompts for production)
+- **Lifecycle hooks**: Automated setup (`onInit`) and post-attach actions (`postAttach`)
 
-| Feature                             | screen / tmux                        | sbsh                                    |
-| ----------------------------------- | ------------------------------------ | --------------------------------------- |
-| **Terminal Process**                | Tied to the terminal multiplexer     | Independent, runs separately            |
-| **Supervisor**                      | The multiplexer IS the terminal      | Separate supervisor and terminal        |
-| **After Supervisor Dies**           | Terminal typically dies with it      | Terminal continues running              |
-| **Reattach from Different Machine** | Requires shared socket files / setup | Built-in discovery, works from anywhere |
+These manifests can be shared with teammates to ensure identical environment setup locally and in CI/CD pipelines. Sharing manifests ensures everyone sets up their environment safely and consistently, preventing mistakes like applying Terraform to the wrong workspace or using the wrong Kubernetes cluster.
 
-### Terminal Discovery
+### Profiles by Example
 
-**screen / tmux:**
+Profiles define everything needed for reproducible environments. Here are brief examples:
 
-```bash
-# Manual socket management
-screen -S myterminal
-screen -list
-screen -r myterminal
-
-# Or find socket files manually
-ls -la /tmp/screen-*/
-```
-
-**sbsh:**
-
-```bash
-# Built-in discovery by name or ID
-sb get terminals
-sb attach myterminal
-sb attach abc123
-# Works from any machine, no socket management
-```
-
-### Configuration and Profiles
-
-**screen / tmux:**
-
-- Configuration via dotfiles (`.screenrc`, `.tmux.conf`)
-- Manual script setup for environments
-- Per-terminal setup requires manual commands
-
-**sbsh:**
-
-- **Profiles**: Declarative YAML configuration
-- Pre-configured environments (k8s, terraform, docker, etc.)
-- Lifecycle hooks (onInit, postAttach)
-- Reproducible across team members
-
-**Example:** With sbsh, a Kubernetes profile automatically sets up context and shows cluster status:
-
-```bash
-sbsh -p k8s-default
-# Automatically runs: kubectl config use-context, shows pods, etc.
-```
-
-With tmux, you'd need custom scripts or manual setup each time.
-
-### Multi-Attach
-
-**screen / tmux:**
-
-- Both support multiple clients attaching
-- Requires explicit multi-user mode setup (screen)
-- Or careful socket sharing (tmux)
-
-**sbsh:**
-
-- Built-in multi-attach from the start
-- Multiple supervisors can connect concurrently
-- Designed for collaboration
-
-### API and Automation
-
-**screen / tmux:**
-
-- Limited programmatic access
-- Mostly command-line interface
-- Integration requires parsing output or screen/tmux commands
-
-**sbsh:**
-
-- **RPC API** for programmatic control
-- Structured metadata and logs
-- Designed for automation and CI/CD integration
-- Better integration with monitoring tools
-
-### Logging and Observability
-
-**screen / tmux:**
-
-- Basic logging (if configured)
-- Manual log management
-- Limited metadata
-
-**sbsh:**
-
-- **Structured logs** for every terminal
-- Complete I/O capture
-- Metadata (status, attachers, lifecycle events)
-- Built for auditing and debugging
-
-### Use Cases
-
-**screen / tmux are better for:**
-
-- Simple terminal persistence
-- Window/panel management (tmux)
-- Quick terminal recovery
-- Traditional terminal multiplexing needs
-
-**sbsh is better for:**
-
-- Infrastructure work (k8s, terraform, containers)
-- Terminal discovery and management at scale
-- Team collaboration and shared terminals
-- Automation and CI/CD integration
-- Environments that need to survive supervisor restarts
-- Auditable, logged terminals
-
-### When to Use Each
-
-**Use screen / tmux if:**
-
-- You just need basic terminal persistence
-- You want window/panel management (tmux)
-- You're comfortable with existing workflows
-- Simple use cases are sufficient
-
-**Use sbsh if:**
-
-- You work with Kubernetes, Terraform, or infrastructure
-- You need terminal discovery across machines
-- You want reproducible environment profiles
-- You need API access for automation
-- You want structured logging and metadata
-- Multiple people need to share terminals
-- Terminals must survive supervisor crashes
-
-### Summary
-
-Think of it this way:
-
-- **screen/tmux**: Terminal multiplexers that happen to persist terminals
-- **sbsh**: A terminal supervisor that treats terminals as managed services
-
-sbsh is like having `systemd` for terminals — structured, observable, discoverable, and designed for automation. screen and tmux are like having `nohup` with better UX — simple, effective, but less structured.
-
-Both have their place. Choose sbsh when you need the structure, profiles, discovery, and API access. Choose screen/tmux for traditional multiplexing and simple persistence needs.
-
-## CI/CD Integration
-
-sbsh profiles enable **reproducible environments** that work identically in local development and CI/CD pipelines. Define your environment once, use it everywhere — from pre-commit hooks to GitHub Actions and GitLab CI.
-
-### Local CI/CD Workflows
-
-Use profiles for pre-commit hooks, local testing, and development workflows:
+**Terraform production workspace:**
 
 ```yaml
-# ~/.sbsh/profiles.yaml
 apiVersion: sbsh/v1beta1
 kind: TerminalProfile
 metadata:
-  name: test-env
+  name: terraform-prd
 spec:
   shell:
-    cwd: "~/project"
     env:
-      NODE_ENV: "test"
-      CI: "true"
+      TF_VAR_environment: "prd"
+    prompt: '"\[\e[1;31m\]sbsh(terraform-prd) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
   stages:
     onInit:
-      - script: docker-compose up -d
-      - script: npm install
-      - script: npm run test
+      - script: terraform workspace use prd
+      - script: terraform init
 ```
 
-```bash
-# .git/hooks/pre-commit
-#!/bin/bash
-sbsh -p test-env --name "pre-commit-$(date +%s)"
-```
-
-### GitHub Actions
-
-Create a profile once, use it in CI. Failed runs can be inspected via persistent terminals:
+**Kubernetes development terminal:**
 
 ```yaml
-# .github/workflows/test.yml
-name: Tests
-on: [push]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup sbsh
-        run: |
-          wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.2.0/sbsh-linux-amd64
-          chmod +x sbsh && sudo mv sbsh /usr/local/bin/
-      - name: Create test profile
-        run: |
-          mkdir -p ~/.sbsh
-          cat > ~/.sbsh/profiles.yaml <<EOF
-          apiVersion: sbsh/v1beta1
-          kind: TerminalProfile
-          metadata:
-            name: ci-test
-          spec:
-            shell:
-              cwd: "${{ github.workspace }}"
-              env:
-                CI: "true"
-            stages:
-              onInit:
-                - script: npm install
-                - script: npm run test
-          EOF
-      - name: Run tests
-        run: sbsh -p ci-test --name "ci-${{ github.run_id }}"
-      - name: Upload terminal logs
-        if: failure()
-        uses: actions/upload-artifact@v3
-        with:
-          name: terminal-logs
-          path: ~/.sbsh/run/terminals/ci-${{ github.run_id }}/*
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: k8s-default
+spec:
+  shell:
+    env:
+      KUBE_CONTEXT: default
+      KUBE_NAMESPACE: default
+  stages:
+    onInit:
+      - script: kubectl config use-context $KUBE_CONTEXT
+    postAttach:
+      - script: kubectl get pods
 ```
 
-### GitLab CI
+Color-coded prompts and reproducible profiles make environments safer to use by clearly indicating which environment you're working in. See [docs/profiles/README.md](docs/profiles/README.md) for detailed examples and reference.
 
-Same profile, different platform. Terminals persist for debugging failed runs:
+## How sbsh Differs from screen and tmux
 
-```yaml
-# .gitlab-ci.yml
-test:
-  script:
-    - |
-      mkdir -p ~/.sbsh
-      cat > ~/.sbsh/profiles.yaml <<EOF
-      apiVersion: sbsh/v1beta1
-      kind: TerminalProfile
-      metadata:
-        name: gitlab-test
-      spec:
-        shell:
-          cwd: "$CI_PROJECT_DIR"
-          env:
-            CI_JOB_ID: "$CI_JOB_ID"
-        stages:
-          onInit:
-            - script: npm install
-            - script: npm run test
-      EOF
-    - sbsh -p gitlab-test --name "gitlab-$CI_JOB_ID"
-  artifacts:
-    when: always
-    paths:
-      - ~/.sbsh/run/terminals/gitlab-$CI_JOB_ID/*
-    expire_in: 1 week
-```
+sbsh, `screen`, and `tmux` all provide persistent terminals, but sbsh is designed for different needs. Key differentiators:
+
+- **Manifests**: sbsh uses declarative YAML manifests for reproducible environments, while screen/tmux rely on dotfiles and manual setup
+- **Lifecycle hooks**: Automated setup and post-attach actions with `onInit` and `postAttach`
+- **Metadata directory**: Full session information stored in metadata files, enabling true discovery and observability (screen/tmux only list sockets)
+- **Structured session discovery**: Built-in discovery by name or ID, works from any machine without socket management
+- **Terminal survival**: Terminals continue running even if supervisor crashes (screen/tmux terminals typically die with the multiplexer)
+
+Ansible manages infrastructure provisioning, while sbsh focuses on developer session reproducibility. See [docs/comparison.md](docs/comparison.md) for detailed comparison with screen and tmux.
+
+## CI/CD Integration
+
+sbsh profiles enable **reproducible environments** that work identically in local development and CI/CD pipelines. Define your environment once, use it everywhere — from pre-commit hooks to GitHub Actions, GitLab CI/CD, and Jenkins pipelines.
 
 **Key Benefits:**
 
-- **Reproducibility**: Same profile works locally and in CI
-- **Debugging**: Failed CI runs create persistent terminals for inspection
-- **Version Control**: Profiles are checked into your repo
-- **Structured Logs**: Complete I/O capture available as CI artifacts
-- **Team Consistency**: Everyone uses the same environment configuration
+- **Reproducibility**: Same profile works locally and in CI — test what you ship
+- **Debugging**: Failed CI runs create persistent terminals for inspection — no more "works on my machine"
+- **Version Control**: Profiles are checked into your repo — environments as code
+- **Structured Logs**: Complete I/O capture available as CI artifacts — full audit trail
+- **Team Consistency**: Everyone uses the same environment configuration — eliminate setup drift
+
+See [docs/cicd.md](docs/cicd.md) for detailed examples and best practices for GitHub Actions, GitLab CI/CD, and Jenkinsfile.
 
 ## Quick Start
 
@@ -418,7 +213,7 @@ test:
 
 ```bash
 # Install sbsh
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.2.0/sbsh-linux-amd64 && \
+curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.3.0/sbsh-linux-amd64 && \
 chmod +x sbsh && \
 sudo mv sbsh /usr/local/bin/ && \
 sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
@@ -432,6 +227,23 @@ source <(sbsh autocomplete bash)
 source <(sb autocomplete bash)
 EOF
 ```
+
+## Container Usage
+
+sbsh provides official Docker images for running persistent terminals in containerized environments. Use pre-built images for quick deployment in Docker, Kubernetes, or any container orchestration platform.
+
+**Quick Example:**
+
+```bash
+# Pull and run sbsh in a container
+docker pull docker.io/eminwux/sbsh:v0.3.0-linux-amd64
+docker run -it --rm \
+  -v ~/.sbsh:/root/.sbsh \
+  docker.io/eminwux/sbsh:v0.3.0-linux-amd64 \
+  sbsh
+```
+
+Images are available for both `linux-amd64` and `linux-arm64` architectures. See [docs/container.md](docs/container.md) for detailed documentation on container usage, volume management, Docker Compose examples, and Kubernetes integration.
 
 ## Understanding sbsh Commands
 
@@ -454,17 +266,17 @@ $ sbsh
 **How it works:**
 
 - Launches a supervisor that stays attached to the terminal
-- Internally uses `sbsh run` to create the terminal
+- Internally uses `sbsh terminal` to create the terminal
 - Uses the default profile automatically (unless `-p` is specified)
 - You interact directly with the terminal
 - Press `Ctrl-]` twice to detach and return to your shell
 
-### `sbsh run` - Terminal Only
+### `sbsh terminal` - Terminal Only
 
-The `sbsh run` command launches **just a terminal** (no attached supervisor):
+The `sbsh terminal` command launches **just a terminal** (no attached supervisor):
 
 ```bash
-$ sbsh run --name my-terminal
+$ sbsh terminal --name my-terminal
 # Terminal runs in background
 # You can attach later with: sb attach my-terminal
 ```
@@ -479,7 +291,7 @@ $ sbsh run --name my-terminal
 **Key difference:**
 
 - `sbsh` → Supervisor + Terminal (attached, interactive)
-- `sbsh run` → Terminal only (detached, background)
+- `sbsh terminal` → Terminal only (detached, background)
 
 ### `sb` - Client Management Tool
 
@@ -501,8 +313,8 @@ $ sb get profiles           # List available profiles
 
 ### Architecture Summary
 
-- **`sbsh`**: Server-side launcher (supervisor + terminal, uses `sbsh run` internally)
-- **`sbsh run`**: Terminal-only launcher (can be called directly for detached terminals)
+- **`sbsh`**: Server-side launcher (supervisor + terminal, uses `sbsh terminal` internally)
+- **`sbsh terminal`**: Terminal-only launcher (can be called directly for detached terminals)
 - **`sb`**: Client-side manager (socket-based, never launches terminals)
 
 All three are the same binary accessed via hard links (`ln sbsh sb`), with behavior determined at runtime by the executable name.
@@ -565,7 +377,7 @@ docker-container  local   0 vars   /usr/bin/docker run ...
 ssh-pk            local   0 vars   /usr/bin/ssh -t pk
 ```
 
-See [examples/profiles/README.md](examples/profiles/README.md) to learn how to create your own profiles.
+See [docs/profiles/README.md](docs/profiles/README.md) to learn how to create your own profiles.
 
 ## Features
 

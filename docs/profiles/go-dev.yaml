@@ -1,0 +1,36 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: go-dev
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~/projects/myapp"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      GO111MODULE: "on"
+      CGO_ENABLED: "1"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;34m\]sbsh(go-dev) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: go version
+      - script: go env GOROOT
+      - script: go env GOPATH
+      - script: |
+          if [ -f "go.mod" ]; then
+            echo "Go module found"
+            go mod verify
+          else
+            echo "No go.mod found - initialize with: go mod init <module-name>"
+          fi
+    postAttach:
+      - script: go version
+      - script: |
+          if [ -f "go.mod" ]; then
+            echo "Module: $(grep '^module' go.mod | awk '{print $2}')"
+            go list -m all | head -5
+          fi

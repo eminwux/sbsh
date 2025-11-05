@@ -1,0 +1,29 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: docker-compose
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~/project"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      COMPOSE_PROJECT_NAME: "myapp"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;36m\]sbsh(docker-compose) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: docker-compose --version
+      - script: |
+          if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ]; then
+            echo "Starting docker-compose services..."
+            docker-compose up -d
+          else
+            echo "No docker-compose.yml found"
+          fi
+    postAttach:
+      - script: docker-compose ps
+      - script: docker-compose logs --tail=10

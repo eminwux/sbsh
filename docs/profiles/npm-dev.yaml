@@ -1,0 +1,34 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: npm-dev
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~/projects/myapp"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      NODE_ENV: "development"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;36m\]sbsh(npm-dev) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: node --version
+      - script: npm --version
+      - script: |
+          if [ ! -d "node_modules" ]; then
+            echo "Installing dependencies..."
+            npm install
+          else
+            echo "Dependencies already installed"
+          fi
+    postAttach:
+      - script: node --version
+      - script: npm --version
+      - script: |
+          if [ -f "package.json" ]; then
+            echo "Project: $(grep '"name"' package.json | head -1 | cut -d'"' -f4)"
+          fi

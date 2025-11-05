@@ -1,0 +1,11 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: docker-container
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/docker
+    cmdArgs: ["run", "--rm", "-ti", "debian:stable-slim", "/bin/bash"]
