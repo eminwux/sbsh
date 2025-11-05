@@ -1,48 +1,13 @@
 # 🚂 sbsh - Persistent Terminal Sessions
 
-**Never lose your work when connections drop. Never restart long-running tasks. Never lose your place in a debugging terminal.**
+**sbsh separates the terminal (your work environment) from the supervisor (the controller)**, making terminals as durable and manageable as background services.
 
 sbsh makes terminals **persistent, discoverable, and resumable**. Your work survives network drops, computer restarts, and accidental disconnects.
 
-**Demo 1 - Launch a terminal with default profile**
-[![asciicast](https://asciinema.org/a/chXZV5kG3OYR7gubis6B8nvKE.svg)](https://asciinema.org/a/chXZV5kG3OYR7gubis6B8nvKE)
-
-**Demo 2 - Launch a terminal with a Kubernetes profile**
-[![asciicast](https://asciinema.org/a/753754.svg)](https://asciinema.org/a/753754)
-
-**Demo 3 - Launch a terminal with a terraform profile**
-
-[![asciicast](https://asciinema.org/a/vBogwCwOzFm1xChDi1FPDyKpw.svg)](https://asciinema.org/a/vBogwCwOzFm1xChDi1FPDyKpw)
-
-## The Problem You Know
-
-❌ **Lost SSH terminal during debugging?** — All your work is gone
-
-❌ **Terraform plan died on disconnect?** — Start over from scratch
-
-❌ **Can't resume work after laptop sleep?** — Rebuild your entire context
-
-❌ **Need to switch between projects?** — Lose state when you leave
-
-❌ **Collaborate on a terminal?** — Not possible
-
-❌ **Audit what happened in a terminal?** — No structured logs
-
-## The Solution
-
-✅ **Connection drops?** → `sb attach myterminal` → Continue exactly where you left off
-
-✅ **Long-running task?** → Detach, come back hours later, it's still running
-
-✅ **Switch contexts?** → Terminals stay alive, switch anytime
-
-✅ **Share terminals?** → Multiple people can attach to the same terminal
-
-✅ **Full history?** → Structured logs and metadata for every terminal
-
-**sbsh separates the terminal (your work environment) from the supervisor (the controller)**, making terminals as durable and manageable as background services.
-
 sbsh was built to make environment setup **reproducible and shareable**, especially for projects that rely on many environment variables such as Terraform workspaces, Kubernetes clusters, Python virtual environments, and containerized development setups. Using declarative YAML manifests, teams can define terminal environments once and share them to ensure identical setup across local development and CI/CD pipelines. Color-coded prompts for production environments help reduce human error by making it immediately clear which environment you're working in.
+
+**Demo - Launch a terminal with default profile, detach and attach again**
+[![asciicast](https://asciinema.org/a/chXZV5kG3OYR7gubis6B8nvKE.svg)](https://asciinema.org/a/chXZV5kG3OYR7gubis6B8nvKE)
 
 ## Who Is This For?
 
@@ -70,6 +35,60 @@ sbsh was built to make environment setup **reproducible and shareable**, especia
 - API-driven terminal management for CI/CD
 - Scripted operations across persistent terminals
 - Tool integration and observability
+
+## Profiles: Declarative Environment Manifests
+
+sbsh uses **declarative YAML manifests** to define terminal environments. These manifests specify everything needed for reproducible environments:
+
+- **Environment variables**: Define all required variables (Terraform workspaces, Kubernetes contexts, Python paths, etc.)
+- **Commands and startup scripts**: Configure the command to run and any initialization steps
+- **Prompts and colors**: Visual indicators that help prevent mistakes (e.g., red prompts for production)
+- **Lifecycle hooks**: Automated setup (`onInit`) and post-attach actions (`postAttach`)
+
+These manifests can be shared with teammates to ensure identical environment setup locally and in CI/CD pipelines. Sharing manifests ensures everyone sets up their environment safely and consistently, preventing mistakes like applying Terraform to the wrong workspace or using the wrong Kubernetes cluster.
+
+### Profiles by Example
+
+Profiles define everything needed for reproducible environments. Here are brief examples:
+
+**Terraform production workspace:**
+
+```yaml
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: terraform-prd
+spec:
+  shell:
+    env:
+      TF_VAR_environment: "prd"
+    prompt: '"\[\e[1;31m\]sbsh(terraform-prd) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: terraform workspace use prd
+      - script: terraform init
+```
+
+**Kubernetes development terminal:**
+
+```yaml
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: k8s-default
+spec:
+  shell:
+    env:
+      KUBE_CONTEXT: default
+      KUBE_NAMESPACE: default
+  stages:
+    onInit:
+      - script: kubectl config use-context $KUBE_CONTEXT
+    postAttach:
+      - script: kubectl get pods
+```
+
+Color-coded prompts and reproducible profiles make environments safer to use by clearly indicating which environment you're working in. See [docs/profiles/README.md](docs/profiles/README.md) for detailed examples and reference.
 
 ## Key Benefits
 
@@ -127,60 +146,6 @@ Control terminals programmatically for automation:
 - Build custom workflows
 - Automate operations
 
-## Profiles: Declarative Environment Manifests
-
-sbsh uses **declarative YAML manifests** to define terminal environments. These manifests specify everything needed for reproducible environments:
-
-- **Environment variables**: Define all required variables (Terraform workspaces, Kubernetes contexts, Python paths, etc.)
-- **Commands and startup scripts**: Configure the command to run and any initialization steps
-- **Prompts and colors**: Visual indicators that help prevent mistakes (e.g., red prompts for production)
-- **Lifecycle hooks**: Automated setup (`onInit`) and post-attach actions (`postAttach`)
-
-These manifests can be shared with teammates to ensure identical environment setup locally and in CI/CD pipelines. Sharing manifests ensures everyone sets up their environment safely and consistently, preventing mistakes like applying Terraform to the wrong workspace or using the wrong Kubernetes cluster.
-
-### Profiles by Example
-
-Profiles define everything needed for reproducible environments. Here are brief examples:
-
-**Terraform production workspace:**
-
-```yaml
-apiVersion: sbsh/v1beta1
-kind: TerminalProfile
-metadata:
-  name: terraform-prd
-spec:
-  shell:
-    env:
-      TF_VAR_environment: "prd"
-    prompt: '"\[\e[1;31m\]sbsh(terraform-prd) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
-  stages:
-    onInit:
-      - script: terraform workspace use prd
-      - script: terraform init
-```
-
-**Kubernetes development terminal:**
-
-```yaml
-apiVersion: sbsh/v1beta1
-kind: TerminalProfile
-metadata:
-  name: k8s-default
-spec:
-  shell:
-    env:
-      KUBE_CONTEXT: default
-      KUBE_NAMESPACE: default
-  stages:
-    onInit:
-      - script: kubectl config use-context $KUBE_CONTEXT
-    postAttach:
-      - script: kubectl get pods
-```
-
-Color-coded prompts and reproducible profiles make environments safer to use by clearly indicating which environment you're working in. See [docs/profiles/README.md](docs/profiles/README.md) for detailed examples and reference.
-
 ## How sbsh Differs from screen and tmux
 
 sbsh, `screen`, and `tmux` all provide persistent terminals, but sbsh is designed for different needs. Key differentiators:
@@ -213,7 +178,7 @@ See [docs/cicd.md](docs/cicd.md) for detailed examples and best practices for Gi
 
 ```bash
 # Install sbsh
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.3.0/sbsh-linux-amd64 && \
+curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.4.0/sbsh-linux-amd64 && \
 chmod +x sbsh && \
 sudo mv sbsh /usr/local/bin/ && \
 sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
@@ -236,10 +201,10 @@ sbsh provides official Docker images for running persistent terminals in contain
 
 ```bash
 # Pull and run sbsh in a container
-docker pull docker.io/eminwux/sbsh:v0.3.0-linux-amd64
+docker pull docker.io/eminwux/sbsh:v0.4.0-linux-amd64
 docker run -it --rm \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.3.0-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.4.0-linux-amd64 \
   sbsh
 ```
 
