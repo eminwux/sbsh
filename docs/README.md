@@ -8,6 +8,7 @@ This directory contains technical documentation for the `sbsh` project, covering
 - [Commands](#commands)
 - [Busybox-Style Binary Strategy](#busybox-style-binary-strategy)
 - [Profiles](#profiles)
+- [Features](./features.md)
 - [Container Usage](./container.md)
 
 ## Architecture
