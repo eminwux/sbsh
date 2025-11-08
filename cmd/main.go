@@ -42,6 +42,12 @@ func main() {
 
 	// Select which subtree to run based on the executable name
 	exe := filepath.Base(os.Args[0])
+
+	// Filter Termux arguments if running in Termux environment
+	// This prevents the absolute path from being passed as a command argument
+	//nolint:reassign // Intentional modification of os.Args to filter Termux absolute path arguments
+	os.Args = filterTermuxArgs()
+
 	// Decide which subtree to run by prepending the name as the first arg
 	switch exe {
 	case "sb":
