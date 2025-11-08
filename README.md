@@ -14,7 +14,7 @@ Get sbsh up and running in minutes.
 
 ```bash
 # Set your platform (defaults shown)
-export OS=linux        # Options: linux, darwin, freebsd
+export OS=linux        # Options: linux, darwin, freebsd, android(arm64 only)
 export ARCH=amd64      # Options: amd64, arm64
 
 # Install sbsh

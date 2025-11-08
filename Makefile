@@ -16,7 +16,7 @@ SBSH_DOCKER_IMAGE := $(SBSH_REGISTRY)/$(SBSH_IMAGE_NAME):$(SBSH_IMAGE_TAG)
 
 # ----- Build matrix -----
 BINS = sbsh-sb
-OS = linux darwin freebsd
+OS = linux darwin freebsd android
 ARCHS = amd64 arm64
 
 
@@ -43,8 +43,19 @@ release-build:
 	# Build for all OS and ARCH combinations
 	for OS in $(OS); do \
 		for ARCH in $(ARCHS); do \
+			if [ "$$OS" = "android" ]; then \
+				if [ "$$ARCH" != "arm64" ]; then \
+					# Skipping: android builds are only compiled for arm64 architecture \
+					continue; \
+				fi; \
+				BUILD_MODE="-buildmode=pie"; \
+			else \
+				BUILD_MODE=""; \
+			fi; \
 			GO111MODULE=on CGO_ENABLED=0 GOOS=$$OS GOARCH=$$ARCH \
 			go build -a \
+			-trimpath \
+			$$BUILD_MODE \
 			-o sbsh-$$OS-$$ARCH \
 			-ldflags="-s -w -X $(MODULE)/cmd/config.Version=$(SBSH_VERSION)" \
 			./cmd; \

@@ -33,6 +33,7 @@ jobs:
           ./sbsh-linux-amd64 ./sbsh-linux-arm64 \
           ./sbsh-darwin-amd64 ./sbsh-darwin-arm64 \
           ./sbsh-freebsd-amd64 ./sbsh-freebsd-arm64 \
+          ./sbsh-android-arm64 \
           --title "${GITHUB_REF#refs/tags/}" \
           --generate-notes \
           --notes "Docker images available at:
