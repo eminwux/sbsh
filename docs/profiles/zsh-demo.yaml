@@ -1,0 +1,23 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: zsh
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cmd: /bin/zsh
+    cmdArgs: ["-f"]
+    cwd: "~/projects"
+    env:
+      EDITOR: "nvim"
+      HISTSIZE: "10000"
+      LANG: "en_US.UTF-8"
+      TERM: "xterm-256color"
+    prompt: '"%F{cyan}sbsh[%f%F{yellow}$SBSH_TERM_PROFILE%f%F{cyan}]%f %F{green}%n@%m%f:%~ %# "'
+  stages:
+    onInit:
+      - script: 'echo "✨ Welcome to your sbsh Zsh environment ✨"'
+      - script: 'alias k="kubectl"'
+      - script: 'alias tf="terraform"'
+      - script: 'echo "Aliases loaded: k=kubectl, tf=terraform"'
