@@ -26,6 +26,7 @@ type TerminalController interface {
 	Detach(id *ID) error
 	Attach(id *ID, reply *ResponseWithFD) error
 	Metadata() (*TerminalMetadata, error)
+	State() (*TerminalStatusMode, error)
 }
 
 type TerminalState int
@@ -82,6 +83,7 @@ type TerminalStatusMode int
 
 const (
 	Initializing TerminalStatusMode = iota
+	Starting
 	Ready
 	Exited
 )
@@ -90,6 +92,8 @@ func (s TerminalStatusMode) String() string {
 	switch s {
 	case Initializing:
 		return "Initializing"
+	case Starting:
+		return "Starting"
 	case Ready:
 		return "Ready"
 	case Exited:
@@ -114,6 +118,7 @@ const (
 	TerminalMethodAttach   = TerminalService + ".Attach"
 	TerminalMethodDetach   = TerminalService + ".Detach"
 	TerminalMethodMetadata = TerminalService + ".Metadata"
+	TerminalMethodState    = TerminalService + ".State"
 )
 
 type PingMessage struct {

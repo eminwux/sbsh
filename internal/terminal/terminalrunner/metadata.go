@@ -39,6 +39,7 @@ func (sr *Exec) CreateMetadata() error {
 	sr.metadata.Status.LogFile = sr.metadata.Spec.LogFile
 	sr.metadata.Status.LogLevel = sr.metadata.Spec.LogLevel
 	sr.metadata.Status.CaptureFile = sr.metadata.Spec.CaptureFile
+	sr.metadata.Status.State = api.Initializing
 
 	sr.logger.Info("CreateMetadata: terminal metadata set", "Spec", sr.metadata.Spec, "Status", sr.metadata.Status)
 

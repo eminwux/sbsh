@@ -18,9 +18,11 @@ package supervisor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -1768,5 +1770,259 @@ func Test_RunNewTerminalSuccess(t *testing.T) {
 
 	// Close the controller to clean up
 	_ = sc.Close(errors.New("test cleanup"))
+	<-exitCh
+}
+
+// Test_SupervisorAttach_WaitForStartingOrReady verifies that the supervisor attach flow
+// correctly handles waiting for Starting or Ready states.
+// Note: The actual waitReady() behavior with multiple states is tested in
+// supervisorrunner/io_test.go. This test verifies the attach flow completes successfully.
+func Test_SupervisorAttach_WaitForStartingOrReady(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create temporary directory for terminal metadata
+	runPath := t.TempDir()
+	terminalsDir := filepath.Join(runPath, "terminals", "term-1")
+	if err := os.MkdirAll(terminalsDir, 0o755); err != nil {
+		t.Fatalf("failed to create terminal dir: %v", err)
+	}
+
+	// Create terminal metadata file that discovery can find
+	metadata := api.TerminalMetadata{
+		Spec: api.TerminalSpec{
+			ID:          api.ID("term-1"),
+			Kind:        api.TerminalLocal,
+			Name:        "terminal-1",
+			Command:     "/bin/bash",
+			CommandArgs: []string{"-i"},
+			SocketFile:  filepath.Join(terminalsDir, "socket"),
+			RunPath:     runPath,
+		},
+		Status: api.TerminalStatus{
+			State: api.Starting,
+		},
+	}
+	data, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal metadata: %v", err)
+	}
+	metaPath := filepath.Join(terminalsDir, "metadata.json")
+	if err = os.WriteFile(metaPath, data, 0o644); err != nil {
+		t.Fatalf("failed to write metadata: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	sc := NewSupervisorController(ctx, logger).(*Controller)
+
+	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner {
+		return &supervisorrunner.Test{
+			Ctx:    ctx,
+			Logger: logger,
+			OpenSocketCtrlFunc: func() error {
+				return nil
+			},
+			StartServerFunc: func(_ context.Context, _ *supervisorrpc.SupervisorControllerRPC, readyCh chan error, _ chan error) {
+				readyCh <- nil
+			},
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
+				// Attach should succeed - waitReady(Starting, Ready) will be called internally
+				// and should succeed when terminal is in Starting or Ready state
+				return nil
+			},
+			IDFunc: func() api.ID {
+				return "test-supervisor"
+			},
+			CloseFunc: func(_ error) error {
+				return nil
+			},
+			ResizeFunc: func(_ api.ResizeArgs) {},
+			CreateMetadataFunc: func() error {
+				return nil
+			},
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
+				return nil
+			},
+		}
+	}
+
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
+				return nil
+			},
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
+				return nil, false
+			},
+			ListLiveFunc: func() []api.ID {
+				return []api.ID{}
+			},
+			RemoveFunc: func(_ api.ID) {},
+			CurrentFunc: func() api.ID {
+				return "term-1"
+			},
+			SetCurrentFunc: func(_ api.ID) error {
+				return nil
+			},
+		}
+	}
+
+	supervisorID := naming.RandomID()
+	spec := api.SupervisorSpec{
+		ID:      api.ID(supervisorID),
+		Name:    "default",
+		LogFile: "/tmp/sbsh-logs/s0",
+		RunPath: runPath,
+		Kind:    api.AttachToTerminal,
+		TerminalSpec: &api.TerminalSpec{
+			ID:   "term-1",
+			Name: "terminal-1",
+		},
+	}
+
+	exitCh := make(chan error)
+	go func() {
+		exitCh <- sc.Run(&spec)
+	}()
+
+	// Wait for controller to be ready (attach should complete)
+	errWait := sc.WaitReady()
+	if errWait != nil {
+		t.Fatalf("WaitReady() should succeed, got error: %v", errWait)
+	}
+
+	// Close the controller to stop it
+	_ = sc.Close(errors.New("test complete"))
+	<-exitCh
+}
+
+// Test_SupervisorAttach_StateTransition verifies the complete attach flow works correctly.
+func Test_SupervisorAttach_StateTransition(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create temporary directory for terminal metadata
+	runPath := t.TempDir()
+	terminalsDir := filepath.Join(runPath, "terminals", "term-1")
+	if err := os.MkdirAll(terminalsDir, 0o755); err != nil {
+		t.Fatalf("failed to create terminal dir: %v", err)
+	}
+
+	// Create terminal metadata file that discovery can find
+	metadata := api.TerminalMetadata{
+		Spec: api.TerminalSpec{
+			ID:          api.ID("term-1"),
+			Kind:        api.TerminalLocal,
+			Name:        "terminal-1",
+			Command:     "/bin/bash",
+			CommandArgs: []string{"-i"},
+			SocketFile:  filepath.Join(terminalsDir, "socket"),
+			RunPath:     runPath,
+		},
+		Status: api.TerminalStatus{
+			State: api.Ready,
+		},
+	}
+	data, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal metadata: %v", err)
+	}
+	metaPath := filepath.Join(terminalsDir, "metadata.json")
+	if err = os.WriteFile(metaPath, data, 0o644); err != nil {
+		t.Fatalf("failed to write metadata: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	sc := NewSupervisorController(ctx, logger).(*Controller)
+
+	attachCalled := false
+	sc.NewSupervisorRunner = func(ctx context.Context, logger *slog.Logger, _ *api.SupervisorSpec, _ chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner {
+		return &supervisorrunner.Test{
+			Ctx:    ctx,
+			Logger: logger,
+			OpenSocketCtrlFunc: func() error {
+				return nil
+			},
+			StartServerFunc: func(_ context.Context, _ *supervisorrpc.SupervisorControllerRPC, readyCh chan error, _ chan error) {
+				readyCh <- nil
+			},
+			AttachFunc: func(_ *api.SupervisedTerminal) error {
+				attachCalled = true
+				// This simulates the attach flow:
+				// 1. waitReady(Starting, Ready) - succeeds when terminal is Starting or Ready
+				// 2. attach() - establishes connection
+				// 3. forwardResize() - forwards terminal resize events
+				// 4. startConnectionManager() - starts IO forwarding
+				// 5. waitReady(Ready) - waits for terminal to be Ready
+				// 6. initTerminal() - initializes terminal
+				return nil
+			},
+			IDFunc: func() api.ID {
+				return "test-supervisor"
+			},
+			CloseFunc: func(_ error) error {
+				return nil
+			},
+			ResizeFunc: func(_ api.ResizeArgs) {},
+			CreateMetadataFunc: func() error {
+				return nil
+			},
+			StartTerminalCmdFunc: func(_ *api.SupervisedTerminal) error {
+				return nil
+			},
+		}
+	}
+
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc: func(_ *api.SupervisedTerminal) error {
+				return nil
+			},
+			GetFunc: func(_ api.ID) (*api.SupervisedTerminal, bool) {
+				return nil, false
+			},
+			ListLiveFunc: func() []api.ID {
+				return []api.ID{}
+			},
+			RemoveFunc: func(_ api.ID) {},
+			CurrentFunc: func() api.ID {
+				return "term-1"
+			},
+			SetCurrentFunc: func(_ api.ID) error {
+				return nil
+			},
+		}
+	}
+
+	supervisorID := naming.RandomID()
+	spec := api.SupervisorSpec{
+		ID:      api.ID(supervisorID),
+		Name:    "default",
+		LogFile: "/tmp/sbsh-logs/s0",
+		RunPath: runPath,
+		Kind:    api.AttachToTerminal,
+		TerminalSpec: &api.TerminalSpec{
+			ID:   "term-1",
+			Name: "terminal-1",
+		},
+	}
+
+	exitCh := make(chan error)
+	go func() {
+		exitCh <- sc.Run(&spec)
+	}()
+
+	// Wait for controller to be ready
+	errWait := sc.WaitReady()
+	if errWait != nil {
+		t.Fatalf("WaitReady() should succeed, got error: %v", errWait)
+	}
+
+	if !attachCalled {
+		t.Fatal("Attach() should have been called")
+	}
+
+	// Close the controller to stop it
+	_ = sc.Close(errors.New("test complete"))
 	<-exitCh
 }

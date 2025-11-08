@@ -23,6 +23,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"slices"
 	"syscall"
 	"time"
 
@@ -201,7 +202,7 @@ const (
 	waitReadyTickMilliseconds = 50
 )
 
-func (sr *Exec) waitReady() error {
+func (sr *Exec) waitReady(states ...api.TerminalStatusMode) error {
 	ctx, cancel := context.WithTimeout(sr.ctx, waitReadyTimeoutSeconds*time.Second)
 	defer cancel()
 
@@ -223,26 +224,26 @@ func (sr *Exec) waitReady() error {
 			sr.logger.ErrorContext(sr.ctx, "waitReady: context done before ready", "error", ctx.Err())
 			return fmt.Errorf("context done before ready: %w", ctx.Err())
 		case <-ticker.C:
-			// refresh metadata
-			metadata, err := sr.getTerminalMetadata()
+			// refresh curState
+			curState, err := sr.getTerminalState()
 			if err != nil {
-				sr.logger.ErrorContext(sr.ctx, "waitReady: getTerminalMetadata failed during wait", "error", err)
-				return fmt.Errorf("get terminal metadata failed during wait: %w", err)
+				sr.logger.ErrorContext(sr.ctx, "waitReady: getTerminalState failed during wait", "error", err)
+				return fmt.Errorf("get terminal state failed during wait: %w", err)
 			}
-			if metadata.Status.State == api.Ready {
+			if slices.Contains(states, *curState) {
 				sr.logger.InfoContext(
 					sr.ctx,
-					"waitReady: terminal is ready",
+					"waitState: terminal is "+curState.String(),
 					"terminal_id",
-					metadata.Spec.ID,
+					sr.terminal.Spec.ID,
 					"terminal_name",
-					metadata.Spec.Name,
+					sr.terminal.Spec.Name,
 				)
 				return nil
 			}
 			sr.logger.DebugContext(
 				sr.ctx,
-				"waitReady: terminal not ready yet",
+				"waitState: terminal is state "+curState.String(),
 				"terminal_id",
 				sr.terminal.Spec.ID,
 				"terminal_name",
