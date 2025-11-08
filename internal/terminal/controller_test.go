@@ -651,3 +651,380 @@ func Test_HandleEvent_EvError(_ *testing.T) {
 
 	terminalCtrl.eventsCh <- ev
 }
+
+func Test_TerminalState_Initializing(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	terminalCtrl := NewTerminalController(ctx, logger).(*Controller)
+
+	terminalCtrl.NewTerminalRunner = func(_ context.Context, _ *slog.Logger, spec *api.TerminalSpec) terminalrunner.TerminalRunner {
+		return &terminalrunner.Test{
+			IDFunc: func() api.ID {
+				return spec.ID
+			},
+			OpenSocketCtrlFunc: func() error {
+				return nil
+			},
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+				readyCh <- nil
+			},
+			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
+				return nil
+			},
+			MetadataFunc: func() (*api.TerminalMetadata, error) {
+				return &api.TerminalMetadata{
+					Spec: api.TerminalSpec{
+						ID:   api.ID("test-terminal"),
+						Name: "test",
+					},
+					Status: api.TerminalStatus{
+						State: api.Initializing,
+					},
+				}, nil
+			},
+			SetupShellFunc: func() error {
+				return nil
+			},
+			OnInitShellFunc: func() error {
+				return nil
+			},
+		}
+	}
+
+	spec := api.TerminalSpec{
+		ID:          api.ID("test-terminal"),
+		Kind:        api.TerminalLocal,
+		Name:        "test",
+		Command:     "/bin/bash",
+		CommandArgs: []string{},
+		Env:         os.Environ(),
+	}
+
+	// Start the controller in a goroutine
+	go func() {
+		_ = terminalCtrl.Run(&spec)
+	}()
+
+	// Wait a bit for StartTerminal to be called
+	time.Sleep(50 * time.Millisecond)
+
+	state, err := terminalCtrl.State()
+	if err != nil {
+		t.Fatalf("State() returned error: %v", err)
+	}
+	if state == nil {
+		t.Fatal("State() returned nil")
+	}
+	if *state != api.Initializing {
+		t.Errorf("Expected state Initializing, got %v", *state)
+	}
+
+	cancel()
+}
+
+func Test_TerminalState_Starting(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	terminalCtrl := NewTerminalController(ctx, logger).(*Controller)
+
+	terminalCtrl.NewTerminalRunner = func(_ context.Context, _ *slog.Logger, spec *api.TerminalSpec) terminalrunner.TerminalRunner {
+		return &terminalrunner.Test{
+			IDFunc: func() api.ID {
+				return spec.ID
+			},
+			OpenSocketCtrlFunc: func() error {
+				return nil
+			},
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+				readyCh <- nil
+			},
+			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
+				// After PTY is started, state should be Starting
+				return nil
+			},
+			MetadataFunc: func() (*api.TerminalMetadata, error) {
+				return &api.TerminalMetadata{
+					Spec: api.TerminalSpec{
+						ID:   api.ID("test-terminal"),
+						Name: "test",
+					},
+					Status: api.TerminalStatus{
+						State: api.Starting,
+					},
+				}, nil
+			},
+			SetupShellFunc: func() error {
+				return nil
+			},
+			OnInitShellFunc: func() error {
+				return nil
+			},
+		}
+	}
+
+	spec := api.TerminalSpec{
+		ID:          api.ID("test-terminal"),
+		Kind:        api.TerminalLocal,
+		Name:        "test",
+		Command:     "/bin/bash",
+		CommandArgs: []string{},
+		Env:         os.Environ(),
+	}
+
+	// Start the controller in a goroutine
+	go func() {
+		_ = terminalCtrl.Run(&spec)
+	}()
+
+	// Wait for StartTerminal to complete (PTY started, state should be Starting)
+	time.Sleep(100 * time.Millisecond)
+
+	state, err := terminalCtrl.State()
+	if err != nil {
+		t.Fatalf("State() returned error: %v", err)
+	}
+	if state == nil {
+		t.Fatal("State() returned nil")
+	}
+	if *state != api.Starting {
+		t.Errorf("Expected state Starting, got %v", *state)
+	}
+
+	cancel()
+}
+
+func Test_TerminalState_Ready(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	terminalCtrl := NewTerminalController(ctx, logger).(*Controller)
+
+	terminalCtrl.NewTerminalRunner = func(_ context.Context, _ *slog.Logger, spec *api.TerminalSpec) terminalrunner.TerminalRunner {
+		return &terminalrunner.Test{
+			IDFunc: func() api.ID {
+				return spec.ID
+			},
+			OpenSocketCtrlFunc: func() error {
+				return nil
+			},
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+				readyCh <- nil
+			},
+			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
+				return nil
+			},
+			SetupShellFunc: func() error {
+				return nil
+			},
+			OnInitShellFunc: func() error {
+				return nil
+			},
+			MetadataFunc: func() (*api.TerminalMetadata, error) {
+				return &api.TerminalMetadata{
+					Spec: api.TerminalSpec{
+						ID:   api.ID("test-terminal"),
+						Name: "test",
+					},
+					Status: api.TerminalStatus{
+						State: api.Ready,
+					},
+				}, nil
+			},
+		}
+	}
+
+	spec := api.TerminalSpec{
+		ID:          api.ID("test-terminal"),
+		Kind:        api.TerminalLocal,
+		Name:        "test",
+		Command:     "/bin/bash",
+		CommandArgs: []string{},
+		Env:         os.Environ(),
+	}
+
+	// Start the controller in a goroutine
+	go func() {
+		_ = terminalCtrl.Run(&spec)
+	}()
+
+	// Wait for controller to be ready (after SetupShell and OnInitShell complete)
+	_ = terminalCtrl.WaitReady()
+
+	state, err := terminalCtrl.State()
+	if err != nil {
+		t.Fatalf("State() returned error: %v", err)
+	}
+	if state == nil {
+		t.Fatal("State() returned nil")
+	}
+	if *state != api.Ready {
+		t.Errorf("Expected state Ready, got %v", *state)
+	}
+
+	cancel()
+}
+
+func Test_TerminalState_Exited(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	terminalCtrl := NewTerminalController(ctx, logger).(*Controller)
+
+	terminalCtrl.NewTerminalRunner = func(_ context.Context, _ *slog.Logger, spec *api.TerminalSpec) terminalrunner.TerminalRunner {
+		return &terminalrunner.Test{
+			IDFunc: func() api.ID {
+				return spec.ID
+			},
+			OpenSocketCtrlFunc: func() error {
+				return nil
+			},
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+				readyCh <- nil
+			},
+			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
+				return nil
+			},
+			SetupShellFunc: func() error {
+				return nil
+			},
+			OnInitShellFunc: func() error {
+				return nil
+			},
+			CloseFunc: func(_ error) error {
+				return nil
+			},
+			MetadataFunc: func() (*api.TerminalMetadata, error) {
+				return &api.TerminalMetadata{
+					Spec: api.TerminalSpec{
+						ID:   api.ID("test-terminal"),
+						Name: "test",
+					},
+					Status: api.TerminalStatus{
+						State: api.Exited,
+					},
+				}, nil
+			},
+		}
+	}
+
+	spec := api.TerminalSpec{
+		ID:          api.ID("test-terminal"),
+		Kind:        api.TerminalLocal,
+		Name:        "test",
+		Command:     "/bin/bash",
+		CommandArgs: []string{},
+		Env:         os.Environ(),
+	}
+
+	// Start the controller in a goroutine
+	go func() {
+		_ = terminalCtrl.Run(&spec)
+	}()
+
+	// Wait for controller to be ready
+	_ = terminalCtrl.WaitReady()
+
+	// Close the terminal
+	_ = terminalCtrl.Close(errors.New("test close"))
+
+	// Wait a bit for Close to complete
+	time.Sleep(50 * time.Millisecond)
+
+	state, err := terminalCtrl.State()
+	if err != nil {
+		t.Fatalf("State() returned error: %v", err)
+	}
+	if state == nil {
+		t.Fatal("State() returned nil")
+	}
+	if *state != api.Exited {
+		t.Errorf("Expected state Exited, got %v", *state)
+	}
+
+	cancel()
+}
+
+func Test_State_Method_ReturnsCorrectStates(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	stateSequence := []api.TerminalStatusMode{api.Initializing, api.Starting, api.Ready, api.Exited}
+	stateIndex := 0
+
+	testRunner := &terminalrunner.Test{
+		IDFunc: func() api.ID {
+			return api.ID("test-terminal")
+		},
+		MetadataFunc: func() (*api.TerminalMetadata, error) {
+			var state api.TerminalStatusMode
+			if stateIndex < len(stateSequence) {
+				state = stateSequence[stateIndex]
+			} else {
+				state = api.Exited
+			}
+			return &api.TerminalMetadata{
+				Spec: api.TerminalSpec{
+					ID:   api.ID("test-terminal"),
+					Name: "test",
+				},
+				Status: api.TerminalStatus{
+					State: state,
+				},
+			}, nil
+		},
+	}
+
+	terminalCtrl := NewTerminalController(ctx, logger).(*Controller)
+	terminalCtrl.sr = testRunner
+
+	// Test Initializing state
+	stateIndex = 0
+	state, err := terminalCtrl.State()
+	if err != nil {
+		t.Fatalf("State() returned error: %v", err)
+	}
+	if state == nil {
+		t.Fatal("State() returned nil")
+	}
+	if *state != api.Initializing {
+		t.Errorf("Expected state Initializing, got %v", *state)
+	}
+
+	// Test Starting state
+	stateIndex = 1
+	state, err = terminalCtrl.State()
+	if err != nil {
+		t.Fatalf("State() returned error: %v", err)
+	}
+	if *state != api.Starting {
+		t.Errorf("Expected state Starting, got %v", *state)
+	}
+
+	// Test Ready state
+	stateIndex = 2
+	state, err = terminalCtrl.State()
+	if err != nil {
+		t.Fatalf("State() returned error: %v", err)
+	}
+	if *state != api.Ready {
+		t.Errorf("Expected state Ready, got %v", *state)
+	}
+
+	// Test Exited state
+	stateIndex = 3
+	state, err = terminalCtrl.State()
+	if err != nil {
+		t.Fatalf("State() returned error: %v", err)
+	}
+	if *state != api.Exited {
+		t.Errorf("Expected state Exited, got %v", *state)
+	}
+}
