@@ -17,23 +17,23 @@ sbsh images are available on Docker Hub at `docker.io/eminwux/sbsh`. Images are 
 ### AMD64 (x86_64)
 
 ```bash
-docker pull docker.io/eminwux/sbsh:v0.5.1-linux-amd64
+docker pull docker.io/eminwux/sbsh:v0.5.0-linux-amd64
 ```
 
 ### ARM64
 
 ```bash
-docker pull docker.io/eminwux/sbsh:v0.5.1-linux-arm64
+docker pull docker.io/eminwux/sbsh:v0.5.0-linux-arm64
 ```
 
 ### Using Docker Hub Short Syntax
 
 ```bash
 # AMD64
-docker pull eminwux/sbsh:v0.5.1-linux-amd64
+docker pull eminwux/sbsh:v0.5.0-linux-amd64
 
 # ARM64
-docker pull eminwux/sbsh:v0.5.1-linux-arm64
+docker pull eminwux/sbsh:v0.5.0-linux-arm64
 ```
 
 ## Image Architecture
@@ -76,7 +76,7 @@ Runs a **supervisor attached to a terminal**. This is the default behavior when 
 **Example Dockerfile:**
 
 ```dockerfile
-FROM docker.io/eminwux/sbsh:v0.5.1-linux-amd64
+FROM docker.io/eminwux/sbsh:v0.5.0-linux-amd64
 CMD ["/bin/sbsh"]
 ```
 
@@ -100,7 +100,7 @@ Runs **just a terminal** without a supervisor. The supervisor is launched extern
 **Example Dockerfile:**
 
 ```dockerfile
-FROM docker.io/eminwux/sbsh:v0.5.1-linux-amd64
+FROM docker.io/eminwux/sbsh:v0.5.0-linux-amd64
 CMD ["/bin/sbsh", "terminal", "--name", "my-terminal"]
 ```
 
@@ -142,7 +142,7 @@ Run sbsh with an attached supervisor and terminal:
 ```bash
 docker run -it --rm \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.5.1-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
   sbsh
 ```
 
@@ -161,7 +161,7 @@ Launch a terminal that runs independently (no supervisor initially). **Important
 docker run -d \
   --name my-sbsh-terminal \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.5.1-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
   sbsh terminal --name my-terminal
 ```
 
@@ -210,7 +210,7 @@ docker volume create sbsh-data
 
 docker run -it --rm \
   -v sbsh-data:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.5.1-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
   sbsh
 ```
 
@@ -221,7 +221,7 @@ For direct access to files from the host:
 ```bash
 docker run -it --rm \
   -v /home/user/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.5.1-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
   sbsh
 ```
 
@@ -234,7 +234,7 @@ Launch a supervisor with an attached terminal:
 ```bash
 docker run -it --rm \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.5.1-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
   sbsh -p terraform-prd
 ```
 
@@ -246,7 +246,7 @@ Create a terminal that runs independently:
 docker run -d \
   --name terraform-terminal \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.5.1-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
   sbsh terminal --name terraform-prd -p terraform-prd
 ```
 
@@ -258,19 +258,19 @@ List terminals, attach, or manage sessions:
 # List terminals
 docker run --rm \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.5.1-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
   sb get terminals
 
 # Attach to a terminal
 docker run -it --rm \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.5.1-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
   sb attach my-terminal
 
 # List profiles
 docker run --rm \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.5.1-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
   sb get profiles
 ```
 
@@ -283,7 +283,7 @@ You can use the sbsh image as a base for custom Dockerfiles:
 Use `CMD ["/bin/sbsh"]` for interactive development where you want the supervisor attached:
 
 ```dockerfile
-FROM docker.io/eminwux/sbsh:v0.5.1-linux-amd64
+FROM docker.io/eminwux/sbsh:v0.5.0-linux-amd64
 
 # Install additional tools
 RUN apt-get update && apt-get install -y \
@@ -319,7 +319,7 @@ This runs an interactive terminal with an attached supervisor. Press `Ctrl-]` tw
 Use `CMD ["/bin/sbsh", "terminal"]` for background terminals that run independently. **Important**: Always specify `--name` to identify the terminal for later attachment:
 
 ```dockerfile
-FROM docker.io/eminwux/sbsh:v0.5.1-linux-amd64
+FROM docker.io/eminwux/sbsh:v0.5.0-linux-amd64
 
 # Install additional tools
 RUN apt-get update && apt-get install -y \
@@ -364,7 +364,7 @@ version: "3.8"
 
 services:
   sbsh:
-    image: docker.io/eminwux/sbsh:v0.5.1-linux-amd64
+    image: docker.io/eminwux/sbsh:v0.5.0-linux-amd64
     container_name: sbsh
     volumes:
       - ~/.sbsh:/root/.sbsh
@@ -394,8 +394,8 @@ sbsh images are available for multiple architectures:
 Docker automatically selects the correct image for your platform:
 
 ```bash
-docker pull eminwux/sbsh:v0.5.1-linux-amd64
-docker pull eminwux/sbsh:v0.5.1-linux-arm64
+docker pull eminwux/sbsh:v0.5.0-linux-amd64
+docker pull eminwux/sbsh:v0.5.0-linux-arm64
 ```
 
 ### Using Docker Buildx
@@ -405,7 +405,7 @@ For multi-architecture builds, use Docker Buildx:
 ```bash
 docker buildx create --use
 docker buildx build --platform linux/amd64,linux/arm64 \
-  -t eminwux/sbsh:v0.5.1 \
+  -t eminwux/sbsh:v0.5.0 \
   --push .
 ```
 
@@ -419,7 +419,7 @@ If you need to run Docker commands inside sbsh containers, you can use Docker-in
 docker run -it --rm \
   -v ~/.sbsh:/root/.sbsh \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  docker.io/eminwux/sbsh:v0.5.1-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
   sbsh
 ```
 
@@ -431,7 +431,7 @@ Then install Docker client inside the container or use a profile that includes i
 docker run -it --rm \
   -v ~/.sbsh:/root/.sbsh \
   --privileged \
-  docker.io/eminwux/sbsh:v0.5.1-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
   sbsh
 ```
 
@@ -458,7 +458,7 @@ spec:
     spec:
       containers:
         - name: sbsh
-          image: docker.io/eminwux/sbsh:v0.5.1-linux-amd64
+          image: docker.io/eminwux/sbsh:v0.5.0-linux-amd64
           command: ["/bin/sbsh", "terminal", "--name", "k8s-terminal"]
           volumeMounts:
             - name: sbsh-data
@@ -501,7 +501,7 @@ spec:
   docker run -it --rm \
     --user $(id -u):$(id -g) \
     -v ~/.sbsh:/home/user/.sbsh \
-    docker.io/eminwux/sbsh:v0.5.1-linux-amd64 \
+    docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
     sbsh
   ```
 
@@ -545,8 +545,8 @@ spec:
 **Solutions**:
 
 - Pull the correct architecture image:
-  - AMD64: `docker.io/eminwux/sbsh:v0.5.1-linux-amd64`
-  - ARM64: `docker.io/eminwux/sbsh:v0.5.1-linux-arm64`
+  - AMD64: `docker.io/eminwux/sbsh:v0.5.0-linux-amd64`
+  - ARM64: `docker.io/eminwux/sbsh:v0.5.0-linux-arm64`
 - Use `docker manifest inspect` to check available architectures
 - Verify host architecture: `uname -m`
 
@@ -564,7 +564,7 @@ spec:
 ## Best Practices
 
 1. **Use Named Volumes**: For production, use named volumes instead of bind mounts for better portability
-2. **Version Pinning**: Always pin to specific version tags (e.g., `v0.5.1-linux-amd64`) instead of `latest`
+2. **Version Pinning**: Always pin to specific version tags (e.g., `v0.5.0-linux-amd64`) instead of `latest`
 3. **Profile Management**: Store profiles in version control and mount them as volumes
 4. **Resource Limits**: Set appropriate CPU and memory limits for containers
 5. **Security**: Avoid using `--privileged` unless absolutely necessary
