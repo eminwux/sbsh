@@ -246,7 +246,11 @@ Images are available for both `linux-amd64` and `linux-arm64` architectures.
 
 ## How sbsh Differs from screen and tmux
 
-sbsh is designed for environment management and team collaboration. Key differences: declarative YAML profiles (not dotfiles), built-in discovery and multi-attach, lifecycle hooks, and terminals that survive supervisor crashes. → See [docs/comparison.md](docs/comparison.md) for detailed comparison.
+sbsh is designed for environment management and team collaboration. Key differences: declarative YAML profiles (not dotfiles), built-in discovery and multi-attach, lifecycle hooks, and terminals that survive supervisor crashes.
+
+Unlike tmux or screen, sbsh has no central server or daemon process. Each terminal runs as an independent process with its own lightweight supervisor, so failures are isolated and do not affect other terminals.
+
+→ See [docs/comparison.md](docs/comparison.md) for detailed comparison.
 
 ## Why sbsh Exists
 
