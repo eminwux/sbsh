@@ -199,24 +199,25 @@ This directory contains example profiles. The individual `.yaml` files are provi
 | Profile             | Description                                                     | File                                                 | Section                                                           |
 | ------------------- | --------------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------- |
 | `default`           | Minimal bash terminal with clean environment                    | [`default.yaml`](./default.yaml)                     | [Section 1](#1-default---minimal-bash-terminal)                   |
-| `k8s-default`       | Kubernetes development terminal with kubectl context setup      | [`k8s-default.yaml`](./k8s-default.yaml)             | [Section 2](#2-k8s-default---kubernetes-development-terminal)     |
-| `terraform-prd`     | Terraform production workspace with environment variables       | [`terraform-prd.yaml`](./terraform-prd.yaml)         | [Section 3](#3-terraform-prd---terraform-production-workspace)    |
-| `k8s-pod`           | Ephemeral Kubernetes pod shell for debugging                    | [`k8s-pod.yaml`](./k8s-pod.yaml)                     | [Section 4](#4-k8s-pod---ephemeral-kubernetes-pod-shell)          |
-| `docker-container`  | Docker container shell for containerized workflows              | [`docker-container.yaml`](./docker-container.yaml)   | [Section 5](#5-docker-container---ephemeral-container-shell)      |
-| `ssh-pk`            | SSH remote host connection with persistent sessions             | [`ssh-pk.yaml`](./ssh-pk.yaml)                       | [Section 6](#6-ssh-pk---ssh-to-remote-host)                       |
-| `python-venv`       | Python virtual environment with automatic activation            | [`python-venv.yaml`](./python-venv.yaml)             | [Section 7](#7-python-venv---python-virtual-environment)          |
-| `npm-dev`           | Node.js/npm development environment with dependency management  | [`npm-dev.yaml`](./npm-dev.yaml)                     | [Section 8](#8-npm-dev---nodejsnpm-development-environment)       |
-| `go-dev`            | Go/Golang development environment with module support           | [`go-dev.yaml`](./go-dev.yaml)                       | [Section 9](#9-go-dev---gogolang-development)                     |
-| `ci-test`           | CI/CD test environment for local testing that mirrors CI        | [`ci-test.yaml`](./ci-test.yaml)                     | [Section 10](#10-ci-test---cicd-test-environment)                 |
-| `terraform-dev`     | Terraform development workspace with environment variables      | [`terraform-dev.yaml`](./terraform-dev.yaml)         | [Section 11](#11-terraform-dev---terraform-development-workspace) |
-| `terraform-staging` | Terraform staging workspace with environment variables          | [`terraform-staging.yaml`](./terraform-staging.yaml) | [Section 12](#12-terraform-staging---terraform-staging-workspace) |
-| `postgres`          | PostgreSQL database shell for database operations and debugging | [`postgres.yaml`](./postgres.yaml)                   | [Section 13](#13-postgres---postgresql-database-shell)            |
-| `aws-cli`           | AWS CLI environment for infrastructure management               | [`aws-cli.yaml`](./aws-cli.yaml)                     | [Section 14](#14-aws-cli---aws-cli-environment)                   |
-| `docker-compose`    | Docker Compose development environment for multi-service setups | [`docker-compose.yaml`](./docker-compose.yaml)       | [Section 15](#15-docker-compose---docker-compose-development)     |
-| `redis`             | Redis CLI for database operations and debugging                 | [`redis.yaml`](./redis.yaml)                         | [Section 16](#16-redis---redis-cli)                               |
-| `rust-dev`          | Rust development environment with toolchain setup               | [`rust-dev.yaml`](./rust-dev.yaml)                   | [Section 17](#17-rust-dev---rust-development-environment)         |
-| `mysql`             | MySQL database shell for database operations and debugging      | [`mysql.yaml`](./mysql.yaml)                         | [Section 18](#18-mysql---mysql-database-shell)                    |
-| `mongo`             | MongoDB database shell for database operations and debugging    | [`mongo.yaml`](./mongo.yaml)                         | [Section 19](#19-mongo---mongodb-database-shell)                  |
+| `zsh`               | Minimal zsh terminal with clean environment                     | [`zsh.yaml`](./zsh.yaml)                             | [Section 2](#2-zsh---minimal-zsh-terminal)                        |
+| `k8s-default`       | Kubernetes development terminal with kubectl context setup      | [`k8s-default.yaml`](./k8s-default.yaml)             | [Section 3](#3-k8s-default---kubernetes-development-terminal)     |
+| `terraform-prd`     | Terraform production workspace with environment variables       | [`terraform-prd.yaml`](./terraform-prd.yaml)         | [Section 4](#4-terraform-prd---terraform-production-workspace)    |
+| `k8s-pod`           | Ephemeral Kubernetes pod shell for debugging                    | [`k8s-pod.yaml`](./k8s-pod.yaml)                     | [Section 5](#5-k8s-pod---ephemeral-kubernetes-pod-shell)          |
+| `docker-container`  | Docker container shell for containerized workflows              | [`docker-container.yaml`](./docker-container.yaml)   | [Section 6](#6-docker-container---ephemeral-container-shell)      |
+| `ssh-pk`            | SSH remote host connection with persistent sessions             | [`ssh-pk.yaml`](./ssh-pk.yaml)                       | [Section 7](#7-ssh-pk---ssh-to-remote-host)                       |
+| `python-venv`       | Python virtual environment with automatic activation            | [`python-venv.yaml`](./python-venv.yaml)             | [Section 8](#8-python-venv---python-virtual-environment)          |
+| `npm-dev`           | Node.js/npm development environment with dependency management  | [`npm-dev.yaml`](./npm-dev.yaml)                     | [Section 9](#9-npm-dev---nodejsnpm-development-environment)       |
+| `go-dev`            | Go/Golang development environment with module support           | [`go-dev.yaml`](./go-dev.yaml)                       | [Section 10](#10-go-dev---gogolang-development)                   |
+| `ci-test`           | CI/CD test environment for local testing that mirrors CI        | [`ci-test.yaml`](./ci-test.yaml)                     | [Section 11](#11-ci-test---cicd-test-environment)                 |
+| `terraform-dev`     | Terraform development workspace with environment variables      | [`terraform-dev.yaml`](./terraform-dev.yaml)         | [Section 12](#12-terraform-dev---terraform-development-workspace) |
+| `terraform-staging` | Terraform staging workspace with environment variables          | [`terraform-staging.yaml`](./terraform-staging.yaml) | [Section 13](#13-terraform-staging---terraform-staging-workspace) |
+| `postgres`          | PostgreSQL database shell for database operations and debugging | [`postgres.yaml`](./postgres.yaml)                   | [Section 14](#14-postgres---postgresql-database-shell)            |
+| `aws-cli`           | AWS CLI environment for infrastructure management               | [`aws-cli.yaml`](./aws-cli.yaml)                     | [Section 15](#15-aws-cli---aws-cli-environment)                   |
+| `docker-compose`    | Docker Compose development environment for multi-service setups | [`docker-compose.yaml`](./docker-compose.yaml)       | [Section 16](#16-docker-compose---docker-compose-development)     |
+| `redis`             | Redis CLI for database operations and debugging                 | [`redis.yaml`](./redis.yaml)                         | [Section 17](#17-redis---redis-cli)                               |
+| `rust-dev`          | Rust development environment with toolchain setup               | [`rust-dev.yaml`](./rust-dev.yaml)                   | [Section 18](#18-rust-dev---rust-development-environment)         |
+| `mysql`             | MySQL database shell for database operations and debugging      | [`mysql.yaml`](./mysql.yaml)                         | [Section 19](#19-mysql---mysql-database-shell)                    |
+| `mongo`             | MongoDB database shell for database operations and debugging    | [`mongo.yaml`](./mongo.yaml)                         | [Section 20](#20-mongo---mongodb-database-shell)                  |
 
 All profiles are also available in [`profiles.yaml`](./profiles.yaml) as a combined file ready to use.
 
@@ -264,7 +265,40 @@ spec:
 - `--norc --noprofile` prevents bash from loading your `.bashrc`
 - Custom prompt shows the terminal ID so you know which sbsh terminal you're in
 
-### 2. `k8s-default` - Kubernetes development terminal
+### 2. `zsh` - Minimal zsh terminal
+
+See [`zsh.yaml`](./zsh.yaml) for the complete profile.
+
+A clean zsh terminal with minimal environment variables, similar to the default bash profile but using zsh:
+
+```yaml
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: zsh
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~"
+    cmd: /bin/zsh
+    cmdArgs: ["-f"] # Start with a clean zsh (skip startup files)
+    inheritEnv: false # Don't inherit parent env
+    env:
+      LANG: en_US.UTF-8
+      EDITOR: vim
+      HISTSIZE: "5000"
+    prompt: '"[sbsh-$SBSH_TERM_ID] %n@%m:%~$ "'
+```
+
+**Key points:**
+
+- `inheritEnv: false` creates a minimal, reproducible environment
+- `-f` flag prevents zsh from loading startup files (`.zshrc`, `.zshenv`, etc.)
+- Custom prompt uses zsh format (`%n@%m:%~$`) instead of bash format (`\u@\h:\w$`)
+- `%n` is username, `%m` is hostname, `%~` is current directory in zsh prompt format
+
+### 3. `k8s-default` - Kubernetes development terminal
 
 See [`k8s-default.yaml`](./k8s-default.yaml) for the complete profile.
 
@@ -276,7 +310,7 @@ Sets up kubectl context and shows cluster info on attach.
 - `postAttach` shows cluster status when you reconnect
 - Colored prompt distinguishes this profile from others
 
-### 3. `terraform-prd` - Terraform production workspace
+### 4. `terraform-prd` - Terraform production workspace
 
 See [`terraform-prd.yaml`](./terraform-prd.yaml) for the complete profile.
 
@@ -288,7 +322,7 @@ Prepares a Terraform workspace and runs planning.
 - `onInit` prepares the Terraform workspace before you start working
 - Environment variable `TF_VAR_environment` is available to Terraform
 
-### 4. `k8s-pod` - Ephemeral Kubernetes pod shell
+### 5. `k8s-pod` - Ephemeral Kubernetes pod shell
 
 See [`k8s-pod.yaml`](./k8s-pod.yaml) for the complete profile.
 
@@ -300,7 +334,7 @@ Creates a temporary Kubernetes pod and drops you into a shell.
 - `--rm` removes the pod when it exits
 - `-ti` allocates a pseudo-TTY and keeps STDIN open
 
-### 5. `docker-container` - Ephemeral container shell
+### 6. `docker-container` - Ephemeral container shell
 
 See [`docker-container.yaml`](./docker-container.yaml) for the complete profile.
 
@@ -313,7 +347,7 @@ Starts a temporary Docker container and drops you into a shell.
 - `--rm` removes the container when it exits
 - `-ti` allocates a pseudo-TTY and keeps STDIN open
 
-### 6. `ssh-pk` - SSH to remote host
+### 7. `ssh-pk` - SSH to remote host
 
 See [`ssh-pk.yaml`](./ssh-pk.yaml) for the complete profile.
 
@@ -325,7 +359,7 @@ Connects to a remote host using SSH.
 - `cmdArgs` contains SSH options and the host alias/name
 - `-t` forces pseudo-TTY allocation (needed for interactive shells)
 
-### 7. `python-venv` - Python virtual environment
+### 8. `python-venv` - Python virtual environment
 
 See [`python-venv.yaml`](./python-venv.yaml) for the complete profile.
 
@@ -346,7 +380,7 @@ Sets up a Python development environment with virtual environment activation. Te
 - Adjust `venv` directory name if your team uses a different convention (e.g., `.venv`, `env`)
 - Add additional environment variables or setup steps as needed
 
-### 8. `npm-dev` - Node.js/npm development environment
+### 9. `npm-dev` - Node.js/npm development environment
 
 See [`npm-dev.yaml`](./npm-dev.yaml) for the complete profile.
 
@@ -368,7 +402,7 @@ Sets up a Node.js development environment with dependency installation. Teams ca
 - Add environment variables for API keys, database URLs, or other configuration
 - Adjust lifecycle hooks to run tests, linting, or other setup steps
 
-### 9. `go-dev` - Go/Golang development
+### 10. `go-dev` - Go/Golang development
 
 See [`go-dev.yaml`](./go-dev.yaml) for the complete profile.
 
@@ -391,7 +425,7 @@ Sets up a Go development environment with module support. Teams can share this p
 - Add additional environment variables for Go-specific configuration
 - Modify lifecycle hooks to run tests, builds, or other setup steps
 
-### 10. `ci-test` - CI/CD test environment
+### 11. `ci-test` - CI/CD test environment
 
 See [`ci-test.yaml`](./ci-test.yaml) for the complete profile.
 
@@ -414,7 +448,7 @@ Sets up a local test environment that mirrors CI/CD pipelines. Use this profile 
 - Add lifecycle hooks to run tests or setup test databases
 - Adjust `cwd` to point to your project directory
 
-### 11. `terraform-dev` - Terraform development workspace
+### 12. `terraform-dev` - Terraform development workspace
 
 See [`terraform-dev.yaml`](./terraform-dev.yaml) for the complete profile.
 
@@ -435,7 +469,7 @@ Prepares a Terraform development workspace with environment-specific configurati
 - Modify lifecycle hooks to run specific Terraform commands
 - Adjust workspace name if your team uses different naming conventions
 
-### 12. `terraform-staging` - Terraform staging workspace
+### 13. `terraform-staging` - Terraform staging workspace
 
 See [`terraform-staging.yaml`](./terraform-staging.yaml) for the complete profile.
 
@@ -456,7 +490,7 @@ Prepares a Terraform staging workspace with environment-specific configuration. 
 - Modify lifecycle hooks to run specific Terraform commands
 - Adjust workspace name if your team uses different naming conventions
 
-### 13. `postgres` - PostgreSQL database shell
+### 14. `postgres` - PostgreSQL database shell
 
 See [`postgres.yaml`](./postgres.yaml) for the complete profile.
 
@@ -477,7 +511,7 @@ Connects to a PostgreSQL database using the `psql` CLI. Perfect for database ope
 - Use connection string format: `psql "postgresql://user:password@host:port/database"`
 - Set `PGPASSWORD` in environment for non-interactive password entry
 
-### 14. `aws-cli` - AWS CLI environment
+### 15. `aws-cli` - AWS CLI environment
 
 See [`aws-cli.yaml`](./aws-cli.yaml) for the complete profile.
 
@@ -499,7 +533,7 @@ Sets up an AWS CLI environment for infrastructure management. Perfect for managi
 - Add additional AWS-specific environment variables
 - Modify lifecycle hooks to verify specific AWS resources or run AWS commands
 
-### 15. `docker-compose` - Docker Compose development
+### 16. `docker-compose` - Docker Compose development
 
 See [`docker-compose.yaml`](./docker-compose.yaml) for the complete profile.
 
@@ -521,7 +555,7 @@ Sets up a Docker Compose development environment for managing multi-service appl
 - Add lifecycle hooks to run specific docker-compose commands
 - Adjust service startup behavior (e.g., `docker-compose up` vs `docker-compose up -d`)
 
-### 16. `redis` - Redis CLI
+### 17. `redis` - Redis CLI
 
 See [`redis.yaml`](./redis.yaml) for the complete profile.
 
@@ -542,7 +576,7 @@ Connects to a Redis instance using the `redis-cli` command. Perfect for debuggin
 - Use connection string format: `redis-cli -u redis://password@host:port`
 - Add additional Redis CLI options as needed
 
-### 17. `rust-dev` - Rust development environment
+### 18. `rust-dev` - Rust development environment
 
 See [`rust-dev.yaml`](./rust-dev.yaml) for the complete profile.
 
@@ -564,7 +598,7 @@ Sets up a Rust development environment with toolchain verification. Teams can sh
 - Add additional Rust-specific environment variables
 - Modify lifecycle hooks to run tests, builds, or other setup steps
 
-### 18. `mysql` - MySQL database shell
+### 19. `mysql` - MySQL database shell
 
 See [`mysql.yaml`](./mysql.yaml) for the complete profile.
 
@@ -585,7 +619,7 @@ Connects to a MySQL database using the `mysql` CLI. Perfect for database operati
 - Add additional MySQL command-line arguments if needed
 - Use connection string format: `mysql -h host -u user -p password database`
 
-### 19. `mongo` - MongoDB database shell
+### 20. `mongo` - MongoDB database shell
 
 See [`mongo.yaml`](./mongo.yaml) for the complete profile.
 
