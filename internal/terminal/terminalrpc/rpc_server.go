@@ -52,3 +52,12 @@ func (s *TerminalControllerRPC) Metadata(_ api.Empty, metadata *api.TerminalMeta
 	*metadata = *md
 	return nil
 }
+
+func (s *TerminalControllerRPC) State(_ api.Empty, state *api.TerminalStatusMode) error {
+	st, err := s.Core.State()
+	if err != nil {
+		return err
+	}
+	*state = *st
+	return nil
+}

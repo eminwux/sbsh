@@ -131,6 +131,10 @@ func (sr *Exec) Attach(terminal *api.SupervisedTerminal) error {
 		return err
 	}
 
+	if err := sr.waitReady(api.Starting, api.Ready); err != nil {
+		return err
+	}
+
 	if err := sr.attach(); err != nil {
 		return err
 	}
@@ -143,7 +147,7 @@ func (sr *Exec) Attach(terminal *api.SupervisedTerminal) error {
 		return err
 	}
 
-	if err := sr.waitReady(); err != nil {
+	if err := sr.waitReady(api.Ready); err != nil {
 		return err
 	}
 

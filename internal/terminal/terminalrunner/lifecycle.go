@@ -46,6 +46,11 @@ func (sr *Exec) StartTerminal(evCh chan<- Event) error {
 		return fmt.Errorf("failed to start PTY for terminal %s: %w", sr.id, err)
 	}
 
+	if err := sr.updateTerminalState(api.Starting); err != nil {
+		sr.logger.Error("failed to update terminal state on starting", "id", sr.id, "err", err)
+		return fmt.Errorf("failed to update terminal state on starting: %w", err)
+	}
+
 	sr.logger.Info("PTY started", "id", sr.id)
 	go sr.waitOnTerminal()
 
@@ -242,11 +247,6 @@ func (sr *Exec) SetupShell() error {
 
 		//nolint:mnd // small delay between commands
 		time.Sleep(10 * time.Millisecond)
-	}
-
-	if err := sr.updateTerminalState(api.Ready); err != nil {
-		sr.logger.Error("failed to update terminal state on ready", "id", sr.id, "err", err)
-		return fmt.Errorf("failed to update terminal state on ready: %w", err)
 	}
 
 	return nil

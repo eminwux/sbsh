@@ -291,3 +291,11 @@ func (c *Controller) Detach(id *api.ID) error {
 func (c *Controller) Metadata() (*api.TerminalMetadata, error) {
 	return c.sr.Metadata()
 }
+
+func (c *Controller) State() (*api.TerminalStatusMode, error) {
+	metadata, err := c.sr.Metadata()
+	if err != nil {
+		return nil, err
+	}
+	return &metadata.Status.State, nil
+}

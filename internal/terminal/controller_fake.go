@@ -35,6 +35,7 @@ type ControllerTest struct {
 	AttachFunc    func(id *api.ID, response *api.ResponseWithFD) error
 	DetachFunc    func(id *api.ID) error
 	MetadataFunc  func() (*api.TerminalMetadata, error)
+	StateFunc     func() (*api.TerminalStatusMode, error)
 }
 
 func (f *ControllerTest) Run(spec *api.TerminalSpec) error {
@@ -96,6 +97,13 @@ func (f *ControllerTest) Detach(id *api.ID) error {
 func (f *ControllerTest) Metadata() (*api.TerminalMetadata, error) {
 	if f.MetadataFunc != nil {
 		return f.MetadataFunc()
+	}
+	return nil, errdefs.ErrFuncNotSet
+}
+
+func (f *ControllerTest) State() (*api.TerminalStatusMode, error) {
+	if f.StateFunc != nil {
+		return f.StateFunc()
 	}
 	return nil, errdefs.ErrFuncNotSet
 }

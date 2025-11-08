@@ -245,7 +245,17 @@ func (c *client) Attach(ctx context.Context, id *api.ID, out any) (net.Conn, err
 func (c *client) Metadata(ctx context.Context, metadata *api.TerminalMetadata) error {
 	err := c.call(ctx, c.logger, api.TerminalMethodMetadata, &api.Empty{}, metadata)
 	if err != nil {
+		c.logger.ErrorContext(ctx, "Metadata call failed", "error", err)
 		return fmt.Errorf("Metadata call failed: %w", err)
+	}
+	return nil
+}
+
+func (c *client) State(ctx context.Context, state *api.TerminalStatusMode) error {
+	err := c.call(ctx, c.logger, api.TerminalMethodState, &api.Empty{}, state)
+	if err != nil {
+		c.logger.ErrorContext(ctx, "State call failed", "error", err)
+		return fmt.Errorf("State call failed: %w", err)
 	}
 	return nil
 }

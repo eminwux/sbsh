@@ -74,3 +74,17 @@ func (sr *Exec) getTerminalMetadata() (*api.TerminalMetadata, error) {
 	sr.logger.InfoContext(sr.ctx, "getTerminalMetadata: metadata retrieved", "metadata", metadata)
 	return &metadata, nil
 }
+
+func (sr *Exec) getTerminalState() (*api.TerminalStatusMode, error) {
+	if sr.terminalClient == nil {
+		return nil, errors.New("getTerminalState: terminal client is nil")
+	}
+
+	var state api.TerminalStatusMode
+	if err := sr.terminalClient.State(sr.ctx, &state); err != nil {
+		sr.logger.ErrorContext(sr.ctx, "getTerminalState: failed to get state", "error", err)
+		return nil, fmt.Errorf("get state RPC failed: %w", err)
+	}
+	sr.logger.InfoContext(sr.ctx, "getTerminalState: state retrieved", "state", state)
+	return &state, nil
+}
