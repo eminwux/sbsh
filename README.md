@@ -13,8 +13,12 @@ Get sbsh up and running in minutes.
 ### Install
 
 ```bash
+# Set your platform (defaults shown)
+export OS=linux        # Options: linux, darwin, freebsd
+export ARCH=amd64      # Options: amd64, arm64
+
 # Install sbsh
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.4.0/sbsh-linux-amd64 && \
+curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.4.0/sbsh-${OS}-${ARCH} && \
 chmod +x sbsh && \
 sudo mv sbsh /usr/local/bin/ && \
 sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
