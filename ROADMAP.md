@@ -8,51 +8,68 @@
 
 ### 🐞 Bugs
 ```markdown
-- [ ] **A** `sbsh run` does not expose tty in ps
-- [ ] **A** dettach does not remove attacher from metadata
-- [ ] **A** only show prompt by default for shells
+- [ ] **A** `sbsh terminal` does not expose tty in ps
 ```
 
 ### 🅰️ Must Have
 ```markdown
-- [ ] **A** sb attach works with one active terminal
-- [ ] **A** Disable detach for nested case
-- [ ] **A** If `sbsh run` fails supervisor must print and log error
-- [ ] **A** `sbsh run` change to `sbsh terminal`
-- [ ] **A** `sbsh run` should detach by default, allowing attach
-- [ ] **A** `sbsh run` new --log-mode=file/stdout, file by default
-- [ ] **A** Toggle log capture in profile (default:false)
-- [ ] **A** Auto-prune terminals and supervisors
-- [ ] **A** Add API in pkg to spawn supervisor and terminal
-- [ ] **A** Add basic API call set to supervisor and terminal
+- [ ] **A** Lifecycle - Review and correct waitReady in Terminal and Supervisor
+- [ ] **A** API - Change SupervisorMetadata and TerminalMetadata to Doc
+- [ ] **A** API - Add SupervisorMetadata to SupervisorDoc
+- [ ] **A** API - Add TerminalMetadata to TerminalDoc
+- [ ] **A** Configuration - Introduce ConfigurationDoc config.yaml
+    (fields: runPath, profilesFile, logLevel)
+- [ ] **A** Configuration - Introduce profilesDirectory in ConfigurationDoc with conflict resolution
+- [ ] **A** Configuration - Introduce default TerminalProfileDoc in ConfigurationDoc
+- [ ] **A** Supervisor - Introduce SupervisorDoc and SupervisorProfileDoc
+- [ ] **A** Configuration - Add default SupervisorProfileDoc in Configuration
+- [ ] **A** Profile - Refactor to honour profile document apiVersion
+- [ ] **A** Profile - Add apiVersion migration path for future versions
+- [ ] **A** Profile - Add optional terminalName field to TerminalProfileSpec for persistent terminals
+- [ ] **A** Terminal - Add setPrompt true/false in TerminalDoc and TerminalProfileDoc
+- [ ] **A** Terminal - `sbsh terminal` -f TerminalDoc and TerminalProfileDoc
+- [ ] **A** Terminal - Implement restart logic
+    (reuse TerminalDoc from Exited terminal, preserve ID/paths/capture)
+- [ ] **A** Terminal - Implement profile name resolution
+    (if Active → attach, if Exited → restart with same spec/paths, if not found → create new)
+- [ ] **A** Supervisor - `sbsh terminal` should detach from terminal and run in background
+- [ ] **A** Supervisor - If `sbsh terminal` fails supervisor must print and log error
+- [ ] **A** Terminal - Add logMode field to TerminalSpec and TerminalProfileSpec (file/stdout)
+- [ ] **A** Terminal - `sbsh terminal` new --log-mode=file/stdout, file by default
+- [ ] **A** Supervisor - Add disable-detach flag in SupervisorSpec, nested case
+- [ ] **A** Supervisor - Implement disable-detach handling for nested supervisors
+- [ ] **A** Terminal - Add captureMode field to TerminalSpec and TerminalProfileSpec (raw/disable)
+- [ ] **A** API - Add process spawning API in pkg/spawn
+    (NewSupervisor, NewTerminal)
+- [ ] **A** API - Add builder helpers in pkg/builder
+    (BuildTerminalSpecFromProfile, BuildTerminalSpecFromFile)
+- [ ] **A** API - Add lifecycle management (Handle types with WaitReady, Close, etc.)
+- [ ] **A** API - Add API documentation and usage examples
 ```
 
 ### 🅱️ Should Have
 ```markdown
+- [ ] **B** Terminal - Add and implement captureMode xz (integrate xz library)
 - [ ] **B** sb stop id/name (terminal/supervisor)
 - [ ] **B** sb log id/name (terminal/supervisor) + -f
-- [ ] **B** On sbsh's `sbsh run` print log until socket connect
 - [ ] **B** sb attach --read-only or -r
-- [ ] **B** Add a prompt switch: auto | none — Explicit control without hacks.
+- [ ] **B** On sbsh's `sbsh terminal` print log until socket connect
 - [ ] **B** If prompt is not set in a profile, use global default
-- [ ] **B** On attach: flag to print all capture; default tail ~100 lines
-- [ ] **B** Supervisor Control API (start/stop/list/attach/tail)
-- [ ] **B** Optimize waitReady for initTerminal State RPC instead of Metadata
-- [ ] **B** Restrict profile to single-terminal with name
+- [ ] **B** Terminal - On attach: flag to print all capture; default tail ~100 lines
+- [ ] **B** API - Supervisor Control API (start/stop/list/attach/tail)
+- [ ] **B** Auto-prune terminals and supervisors
 ```
 
 ### 🅲️ Nice to Have
 ```markdown
 - [ ] **C** Save input history in session folder (with large size)
-- [ ] **C** Jump out to supervisor with sentinel
 - [ ] **C** Message of the Day (Motd)
-- [ ] **C** Detach `sbsh run`, attach if `-i` with logs
 - [ ] **C** Write to many sessions at the same time
 - [ ] **C** Compress capture with xz
 - [ ] **C** Terminal replay based on capture (bytes+timestamps+i/o)
+- [ ] **C** sb attach auto selects when only one active terminal
 ```
 ## 🚫 Limitations
-- [ ] **A** sb detach not working on multi-attach (SBSH_SUP_ID)
 
 ### 🅳️ Won't Have
 
@@ -109,4 +126,6 @@
 - [X] **A** Add --version in sb sbsh                                DONE
 - [X] **A** Refactor session to terminal                            DONE
 - [X] **A** `sbsh` does not run as shell terminal                   DONE
+- [X] **A** `sbsh run` change to `sbsh terminal`                    DONE
+- [X] **B** Optimize waitReady State RPC instead of Metadata        DONE
 ```
