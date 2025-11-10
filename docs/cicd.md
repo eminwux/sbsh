@@ -52,7 +52,7 @@ Install sbsh in your GitHub Actions workflow:
 - name: Setup sbsh
   run: |
     wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
-    chmod +x sbsh && sudo mv sbsh /usr/local/bin/
+    chmod +x sbsh && sudo install -m 0755 sbsh /usr/local/bin/sbsh
     sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
 ```
 
@@ -72,7 +72,7 @@ jobs:
       - name: Setup sbsh
         run: |
           wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
-          chmod +x sbsh && sudo mv sbsh /usr/local/bin/
+          chmod +x sbsh && sudo install -m 0755 sbsh /usr/local/bin/sbsh
           sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
 
       - name: Create test profile
@@ -139,7 +139,7 @@ before_script:
   - |
     if ! command -v sbsh &> /dev/null; then
       wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
-      chmod +x sbsh && sudo mv sbsh /usr/local/bin/
+      chmod +x sbsh && sudo install -m 0755 sbsh /usr/local/bin/sbsh
       sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
     fi
 ```
@@ -154,7 +154,7 @@ test:
     - apt-get update && apt-get install -y wget procps
     - |
       wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
-      chmod +x sbsh && sudo mv sbsh /usr/local/bin/
+      chmod +x sbsh && sudo install -m 0755 sbsh /usr/local/bin/sbsh
       sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
   script:
     - |
@@ -231,7 +231,7 @@ pipeline {
             steps {
                 sh '''
                     wget -O sbsh https://github.com/eminwux/sbsh/releases/download/${SBSH_VERSION}/sbsh-linux-amd64
-                    chmod +x sbsh && sudo mv sbsh /usr/local/bin/
+                    chmod +x sbsh && sudo install -m 0755 sbsh /usr/local/bin/sbsh
                     sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
                 '''
             }
@@ -288,8 +288,8 @@ node {
 
     stage('Setup') {
         sh '''
-            wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
-            chmod +x sbsh && sudo mv sbsh /usr/local/bin/
+                    wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
+                    chmod +x sbsh && sudo install -m 0755 sbsh /usr/local/bin/sbsh
             sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
         '''
     }
