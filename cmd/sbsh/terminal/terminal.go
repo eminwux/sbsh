@@ -256,6 +256,13 @@ If no log filename is provided, a default path under the run directory will be u
 `,
 		SilenceUsage: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
+			var runPath string
+			if viper.GetString(config.RUN_PATH.ViperKey) == "" {
+				runPath = config.DefaultRunPath()
+			}
+			_ = config.RUN_PATH.BindEnv()
+			config.RUN_PATH.SetDefault(runPath)
+
 			// Check if first argument indicates stdin usage
 			var spec *api.TerminalSpec
 
