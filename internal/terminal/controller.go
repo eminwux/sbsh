@@ -241,6 +241,10 @@ func (c *Controller) handleEvent(ev terminalrunner.Event) {
 func (c *Controller) Close(reason error) error {
 	if !c.shuttingDown {
 		c.logger.InfoContext(c.ctx, "initiating shutdown sequence", "reason", reason)
+
+		// cancel the controller context so WaitReady unblocks
+		c.cancel(reason)
+
 		// Set closing reason
 		c.closingCh <- reason
 

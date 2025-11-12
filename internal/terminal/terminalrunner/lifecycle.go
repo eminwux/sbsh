@@ -27,30 +27,38 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-const deleteTerminalDir bool = false
+const (
+	deleteTerminalsDir bool = false
+	waitReadyPeriod         = 10 * time.Millisecond
+)
 
 func (sr *Exec) StartTerminal(evCh chan<- Event) error {
+	// 1) Update state to Initializing
 	sr.logger.Info("starting terminal", "id", sr.id)
 	if err := sr.updateTerminalState(api.Initializing); err != nil {
 		sr.logger.Error("failed to update terminal state on initializing", "id", sr.id, "err", err)
 	}
 	sr.evCh = evCh
 
+	// 2) Prepare terminal command
 	if err := sr.prepareTerminalCommand(); err != nil {
 		sr.logger.Error("failed to run terminal command", "id", sr.id, "err", err)
 		return fmt.Errorf("failed to run terminal command for terminal %s: %w", sr.id, err)
 	}
 
+	// 3) Start PTY
 	if err := sr.startPty(); err != nil {
 		sr.logger.Error("failed to start PTY", "id", sr.id, "err", err)
 		return fmt.Errorf("failed to start PTY for terminal %s: %w", sr.id, err)
 	}
 
+	// 4) Update state to Starting
 	if err := sr.updateTerminalState(api.Starting); err != nil {
 		sr.logger.Error("failed to update terminal state on starting", "id", sr.id, "err", err)
 		return fmt.Errorf("failed to update terminal state on starting: %w", err)
 	}
 
+	// 5) Wait for terminal to close in background
 	sr.logger.Info("PTY started", "id", sr.id)
 	go sr.waitOnTerminal()
 
@@ -114,7 +122,7 @@ func (sr *Exec) Close(reason error) error {
 		sr.logger.Warn("couldn't remove Ctrl socket", "id", sr.id, "socket", sr.metadata.Status.SocketFile, "err", err)
 	}
 
-	if deleteTerminalDir {
+	if deleteTerminalsDir {
 		if err := os.RemoveAll(filepath.Dir(sr.metadata.Status.TerminalRunPath)); err != nil {
 			sr.logger.Warn(
 				"couldn't remove terminal directory",
@@ -206,6 +214,11 @@ func (sr *Exec) Detach(id *api.ID) error {
 }
 
 func (sr *Exec) SetupShell() error {
+	if err := sr.updateTerminalState(api.SettingUp); err != nil {
+		sr.logger.Error("failed to update terminal state on setting up", "id", sr.id, "err", err)
+		return fmt.Errorf("failed to update terminal state on setting up: %w", err)
+	}
+
 	sr.logger.Debug("setupShell: sending CTRL-U")
 	if _, err := sr.Write([]byte("\x15")); err != nil {
 		sr.logger.Error("failed to send CTRL-U", "id", sr.id, "err", err)
@@ -218,13 +231,10 @@ func (sr *Exec) SetupShell() error {
 	// 	return fmt.Errorf("failed to send CTRL-L: %w", err)
 	// }
 
-	// set up prompt
-	var promptCmd string
-	if sr.metadata.Spec.Prompt != "" {
-		promptCmd = `export PS1=` + sr.metadata.Spec.Prompt + "\n"
-	} else {
-		promptCmd = `export PS1="(sbsh-` + string(sr.metadata.Spec.ID) + `) $PS1"` + "\n"
+	if sr.metadata.Spec.Prompt == "" {
+		sr.metadata.Spec.Prompt = "(sbsh-" + string(sr.metadata.Spec.ID) + ")"
 	}
+	promptCmd := `export PS1=` + sr.metadata.Spec.Prompt + "\n"
 
 	sr.logger.Debug("setupShell: setting prompt", "cmd", promptCmd)
 	if _, err := sr.Write([]byte(promptCmd)); err != nil {
@@ -278,13 +288,42 @@ func (sr *Exec) writeStage(stage *[]api.ExecStep) error {
 }
 
 func (sr *Exec) PostAttachShell() error {
+	sr.logger.Info("PostAttachShell: waiting for terminal to be ready", "id", sr.id)
+
+	for sr.metadata.Status.State != api.Ready {
+		select {
+		case <-sr.ctx.Done():
+			sr.logger.Error("PostAttachShell: context done", "id", sr.id)
+			return sr.ctx.Err()
+		case <-time.After(waitReadyPeriod):
+			// loop again until ready
+		}
+	}
+
+	sr.logger.Info("PostAttachShell: updating terminal state to post attach", "id", sr.id)
+
+	if err := sr.updateTerminalState(api.PostAttach); err != nil {
+		sr.logger.Error("failed to update terminal state on post attach", "id", sr.id, "err", err)
+		return fmt.Errorf("failed to update terminal state on post attach: %w", err)
+	}
+
 	if err := sr.writeStage(&sr.metadata.Spec.Stages.PostAttach); err != nil {
 		return err
+	}
+
+	if err := sr.updateTerminalState(api.Ready); err != nil {
+		sr.logger.Error("failed to update terminal state on ready", "id", sr.id, "err", err)
+		return fmt.Errorf("failed to update terminal state on ready: %w", err)
 	}
 	return nil
 }
 
 func (sr *Exec) OnInitShell() error {
+	if err := sr.updateTerminalState(api.OnInit); err != nil {
+		sr.logger.Error("failed to update terminal state on on init", "id", sr.id, "err", err)
+		return fmt.Errorf("failed to update terminal state on on init: %w", err)
+	}
+
 	if err := sr.writeStage(&sr.metadata.Spec.Stages.OnInit); err != nil {
 		return err
 	}

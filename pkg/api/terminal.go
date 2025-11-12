@@ -82,9 +82,19 @@ type TerminalStatus struct {
 type TerminalStatusMode int
 
 const (
+	// Initializing internal state and server startup.
 	Initializing TerminalStatusMode = iota
+	// Starting PTY and command execution.
 	Starting
+	// SettingUp shell environment.
+	SettingUp
+	// OnInit waiting for shell to be initialized.
+	OnInit
+	// Ready terminal is fully initialized and ready for use.
 	Ready
+	// PostAttach waiting for shell to be attached.
+	PostAttach
+	// Exited terminal has exited.
 	Exited
 )
 
@@ -94,8 +104,14 @@ func (s TerminalStatusMode) String() string {
 		return "Initializing"
 	case Starting:
 		return "Starting"
+	case SettingUp:
+		return "SettingUp"
+	case OnInit:
+		return "OnInit"
 	case Ready:
 		return "Ready"
+	case PostAttach:
+		return "PostAttach"
 	case Exited:
 		return "Exited"
 	default:
