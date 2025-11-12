@@ -31,11 +31,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const (
-	listAllSupervisorsInput     = "sb.get.supervisors.all"
-	outputFormatSupervisorInput = "sb.get.supervisors.output"
-)
-
 func NewGetSupervisorCmd() *cobra.Command {
 	// GetSupervisorCmd represents the get supervisor command.
 	cmd := &cobra.Command{
@@ -70,10 +65,10 @@ func NewGetSupervisorCmd() *cobra.Command {
 
 func setupNewGetSupervisorCmd(cmd *cobra.Command) {
 	cmd.Flags().BoolP("all", "a", false, "List all supervisors, including Exited")
-	_ = viper.BindPFlag(listAllSupervisorsInput, cmd.Flags().Lookup("all"))
+	_ = viper.BindPFlag(config.SB_SUPERVISORS_ALL.ViperKey, cmd.Flags().Lookup("all"))
 
 	cmd.Flags().StringP("output", "o", "", "Output format: json|yaml (default: human-readable)")
-	_ = viper.BindPFlag(outputFormatSupervisorInput, cmd.Flags().Lookup("output"))
+	_ = viper.BindPFlag(config.SB_SUPERVISORS_OUTPUT.ViperKey, cmd.Flags().Lookup("output"))
 
 	_ = cmd.RegisterFlagCompletionFunc(
 		"output",
@@ -91,7 +86,7 @@ func listSupervisors(cmd *cobra.Command, _ []string) error {
 
 	logger.Debug("supervisors list command invoked",
 		"run_path", viper.GetString(config.SB_RUN_PATH.ViperKey),
-		"list_all", listAllSupervisorsInput,
+		"list_all", viper.GetBool(config.SB_SUPERVISORS_ALL.ViperKey),
 		"args", cmd.Flags().Args(),
 	)
 
@@ -100,7 +95,7 @@ func listSupervisors(cmd *cobra.Command, _ []string) error {
 		logger,
 		viper.GetString(config.SB_RUN_PATH.ViperKey),
 		os.Stdout,
-		viper.GetBool(listAllSupervisorsInput),
+		viper.GetBool(config.SB_SUPERVISORS_ALL.ViperKey),
 	)
 	if err != nil {
 		logger.Debug("error scanning and printing supervisors", "error", err)
@@ -153,7 +148,7 @@ func getSupervisor(cmd *cobra.Command, args []string) error {
 		return errdefs.ErrLoggerNotFound
 	}
 	supervisorName := args[0]
-	format := viper.GetString(outputFormatSupervisorInput)
+	format := viper.GetString(config.SB_SUPERVISORS_OUTPUT.ViperKey)
 	if format != "" && format != "json" && format != "yaml" {
 		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
 	}

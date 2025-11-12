@@ -31,10 +31,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const (
-	outputFormatProfilesInput = "sb.get.profiles.output"
-)
-
 func NewGetProfilesCmd() *cobra.Command {
 	// GetProfilesCmd represents the get profiles command.
 	cmd := &cobra.Command{
@@ -69,7 +65,7 @@ func NewGetProfilesCmd() *cobra.Command {
 
 func setupNewGetProfilesCmd(cmd *cobra.Command) {
 	cmd.Flags().StringP("output", "o", "", "Output format: json|yaml (default: human-readable)")
-	_ = viper.BindPFlag(outputFormatProfilesInput, cmd.Flags().Lookup("output"))
+	_ = viper.BindPFlag(config.SB_PROFILES_OUTPUT.ViperKey, cmd.Flags().Lookup("output"))
 
 	_ = cmd.RegisterFlagCompletionFunc(
 		"output",
@@ -146,7 +142,7 @@ func getProfile(cmd *cobra.Command, args []string) error {
 		return errdefs.ErrLoggerNotFound
 	}
 	profileName := args[0]
-	format := viper.GetString(outputFormatProfilesInput)
+	format := viper.GetString(config.SB_PROFILES_OUTPUT.ViperKey)
 	if format != "" && format != "json" && format != "yaml" {
 		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
 	}

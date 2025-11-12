@@ -55,8 +55,8 @@ You can see available options and commands with:
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			var logger *slog.Logger
-			if viper.GetBool("sb.global.verbose") {
-				logLevel := viper.GetString("sb.global.logLevel")
+			if viper.GetBool(config.SB_VERBOSE.ViperKey) {
+				logLevel := viper.GetString(config.SB_LOG_LEVEL.ViperKey)
 				if logLevel == "" {
 					logLevel = "info"
 				}
@@ -79,7 +79,7 @@ You can see available options and commands with:
 					cmd.Context(),
 					"enabling verbose",
 					"log-level",
-					viper.GetString("sb.global.logLevel"),
+					viper.GetString(config.SB_LOG_LEVEL.ViperKey),
 				)
 			}
 
@@ -122,22 +122,22 @@ func setupRootCmd(rootCmd *cobra.Command) error {
 	rootCmd.AddCommand(get.NewGetCmd())
 
 	rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.sbsh/config.yaml)")
-	if err := viper.BindPFlag("sb.global.config", rootCmd.PersistentFlags().Lookup("config")); err != nil {
+	if err := viper.BindPFlag(config.SB_CONFIG.ViperKey, rootCmd.PersistentFlags().Lookup("config")); err != nil {
 		return err
 	}
 
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Log level (debug, info, warn, error)")
-	if err := viper.BindPFlag("sb.global.verbose", rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
+	if err := viper.BindPFlag(config.SB_VERBOSE.ViperKey, rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
 		return err
 	}
 
 	rootCmd.PersistentFlags().String("log-level", "", "Log level (debug, info, warn, error)")
-	if err := viper.BindPFlag("sb.global.logLevel", rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
+	if err := viper.BindPFlag(config.SB_LOG_LEVEL.ViperKey, rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
 		return err
 	}
 
 	rootCmd.PersistentFlags().String("run-path", "", "Run path directory")
-	if err := viper.BindPFlag("sb.global.runPath", rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
+	if err := viper.BindPFlag(config.SB_RUN_PATH.ViperKey, rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
 		return err
 	}
 

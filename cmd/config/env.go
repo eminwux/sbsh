@@ -86,9 +86,33 @@ func KV(v Var, value string) string { return v.Key + "=" + value }
 // ---- Declare statically (Viper key optional per var) ----.
 var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_CONFIG = DefineKV("SB_CONFIG", "sb/config")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_VERBOSE = DefineKV("SB_VERBOSE", "sb/verbose")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_LOG_LEVEL = DefineKV("SB_LOG_LEVEL", "sb/logLevel")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_RUN_PATH = DefineKV("SB_RUN_PATH", "sb/runPath")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_PROFILES_FILE = DefineKV("SB_PROFILES_FILE", "sb/get/profilesFile")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_PROFILES_OUTPUT = DefineKV("SB_PROFILES_OUTPUT", "sb/get/profiles/output")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_SUPERVISORS_ALL = DefineKV("SB_SUPERVISORS_ALL", "sb/get/supervisors/all")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_SUPERVISORS_OUTPUT = DefineKV("SB_SUPERVISORS_OUTPUT", "sb/get/supervisors/output")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_ATTACH_ID = DefineKV("SB_ATTACH_ID", "sb/attach/id")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_ATTACH_NAME = DefineKV("SB_ATTACH_NAME", "sb/attach/name")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_ATTACH_SOCKET = DefineKV("SB_ATTACH_SOCKET", "sb/attach/socket")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_DETACH_NAME = DefineKV("SB_DETACH_NAME", "sb/detach/name")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_DETACH_ID = DefineKV("SB_DETACH_ID", "sb/detach/id")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_DETACH_SOCKET = DefineKV("SB_DETACH_SOCKET", "sb/detach/socket")
 
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_CONFIG_FILE = DefineKV("SBSH_CONFIG_FILE", "sbsh/configFile")

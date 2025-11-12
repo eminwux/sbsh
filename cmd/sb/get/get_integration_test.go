@@ -433,10 +433,10 @@ spec:
 		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
 
 		viper.Set(config.SB_PROFILES_FILE.ViperKey, profilesFile)
-		viper.Set(outputFormatProfilesInput, "")
+		viper.Set(config.SB_PROFILES_OUTPUT.ViperKey, "")
 		defer func() {
 			viper.Set(config.SB_PROFILES_FILE.ViperKey, "")
-			viper.Set(outputFormatProfilesInput, "")
+			viper.Set(config.SB_PROFILES_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -465,10 +465,10 @@ spec:
 		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
 
 		viper.Set(config.SB_PROFILES_FILE.ViperKey, profilesFile)
-		viper.Set(outputFormatProfilesInput, "json")
+		viper.Set(config.SB_PROFILES_OUTPUT.ViperKey, "json")
 		defer func() {
 			viper.Set(config.SB_PROFILES_FILE.ViperKey, "")
-			viper.Set(outputFormatProfilesInput, "")
+			viper.Set(config.SB_PROFILES_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -501,10 +501,10 @@ spec:
 		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
 
 		viper.Set(config.SB_PROFILES_FILE.ViperKey, profilesFile)
-		viper.Set(outputFormatProfilesInput, "yaml")
+		viper.Set(config.SB_PROFILES_OUTPUT.ViperKey, "yaml")
 		defer func() {
 			viper.Set(config.SB_PROFILES_FILE.ViperKey, "")
-			viper.Set(outputFormatProfilesInput, "")
+			viper.Set(config.SB_PROFILES_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -1005,10 +1005,10 @@ func Test_ListSupervisors_Integration(t *testing.T) {
 		createTestSupervisorMetadata(t, runPath, "sup2", "super_two", api.SupervisorReady)
 
 		viper.Set(config.SB_RUN_PATH.ViperKey, runPath)
-		viper.Set(listAllSupervisorsInput, false)
+		viper.Set(config.SB_SUPERVISORS_ALL.ViperKey, false)
 		defer func() {
 			viper.Set(config.SB_RUN_PATH.ViperKey, "")
-			viper.Set(listAllSupervisorsInput, false)
+			viper.Set(config.SB_SUPERVISORS_ALL.ViperKey, false)
 		}()
 
 		output, err := captureStdout(func() {
@@ -1033,10 +1033,10 @@ func Test_ListSupervisors_Integration(t *testing.T) {
 		createTestSupervisorMetadata(t, runPath, "sup2", "super_two", api.SupervisorExited)
 
 		viper.Set(config.SB_RUN_PATH.ViperKey, runPath)
-		viper.Set(listAllSupervisorsInput, true)
+		viper.Set(config.SB_SUPERVISORS_ALL.ViperKey, true)
 		defer func() {
 			viper.Set(config.SB_RUN_PATH.ViperKey, "")
-			viper.Set(listAllSupervisorsInput, false)
+			viper.Set(config.SB_SUPERVISORS_ALL.ViperKey, false)
 		}()
 
 		output, err := captureStdout(func() {
@@ -1059,10 +1059,10 @@ func Test_ListSupervisors_Integration(t *testing.T) {
 		runPath := t.TempDir()
 
 		viper.Set(config.SB_RUN_PATH.ViperKey, runPath)
-		viper.Set(listAllSupervisorsInput, false)
+		viper.Set(config.SB_SUPERVISORS_ALL.ViperKey, false)
 		defer func() {
 			viper.Set(config.SB_RUN_PATH.ViperKey, "")
-			viper.Set(listAllSupervisorsInput, false)
+			viper.Set(config.SB_SUPERVISORS_ALL.ViperKey, false)
 		}()
 
 		output, err := captureStdout(func() {
@@ -1088,10 +1088,10 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 
 		cmd.Flags().Set("run-path", runPath)
 		viper.Set(config.SB_RUN_PATH.ViperKey, runPath)
-		viper.Set(outputFormatSupervisorInput, "")
+		viper.Set(config.SB_SUPERVISORS_OUTPUT.ViperKey, "")
 		defer func() {
 			viper.Set(config.SB_RUN_PATH.ViperKey, "")
-			viper.Set(outputFormatSupervisorInput, "")
+			viper.Set(config.SB_SUPERVISORS_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -1113,10 +1113,10 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 
 		cmd.Flags().Set("run-path", runPath)
 		viper.Set(config.SB_RUN_PATH.ViperKey, runPath)
-		viper.Set(outputFormatSupervisorInput, "json")
+		viper.Set(config.SB_SUPERVISORS_OUTPUT.ViperKey, "json")
 		defer func() {
 			viper.Set(config.SB_RUN_PATH.ViperKey, "")
-			viper.Set(outputFormatSupervisorInput, "")
+			viper.Set(config.SB_SUPERVISORS_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -1142,10 +1142,10 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 
 		cmd.Flags().Set("run-path", runPath)
 		viper.Set(config.SB_RUN_PATH.ViperKey, runPath)
-		viper.Set(outputFormatSupervisorInput, "yaml")
+		viper.Set(config.SB_SUPERVISORS_OUTPUT.ViperKey, "yaml")
 		defer func() {
 			viper.Set(config.SB_RUN_PATH.ViperKey, "")
-			viper.Set(outputFormatSupervisorInput, "")
+			viper.Set(config.SB_SUPERVISORS_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
