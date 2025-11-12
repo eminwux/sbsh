@@ -31,10 +31,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const (
-	outputFormatProfilesInput = "sb.get.profiles.output"
-)
-
 func NewGetProfilesCmd() *cobra.Command {
 	// GetProfilesCmd represents the get profiles command.
 	cmd := &cobra.Command{
@@ -69,7 +65,7 @@ func NewGetProfilesCmd() *cobra.Command {
 
 func setupNewGetProfilesCmd(cmd *cobra.Command) {
 	cmd.Flags().StringP("output", "o", "", "Output format: json|yaml (default: human-readable)")
-	_ = viper.BindPFlag(outputFormatProfilesInput, cmd.Flags().Lookup("output"))
+	_ = viper.BindPFlag(config.SB_GET_PROFILES_OUTPUT.ViperKey, cmd.Flags().Lookup("output"))
 
 	_ = cmd.RegisterFlagCompletionFunc(
 		"output",
@@ -86,8 +82,8 @@ func listProfiles(cmd *cobra.Command, _ []string) error {
 	}
 
 	logger.Debug("profiles list command invoked",
-		"profiles_file", viper.GetString(config.PROFILES_FILE.ViperKey),
-		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
+		"profiles_file", viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey),
+		"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 		"list_all", listAllInput,
 		"args", cmd.Flags().Args(),
 	)
@@ -95,7 +91,7 @@ func listProfiles(cmd *cobra.Command, _ []string) error {
 	err := discovery.ScanAndPrintProfiles(
 		cmd.Context(),
 		logger,
-		viper.GetString(config.PROFILES_FILE.ViperKey),
+		viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey),
 		os.Stdout,
 	)
 	if err != nil {
@@ -112,7 +108,7 @@ func completeProfiles(cmd *cobra.Command, args []string, toComplete string) ([]s
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	names, err := fetchProfileNames(cmd.Context(), viper.GetString(config.PROFILES_FILE.ViperKey), toComplete)
+	names, err := fetchProfileNames(cmd.Context(), viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey), toComplete)
 	if err != nil {
 		// Optionally show an error message in completion
 		return []string{"__error: cannot list profiles"}, cobra.ShellCompDirectiveNoFileComp
@@ -146,12 +142,12 @@ func getProfile(cmd *cobra.Command, args []string) error {
 		return errdefs.ErrLoggerNotFound
 	}
 	profileName := args[0]
-	format := viper.GetString(outputFormatProfilesInput)
+	format := viper.GetString(config.SB_GET_PROFILES_OUTPUT.ViperKey)
 	if format != "" && format != "json" && format != "yaml" {
 		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
 	}
 	logger.Debug("get profile command invoked",
-		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
+		"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 		"terminal_name", profileName,
 		"output_format", format,
 		"args", cmd.Flags().Args(),
@@ -160,7 +156,7 @@ func getProfile(cmd *cobra.Command, args []string) error {
 	return discovery.FindAndPrintProfileMetadata(
 		cmd.Context(),
 		logger,
-		viper.GetString(config.PROFILES_FILE.ViperKey),
+		viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey),
 		os.Stdout,
 		profileName,
 		format,

@@ -55,8 +55,8 @@ You can see available options and commands with:
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			var logger *slog.Logger
-			if viper.GetBool("sb.global.verbose") {
-				logLevel := viper.GetString("sb.global.logLevel")
+			if viper.GetBool(config.SB_ROOT_VERBOSE.ViperKey) {
+				logLevel := viper.GetString(config.SB_ROOT_LOG_LEVEL.ViperKey)
 				if logLevel == "" {
 					logLevel = "info"
 				}
@@ -79,7 +79,7 @@ You can see available options and commands with:
 					cmd.Context(),
 					"enabling verbose",
 					"log-level",
-					viper.GetString("sb.global.logLevel"),
+					viper.GetString(config.SB_ROOT_LOG_LEVEL.ViperKey),
 				)
 			}
 
@@ -122,22 +122,22 @@ func setupRootCmd(rootCmd *cobra.Command) error {
 	rootCmd.AddCommand(get.NewGetCmd())
 
 	rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.sbsh/config.yaml)")
-	if err := viper.BindPFlag("sb.global.config", rootCmd.PersistentFlags().Lookup("config")); err != nil {
+	if err := viper.BindPFlag(config.SB_ROOT_CONFIG.ViperKey, rootCmd.PersistentFlags().Lookup("config")); err != nil {
 		return err
 	}
 
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Log level (debug, info, warn, error)")
-	if err := viper.BindPFlag("sb.global.verbose", rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
+	if err := viper.BindPFlag(config.SB_ROOT_VERBOSE.ViperKey, rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
 		return err
 	}
 
 	rootCmd.PersistentFlags().String("log-level", "", "Log level (debug, info, warn, error)")
-	if err := viper.BindPFlag("sb.global.logLevel", rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
+	if err := viper.BindPFlag(config.SB_ROOT_LOG_LEVEL.ViperKey, rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
 		return err
 	}
 
 	rootCmd.PersistentFlags().String("run-path", "", "Run path directory")
-	if err := viper.BindPFlag("sb.global.runPath", rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
+	if err := viper.BindPFlag(config.SB_ROOT_RUN_PATH.ViperKey, rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
 		return err
 	}
 
@@ -146,34 +146,34 @@ func setupRootCmd(rootCmd *cobra.Command) error {
 
 func LoadConfig() error {
 	var configFile string
-	if viper.GetString(config.CONFIG_FILE.ViperKey) == "" {
+	if viper.GetString(config.SBSH_ROOT_CONFIG_FILE.ViperKey) == "" {
 		configFile = config.DefaultConfigFile()
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
 		// Add the directory containing the config file
 		viper.AddConfigPath(filepath.Dir(configFile))
 	}
-	_ = config.CONFIG_FILE.BindEnv()
-	if err := config.CONFIG_FILE.Set(configFile); err != nil {
+	_ = config.SBSH_ROOT_CONFIG_FILE.BindEnv()
+	if err := config.SBSH_ROOT_CONFIG_FILE.Set(configFile); err != nil {
 		return fmt.Errorf("%w: failed to set config file: %w", errdefs.ErrConfig, err)
 	}
 
 	var runPath string
-	if viper.GetString(config.RUN_PATH.ViperKey) == "" {
+	if viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey) == "" {
 		runPath = config.DefaultRunPath()
 	}
-	_ = config.RUN_PATH.BindEnv()
-	config.RUN_PATH.SetDefault(runPath)
+	_ = config.SB_ROOT_RUN_PATH.BindEnv()
+	config.SB_ROOT_RUN_PATH.SetDefault(runPath)
 
 	var profilesFile string
-	if viper.GetString(config.PROFILES_FILE.ViperKey) == "" {
+	if viper.GetString(config.SBSH_ROOT_PROFILES_FILE.ViperKey) == "" {
 		profilesFile = config.DefaultProfilesFile()
 	}
-	_ = config.PROFILES_FILE.BindEnv()
-	config.PROFILES_FILE.SetDefault(profilesFile)
+	_ = config.SBSH_ROOT_PROFILES_FILE.BindEnv()
+	config.SBSH_ROOT_PROFILES_FILE.SetDefault(profilesFile)
 
-	_ = config.LOG_LEVEL.BindEnv()
-	config.LOG_LEVEL.SetDefault("info")
+	_ = config.SBSH_ROOT_LOG_LEVEL.BindEnv()
+	config.SBSH_ROOT_LOG_LEVEL.SetDefault("info")
 
 	if err := viper.ReadInConfig(); err != nil {
 		// File not found is OK if ENV is set

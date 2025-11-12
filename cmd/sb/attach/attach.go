@@ -87,10 +87,10 @@ to quickly create a Cobra application.`,
 
 			logger.DebugContext(cmd.Context(), "attach command invoked",
 				"args", cmd.Flags().Args(),
-				"sb.attach.id", viper.GetString("sb.attach.id"),
-				"sb.attach.name", viper.GetString("sb.attach.name"),
-				"sb.attach.socket", viper.GetString("sb.attach.socket"),
-				"run_path", viper.GetString(config.RUN_PATH.ViperKey),
+				config.SB_ATTACH_ID.ViperKey, viper.GetString(config.SB_ATTACH_ID.ViperKey),
+				config.SB_ATTACH_NAME.ViperKey, viper.GetString(config.SB_ATTACH_NAME.ViperKey),
+				config.SB_ATTACH_SOCKET.ViperKey, viper.GetString(config.SB_ATTACH_SOCKET.ViperKey),
+				"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 			)
 			cmd.Flags().VisitAll(func(f *pflag.Flag) {
 				logger.DebugContext(cmd.Context(), "flag value", "name", f.Name, "value", f.Value.String())
@@ -110,10 +110,10 @@ to quickly create a Cobra application.`,
 
 func setupAttachCmdFlags(attachCmd *cobra.Command) {
 	attachCmd.Flags().String("id", "", "Terminal ID, cannot be set together with --name")
-	_ = viper.BindPFlag("sb.attach.id", attachCmd.Flags().Lookup("id"))
+	_ = viper.BindPFlag(config.SB_ATTACH_ID.ViperKey, attachCmd.Flags().Lookup("id"))
 
 	attachCmd.Flags().StringP("name", "n", "", "Optional terminal name, cannot be set together with --id")
-	_ = viper.BindPFlag("sb.attach.name", attachCmd.Flags().Lookup("name"))
+	_ = viper.BindPFlag(config.SB_ATTACH_NAME.ViperKey, attachCmd.Flags().Lookup("name"))
 
 	_ = attachCmd.RegisterFlagCompletionFunc(
 		"id",
@@ -121,7 +121,7 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 			//nolint:mnd // 150ms is a good compromise between snappy completion and enough time to read files
 			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 			defer cancel()
-			runPath, err := config.GetRunPathFromEnvAndFlags(c)
+			runPath, err := config.GetRunPathFromEnvAndFlags(c, config.SB_ROOT_RUN_PATH.EnvVar())
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
@@ -143,7 +143,7 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 			//nolint:mnd // 150ms is a good compromise between snappy completion and enough time to read files
 			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 			defer cancel()
-			runPath, err := config.GetRunPathFromEnvAndFlags(c)
+			runPath, err := config.GetRunPathFromEnvAndFlags(c, config.SB_ROOT_RUN_PATH.EnvVar())
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
@@ -159,7 +159,7 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 		},
 	)
 	attachCmd.Flags().String("socket", "", "Optional socket file for the terminal")
-	_ = viper.BindPFlag("sb.attach.socket", attachCmd.Flags().Lookup("socket"))
+	_ = viper.BindPFlag(config.SB_ATTACH_SOCKET.ViperKey, attachCmd.Flags().Lookup("socket"))
 }
 
 func run(
@@ -176,16 +176,16 @@ func run(
 	defer cancel()
 
 	supervisorID := naming.RandomID()
-	socketFileFlag := viper.GetString("sb.attach.socket")
-	runPath := viper.GetString(config.RUN_PATH.ViperKey)
+	socketFileFlag := viper.GetString(config.SB_ATTACH_SOCKET.ViperKey)
+	runPath := viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey)
 
 	var terminalNamePositional string
 	if len(args) > 0 {
 		terminalNamePositional = args[0]
 	}
 
-	terminalNameFlag := viper.GetString("sb.attach.name")
-	terminalIDFlag := viper.GetString("sb.attach.id")
+	terminalNameFlag := viper.GetString(config.SB_ATTACH_NAME.ViperKey)
+	terminalIDFlag := viper.GetString(config.SB_ATTACH_ID.ViperKey)
 
 	terminalName := terminalNamePositional
 	if terminalNamePositional == "" {

@@ -35,12 +35,6 @@ import (
 // explicit timeout avoids magic numbers (mnd) and improves readability.
 const detachTimeout = 3 * time.Second
 
-const (
-	detachNameInput   = "sb.detach.name"
-	detachIDInput     = "sb.detach.id"
-	detachSocketInput = "sb.detach.socket"
-)
-
 func NewDetachCmd() *cobra.Command {
 	detachCmd := &cobra.Command{
 		Use:     "detach",
@@ -105,11 +99,11 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 
 func setupDetachCmd(detachCmd *cobra.Command) {
 	detachCmd.Flags().String("id", "", "Terminal ID, cannot be set together with --name")
-	_ = viper.BindPFlag(detachIDInput, detachCmd.Flags().Lookup("id"))
+	_ = viper.BindPFlag(config.SB_DETACH_ID.ViperKey, detachCmd.Flags().Lookup("id"))
 	detachCmd.Flags().StringP("name", "n", "", "Optional terminal name, cannot be set together with --id")
-	_ = viper.BindPFlag(detachNameInput, detachCmd.Flags().Lookup("name"))
+	_ = viper.BindPFlag(config.SB_DETACH_NAME.ViperKey, detachCmd.Flags().Lookup("name"))
 	detachCmd.Flags().String("socket", "", "Supervisor Socket Path")
-	_ = viper.BindPFlag(detachSocketInput, detachCmd.Flags().Lookup("socket"))
+	_ = viper.BindPFlag(config.SB_DETACH_SOCKET.ViperKey, detachCmd.Flags().Lookup("socket"))
 }
 
 func runDetachCmd(cmd *cobra.Command, args []string) error {
@@ -118,9 +112,9 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 		return errdefs.ErrLoggerNotFound
 	}
 
-	supervisorSocketFlag := viper.GetString(detachSocketInput)
-	supervisorIDFlag := viper.GetString(detachIDInput)
-	supervisorNameFlag := viper.GetString(detachNameInput)
+	supervisorSocketFlag := viper.GetString(config.SB_DETACH_SOCKET.ViperKey)
+	supervisorIDFlag := viper.GetString(config.SB_DETACH_ID.ViperKey)
+	supervisorNameFlag := viper.GetString(config.SB_DETACH_NAME.ViperKey)
 
 	if len(args) == 1 {
 		if supervisorIDFlag != "" || supervisorNameFlag != "" || supervisorSocketFlag != "" {
@@ -187,7 +181,7 @@ func buildSocket(
 		return supervisorSocketFlag, nil
 	}
 
-	runPath, err := config.GetRunPathFromEnvAndFlags(cmd)
+	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_ROOT_RUN_PATH.EnvVar())
 	if err != nil {
 		logger.ErrorContext(cmd.Context(), "cannot determine run path", "error", err)
 		return "", fmt.Errorf("%w: %w", errdefs.ErrDetermineRunPath, err)

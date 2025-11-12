@@ -359,9 +359,9 @@ spec:
 `
 		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
 
-		viper.Set(config.PROFILES_FILE.ViperKey, profilesFile)
+		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, profilesFile)
 		defer func() {
-			viper.Set(config.PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -384,9 +384,9 @@ spec:
 		tmpDir := t.TempDir()
 		profilesFile := createTestProfileFile(t, tmpDir, "")
 
-		viper.Set(config.PROFILES_FILE.ViperKey, profilesFile)
+		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, profilesFile)
 		defer func() {
-			viper.Set(config.PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -404,9 +404,9 @@ spec:
 	t.Run("error when profiles file path is invalid", func(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 
-		viper.Set(config.PROFILES_FILE.ViperKey, "/nonexistent/path/profiles.yaml")
+		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "/nonexistent/path/profiles.yaml")
 		defer func() {
-			viper.Set(config.PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
 		}()
 
 		err := listProfiles(cmd, []string{})
@@ -432,11 +432,11 @@ spec:
 `
 		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
 
-		viper.Set(config.PROFILES_FILE.ViperKey, profilesFile)
-		viper.Set(outputFormatProfilesInput, "")
+		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, profilesFile)
+		viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "")
 		defer func() {
-			viper.Set(config.PROFILES_FILE.ViperKey, "")
-			viper.Set(outputFormatProfilesInput, "")
+			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -464,11 +464,11 @@ spec:
 `
 		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
 
-		viper.Set(config.PROFILES_FILE.ViperKey, profilesFile)
-		viper.Set(outputFormatProfilesInput, "json")
+		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, profilesFile)
+		viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "json")
 		defer func() {
-			viper.Set(config.PROFILES_FILE.ViperKey, "")
-			viper.Set(outputFormatProfilesInput, "")
+			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -500,11 +500,11 @@ spec:
 `
 		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
 
-		viper.Set(config.PROFILES_FILE.ViperKey, profilesFile)
-		viper.Set(outputFormatProfilesInput, "yaml")
+		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, profilesFile)
+		viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "yaml")
 		defer func() {
-			viper.Set(config.PROFILES_FILE.ViperKey, "")
-			viper.Set(outputFormatProfilesInput, "")
+			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -536,9 +536,9 @@ spec:
 `
 		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
 
-		viper.Set(config.PROFILES_FILE.ViperKey, profilesFile)
+		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, profilesFile)
 		defer func() {
-			viper.Set(config.PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
 		}()
 
 		err := getProfile(cmd, []string{"nonexistent"})
@@ -550,9 +550,9 @@ spec:
 	t.Run("error when profiles file doesn't exist", func(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 
-		viper.Set(config.PROFILES_FILE.ViperKey, "/nonexistent/path/profiles.yaml")
+		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "/nonexistent/path/profiles.yaml")
 		defer func() {
-			viper.Set(config.PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
 		}()
 
 		err := getProfile(cmd, []string{"default"})
@@ -703,10 +703,10 @@ func Test_ListTerminals_Integration(t *testing.T) {
 		createTestTerminalMetadata(t, runPath, "term1", "twilight_anarion", api.Ready)
 		createTestTerminalMetadata(t, runPath, "term2", "brave_gandalf", api.Ready)
 
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
 		viper.Set(listAllInput, false)
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
 			viper.Set(listAllInput, false)
 		}()
 
@@ -731,10 +731,10 @@ func Test_ListTerminals_Integration(t *testing.T) {
 		createTestTerminalMetadata(t, runPath, "term1", "twilight_anarion", api.Ready)
 		createTestTerminalMetadata(t, runPath, "term2", "brave_gandalf", api.Exited)
 
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
 		viper.Set(listAllInput, true)
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
 			viper.Set(listAllInput, false)
 		}()
 
@@ -757,10 +757,10 @@ func Test_ListTerminals_Integration(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 		runPath := t.TempDir()
 
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
 		viper.Set(listAllInput, false)
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
 			viper.Set(listAllInput, false)
 		}()
 
@@ -786,10 +786,10 @@ func Test_GetTerminal_Integration(t *testing.T) {
 		createTestTerminalMetadata(t, runPath, "term1", "twilight_anarion", api.Ready)
 
 		cmd.Flags().Set("run-path", runPath)
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
 		viper.Set(outputFormat, "")
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
 			viper.Set(outputFormat, "")
 		}()
 
@@ -811,10 +811,10 @@ func Test_GetTerminal_Integration(t *testing.T) {
 		createTestTerminalMetadata(t, runPath, "term1", "twilight_anarion", api.Ready)
 
 		cmd.Flags().Set("run-path", runPath)
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
 		viper.Set(outputFormat, "json")
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
 			viper.Set(outputFormat, "")
 		}()
 
@@ -840,10 +840,10 @@ func Test_GetTerminal_Integration(t *testing.T) {
 		createTestTerminalMetadata(t, runPath, "term1", "twilight_anarion", api.Ready)
 
 		cmd.Flags().Set("run-path", runPath)
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
 		viper.Set(outputFormat, "yaml")
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
 			viper.Set(outputFormat, "")
 		}()
 
@@ -868,9 +868,9 @@ func Test_GetTerminal_Integration(t *testing.T) {
 		runPath := t.TempDir()
 
 		cmd.Flags().Set("run-path", runPath)
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
 		}()
 
 		err := getTerminal(cmd, []string{"nonexistent"})
@@ -1004,11 +1004,11 @@ func Test_ListSupervisors_Integration(t *testing.T) {
 		createTestSupervisorMetadata(t, runPath, "sup1", "super_one", api.SupervisorReady)
 		createTestSupervisorMetadata(t, runPath, "sup2", "super_two", api.SupervisorReady)
 
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
-		viper.Set(listAllSupervisorsInput, false)
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_GET_SUPERVISORS_ALL.ViperKey, false)
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
-			viper.Set(listAllSupervisorsInput, false)
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_GET_SUPERVISORS_ALL.ViperKey, false)
 		}()
 
 		output, err := captureStdout(func() {
@@ -1032,11 +1032,11 @@ func Test_ListSupervisors_Integration(t *testing.T) {
 		createTestSupervisorMetadata(t, runPath, "sup1", "super_one", api.SupervisorReady)
 		createTestSupervisorMetadata(t, runPath, "sup2", "super_two", api.SupervisorExited)
 
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
-		viper.Set(listAllSupervisorsInput, true)
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_GET_SUPERVISORS_ALL.ViperKey, true)
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
-			viper.Set(listAllSupervisorsInput, false)
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_GET_SUPERVISORS_ALL.ViperKey, false)
 		}()
 
 		output, err := captureStdout(func() {
@@ -1058,11 +1058,11 @@ func Test_ListSupervisors_Integration(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 		runPath := t.TempDir()
 
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
-		viper.Set(listAllSupervisorsInput, false)
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_GET_SUPERVISORS_ALL.ViperKey, false)
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
-			viper.Set(listAllSupervisorsInput, false)
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_GET_SUPERVISORS_ALL.ViperKey, false)
 		}()
 
 		output, err := captureStdout(func() {
@@ -1087,11 +1087,11 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 		createTestSupervisorMetadata(t, runPath, "sup1", "super_one", api.SupervisorReady)
 
 		cmd.Flags().Set("run-path", runPath)
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
-		viper.Set(outputFormatSupervisorInput, "")
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "")
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
-			viper.Set(outputFormatSupervisorInput, "")
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -1112,11 +1112,11 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 		createTestSupervisorMetadata(t, runPath, "sup1", "super_one", api.SupervisorReady)
 
 		cmd.Flags().Set("run-path", runPath)
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
-		viper.Set(outputFormatSupervisorInput, "json")
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "json")
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
-			viper.Set(outputFormatSupervisorInput, "")
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -1141,11 +1141,11 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 		createTestSupervisorMetadata(t, runPath, "sup1", "super_one", api.SupervisorReady)
 
 		cmd.Flags().Set("run-path", runPath)
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
-		viper.Set(outputFormatSupervisorInput, "yaml")
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "yaml")
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
-			viper.Set(outputFormatSupervisorInput, "")
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -1169,9 +1169,9 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 		runPath := t.TempDir()
 
 		cmd.Flags().Set("run-path", runPath)
-		viper.Set(config.RUN_PATH.ViperKey, runPath)
+		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
 		defer func() {
-			viper.Set(config.RUN_PATH.ViperKey, "")
+			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
 		}()
 
 		err := getSupervisor(cmd, []string{"nonexistent"})

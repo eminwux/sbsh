@@ -65,7 +65,7 @@ func TestRunTerminal_ErrContextDone(t *testing.T) {
 		ID:           api.ID(naming.RandomID()),
 		Name:         naming.RandomName(),
 		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_RUN_PATH.ViperKey),
+		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
 		TerminalSpec: nil,
 	}
 
@@ -122,7 +122,7 @@ func TestRunTerminal_ErrWaitOnReady(t *testing.T) {
 		ID:           api.ID(naming.RandomID()),
 		Name:         naming.RandomName(),
 		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_RUN_PATH.ViperKey),
+		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
 		TerminalSpec: nil,
 	}
 	done := make(chan error)
@@ -182,7 +182,7 @@ func TestRunTerminal_ErrContextDoneWithWaitCloseError(t *testing.T) {
 		ID:           api.ID(naming.RandomID()),
 		Name:         naming.RandomName(),
 		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_RUN_PATH.ViperKey),
+		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
 		TerminalSpec: nil,
 	}
 
@@ -248,7 +248,7 @@ func TestRunTerminal_ErrChildExit(t *testing.T) {
 		ID:           api.ID(naming.RandomID()),
 		Name:         naming.RandomName(),
 		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_RUN_PATH.ViperKey),
+		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
 		TerminalSpec: nil,
 	}
 
@@ -305,7 +305,7 @@ func TestRunTerminal_ErrChildExitWithWaitCloseError(t *testing.T) {
 		ID:           api.ID(naming.RandomID()),
 		Name:         naming.RandomName(),
 		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_RUN_PATH.ViperKey),
+		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
 		TerminalSpec: nil,
 	}
 
@@ -360,7 +360,7 @@ func TestRunTerminal_SuccessWithNilError(t *testing.T) {
 		ID:           api.ID(naming.RandomID()),
 		Name:         naming.RandomName(),
 		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_RUN_PATH.ViperKey),
+		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
 		TerminalSpec: nil,
 	}
 
@@ -416,7 +416,7 @@ func TestRunTerminal_SuccessWithContextCanceled(t *testing.T) {
 		ID:           api.ID(naming.RandomID()),
 		Name:         naming.RandomName(),
 		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_RUN_PATH.ViperKey),
+		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
 		TerminalSpec: nil,
 	}
 

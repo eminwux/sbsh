@@ -65,11 +65,11 @@ func (sr *Exec) prepareTerminalCommand() error {
 
 	// Add SBSH-specific env vars
 	cmd.Env = append(cmd.Env,
-		config.KV(config.TERM_SOCKET_CTRL, sr.metadata.Status.SocketFile),
-		config.KV(config.TERM_ID, string(sr.metadata.Spec.ID)),
-		config.KV(config.TERM_NAME, sr.metadata.Spec.Name),
-		config.KV(config.TERM_PROFILE, sr.metadata.Spec.ProfileName),
-		config.KV(config.RUN_PATH, sr.metadata.Spec.RunPath),
+		config.KV(config.SBSH_TERM_SOCKET, sr.metadata.Status.SocketFile),
+		config.KV(config.SBSH_TERM_ID, string(sr.metadata.Spec.ID)),
+		config.KV(config.SBSH_TERM_NAME, sr.metadata.Spec.Name),
+		config.KV(config.SBSH_TERM_PROFILE, sr.metadata.Spec.ProfileName),
+		config.KV(config.SB_ROOT_RUN_PATH, sr.metadata.Spec.RunPath),
 	)
 	// Start the process in its own process group
 	cmd.SysProcAttr = &syscall.SysProcAttr{

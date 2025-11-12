@@ -143,8 +143,8 @@ func Test_ErrCreateSupervisorDir(t *testing.T) {
 	}
 
 	// Try to create a directory with a file path, which should fail
-	viper.Set(config.RUN_PATH.ViperKey, tmpFile)
-	viper.Set("sb.attach.socket", "")
+	viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, tmpFile)
+	viper.Set(config.SB_ATTACH_SOCKET.ViperKey, "")
 
 	err = run(cmd, []string{"terminal-name"})
 	// This might fail earlier, but if it gets to directory creation, it should return ErrCreateSupervisorDir
@@ -162,10 +162,10 @@ func Test_ErrNoTerminalIdentification(t *testing.T) {
 	cmd.SetContext(ctx)
 
 	tmpDir := t.TempDir()
-	viper.Set(config.RUN_PATH.ViperKey, tmpDir)
-	viper.Set("sb.attach.socket", "")
-	viper.Set("sb.attach.id", "")
-	viper.Set("sb.attach.name", "")
+	viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, tmpDir)
+	viper.Set(config.SB_ATTACH_SOCKET.ViperKey, "")
+	viper.Set(config.SB_ATTACH_ID.ViperKey, "")
+	viper.Set(config.SB_ATTACH_NAME.ViperKey, "")
 
 	// No terminal ID, name, or positional arg provided
 	err := run(cmd, []string{})

@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/errdefs"
@@ -152,9 +153,9 @@ func Test_ErrPositionalWithFlags(t *testing.T) {
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	cmd.SetContext(ctx)
 
-	viper.Set(detachIDInput, "test-id")
-	viper.Set(detachNameInput, "")
-	viper.Set(detachSocketInput, "")
+	viper.Set(config.SB_DETACH_ID.ViperKey, "test-id")
+	viper.Set(config.SB_DETACH_NAME.ViperKey, "")
+	viper.Set(config.SB_DETACH_SOCKET.ViperKey, "")
 
 	// Positional arg with flags set
 	err := runDetachCmd(cmd, []string{"supervisor-name"})
@@ -172,9 +173,9 @@ func Test_ErrConflictingFlags_IDAndName(t *testing.T) {
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	cmd.SetContext(ctx)
 
-	viper.Set(detachIDInput, "test-id")
-	viper.Set(detachNameInput, "test-name")
-	viper.Set(detachSocketInput, "")
+	viper.Set(config.SB_DETACH_ID.ViperKey, "test-id")
+	viper.Set(config.SB_DETACH_NAME.ViperKey, "test-name")
+	viper.Set(config.SB_DETACH_SOCKET.ViperKey, "")
 
 	err := runDetachCmd(cmd, []string{})
 	if err == nil {
@@ -191,9 +192,9 @@ func Test_ErrConflictingFlags_IDAndSocket(t *testing.T) {
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	cmd.SetContext(ctx)
 
-	viper.Set(detachIDInput, "test-id")
-	viper.Set(detachNameInput, "")
-	viper.Set(detachSocketInput, "/tmp/socket")
+	viper.Set(config.SB_DETACH_ID.ViperKey, "test-id")
+	viper.Set(config.SB_DETACH_NAME.ViperKey, "")
+	viper.Set(config.SB_DETACH_SOCKET.ViperKey, "/tmp/socket")
 
 	err := runDetachCmd(cmd, []string{})
 	if err == nil {
@@ -210,9 +211,9 @@ func Test_ErrConflictingFlags_NameAndSocket(t *testing.T) {
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	cmd.SetContext(ctx)
 
-	viper.Set(detachIDInput, "")
-	viper.Set(detachNameInput, "test-name")
-	viper.Set(detachSocketInput, "/tmp/socket")
+	viper.Set(config.SB_DETACH_ID.ViperKey, "")
+	viper.Set(config.SB_DETACH_NAME.ViperKey, "test-name")
+	viper.Set(config.SB_DETACH_SOCKET.ViperKey, "/tmp/socket")
 
 	err := runDetachCmd(cmd, []string{})
 	if err == nil {
@@ -230,9 +231,9 @@ func Test_ErrNoSupervisorIdentification_BuildSocket(t *testing.T) {
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	cmd.SetContext(ctx)
 
-	viper.Set(detachSocketInput, "")
-	viper.Set(detachIDInput, "")
-	viper.Set(detachNameInput, "")
+	viper.Set(config.SB_DETACH_SOCKET.ViperKey, "")
+	viper.Set(config.SB_DETACH_ID.ViperKey, "")
+	viper.Set(config.SB_DETACH_NAME.ViperKey, "")
 
 	tmpDir := t.TempDir()
 	cmd.Flags().Set("run-path", tmpDir)

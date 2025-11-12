@@ -23,6 +23,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/spf13/cobra"
@@ -101,7 +102,7 @@ func Test_ErrInvalidOutputFormat_Profile(t *testing.T) {
 	cmd.SetContext(ctx)
 
 	// Set invalid output format
-	viper.Set(outputFormatProfilesInput, "invalid-format")
+	viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "invalid-format")
 
 	err := getProfile(cmd, []string{"profile-name"})
 	if err == nil {
@@ -111,5 +112,5 @@ func Test_ErrInvalidOutputFormat_Profile(t *testing.T) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInvalidOutputFormat, err)
 	}
 
-	viper.Set(outputFormatProfilesInput, "")
+	viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "")
 }

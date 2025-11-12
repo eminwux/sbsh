@@ -23,6 +23,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/spf13/cobra"
@@ -101,7 +102,7 @@ func Test_ErrInvalidOutputFormat_Supervisor(t *testing.T) {
 	cmd.SetContext(ctx)
 
 	// Set invalid output format
-	viper.Set(outputFormatSupervisorInput, "invalid-format")
+	viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "invalid-format")
 
 	err := getSupervisor(cmd, []string{"supervisor-name"})
 	if err == nil {
@@ -111,7 +112,7 @@ func Test_ErrInvalidOutputFormat_Supervisor(t *testing.T) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInvalidOutputFormat, err)
 	}
 
-	viper.Set(outputFormatSupervisorInput, "")
+	viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "")
 }
 
 func Test_ErrGetRunPath_Supervisor(t *testing.T) {
