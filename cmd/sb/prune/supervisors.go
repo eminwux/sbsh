@@ -46,14 +46,14 @@ This will remove all supervisors files for terminals that are not running anymor
 			}
 
 			logger.Debug("supervisors prune command invoked",
-				"run_path", viper.GetString(config.RUN_PATH.ViperKey),
+				"run_path", viper.GetString(config.SB_RUN_PATH.ViperKey),
 				"args", cmd.Flags().Args(),
 			)
 
 			err := discovery.ScanAndPruneSupervisors(
 				cmd.Context(),
 				logger,
-				viper.GetString(config.RUN_PATH.ViperKey),
+				viper.GetString(config.SB_RUN_PATH.ViperKey),
 				os.Stdout,
 			)
 			if err != nil {

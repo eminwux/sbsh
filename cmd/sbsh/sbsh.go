@@ -87,12 +87,6 @@ You can also use sbsh with parameters. For example:
 				supLogLevel = "info"
 			}
 
-			terminalLogLevel := viper.GetString("sbsh.terminal.logLevel")
-			if terminalLogLevel == "" {
-				terminalLogLevel = supLogLevel
-				viper.Set("sbsh.terminal.logLevel", terminalLogLevel)
-			}
-
 			supLogfile := viper.GetString("sbsh.supervisor.logFile")
 			if supLogfile == "" {
 				supLogfile = filepath.Join(
@@ -124,9 +118,9 @@ You can also use sbsh with parameters. For example:
 			logger.DebugContext(
 				cmd.Context(), "parameters received in sbsh",
 				"runPath", viper.GetString(config.SBSH_RUN_PATH.ViperKey),
-				"configFile", viper.GetString(config.CONFIG_FILE.ViperKey),
-				"logLevel", viper.GetString(config.LOG_LEVEL.ViperKey),
-				"profilesFile", viper.GetString(config.PROFILES_FILE.ViperKey),
+				"configFile", viper.GetString(config.SBSH_CONFIG_FILE.ViperKey),
+				"logLevel", viper.GetString(config.SBSH_LOG_LEVEL.ViperKey),
+				"profilesFile", viper.GetString(config.SBSH_PROFILES_FILE.ViperKey),
 				"terminalID", viper.GetString("sbsh.terminal.id"),
 				"terminalCommand", viper.GetString("sbsh.terminal.command"),
 				"terminalName", viper.GetString("sbsh.terminal.name"),
@@ -166,7 +160,7 @@ You can also use sbsh with parameters. For example:
 					TerminalCmd:  viper.GetString("sbsh.terminal.command"),
 					CaptureFile:  viper.GetString("sbsh.terminal.captureFile"),
 					RunPath:      viper.GetString(config.SBSH_RUN_PATH.ViperKey),
-					ProfilesFile: viper.GetString(config.PROFILES_FILE.ViperKey),
+					ProfilesFile: viper.GetString(config.SBSH_PROFILES_FILE.ViperKey),
 					ProfileName:  viper.GetString("sbsh.terminal.profile"),
 					LogFile:      viper.GetString("sbsh.terminal.logFile"),
 					LogLevel:     viper.GetString("sbsh.terminal.logLevel"),
@@ -235,12 +229,12 @@ func setPersistentLoggingFlags(rootCmd *cobra.Command) error {
 	}
 
 	rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.sbsh/config.yaml)")
-	if err := viper.BindPFlag(config.CONFIG_FILE.ViperKey, rootCmd.PersistentFlags().Lookup("config")); err != nil {
+	if err := viper.BindPFlag(config.SBSH_CONFIG_FILE.ViperKey, rootCmd.PersistentFlags().Lookup("config")); err != nil {
 		return err
 	}
 
 	rootCmd.PersistentFlags().String("profiles", "", "profiles manifests file")
-	if err := viper.BindPFlag(config.PROFILES_FILE.ViperKey, rootCmd.PersistentFlags().Lookup("profiles")); err != nil {
+	if err := viper.BindPFlag(config.SBSH_PROFILES_FILE.ViperKey, rootCmd.PersistentFlags().Lookup("profiles")); err != nil {
 		return err
 	}
 
@@ -311,7 +305,7 @@ func setTerminalFlags(rootCmd *cobra.Command) error {
 	if err := viper.BindPFlag("sbsh.terminal.profile", rootCmd.Flags().Lookup("profile")); err != nil {
 		return err
 	}
-	if err := viper.BindEnv("sbsh.terminal.profile", config.TERM_PROFILE.EnvVar()); err != nil {
+	if err := viper.BindEnv("sbsh.terminal.profile", config.SBSH_TERM_PROFILE.EnvVar()); err != nil {
 		return err
 	}
 	if err := setAutoCompleteProfile(rootCmd); err != nil {
@@ -396,6 +390,7 @@ func runSupervisor(
 		if err != nil {
 			return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
 		}
+		// return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
 		return errdefs.ErrContextDone
 
 	case err := <-errCh:
@@ -408,6 +403,7 @@ func runSupervisor(
 			logger.ErrorContext(ctx, "supervisor controller exited with error", "error", err)
 			logger.DebugContext(ctx, "controller exited after error")
 
+			// return err
 			// return nothing to avoid polluting the terminal with errors
 			return nil
 		}
@@ -418,15 +414,15 @@ func runSupervisor(
 // LoadConfig loads config.yaml from the given path or HOME/.sbsh.
 func LoadConfig() error {
 	var configFile string
-	if viper.GetString(config.CONFIG_FILE.ViperKey) == "" {
+	if viper.GetString(config.SBSH_CONFIG_FILE.ViperKey) == "" {
 		configFile = config.DefaultConfigFile()
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
 		// Add the directory containing the config file
 		viper.AddConfigPath(filepath.Dir(configFile))
 	}
-	_ = config.CONFIG_FILE.BindEnv()
-	_ = config.CONFIG_FILE.Set(configFile)
+	_ = config.SBSH_CONFIG_FILE.BindEnv()
+	_ = config.SBSH_CONFIG_FILE.Set(configFile)
 
 	var runPath string
 	if viper.GetString(config.SBSH_RUN_PATH.ViperKey) == "" {
@@ -436,14 +432,14 @@ func LoadConfig() error {
 	config.SBSH_RUN_PATH.SetDefault(runPath)
 
 	var profilesFile string
-	if viper.GetString(config.PROFILES_FILE.ViperKey) == "" {
+	if viper.GetString(config.SBSH_PROFILES_FILE.ViperKey) == "" {
 		profilesFile = config.DefaultProfilesFile()
 	}
-	_ = config.PROFILES_FILE.BindEnv()
-	config.PROFILES_FILE.SetDefault(profilesFile)
+	_ = config.SBSH_PROFILES_FILE.BindEnv()
+	config.SBSH_PROFILES_FILE.SetDefault(profilesFile)
 
-	_ = config.LOG_LEVEL.BindEnv()
-	config.LOG_LEVEL.SetDefault("info")
+	_ = config.SBSH_LOG_LEVEL.BindEnv()
+	config.SBSH_LOG_LEVEL.SetDefault("info")
 
 	if err := viper.ReadInConfig(); err != nil {
 		// File not found is OK if ENV is set

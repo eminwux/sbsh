@@ -35,7 +35,7 @@ func DefaultRunPath() string {
 func GetRunPathFromEnvAndFlags(cmd *cobra.Command) (string, error) {
 	runPath, _ := cmd.Flags().GetString("run-path")
 	if runPath == "" {
-		if env := os.Getenv(RUN_PATH.EnvVar()); env != "" {
+		if env := os.Getenv(SB_RUN_PATH.EnvVar()); env != "" {
 			runPath = env
 		} else {
 			// final fallback: same default you use at runtime
@@ -48,7 +48,7 @@ func GetRunPathFromEnvAndFlags(cmd *cobra.Command) (string, error) {
 func GetProfilesFileFromEnvAndFlags(cmd *cobra.Command) (string, error) {
 	profilesFile, _ := cmd.Flags().GetString("profiles-file")
 	if profilesFile == "" {
-		if env := os.Getenv(PROFILES_FILE.EnvVar()); env != "" {
+		if env := os.Getenv(SBSH_PROFILES_FILE.EnvVar()); env != "" {
 			profilesFile = env
 		} else {
 			// final fallback: same default you use at runtime

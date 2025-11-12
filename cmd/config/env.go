@@ -83,24 +83,26 @@ func KV(v Var, value string) string { return v.Key + "=" + value }
 // ---- Declare statically (Viper key optional per var) ----.
 var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	RUN_PATH = DefineKV("SB_RUN_PATH", "sb.global.runPath") // has viper key
+	SB_RUN_PATH = DefineKV("SB_RUN_PATH", "sb/runPath")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	CONFIG_FILE = DefineKV("SBSH_CONFIG_FILE", "sbsh.global.configFile") // has viper key
-	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	PROFILES_FILE = DefineKV("SBSH_PROFILES_FILE", "sbsh.global.profilesFile") // has viper key
-	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	LOG_LEVEL = DefineKV("SBSH_LOG_LEVEL", "sbsh.global.logLevel", "info") // has viper key
-	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SUP_SOCKET = DefineKV("SBSH_SUP_SOCKET", "sbsh.supervisor.socket") // no viper key, no default
-	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	TERM_SOCKET_CTRL = Define("SBSH_TERM_SOCKET_CTRL")
-	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	TERM_ID = Define("SBSH_TERM_ID")
-	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	TERM_NAME = Define("SBSH_TERM_NAME")
-	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	TERM_PROFILE = Define("SBSH_TERM_PROFILE")
+	SB_PROFILES_FILE = DefineKV("SB_PROFILES_FILE", "sb/get/profilesFile")
 
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SBSH_RUN_PATH = DefineKV("SBSH_RUN_PATH", "sbsh.global.runPath") // has viper key
+	SBSH_CONFIG_FILE = DefineKV("SBSH_CONFIG_FILE", "sbsh/configFile")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_PROFILES_FILE = DefineKV("SBSH_PROFILES_FILE", "sbsh/profilesFile")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_LOG_LEVEL = DefineKV("SBSH_LOG_LEVEL", "sbsh/logLevel", "info")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_SUPER_SOCKET = DefineKV("SBSH_SUP_SOCKET", "sbsh/supervisor.socket") // no viper key, no default
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_TERM_SOCKET = Define("SBSH_TERM_SOCKET", "sbsh/terminal.socket")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_TERM_ID = Define("SBSH_TERM_ID", "sbsh/terminal.id")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_TERM_NAME = Define("SBSH_TERM_NAME", "sbsh/terminal.name")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_TERM_PROFILE = Define("SBSH_TERM_PROFILE", "sbsh/terminal.profile")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_RUN_PATH = DefineKV("SBSH_RUN_PATH", "sbsh.global.runPath")
 )

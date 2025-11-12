@@ -85,11 +85,11 @@ func buildTerminalSpecFromFlags(cmd *cobra.Command, logger *slog.Logger) (*api.T
 			TerminalName: viper.GetString("sbsh.terminal.name"),
 			TerminalCmd:  viper.GetString("sbsh.terminal.command"),
 			CaptureFile:  viper.GetString("sbsh.terminal.captureFile"),
-			RunPath:      viper.GetString(config.RUN_PATH.ViperKey),
-			ProfilesFile: viper.GetString(config.PROFILES_FILE.ViperKey),
+			RunPath:      viper.GetString(config.SB_RUN_PATH.ViperKey),
+			ProfilesFile: viper.GetString(config.SBSH_PROFILES_FILE.ViperKey),
 			ProfileName:  viper.GetString("sbsh.terminal.profile"),
 			LogFile:      viper.GetString("sbsh.terminal.logFile"),
-			LogLevel:     viper.GetString("sbsh.terminal.logLevel"),
+			LogLevel:     viper.GetString("sbsh.terminal/logLevel"),
 			SocketFile:   viper.GetString("sbsh.terminal.socket"),
 		},
 	)
@@ -165,16 +165,16 @@ func setLoggingVarsFromFlags() {
 		viper.Set("sbsh.terminal.id", terminalID)
 	}
 
-	sesLogLevel := viper.GetString("sbsh.terminal.logLevel")
+	sesLogLevel := viper.GetString("sbsh.terminal/logLevel")
 	if sesLogLevel == "" {
 		sesLogLevel = "info"
-		viper.Set("sbsh.terminal.logLevel", sesLogLevel)
+		viper.Set("sbsh.terminal/logLevel", sesLogLevel)
 	}
 
 	sesLogfile := viper.GetString("sbsh.terminal.logFile")
 	if sesLogfile == "" {
 		sesLogfile = filepath.Join(
-			viper.GetString(config.RUN_PATH.ViperKey),
+			viper.GetString(config.SB_RUN_PATH.ViperKey),
 			defaults.TerminalsRunPath,
 			terminalID,
 			"log",
@@ -206,7 +206,7 @@ func processSpec(cmd *cobra.Command, spec **api.TerminalSpec) error {
 	err := logging.SetupFileLogger(
 		cmd,
 		viper.GetString("sbsh.terminal.logFile"),
-		viper.GetString("sbsh.terminal.logLevel"),
+		viper.GetString("sbsh.terminal/logLevel"),
 	)
 	if err != nil {
 		return err
@@ -257,11 +257,11 @@ If no log filename is provided, a default path under the run directory will be u
 		SilenceUsage: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			var runPath string
-			if viper.GetString(config.RUN_PATH.ViperKey) == "" {
+			if viper.GetString(config.SB_RUN_PATH.ViperKey) == "" {
 				runPath = config.DefaultRunPath()
 			}
-			_ = config.RUN_PATH.BindEnv()
-			config.RUN_PATH.SetDefault(runPath)
+			_ = config.SB_RUN_PATH.BindEnv()
+			config.SB_RUN_PATH.SetDefault(runPath)
 
 			// Check if first argument indicates stdin usage
 			var spec *api.TerminalSpec
@@ -348,11 +348,11 @@ func setupTerminalCmdFlags(terminalCmd *cobra.Command) {
 	_ = viper.BindPFlag("sbsh.terminal.logFile", terminalCmd.Flags().Lookup("log-file"))
 
 	terminalCmd.Flags().String("log-level", "", "Optional log level for the terminal logger")
-	_ = viper.BindPFlag("sbsh.terminal.logLevel", terminalCmd.Flags().Lookup("log-level"))
+	_ = viper.BindPFlag("sbsh.terminal/logLevel", terminalCmd.Flags().Lookup("log-level"))
 
 	terminalCmd.Flags().StringP("profile", "p", "", "Optional profile for the terminal")
 	_ = viper.BindPFlag("sbsh.terminal.profile", terminalCmd.Flags().Lookup("profile"))
-	_ = viper.BindEnv("sbsh.terminal.profile", config.TERM_PROFILE.EnvVar())
+	_ = viper.BindEnv("sbsh.terminal.profile", config.SBSH_TERM_PROFILE.EnvVar())
 
 	terminalCmd.Flags().String("socket", "", "Optional socket file for the terminal")
 	_ = viper.BindPFlag("sbsh.terminal.socket", terminalCmd.Flags().Lookup("socket"))

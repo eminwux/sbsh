@@ -46,14 +46,14 @@ This will remove all terminal files for terminals that are not running anymore.`
 			}
 
 			logger.Debug("terminals prune command invoked",
-				"run_path", viper.GetString(config.RUN_PATH.ViperKey),
+				"run_path", viper.GetString(config.SB_RUN_PATH.ViperKey),
 				"args", cmd.Flags().Args(),
 			)
 
 			err := discovery.ScanAndPruneTerminals(
 				cmd.Context(),
 				logger,
-				viper.GetString(config.RUN_PATH.ViperKey),
+				viper.GetString(config.SB_RUN_PATH.ViperKey),
 				os.Stdout,
 			)
 			if err != nil {

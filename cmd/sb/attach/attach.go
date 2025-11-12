@@ -90,7 +90,7 @@ to quickly create a Cobra application.`,
 				"sb.attach.id", viper.GetString("sb.attach.id"),
 				"sb.attach.name", viper.GetString("sb.attach.name"),
 				"sb.attach.socket", viper.GetString("sb.attach.socket"),
-				"run_path", viper.GetString(config.RUN_PATH.ViperKey),
+				"run_path", viper.GetString(config.SB_RUN_PATH.ViperKey),
 			)
 			cmd.Flags().VisitAll(func(f *pflag.Flag) {
 				logger.DebugContext(cmd.Context(), "flag value", "name", f.Name, "value", f.Value.String())
@@ -177,7 +177,7 @@ func run(
 
 	supervisorID := naming.RandomID()
 	socketFileFlag := viper.GetString("sb.attach.socket")
-	runPath := viper.GetString(config.RUN_PATH.ViperKey)
+	runPath := viper.GetString(config.SB_RUN_PATH.ViperKey)
 
 	var terminalNamePositional string
 	if len(args) > 0 {

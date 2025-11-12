@@ -90,7 +90,7 @@ func listSupervisors(cmd *cobra.Command, _ []string) error {
 	}
 
 	logger.Debug("supervisors list command invoked",
-		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
+		"run_path", viper.GetString(config.SB_RUN_PATH.ViperKey),
 		"list_all", listAllSupervisorsInput,
 		"args", cmd.Flags().Args(),
 	)
@@ -98,7 +98,7 @@ func listSupervisors(cmd *cobra.Command, _ []string) error {
 	err := discovery.ScanAndPrintSupervisors(
 		cmd.Context(),
 		logger,
-		viper.GetString(config.RUN_PATH.ViperKey),
+		viper.GetString(config.SB_RUN_PATH.ViperKey),
 		os.Stdout,
 		viper.GetBool(listAllSupervisorsInput),
 	)
@@ -158,7 +158,7 @@ func getSupervisor(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
 	}
 	logger.Debug("get supervisor command invoked",
-		"run_path", viper.GetString(config.RUN_PATH.ViperKey),
+		"run_path", viper.GetString(config.SB_RUN_PATH.ViperKey),
 		"supervisor_name", supervisorName,
 		"output_format", format,
 		"args", cmd.Flags().Args(),
