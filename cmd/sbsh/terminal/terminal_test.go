@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
@@ -213,7 +214,7 @@ func Test_ErrStdinEmpty(t *testing.T) {
 
 func Test_ErrOpenSpecFile(t *testing.T) {
 	cmd := &cobra.Command{}
-	viper.Set("sbsh.terminal.spec", "/nonexistent/file/path/that/does/not/exist.json")
+	viper.Set(config.SBSH_TERM_SPEC.ViperKey, "/nonexistent/file/path/that/does/not/exist.json")
 
 	spec, err := processInput(cmd, []string{})
 	if err == nil {
@@ -237,7 +238,7 @@ func Test_ErrInvalidJSONSpec(t *testing.T) {
 	}
 
 	cmd := &cobra.Command{}
-	viper.Set("sbsh.terminal.spec", tmpFile)
+	viper.Set(config.SBSH_TERM_SPEC.ViperKey, tmpFile)
 
 	spec, err := processInput(cmd, []string{})
 	if err == nil {
@@ -253,7 +254,7 @@ func Test_ErrInvalidJSONSpec(t *testing.T) {
 
 func Test_ErrNoSpecDefined(t *testing.T) {
 	cmd := &cobra.Command{}
-	viper.Set("sbsh.terminal.spec", "")
+	viper.Set(config.SBSH_TERM_SPEC.ViperKey, "")
 
 	spec, err := processInput(cmd, []string{})
 	if err == nil {
@@ -333,7 +334,7 @@ func Test_ValidJSONSpec(t *testing.T) {
 	}
 
 	cmd := &cobra.Command{}
-	viper.Set("sbsh.terminal.spec", tmpFile)
+	viper.Set(config.SBSH_TERM_SPEC.ViperKey, tmpFile)
 
 	spec, err := processInput(cmd, []string{})
 	if err != nil {

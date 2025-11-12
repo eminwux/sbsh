@@ -102,7 +102,7 @@ func Test_ErrInvalidOutputFormat_Profile(t *testing.T) {
 	cmd.SetContext(ctx)
 
 	// Set invalid output format
-	viper.Set(config.SB_PROFILES_OUTPUT.ViperKey, "invalid-format")
+	viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "invalid-format")
 
 	err := getProfile(cmd, []string{"profile-name"})
 	if err == nil {
@@ -112,5 +112,5 @@ func Test_ErrInvalidOutputFormat_Profile(t *testing.T) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInvalidOutputFormat, err)
 	}
 
-	viper.Set(config.SB_PROFILES_OUTPUT.ViperKey, "")
+	viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "")
 }

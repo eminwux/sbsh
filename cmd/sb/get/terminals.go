@@ -90,7 +90,7 @@ func listTerminals(cmd *cobra.Command, _ []string) error {
 	}
 
 	logger.Debug("terminals list command invoked",
-		"run_path", viper.GetString(config.SB_RUN_PATH.ViperKey),
+		"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 		"list_all", viper.GetBool(listAllInput),
 		"args", cmd.Flags().Args(),
 	)
@@ -98,7 +98,7 @@ func listTerminals(cmd *cobra.Command, _ []string) error {
 	err := discovery.ScanAndPrintTerminals(
 		cmd.Context(),
 		logger,
-		viper.GetString(config.SB_RUN_PATH.ViperKey),
+		viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 		os.Stdout,
 		viper.GetBool(listAllInput),
 	)
@@ -121,7 +121,7 @@ func CompleteTerminals(cmd *cobra.Command, args []string, toComplete string) ([]
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_RUN_PATH.EnvVar())
+	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_ROOT_RUN_PATH.EnvVar())
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
@@ -164,13 +164,13 @@ func getTerminal(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
 	}
 	logger.Debug("get terminal command invoked",
-		"run_path", viper.GetString(config.SB_RUN_PATH.ViperKey),
+		"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 		"terminal_name", terminalName,
 		"output_format", format,
 		"args", cmd.Flags().Args(),
 	)
 
-	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_RUN_PATH.EnvVar())
+	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_ROOT_RUN_PATH.EnvVar())
 	if err != nil {
 		return fmt.Errorf("%w: %w", errdefs.ErrGetRunPath, err)
 	}

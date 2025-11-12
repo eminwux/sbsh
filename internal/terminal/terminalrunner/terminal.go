@@ -69,7 +69,7 @@ func (sr *Exec) prepareTerminalCommand() error {
 		config.KV(config.SBSH_TERM_ID, string(sr.metadata.Spec.ID)),
 		config.KV(config.SBSH_TERM_NAME, sr.metadata.Spec.Name),
 		config.KV(config.SBSH_TERM_PROFILE, sr.metadata.Spec.ProfileName),
-		config.KV(config.SB_RUN_PATH, sr.metadata.Spec.RunPath),
+		config.KV(config.SB_ROOT_RUN_PATH, sr.metadata.Spec.RunPath),
 	)
 	// Start the process in its own process group
 	cmd.SysProcAttr = &syscall.SysProcAttr{

@@ -65,10 +65,10 @@ func NewGetSupervisorCmd() *cobra.Command {
 
 func setupNewGetSupervisorCmd(cmd *cobra.Command) {
 	cmd.Flags().BoolP("all", "a", false, "List all supervisors, including Exited")
-	_ = viper.BindPFlag(config.SB_SUPERVISORS_ALL.ViperKey, cmd.Flags().Lookup("all"))
+	_ = viper.BindPFlag(config.SB_GET_SUPERVISORS_ALL.ViperKey, cmd.Flags().Lookup("all"))
 
 	cmd.Flags().StringP("output", "o", "", "Output format: json|yaml (default: human-readable)")
-	_ = viper.BindPFlag(config.SB_SUPERVISORS_OUTPUT.ViperKey, cmd.Flags().Lookup("output"))
+	_ = viper.BindPFlag(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, cmd.Flags().Lookup("output"))
 
 	_ = cmd.RegisterFlagCompletionFunc(
 		"output",
@@ -85,17 +85,17 @@ func listSupervisors(cmd *cobra.Command, _ []string) error {
 	}
 
 	logger.Debug("supervisors list command invoked",
-		"run_path", viper.GetString(config.SB_RUN_PATH.ViperKey),
-		"list_all", viper.GetBool(config.SB_SUPERVISORS_ALL.ViperKey),
+		"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
+		"list_all", viper.GetBool(config.SB_GET_SUPERVISORS_ALL.ViperKey),
 		"args", cmd.Flags().Args(),
 	)
 
 	err := discovery.ScanAndPrintSupervisors(
 		cmd.Context(),
 		logger,
-		viper.GetString(config.SB_RUN_PATH.ViperKey),
+		viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 		os.Stdout,
-		viper.GetBool(config.SB_SUPERVISORS_ALL.ViperKey),
+		viper.GetBool(config.SB_GET_SUPERVISORS_ALL.ViperKey),
 	)
 	if err != nil {
 		logger.Debug("error scanning and printing supervisors", "error", err)
@@ -110,7 +110,7 @@ func CompleteSupervisors(cmd *cobra.Command, args []string, toComplete string) (
 	if len(args) > 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_RUN_PATH.EnvVar())
+	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_ROOT_RUN_PATH.EnvVar())
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
@@ -148,18 +148,18 @@ func getSupervisor(cmd *cobra.Command, args []string) error {
 		return errdefs.ErrLoggerNotFound
 	}
 	supervisorName := args[0]
-	format := viper.GetString(config.SB_SUPERVISORS_OUTPUT.ViperKey)
+	format := viper.GetString(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey)
 	if format != "" && format != "json" && format != "yaml" {
 		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
 	}
 	logger.Debug("get supervisor command invoked",
-		"run_path", viper.GetString(config.SB_RUN_PATH.ViperKey),
+		"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 		"supervisor_name", supervisorName,
 		"output_format", format,
 		"args", cmd.Flags().Args(),
 	)
 
-	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_RUN_PATH.EnvVar())
+	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_ROOT_RUN_PATH.EnvVar())
 	if err != nil {
 		return fmt.Errorf("%w: %w", errdefs.ErrGetRunPath, err)
 	}

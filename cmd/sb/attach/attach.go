@@ -90,7 +90,7 @@ to quickly create a Cobra application.`,
 				config.SB_ATTACH_ID.ViperKey, viper.GetString(config.SB_ATTACH_ID.ViperKey),
 				config.SB_ATTACH_NAME.ViperKey, viper.GetString(config.SB_ATTACH_NAME.ViperKey),
 				config.SB_ATTACH_SOCKET.ViperKey, viper.GetString(config.SB_ATTACH_SOCKET.ViperKey),
-				"run_path", viper.GetString(config.SB_RUN_PATH.ViperKey),
+				"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 			)
 			cmd.Flags().VisitAll(func(f *pflag.Flag) {
 				logger.DebugContext(cmd.Context(), "flag value", "name", f.Name, "value", f.Value.String())
@@ -121,7 +121,7 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 			//nolint:mnd // 150ms is a good compromise between snappy completion and enough time to read files
 			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 			defer cancel()
-			runPath, err := config.GetRunPathFromEnvAndFlags(c, config.SB_RUN_PATH.EnvVar())
+			runPath, err := config.GetRunPathFromEnvAndFlags(c, config.SB_ROOT_RUN_PATH.EnvVar())
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
@@ -143,7 +143,7 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 			//nolint:mnd // 150ms is a good compromise between snappy completion and enough time to read files
 			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 			defer cancel()
-			runPath, err := config.GetRunPathFromEnvAndFlags(c, config.SB_RUN_PATH.EnvVar())
+			runPath, err := config.GetRunPathFromEnvAndFlags(c, config.SB_ROOT_RUN_PATH.EnvVar())
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
@@ -177,7 +177,7 @@ func run(
 
 	supervisorID := naming.RandomID()
 	socketFileFlag := viper.GetString(config.SB_ATTACH_SOCKET.ViperKey)
-	runPath := viper.GetString(config.SB_RUN_PATH.ViperKey)
+	runPath := viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey)
 
 	var terminalNamePositional string
 	if len(args) > 0 {
