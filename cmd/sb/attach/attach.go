@@ -121,7 +121,7 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 			//nolint:mnd // 150ms is a good compromise between snappy completion and enough time to read files
 			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 			defer cancel()
-			runPath, err := config.GetRunPathFromEnvAndFlags(c)
+			runPath, err := config.GetRunPathFromEnvAndFlags(c, config.SB_RUN_PATH.EnvVar())
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
@@ -143,7 +143,7 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 			//nolint:mnd // 150ms is a good compromise between snappy completion and enough time to read files
 			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 			defer cancel()
-			runPath, err := config.GetRunPathFromEnvAndFlags(c)
+			runPath, err := config.GetRunPathFromEnvAndFlags(c, config.SB_RUN_PATH.EnvVar())
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp

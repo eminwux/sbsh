@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	listAllInput = "sb.get.terminals.all"
-	outputFormat = "sb.get.terminals.output"
+	listAllInput = "sb/get/terminals/all"
+	outputFormat = "sb/get/terminals/output"
 )
 
 func NewGetTerminalCmd() *cobra.Command {
@@ -121,7 +121,7 @@ func CompleteTerminals(cmd *cobra.Command, args []string, toComplete string) ([]
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	runPath, err := config.GetRunPathFromEnvAndFlags(cmd)
+	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_RUN_PATH.EnvVar())
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
@@ -170,7 +170,7 @@ func getTerminal(cmd *cobra.Command, args []string) error {
 		"args", cmd.Flags().Args(),
 	)
 
-	runPath, err := config.GetRunPathFromEnvAndFlags(cmd)
+	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_RUN_PATH.EnvVar())
 	if err != nil {
 		return fmt.Errorf("%w: %w", errdefs.ErrGetRunPath, err)
 	}

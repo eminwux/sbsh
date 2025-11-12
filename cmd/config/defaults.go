@@ -32,10 +32,10 @@ func DefaultRunPath() string {
 	return filepath.Join(base, ".sbsh", "run")
 }
 
-func GetRunPathFromEnvAndFlags(cmd *cobra.Command) (string, error) {
+func GetRunPathFromEnvAndFlags(cmd *cobra.Command, viperKey string) (string, error) {
 	runPath, _ := cmd.Flags().GetString("run-path")
 	if runPath == "" {
-		if env := os.Getenv(SB_RUN_PATH.EnvVar()); env != "" {
+		if env := os.Getenv(viperKey); env != "" {
 			runPath = env
 		} else {
 			// final fallback: same default you use at runtime
@@ -45,10 +45,10 @@ func GetRunPathFromEnvAndFlags(cmd *cobra.Command) (string, error) {
 	return runPath, nil
 }
 
-func GetProfilesFileFromEnvAndFlags(cmd *cobra.Command) (string, error) {
+func GetProfilesFileFromEnvAndFlags(cmd *cobra.Command, viperKey string) (string, error) {
 	profilesFile, _ := cmd.Flags().GetString("profiles-file")
 	if profilesFile == "" {
-		if env := os.Getenv(SBSH_PROFILES_FILE.EnvVar()); env != "" {
+		if env := os.Getenv(viperKey); env != "" {
 			profilesFile = env
 		} else {
 			// final fallback: same default you use at runtime

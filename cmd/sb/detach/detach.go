@@ -187,7 +187,7 @@ func buildSocket(
 		return supervisorSocketFlag, nil
 	}
 
-	runPath, err := config.GetRunPathFromEnvAndFlags(cmd)
+	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_RUN_PATH.EnvVar())
 	if err != nil {
 		logger.ErrorContext(cmd.Context(), "cannot determine run path", "error", err)
 		return "", fmt.Errorf("%w: %w", errdefs.ErrDetermineRunPath, err)

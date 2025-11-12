@@ -498,7 +498,7 @@ func setAutoCompleteProfile(rootCmd *cobra.Command) error {
 			//nolint:mnd // 150ms is a good compromise between snappy completion and enough time to read files
 			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 			defer cancel()
-			profilesFile, err := config.GetProfilesFileFromEnvAndFlags(c)
+			profilesFile, err := config.GetProfilesFileFromEnvAndFlags(c, config.SBSH_PROFILES_FILE.EnvVar())
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp

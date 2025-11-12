@@ -115,7 +115,7 @@ func CompleteSupervisors(cmd *cobra.Command, args []string, toComplete string) (
 	if len(args) > 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-	runPath, err := config.GetRunPathFromEnvAndFlags(cmd)
+	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_RUN_PATH.EnvVar())
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
@@ -164,7 +164,7 @@ func getSupervisor(cmd *cobra.Command, args []string) error {
 		"args", cmd.Flags().Args(),
 	)
 
-	runPath, err := config.GetRunPathFromEnvAndFlags(cmd)
+	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_RUN_PATH.EnvVar())
 	if err != nil {
 		return fmt.Errorf("%w: %w", errdefs.ErrGetRunPath, err)
 	}
