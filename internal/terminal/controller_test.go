@@ -673,8 +673,8 @@ func Test_TerminalState_Initializing(t *testing.T) {
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
 				return nil
 			},
-			MetadataFunc: func() (*api.TerminalMetadata, error) {
-				return &api.TerminalMetadata{
+			MetadataFunc: func() (*api.TerminalDoc, error) {
+				return &api.TerminalDoc{
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -746,8 +746,8 @@ func Test_TerminalState_Starting(t *testing.T) {
 				// After PTY is started, state should be Starting
 				return nil
 			},
-			MetadataFunc: func() (*api.TerminalMetadata, error) {
-				return &api.TerminalMetadata{
+			MetadataFunc: func() (*api.TerminalDoc, error) {
+				return &api.TerminalDoc{
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -818,8 +818,8 @@ func Test_TerminalState_SettingUp(t *testing.T) {
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
 				return nil
 			},
-			MetadataFunc: func() (*api.TerminalMetadata, error) {
-				return &api.TerminalMetadata{
+			MetadataFunc: func() (*api.TerminalDoc, error) {
+				return &api.TerminalDoc{
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -894,8 +894,8 @@ func Test_TerminalState_Ready(t *testing.T) {
 			OnInitShellFunc: func() error {
 				return nil
 			},
-			MetadataFunc: func() (*api.TerminalMetadata, error) {
-				return &api.TerminalMetadata{
+			MetadataFunc: func() (*api.TerminalDoc, error) {
+				return &api.TerminalDoc{
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -960,8 +960,8 @@ func Test_TerminalState_OnInit(t *testing.T) {
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
 				return nil
 			},
-			MetadataFunc: func() (*api.TerminalMetadata, error) {
-				return &api.TerminalMetadata{
+			MetadataFunc: func() (*api.TerminalDoc, error) {
+				return &api.TerminalDoc{
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -1039,8 +1039,8 @@ func Test_TerminalState_Exited(t *testing.T) {
 			CloseFunc: func(_ error) error {
 				return nil
 			},
-			MetadataFunc: func() (*api.TerminalMetadata, error) {
-				return &api.TerminalMetadata{
+			MetadataFunc: func() (*api.TerminalDoc, error) {
+				return &api.TerminalDoc{
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -1111,8 +1111,8 @@ func Test_TerminalState_PostAttach(t *testing.T) {
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
 				return nil
 			},
-			MetadataFunc: func() (*api.TerminalMetadata, error) {
-				return &api.TerminalMetadata{
+			MetadataFunc: func() (*api.TerminalDoc, error) {
+				return &api.TerminalDoc{
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -1184,14 +1184,14 @@ func Test_State_Method_ReturnsCorrectStates(t *testing.T) {
 		IDFunc: func() api.ID {
 			return api.ID("test-terminal")
 		},
-		MetadataFunc: func() (*api.TerminalMetadata, error) {
+		MetadataFunc: func() (*api.TerminalDoc, error) {
 			var state api.TerminalStatusMode
 			if stateIndex < len(stateSequence) {
 				state = stateSequence[stateIndex]
 			} else {
 				state = api.Exited
 			}
-			return &api.TerminalMetadata{
+			return &api.TerminalDoc{
 				Spec: api.TerminalSpec{
 					ID:   api.ID("test-terminal"),
 					Name: "test",

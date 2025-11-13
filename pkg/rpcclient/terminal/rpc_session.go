@@ -242,7 +242,7 @@ func (c *client) Attach(ctx context.Context, id *api.ID, out any) (net.Conn, err
 	return ioConn, nil
 }
 
-func (c *client) Metadata(ctx context.Context, metadata *api.TerminalMetadata) error {
+func (c *client) Metadata(ctx context.Context, metadata *api.TerminalDoc) error {
 	err := c.call(ctx, c.logger, api.TerminalMethodMetadata, &api.Empty{}, metadata)
 	if err != nil {
 		c.logger.ErrorContext(ctx, "Metadata call failed", "error", err)

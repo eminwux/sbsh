@@ -44,7 +44,7 @@ func (s *TerminalControllerRPC) Attach(id *api.ID, response *api.ResponseWithFD)
 	return s.Core.Attach(id, response)
 }
 
-func (s *TerminalControllerRPC) Metadata(_ api.Empty, metadata *api.TerminalMetadata) error {
+func (s *TerminalControllerRPC) Metadata(_ api.Empty, metadata *api.TerminalDoc) error {
 	md, err := s.Core.Metadata()
 	if err != nil {
 		return err

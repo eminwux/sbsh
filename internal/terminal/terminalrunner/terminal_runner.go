@@ -36,5 +36,5 @@ type TerminalRunner interface {
 	SetupShell() error
 	OnInitShell() error
 	PostAttachShell() error
-	Metadata() (*api.TerminalMetadata, error)
+	Metadata() (*api.TerminalDoc, error)
 }

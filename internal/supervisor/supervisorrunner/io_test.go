@@ -58,7 +58,7 @@ func (m *mockTerminalClient) Close() error {
 	return nil
 }
 
-func (m *mockTerminalClient) Metadata(_ context.Context, _ *api.TerminalMetadata) error {
+func (m *mockTerminalClient) Metadata(_ context.Context, _ *api.TerminalDoc) error {
 	return nil
 }
 
@@ -83,7 +83,7 @@ func Test_WaitReady_WithMultipleStates(t *testing.T) {
 				Name: "test",
 			},
 		},
-		metadata: api.SupervisorMetadata{
+		metadata: api.SupervisorDoc{
 			Spec: api.SupervisorSpec{
 				Name: "test-supervisor",
 			},
@@ -150,7 +150,7 @@ func Test_WaitReady_StartingState(t *testing.T) {
 				Name: "test",
 			},
 		},
-		metadata: api.SupervisorMetadata{
+		metadata: api.SupervisorDoc{
 			Spec: api.SupervisorSpec{
 				Name: "test-supervisor",
 			},
@@ -184,7 +184,7 @@ func Test_WaitReady_StartingOrReady(t *testing.T) {
 				Name: "test",
 			},
 		},
-		metadata: api.SupervisorMetadata{
+		metadata: api.SupervisorDoc{
 			Spec: api.SupervisorSpec{
 				Name: "test-supervisor",
 			},
@@ -232,7 +232,7 @@ func Test_WaitReady_Timeout(t *testing.T) {
 				Name: "test",
 			},
 		},
-		metadata: api.SupervisorMetadata{
+		metadata: api.SupervisorDoc{
 			Spec: api.SupervisorSpec{
 				Name: "test-supervisor",
 			},
@@ -285,7 +285,7 @@ func Test_WaitReady_StateTransition(t *testing.T) {
 				Name: "test",
 			},
 		},
-		metadata: api.SupervisorMetadata{
+		metadata: api.SupervisorDoc{
 			Spec: api.SupervisorSpec{
 				Name: "test-supervisor",
 			},

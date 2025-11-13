@@ -267,7 +267,7 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 }
 
 func (s *Controller) createAttachTerminal(spec *api.SupervisorSpec) (*api.SupervisedTerminal, error) {
-	var metadata *api.TerminalMetadata
+	var metadata *api.TerminalDoc
 	if spec.TerminalSpec.ID != "" {
 		s.logger.Debug("resolving terminal by id", "run_path", spec.RunPath, "attach_id", string(spec.TerminalSpec.ID))
 		var err error

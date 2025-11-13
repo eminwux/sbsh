@@ -61,12 +61,13 @@ func (sr *Exec) updateMetadata() error {
 	return shared.WriteMetadata(sr.ctx, sr.metadata, sr.getSupervisorDir())
 }
 
-func (sr *Exec) getTerminalMetadata() (*api.TerminalMetadata, error) {
+//nolint:unused // this will be used eventually
+func (sr *Exec) getTerminalMetadata() (*api.TerminalDoc, error) {
 	if sr.terminalClient == nil {
 		return nil, errors.New("getTerminalMetadata: terminal client is nil")
 	}
 
-	var metadata api.TerminalMetadata
+	var metadata api.TerminalDoc
 	if err := sr.terminalClient.Metadata(sr.ctx, &metadata); err != nil {
 		sr.logger.ErrorContext(sr.ctx, "getTerminalMetadata: failed to get metadata", "error", err)
 		return nil, fmt.Errorf("get metadata RPC failed: %w", err)

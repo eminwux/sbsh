@@ -99,7 +99,7 @@ func createTestTerminalMetadata(t *testing.T, runPath string, id string, name st
 	}
 
 	// Create metadata.json with TerminalMetadata structure
-	metadata := api.TerminalMetadata{
+	metadata := api.TerminalDoc{
 		Spec: api.TerminalSpec{
 			ID:          api.ID(id),
 			Kind:        api.TerminalLocal,
@@ -140,7 +140,7 @@ func createTestSupervisorMetadata(
 	}
 
 	// Create metadata.json with SupervisorMetadata structure
-	metadata := api.SupervisorMetadata{
+	metadata := api.SupervisorDoc{
 		Spec: api.SupervisorSpec{
 			ID:   api.ID(id),
 			Kind: api.RunNewTerminal,
@@ -825,7 +825,7 @@ func Test_GetTerminal_Integration(t *testing.T) {
 			t.Fatalf("failed to capture stdout: %v", err)
 		}
 
-		var result api.TerminalMetadata
+		var result api.TerminalDoc
 		if errUnmarshal := json.Unmarshal([]byte(output), &result); errUnmarshal != nil {
 			t.Fatalf("output is not valid JSON: %v, output: %s", errUnmarshal, output)
 		}
@@ -854,7 +854,7 @@ func Test_GetTerminal_Integration(t *testing.T) {
 			t.Fatalf("failed to capture stdout: %v", err)
 		}
 
-		var result api.TerminalMetadata
+		var result api.TerminalDoc
 		if errUnmarshal := yaml.Unmarshal([]byte(output), &result); errUnmarshal != nil {
 			t.Fatalf("output is not valid YAML: %v, output: %s", errUnmarshal, output)
 		}
@@ -1126,7 +1126,7 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 			t.Fatalf("failed to capture stdout: %v", err)
 		}
 
-		var result api.SupervisorMetadata
+		var result api.SupervisorDoc
 		if errUnmarshal := json.Unmarshal([]byte(output), &result); errUnmarshal != nil {
 			t.Fatalf("output is not valid JSON: %v, output: %s", errUnmarshal, output)
 		}
@@ -1155,7 +1155,7 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 			t.Fatalf("failed to capture stdout: %v", err)
 		}
 
-		var result api.SupervisorMetadata
+		var result api.SupervisorDoc
 		if errUnmarshal := yaml.Unmarshal([]byte(output), &result); errUnmarshal != nil {
 			t.Fatalf("output is not valid YAML: %v, output: %s", errUnmarshal, output)
 		}
