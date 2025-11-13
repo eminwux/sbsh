@@ -1789,7 +1789,7 @@ func Test_SupervisorAttach_WaitForStartingOrReady(t *testing.T) {
 	}
 
 	// Create terminal metadata file that discovery can find
-	metadata := api.TerminalMetadata{
+	metadata := api.TerminalDoc{
 		Spec: api.TerminalSpec{
 			ID:          api.ID("term-1"),
 			Kind:        api.TerminalLocal,
@@ -1909,7 +1909,7 @@ func Test_SupervisorAttach_StateTransition(t *testing.T) {
 	}
 
 	// Create terminal metadata file that discovery can find
-	metadata := api.TerminalMetadata{
+	metadata := api.TerminalDoc{
 		Spec: api.TerminalSpec{
 			ID:          api.ID("term-1"),
 			Kind:        api.TerminalLocal,

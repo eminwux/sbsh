@@ -35,7 +35,7 @@ type Exec struct {
 
 	// immutable
 	id       api.ID
-	metadata api.TerminalMetadata
+	metadata api.TerminalDoc
 
 	// runtime (owned by Terminal)
 	cmd   *exec.Cmd
@@ -86,7 +86,7 @@ func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.T
 
 	return &Exec{
 		id: spec.ID,
-		metadata: api.TerminalMetadata{
+		metadata: api.TerminalDoc{
 			Spec:   *spec,
 			Status: api.TerminalStatus{},
 		},

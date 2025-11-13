@@ -87,6 +87,6 @@ func (sr *Exec) updateTerminalAttachers() error {
 	return nil
 }
 
-func (sr *Exec) Metadata() (*api.TerminalMetadata, error) {
+func (sr *Exec) Metadata() (*api.TerminalDoc, error) {
 	return &sr.metadata, nil
 }

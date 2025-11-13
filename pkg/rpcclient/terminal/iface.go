@@ -29,6 +29,6 @@ type Client interface {
 	Detach(ctx context.Context, id *api.ID) error
 	Attach(ctx context.Context, supervisorID *api.ID, response any) (net.Conn, error)
 	Close() error
-	Metadata(ctx context.Context, metadata *api.TerminalMetadata) error
+	Metadata(ctx context.Context, metadata *api.TerminalDoc) error
 	State(ctx context.Context, state *api.TerminalStatusMode) error
 }

@@ -34,7 +34,7 @@ type ControllerTest struct {
 	ResizeFunc    func()
 	AttachFunc    func(id *api.ID, response *api.ResponseWithFD) error
 	DetachFunc    func(id *api.ID) error
-	MetadataFunc  func() (*api.TerminalMetadata, error)
+	MetadataFunc  func() (*api.TerminalDoc, error)
 	StateFunc     func() (*api.TerminalStatusMode, error)
 }
 
@@ -94,7 +94,7 @@ func (f *ControllerTest) Detach(id *api.ID) error {
 	return errdefs.ErrFuncNotSet
 }
 
-func (f *ControllerTest) Metadata() (*api.TerminalMetadata, error) {
+func (f *ControllerTest) Metadata() (*api.TerminalDoc, error) {
 	if f.MetadataFunc != nil {
 		return f.MetadataFunc()
 	}

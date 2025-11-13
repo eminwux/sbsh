@@ -29,7 +29,7 @@ import (
 
 type Exec struct {
 	id       api.ID
-	metadata api.SupervisorMetadata
+	metadata api.SupervisorDoc
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -66,7 +66,7 @@ func NewSupervisorRunnerExec(
 
 	return &Exec{
 		id: spec.ID,
-		metadata: api.SupervisorMetadata{
+		metadata: api.SupervisorDoc{
 			Spec: *spec,
 		},
 

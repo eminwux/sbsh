@@ -64,7 +64,7 @@ func ScanAndPruneSupervisors(ctx context.Context, logger *slog.Logger, runPath s
 		supervisors,
 		"ScanAndPruneSupervisors",
 		"supervisor",
-		func(s api.SupervisorMetadata) bool { return s.Status.State == api.SupervisorExited },
+		func(s api.SupervisorDoc) bool { return s.Status.State == api.SupervisorExited },
 		PruneSupervisor,
 		supervisorID,
 		supervisorName,
@@ -72,7 +72,7 @@ func ScanAndPruneSupervisors(ctx context.Context, logger *slog.Logger, runPath s
 	return err
 }
 
-func ScanSupervisors(ctx context.Context, logger *slog.Logger, runPath string) ([]api.SupervisorMetadata, error) {
+func ScanSupervisors(ctx context.Context, logger *slog.Logger, runPath string) ([]api.SupervisorDoc, error) {
 	out, err := scanMetadataFiles(
 		ctx,
 		logger,
@@ -98,7 +98,7 @@ func ScanSupervisors(ctx context.Context, logger *slog.Logger, runPath string) (
 	return out, nil
 }
 
-func PruneSupervisor(logger *slog.Logger, metadata *api.SupervisorMetadata) error {
+func PruneSupervisor(logger *slog.Logger, metadata *api.SupervisorDoc) error {
 	logger.DebugContext(
 		context.Background(),
 		"PruneSupervisor: pruning supervisor folder",
@@ -121,23 +121,23 @@ func PruneSupervisor(logger *slog.Logger, metadata *api.SupervisorMetadata) erro
 	return err
 }
 
-func supervisorID(s api.SupervisorMetadata) string {
+func supervisorID(s api.SupervisorDoc) string {
 	// If your type uses Id instead of ID, change to: return s.Id
 	return string(s.Spec.ID)
 }
 
-func supervisorName(s api.SupervisorMetadata) string {
+func supervisorName(s api.SupervisorDoc) string {
 	return s.Spec.Name
 }
 
-func supervisorLabels(s api.SupervisorMetadata) map[string]string {
+func supervisorLabels(s api.SupervisorDoc) map[string]string {
 	if len(s.Spec.Labels) != 0 {
 		return s.Spec.Labels
 	}
 	return map[string]string{}
 }
 
-func printSupervisors(w io.Writer, supervisors []api.SupervisorMetadata, printAll bool) error {
+func printSupervisors(w io.Writer, supervisors []api.SupervisorDoc, printAll bool) error {
 	//nolint:mnd // tabwriter padding
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	activeCount := 0
@@ -178,14 +178,14 @@ func FindSupervisorByName(
 	logger *slog.Logger,
 	runPath string,
 	name string,
-) (*api.SupervisorMetadata, error) {
+) (*api.SupervisorDoc, error) {
 	supervisors, err := ScanSupervisors(ctx, logger, runPath)
 	if err != nil {
 		return nil, err
 	}
 	return findMetadataBy(
 		supervisors,
-		func(s api.SupervisorMetadata) bool { return supervisorName(s) == name },
+		func(s api.SupervisorDoc) bool { return supervisorName(s) == name },
 		fmt.Sprintf("supervisor with name %q not found", name),
 	)
 }

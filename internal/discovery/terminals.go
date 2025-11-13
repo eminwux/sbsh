@@ -61,7 +61,7 @@ func ScanAndPruneTerminals(ctx context.Context, logger *slog.Logger, runPath str
 		terminals,
 		"ScanAndPruneTerminals",
 		"terminal",
-		func(t api.TerminalMetadata) bool { return t.Status.State == api.Exited },
+		func(t api.TerminalDoc) bool { return t.Status.State == api.Exited },
 		PruneTerminal,
 		terminalID,
 		terminalName,
@@ -69,7 +69,7 @@ func ScanAndPruneTerminals(ctx context.Context, logger *slog.Logger, runPath str
 	return err
 }
 
-func PruneTerminal(logger *slog.Logger, metadata *api.TerminalMetadata) error {
+func PruneTerminal(logger *slog.Logger, metadata *api.TerminalDoc) error {
 	logger.DebugContext(
 		context.Background(),
 		"PruneTerminal: pruning terminal folder",
@@ -92,7 +92,7 @@ func PruneTerminal(logger *slog.Logger, metadata *api.TerminalMetadata) error {
 	return err
 }
 
-func ScanTerminals(ctx context.Context, logger *slog.Logger, runPath string) ([]api.TerminalMetadata, error) {
+func ScanTerminals(ctx context.Context, logger *slog.Logger, runPath string) ([]api.TerminalDoc, error) {
 	out, err := scanMetadataFiles(
 		ctx,
 		logger,
@@ -118,7 +118,7 @@ func ScanTerminals(ctx context.Context, logger *slog.Logger, runPath string) ([]
 	return out, nil
 }
 
-func printTerminals(w io.Writer, terminals []api.TerminalMetadata, printAll bool) error {
+func printTerminals(w io.Writer, terminals []api.TerminalDoc, printAll bool) error {
 	//nolint:mnd // tabwriter padding
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	activeCount := 0
@@ -156,7 +156,7 @@ func printTerminals(w io.Writer, terminals []api.TerminalMetadata, printAll bool
 	return tw.Flush()
 }
 
-func terminalAttachers(s api.TerminalMetadata) string {
+func terminalAttachers(s api.TerminalDoc) string {
 	attachers := "None"
 	if len(s.Status.Attachers) > 0 {
 		attachers = strings.Join(s.Status.Attachers, ",")
@@ -164,16 +164,16 @@ func terminalAttachers(s api.TerminalMetadata) string {
 	return attachers
 }
 
-func terminalID(s api.TerminalMetadata) string {
+func terminalID(s api.TerminalDoc) string {
 	// If your type uses Id instead of ID, change to: return s.Id
 	return string(s.Spec.ID)
 }
 
-func terminalName(s api.TerminalMetadata) string {
+func terminalName(s api.TerminalDoc) string {
 	return s.Spec.Name
 }
 
-func terminalCmd(s api.TerminalMetadata) string {
+func terminalCmd(s api.TerminalDoc) string {
 	parts := make([]string, 0, 1+len(s.Spec.CommandArgs))
 	if s.Spec.Command != "" {
 		parts = append(parts, s.Spec.Command)
@@ -182,15 +182,15 @@ func terminalCmd(s api.TerminalMetadata) string {
 	return strings.Join(parts, " ")
 }
 
-func terminalPty(s api.TerminalMetadata) string {
+func terminalPty(s api.TerminalDoc) string {
 	return s.Status.Tty
 }
 
-func terminalProfile(s api.TerminalMetadata) string {
+func terminalProfile(s api.TerminalDoc) string {
 	return s.Spec.ProfileName
 }
 
-func terminalLabels(s api.TerminalMetadata) map[string]string {
+func terminalLabels(s api.TerminalDoc) map[string]string {
 	if len(s.Spec.Labels) != 0 {
 		return s.Spec.Labels
 	}
@@ -220,14 +220,14 @@ func FindTerminalByID(
 	logger *slog.Logger,
 	runPath string,
 	id string,
-) (*api.TerminalMetadata, error) {
+) (*api.TerminalDoc, error) {
 	terminals, err := ScanTerminals(ctx, logger, runPath)
 	if err != nil {
 		return nil, err
 	}
 	return findMetadataBy(
 		terminals,
-		func(t api.TerminalMetadata) bool { return string(t.Spec.ID) == id },
+		func(t api.TerminalDoc) bool { return string(t.Spec.ID) == id },
 		fmt.Sprintf("terminal %q not found", id),
 	)
 }
@@ -239,14 +239,14 @@ func FindTerminalByName(
 	logger *slog.Logger,
 	runPath string,
 	name string,
-) (*api.TerminalMetadata, error) {
+) (*api.TerminalDoc, error) {
 	terminals, err := ScanTerminals(ctx, logger, runPath)
 	if err != nil {
 		return nil, err
 	}
 	return findMetadataBy(
 		terminals,
-		func(t api.TerminalMetadata) bool { return terminalName(t) == name },
+		func(t api.TerminalDoc) bool { return terminalName(t) == name },
 		fmt.Sprintf("terminal with name %q not found", name),
 	)
 }

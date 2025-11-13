@@ -292,7 +292,7 @@ func (c *Controller) Detach(id *api.ID) error {
 	return c.sr.Detach(id)
 }
 
-func (c *Controller) Metadata() (*api.TerminalMetadata, error) {
+func (c *Controller) Metadata() (*api.TerminalDoc, error) {
 	return c.sr.Metadata()
 }
 

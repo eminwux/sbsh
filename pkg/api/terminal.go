@@ -25,7 +25,7 @@ type TerminalController interface {
 	Resize(ResizeArgs)
 	Detach(id *ID) error
 	Attach(id *ID, reply *ResponseWithFD) error
-	Metadata() (*TerminalMetadata, error)
+	Metadata() (*TerminalDoc, error)
 	State() (*TerminalStatusMode, error)
 }
 
@@ -119,7 +119,7 @@ func (s TerminalStatusMode) String() string {
 	}
 }
 
-type TerminalMetadata struct {
+type TerminalDoc struct {
 	Spec   TerminalSpec   `json:"spec"`
 	Status TerminalStatus `json:"status"`
 }

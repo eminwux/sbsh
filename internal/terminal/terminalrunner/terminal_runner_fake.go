@@ -36,7 +36,7 @@ type Test struct {
 	DetachFunc          func(id *api.ID) error
 	SetupShellFunc      func() error
 	OnInitShellFunc     func() error
-	MetadataFunc        func() (*api.TerminalMetadata, error)
+	MetadataFunc        func() (*api.TerminalDoc, error)
 	PostAttachShellFunc func() error
 }
 
@@ -124,7 +124,7 @@ func (sr *Test) OnInitShell() error {
 	return errdefs.ErrFuncNotSet
 }
 
-func (sr *Test) Metadata() (*api.TerminalMetadata, error) {
+func (sr *Test) Metadata() (*api.TerminalDoc, error) {
 	if sr.MetadataFunc != nil {
 		return sr.MetadataFunc()
 	}

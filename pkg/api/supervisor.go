@@ -71,7 +71,7 @@ func (s SupervisorStatusMode) String() string {
 	}
 }
 
-type SupervisorMetadata struct {
+type SupervisorDoc struct {
 	Spec   SupervisorSpec   `json:"spec"`
 	Status SupervisorStatus `json:"status"`
 }
