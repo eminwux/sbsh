@@ -29,11 +29,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type rootFactory func() (*cobra.Command, error)
+
 func execRoot(root *cobra.Command) int {
 	if err := root.Execute(); err != nil {
 		return 1
 	}
 	return 0
+}
+
+func runWithFactory(ctx context.Context, factory rootFactory) int {
+	root, err := factory()
+	if err != nil {
+		return 1
+	}
+
+	root.SetContext(ctx)
+	return execRoot(root)
 }
 
 func main() {
@@ -44,55 +56,29 @@ func main() {
 	exe := filepath.Base(os.Args[0])
 
 	// Decide which subtree to run by prepending the name as the first arg
-	switch exe {
-	case "sb":
-		cmd, err := sb.NewSbRootCmd()
-		cmd.SetContext(ctx)
-		if err != nil {
-			os.Exit(1)
-		}
-		os.Exit(execRoot(cmd)) // <- sbsh IS the root; no wrapper
-
-	case "sbsh", "-sbsh":
-		cmd, err := sbsh.NewSbshRootCmd()
-		cmd.SetContext(ctx)
-		if err != nil {
-			os.Exit(1)
-		}
-		os.Exit(execRoot(cmd)) // <- sbsh IS the root; no wrapper
-
-	default:
-		// Fallback to sbsh if SBSH_DEBUG_MODE is set
-		// This is useful for development and debugging purposes
-		// as it allows to run sbsh even if the executable is not named sbsh
-		// or sb. For example, when running from an IDE or a debugger.
-		// In this case, SBSH_DEBUG_MODE can be set to "sbsh" or "sb"
-		// to run the corresponding subtree.
-		// If SBSH_DEBUG_MODE is not set, an error is printed and the program exits.
-		// This avoids confusion and ensures that the user is aware of the correct usage.
-		debug := os.Getenv("SBSH_DEBUG_MODE")
-		if debug == "" {
-			fmt.Fprintf(os.Stderr, "unknown entry command: %s\n", exe)
-			os.Exit(1)
-		}
-		switch os.Getenv("SBSH_DEBUG_MODE") {
-		case "sb":
-			cmd, err := sbsh.NewSbshRootCmd()
-			cmd.SetContext(ctx)
-			if err != nil {
-				os.Exit(1)
-			}
-			os.Exit(execRoot(cmd))
-		case "sbsh", "-sbsh":
-			cmd, err := sbsh.NewSbshRootCmd()
-			cmd.SetContext(ctx)
-			if err != nil {
-				os.Exit(1)
-			}
-			os.Exit(execRoot(cmd))
-		default:
-			fmt.Fprintf(os.Stderr, "unknown entry command: %s\n", exe)
-			os.Exit(1)
-		}
+	factories := map[string]rootFactory{
+		"sb":    sb.NewSbRootCmd,
+		"sbsh":  sbsh.NewSbshRootCmd,
+		"-sbsh": sbsh.NewSbshRootCmd,
 	}
+
+	if factory, ok := factories[exe]; ok {
+		os.Exit(runWithFactory(ctx, factory))
+	}
+
+	// Fallback to sbsh if SBSH_DEBUG_MODE is set
+	// This is useful for development and debugging purposes
+	// as it allows to run sbsh even if the executable is not named sbsh
+	// or sb. For example, when running from an IDE or a debugger.
+	// In this case, SBSH_DEBUG_MODE can be set to "sbsh" or "sb"
+	// to run the corresponding subtree.
+	// If SBSH_DEBUG_MODE is not set, an error is printed and the program exits.
+	// This avoids confusion and ensures that the user is aware of the correct usage.
+	debug := os.Getenv("SBSH_DEBUG_MODE")
+	if factory, ok := factories[debug]; ok {
+		os.Exit(runWithFactory(ctx, factory))
+	}
+
+	fmt.Fprintf(os.Stderr, "unknown entry command: %s\n", exe)
+	os.Exit(1)
 }
