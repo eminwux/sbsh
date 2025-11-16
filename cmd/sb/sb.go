@@ -166,11 +166,11 @@ func LoadConfig() error {
 	config.SB_ROOT_RUN_PATH.SetDefault(runPath)
 
 	var profilesFile string
-	if viper.GetString(config.SBSH_ROOT_PROFILES_FILE.ViperKey) == "" {
+	if viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey) == "" {
 		profilesFile = config.DefaultProfilesFile()
 	}
-	_ = config.SBSH_ROOT_PROFILES_FILE.BindEnv()
-	config.SBSH_ROOT_PROFILES_FILE.SetDefault(profilesFile)
+	_ = config.SB_GET_PROFILES_FILE.BindEnv()
+	config.SB_GET_PROFILES_FILE.SetDefault(profilesFile)
 
 	_ = config.SBSH_ROOT_LOG_LEVEL.BindEnv()
 	config.SBSH_ROOT_LOG_LEVEL.SetDefault("info")
