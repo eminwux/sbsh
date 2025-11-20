@@ -84,6 +84,13 @@ func Test_WaitReady_WithMultipleStates(t *testing.T) {
 			},
 		},
 		metadata: api.SupervisorDoc{
+			APIVersion: api.APIVersionV1Beta1,
+			Kind:       api.KindSupervisor,
+			Metadata: api.SupervisorMetadata{
+				Name:        "test-supervisor",
+				Labels:      make(map[string]string),
+				Annotations: make(map[string]string),
+			},
 			Spec: api.SupervisorSpec{
 				Name: "test-supervisor",
 			},
@@ -151,6 +158,13 @@ func Test_WaitReady_StartingState(t *testing.T) {
 			},
 		},
 		metadata: api.SupervisorDoc{
+			APIVersion: api.APIVersionV1Beta1,
+			Kind:       api.KindSupervisor,
+			Metadata: api.SupervisorMetadata{
+				Name:        "test-supervisor",
+				Labels:      make(map[string]string),
+				Annotations: make(map[string]string),
+			},
 			Spec: api.SupervisorSpec{
 				Name: "test-supervisor",
 			},
@@ -185,6 +199,13 @@ func Test_WaitReady_StartingOrReady(t *testing.T) {
 			},
 		},
 		metadata: api.SupervisorDoc{
+			APIVersion: api.APIVersionV1Beta1,
+			Kind:       api.KindSupervisor,
+			Metadata: api.SupervisorMetadata{
+				Name:        "test-supervisor",
+				Labels:      make(map[string]string),
+				Annotations: make(map[string]string),
+			},
 			Spec: api.SupervisorSpec{
 				Name: "test-supervisor",
 			},
@@ -233,6 +254,13 @@ func Test_WaitReady_Timeout(t *testing.T) {
 			},
 		},
 		metadata: api.SupervisorDoc{
+			APIVersion: api.APIVersionV1Beta1,
+			Kind:       api.KindSupervisor,
+			Metadata: api.SupervisorMetadata{
+				Name:        "test-supervisor",
+				Labels:      make(map[string]string),
+				Annotations: make(map[string]string),
+			},
 			Spec: api.SupervisorSpec{
 				Name: "test-supervisor",
 			},
@@ -286,6 +314,13 @@ func Test_WaitReady_StateTransition(t *testing.T) {
 			},
 		},
 		metadata: api.SupervisorDoc{
+			APIVersion: api.APIVersionV1Beta1,
+			Kind:       api.KindSupervisor,
+			Metadata: api.SupervisorMetadata{
+				Name:        "test-supervisor",
+				Labels:      make(map[string]string),
+				Annotations: make(map[string]string),
+			},
 			Spec: api.SupervisorSpec{
 				Name: "test-supervisor",
 			},

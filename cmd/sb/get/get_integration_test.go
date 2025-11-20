@@ -100,6 +100,13 @@ func createTestTerminalMetadata(t *testing.T, runPath string, id string, name st
 
 	// Create metadata.json with TerminalMetadata structure
 	metadata := api.TerminalDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindTerminal,
+		Metadata: api.TerminalMetadata{
+			Name:        name,
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
 		Spec: api.TerminalSpec{
 			ID:          api.ID(id),
 			Kind:        api.TerminalLocal,
@@ -141,6 +148,13 @@ func createTestSupervisorMetadata(
 
 	// Create metadata.json with SupervisorMetadata structure
 	metadata := api.SupervisorDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindSupervisor,
+		Metadata: api.SupervisorMetadata{
+			Name:        name,
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
 		Spec: api.SupervisorSpec{
 			ID:   api.ID(id),
 			Kind: api.RunNewTerminal,

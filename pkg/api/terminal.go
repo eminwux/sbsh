@@ -29,18 +29,19 @@ type TerminalController interface {
 	State() (*TerminalStatusMode, error)
 }
 
-type TerminalState int
+type TerminalDoc struct {
+	APIVersion Version          `json:"apiVersion" yaml:"apiVersion"`
+	Kind       Kind             `json:"kind"       yaml:"kind"`
+	Metadata   TerminalMetadata `json:"metadata"`
+	Spec       TerminalSpec     `json:"spec"`
+	Status     TerminalStatus   `json:"status"`
+}
 
-const (
-	TerminalBash TerminalState = iota
-)
-
-type TerminalKind int
-
-const (
-	TerminalLocal TerminalKind = iota
-	TerminalSSH
-)
+type TerminalMetadata struct {
+	Name        string            `json:"name"                  yaml:"name"`
+	Labels      map[string]string `json:"labels,omitempty"      yaml:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
+}
 
 // TerminalSpec defines how to run a terminal.
 type TerminalSpec struct {
@@ -78,6 +79,19 @@ type TerminalStatus struct {
 	CaptureFile     string             `json:"captureFile"`
 	Attachers       []string           `json:"attachers"`
 }
+
+type TerminalState int
+
+const (
+	TerminalBash TerminalState = iota
+)
+
+type TerminalKind int
+
+const (
+	TerminalLocal TerminalKind = iota
+	TerminalSSH
+)
 
 type TerminalStatusMode int
 
@@ -117,11 +131,6 @@ func (s TerminalStatusMode) String() string {
 	default:
 		return "Unknown"
 	}
-}
-
-type TerminalDoc struct {
-	Spec   TerminalSpec   `json:"spec"`
-	Status TerminalStatus `json:"status"`
 }
 
 // RPC definitions
