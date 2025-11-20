@@ -72,8 +72,17 @@ func (s SupervisorStatusMode) String() string {
 }
 
 type SupervisorDoc struct {
-	Spec   SupervisorSpec   `json:"spec"`
-	Status SupervisorStatus `json:"status"`
+	APIVersion Version            `json:"apiVersion" yaml:"apiVersion"`
+	Kind       Kind               `json:"kind"       yaml:"kind"`
+	Metadata   SupervisorMetadata `json:"metadata"`
+	Spec       SupervisorSpec     `json:"spec"`
+	Status     SupervisorStatus   `json:"status"`
+}
+
+type SupervisorMetadata struct {
+	Name        string            `json:"name"                  yaml:"name"`
+	Labels      map[string]string `json:"labels,omitempty"      yaml:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
 }
 
 type SupervisorKind int

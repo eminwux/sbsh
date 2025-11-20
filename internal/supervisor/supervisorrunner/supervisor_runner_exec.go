@@ -67,6 +67,13 @@ func NewSupervisorRunnerExec(
 	return &Exec{
 		id: spec.ID,
 		metadata: api.SupervisorDoc{
+			APIVersion: api.APIVersionV1Beta1,
+			Kind:       api.KindSupervisor,
+			Metadata: api.SupervisorMetadata{
+				Name:        spec.Name,
+				Labels:      spec.Labels,
+				Annotations: make(map[string]string),
+			},
 			Spec: *spec,
 		},
 

@@ -675,6 +675,13 @@ func Test_TerminalState_Initializing(t *testing.T) {
 			},
 			MetadataFunc: func() (*api.TerminalDoc, error) {
 				return &api.TerminalDoc{
+					APIVersion: api.APIVersionV1Beta1,
+					Kind:       api.KindTerminal,
+					Metadata: api.TerminalMetadata{
+						Name:        "test",
+						Labels:      make(map[string]string),
+						Annotations: make(map[string]string),
+					},
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -748,6 +755,13 @@ func Test_TerminalState_Starting(t *testing.T) {
 			},
 			MetadataFunc: func() (*api.TerminalDoc, error) {
 				return &api.TerminalDoc{
+					APIVersion: api.APIVersionV1Beta1,
+					Kind:       api.KindTerminal,
+					Metadata: api.TerminalMetadata{
+						Name:        "test",
+						Labels:      make(map[string]string),
+						Annotations: make(map[string]string),
+					},
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -820,6 +834,13 @@ func Test_TerminalState_SettingUp(t *testing.T) {
 			},
 			MetadataFunc: func() (*api.TerminalDoc, error) {
 				return &api.TerminalDoc{
+					APIVersion: api.APIVersionV1Beta1,
+					Kind:       api.KindTerminal,
+					Metadata: api.TerminalMetadata{
+						Name:        "test",
+						Labels:      make(map[string]string),
+						Annotations: make(map[string]string),
+					},
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -896,6 +917,13 @@ func Test_TerminalState_Ready(t *testing.T) {
 			},
 			MetadataFunc: func() (*api.TerminalDoc, error) {
 				return &api.TerminalDoc{
+					APIVersion: api.APIVersionV1Beta1,
+					Kind:       api.KindTerminal,
+					Metadata: api.TerminalMetadata{
+						Name:        "test",
+						Labels:      make(map[string]string),
+						Annotations: make(map[string]string),
+					},
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -962,6 +990,13 @@ func Test_TerminalState_OnInit(t *testing.T) {
 			},
 			MetadataFunc: func() (*api.TerminalDoc, error) {
 				return &api.TerminalDoc{
+					APIVersion: api.APIVersionV1Beta1,
+					Kind:       api.KindTerminal,
+					Metadata: api.TerminalMetadata{
+						Name:        "test",
+						Labels:      make(map[string]string),
+						Annotations: make(map[string]string),
+					},
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -1041,6 +1076,13 @@ func Test_TerminalState_Exited(t *testing.T) {
 			},
 			MetadataFunc: func() (*api.TerminalDoc, error) {
 				return &api.TerminalDoc{
+					APIVersion: api.APIVersionV1Beta1,
+					Kind:       api.KindTerminal,
+					Metadata: api.TerminalMetadata{
+						Name:        "test",
+						Labels:      make(map[string]string),
+						Annotations: make(map[string]string),
+					},
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -1113,6 +1155,13 @@ func Test_TerminalState_PostAttach(t *testing.T) {
 			},
 			MetadataFunc: func() (*api.TerminalDoc, error) {
 				return &api.TerminalDoc{
+					APIVersion: api.APIVersionV1Beta1,
+					Kind:       api.KindTerminal,
+					Metadata: api.TerminalMetadata{
+						Name:        "test",
+						Labels:      make(map[string]string),
+						Annotations: make(map[string]string),
+					},
 					Spec: api.TerminalSpec{
 						ID:   api.ID("test-terminal"),
 						Name: "test",
@@ -1192,6 +1241,13 @@ func Test_State_Method_ReturnsCorrectStates(t *testing.T) {
 				state = api.Exited
 			}
 			return &api.TerminalDoc{
+				APIVersion: api.APIVersionV1Beta1,
+				Kind:       api.KindTerminal,
+				Metadata: api.TerminalMetadata{
+					Name:        "test",
+					Labels:      make(map[string]string),
+					Annotations: make(map[string]string),
+				},
 				Spec: api.TerminalSpec{
 					ID:   api.ID("test-terminal"),
 					Name: "test",

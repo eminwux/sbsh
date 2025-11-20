@@ -87,6 +87,13 @@ func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.T
 	return &Exec{
 		id: spec.ID,
 		metadata: api.TerminalDoc{
+			APIVersion: api.APIVersionV1Beta1,
+			Kind:       api.KindTerminal,
+			Metadata: api.TerminalMetadata{
+				Name:        spec.Name,
+				Labels:      spec.Labels,
+				Annotations: make(map[string]string),
+			},
 			Spec:   *spec,
 			Status: api.TerminalStatus{},
 		},
