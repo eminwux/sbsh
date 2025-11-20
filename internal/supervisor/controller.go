@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/eminwux/sbsh/internal/discovery"
@@ -50,7 +51,7 @@ type Controller struct {
 	closeReqCh   chan error
 	closingCh    chan error
 	closedCh     chan struct{}
-	shuttingDown bool
+	shuttingDown atomic.Bool
 
 	eventsCh chan supervisorrunner.Event
 
@@ -222,7 +223,7 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 
 	go func() {
 		errC := <-s.closingCh
-		s.shuttingDown = true
+		s.shuttingDown.Store(true)
 		s.logger.Warn("controller closing", "reason", errC)
 	}()
 
@@ -348,7 +349,7 @@ func (s *Controller) onClosed(_ api.ID, err error) {
 }
 
 func (s *Controller) Close(reason error) error {
-	if !s.shuttingDown {
+	if !s.shuttingDown.Load() {
 		s.logger.Info("initiating shutdown sequence", "reason", reason)
 		// Set closing reason
 		s.closingCh <- reason

@@ -27,13 +27,19 @@ func (sr *Exec) setupPipes(client *ioClient) error {
 		sr.logger.Warn("failed to create pipe", "err", err)
 		return err
 	}
-	sr.ptyPipes.multiOutW.Add(client.pipeOutW)
+	sr.ptyPipesMu.RLock()
+	multiOutW := sr.ptyPipes.multiOutW
+	sr.ptyPipesMu.RUnlock()
+	multiOutW.Add(client.pipeOutW)
 
 	return nil
 }
 
 func (sr *Exec) readLogFile() ([]byte, error) {
-	data, err := os.ReadFile(sr.metadata.Status.CaptureFile)
+	sr.metadataMu.RLock()
+	captureFile := sr.metadata.Status.CaptureFile
+	sr.metadataMu.RUnlock()
+	data, err := os.ReadFile(captureFile)
 	if err != nil {
 		sr.logger.Warn("failed to read log file", "err", err)
 		return nil, err

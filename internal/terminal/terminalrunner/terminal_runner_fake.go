@@ -18,6 +18,7 @@ package terminalrunner
 
 import (
 	"context"
+	"sync"
 
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/terminal/terminalrpc"
@@ -25,6 +26,7 @@ import (
 )
 
 type Test struct {
+	mu                  sync.RWMutex // protects function pointer fields
 	OpenSocketCtrlFunc  func() error
 	StartServerFunc     func(ctx context.Context, sc *terminalrpc.TerminalControllerRPC, readyCh chan error, doneCh chan error)
 	StartTerminalFunc   func(evCh chan<- Event) error
@@ -125,8 +127,11 @@ func (sr *Test) OnInitShell() error {
 }
 
 func (sr *Test) Metadata() (*api.TerminalDoc, error) {
-	if sr.MetadataFunc != nil {
-		return sr.MetadataFunc()
+	sr.mu.RLock()
+	metadataFunc := sr.MetadataFunc
+	sr.mu.RUnlock()
+	if metadataFunc != nil {
+		return metadataFunc()
 	}
 	return nil, errdefs.ErrFuncNotSet
 }

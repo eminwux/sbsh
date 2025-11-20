@@ -131,7 +131,9 @@ func (sr *Exec) startPty() error {
 	}
 
 	// Set tty device in status metadata
+	sr.metadataMu.Lock()
 	sr.metadata.Status.Tty = sr.pts.Name()
+	sr.metadataMu.Unlock()
 
 	go func() {
 		sr.logger.Debug("waiting on child process", "parent_pid", os.Getpid(), "child_pid", sr.cmd.Process.Pid)
@@ -140,7 +142,10 @@ func (sr *Exec) startPty() error {
 		sr.closeReqCh <- errors.New("the shell process has exited")
 	}()
 
-	logf, errO := os.OpenFile(sr.metadata.Spec.CaptureFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	sr.metadataMu.RLock()
+	captureFile := sr.metadata.Spec.CaptureFile
+	sr.metadataMu.RUnlock()
+	logf, errO := os.OpenFile(captureFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if errO != nil {
 		return fmt.Errorf("open log file: %w", errO)
 	}
@@ -162,9 +167,11 @@ func (sr *Exec) startPty() error {
 	// ATTACHED: stream to client (pipeOutW) AND log file
 	multiOutW := NewDynamicMultiWriter(sr.logger, logf)
 
+	sr.ptyPipesMu.Lock()
 	sr.ptyPipes.pipeInR = pipeInR
 	sr.ptyPipes.pipeInW = pipeInW
 	sr.ptyPipes.multiOutW = multiOutW
+	sr.ptyPipesMu.Unlock()
 
 	go sr.terminalManager(pipeInR, multiOutW)
 
@@ -204,11 +211,14 @@ func (sr *Exec) terminalManagerReader(multiOutW io.Writer) {
 
 		// drain/emit data
 		if n > 0 {
+			sr.obsMu.Lock()
 			sr.lastRead = time.Now()
 			sr.bytesOut += uint64(n)
+			outputOn := sr.gates.OutputOn
+			sr.obsMu.Unlock()
 
 			// Render if output is enabled; otherwise we just drain
-			if sr.gates.OutputOn {
+			if outputOn {
 				sr.logger.Debug("read from pty", "bytes", n)
 				sr.logger.Debug("writing to multiOutW")
 				_, errWrite := multiOutW.Write(buf[:n])
@@ -269,7 +279,10 @@ func (sr *Exec) terminalManagerWriter(pipeInR *os.File) {
 		n, errRead := pipeInR.Read(buf)
 		sr.logger.Debug("read from pipeInR", "bytes", n)
 		if n > 0 {
-			if sr.gates.StdinOpen {
+			sr.obsMu.RLock()
+			stdinOpen := sr.gates.StdinOpen
+			sr.obsMu.RUnlock()
+			if stdinOpen {
 				sr.logger.Debug("reading from pipeInR (StdinOpen)")
 				if _, errWrite := sr.ptmx.Write(buf[:n]); errWrite != nil {
 					errReturn := fmt.Errorf(

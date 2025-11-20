@@ -118,18 +118,22 @@ func (sr *Exec) Close(reason error) error {
 	}
 
 	// remove Ctrl socket
-	if err := os.Remove(sr.metadata.Status.SocketFile); err != nil {
-		sr.logger.Warn("couldn't remove Ctrl socket", "id", sr.id, "socket", sr.metadata.Status.SocketFile, "err", err)
+	sr.metadataMu.RLock()
+	socketFile := sr.metadata.Status.SocketFile
+	terminalRunPath := sr.metadata.Status.TerminalRunPath
+	sr.metadataMu.RUnlock()
+	if err := os.Remove(socketFile); err != nil {
+		sr.logger.Warn("couldn't remove Ctrl socket", "id", sr.id, "socket", socketFile, "err", err)
 	}
 
 	if deleteTerminalsDir {
-		if err := os.RemoveAll(filepath.Dir(sr.metadata.Status.TerminalRunPath)); err != nil {
+		if err := os.RemoveAll(filepath.Dir(terminalRunPath)); err != nil {
 			sr.logger.Warn(
 				"couldn't remove terminal directory",
 				"id",
 				sr.id,
 				"dir",
-				sr.metadata.Status.TerminalRunPath,
+				terminalRunPath,
 				"err",
 				err,
 			)
@@ -186,7 +190,10 @@ func (sr *Exec) Detach(id *api.ID) error {
 	}
 
 	// 2) Remove from fan-out paths first so no more writes target it
-	sr.ptyPipes.multiOutW.Remove(ioClient.pipeOutW)
+	sr.ptyPipesMu.RLock()
+	multiOutW := sr.ptyPipes.multiOutW
+	sr.ptyPipesMu.RUnlock()
+	multiOutW.Remove(ioClient.pipeOutW)
 	// TODO: remove from stdin fan-in if you have that side too
 	// sr.ptyPipes.multiInR.Remove(ioClient.pipeInR)
 

@@ -1621,7 +1621,7 @@ func Test_CloseIdempotent(t *testing.T) {
 	// Start a goroutine to drain closingCh (simulating what Run() does)
 	go func() {
 		errC := <-sc.closingCh
-		sc.shuttingDown = true
+		sc.shuttingDown.Store(true)
 		sc.logger.Warn("controller closing", "reason", errC)
 	}()
 
@@ -1641,7 +1641,7 @@ func Test_CloseIdempotent(t *testing.T) {
 	}
 
 	// Verify shuttingDown is set
-	if !sc.shuttingDown {
+	if !sc.shuttingDown.Load() {
 		t.Fatal("expected shuttingDown to be true after Close")
 	}
 }
@@ -1664,7 +1664,7 @@ func Test_CloseErrorHandling(t *testing.T) {
 	// Start a goroutine to drain closingCh (simulating what Run() does)
 	go func() {
 		errC := <-sc.closingCh
-		sc.shuttingDown = true
+		sc.shuttingDown.Store(true)
 		sc.logger.Warn("controller closing", "reason", errC)
 	}()
 
@@ -1678,7 +1678,7 @@ func Test_CloseErrorHandling(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Verify shuttingDown is set
-	if !sc.shuttingDown {
+	if !sc.shuttingDown.Load() {
 		t.Fatal("expected shuttingDown to be true after Close")
 	}
 }

@@ -28,21 +28,28 @@ import (
 )
 
 func (sr *Exec) CreateMetadata() error {
-	sr.logger.Debug("creating metadata", "runPath", sr.getSupervisorDir())
-	if err := os.MkdirAll(sr.getSupervisorDir(), 0o700); err != nil {
-		sr.logger.Error("failed to create supervisor dir", "dir", sr.getSupervisorDir(), "error", err)
+	sr.metadataMu.Lock()
+	runPath := sr.metadata.Spec.RunPath
+	sr.metadataMu.Unlock()
+
+	dir := filepath.Join(runPath, defaults.SupervisorsRunPath, string(sr.id))
+	sr.logger.Debug("creating metadata", "runPath", dir)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		sr.logger.Error("failed to create supervisor dir", "dir", dir, "error", err)
 		return fmt.Errorf("mkdir terminal dir: %w", err)
 	}
 
+	sr.metadataMu.Lock()
 	sr.metadata.Status.State = api.SupervisorInitializing
 	sr.metadata.Status.Pid = os.Getpid()
-	sr.metadata.Status.BaseRunPath = sr.metadata.Spec.RunPath
-	sr.metadata.Status.SupervisorRunPath = sr.getSupervisorDir()
+	sr.metadata.Status.BaseRunPath = runPath
+	sr.metadata.Status.SupervisorRunPath = dir
 
 	sr.logger.Info("metadata values set",
 		"Spec", sr.metadata.Spec,
 		"Status", sr.metadata.Status,
 	)
+	sr.metadataMu.Unlock()
 
 	err := sr.updateMetadata()
 	if err != nil {
@@ -54,11 +61,17 @@ func (sr *Exec) CreateMetadata() error {
 }
 
 func (sr *Exec) getSupervisorDir() string {
+	sr.metadataMu.RLock()
+	defer sr.metadataMu.RUnlock()
 	return filepath.Join(sr.metadata.Spec.RunPath, defaults.SupervisorsRunPath, string(sr.id))
 }
 
 func (sr *Exec) updateMetadata() error {
-	return shared.WriteMetadata(sr.ctx, sr.metadata, sr.getSupervisorDir())
+	sr.metadataMu.RLock()
+	metadataCopy := sr.metadata
+	dir := filepath.Join(sr.metadata.Spec.RunPath, defaults.SupervisorsRunPath, string(sr.id))
+	sr.metadataMu.RUnlock()
+	return shared.WriteMetadata(sr.ctx, metadataCopy, dir)
 }
 
 //nolint:unused // this will be used eventually

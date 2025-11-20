@@ -34,8 +34,9 @@ type Exec struct {
 	logger    *slog.Logger
 
 	// immutable
-	id       api.ID
-	metadata api.TerminalDoc
+	id         api.ID
+	metadata   api.TerminalDoc
+	metadataMu sync.RWMutex // protects metadata field
 
 	// runtime (owned by Terminal)
 	cmd   *exec.Cmd
@@ -47,6 +48,7 @@ type Exec struct {
 		StdinOpen bool
 		OutputOn  bool
 	}
+	obsMu sync.RWMutex // protects gates, bytesIn, bytesOut, lastRead
 
 	// observability
 	bytesIn, bytesOut uint64
@@ -63,7 +65,8 @@ type Exec struct {
 	closeReqCh chan error
 	closedCh   chan struct{}
 
-	ptyPipes *ptyPipes
+	ptyPipes   *ptyPipes
+	ptyPipesMu sync.RWMutex // protects ptyPipes field (reads after initialization)
 
 	closePTY *sync.Once
 }

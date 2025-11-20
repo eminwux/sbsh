@@ -61,7 +61,10 @@ func (sr *Exec) handleClient(client *ioClient) {
 
 	// READER: socket  -> stdin
 	readyReader := make(chan struct{})
-	go dc.RunCopier(client.conn, sr.ptyPipes.pipeInW, readyReader, func() {
+	sr.ptyPipesMu.RLock()
+	pipeInW := sr.ptyPipes.pipeInW
+	sr.ptyPipesMu.RUnlock()
+	go dc.RunCopier(client.conn, pipeInW, readyReader, func() {
 		if uc != nil {
 			sr.logger.Debug("closing UnixConn read side", "client", client.id)
 			_ = uc.CloseRead()
