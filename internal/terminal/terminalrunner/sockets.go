@@ -26,8 +26,12 @@ import (
 )
 
 func (sr *Exec) OpenSocketCtrl() error {
-	sr.logger.Debug("OpenSocketCtrl: preparing to listen", "socket", sr.metadata.Spec.SocketFile)
-	sr.metadata.Status.SocketFile = sr.metadata.Spec.SocketFile
+	sr.metadataMu.Lock()
+	socketFile := sr.metadata.Spec.SocketFile
+	sr.metadata.Status.SocketFile = socketFile
+	sr.metadataMu.Unlock()
+
+	sr.logger.Debug("OpenSocketCtrl: preparing to listen", "socket", socketFile)
 	errMetadata := sr.updateMetadata()
 	if errMetadata != nil {
 		sr.logger.Error("OpenSocketCtrl: failed to update metadata", "error", errMetadata)
@@ -35,11 +39,11 @@ func (sr *Exec) OpenSocketCtrl() error {
 	}
 
 	// Remove sockets if they already exist
-	if err := os.Remove(sr.metadata.Spec.SocketFile); err != nil {
+	if err := os.Remove(socketFile); err != nil {
 		sr.logger.Warn(
 			"OpenSocketCtrl: couldn't remove stale CTRL socket",
 			"socket",
-			sr.metadata.Spec.SocketFile,
+			socketFile,
 			"error",
 			err,
 		)
@@ -47,20 +51,20 @@ func (sr *Exec) OpenSocketCtrl() error {
 
 	// Listen to CONTROL SOCKET
 	var lc net.ListenConfig
-	ctrlLn, errListen := lc.Listen(sr.ctx, "unix", sr.metadata.Spec.SocketFile)
+	ctrlLn, errListen := lc.Listen(sr.ctx, "unix", socketFile)
 	if errListen != nil {
-		sr.logger.Error("OpenSocketCtrl: failed to listen", "socket", sr.metadata.Spec.SocketFile, "error", errListen)
+		sr.logger.Error("OpenSocketCtrl: failed to listen", "socket", socketFile, "error", errListen)
 		return fmt.Errorf("listen ctrl: %w", errListen)
 	}
 
 	// keep references for Close()
 	sr.lnCtrl = ctrlLn
 
-	if errChmod := os.Chmod(sr.metadata.Spec.SocketFile, 0o600); errChmod != nil {
+	if errChmod := os.Chmod(socketFile, 0o600); errChmod != nil {
 		sr.logger.Error(
 			"OpenSocketCtrl: failed to chmod socket file",
 			"socket",
-			sr.metadata.Spec.SocketFile,
+			socketFile,
 			"error",
 			errChmod,
 		)
@@ -69,14 +73,16 @@ func (sr *Exec) OpenSocketCtrl() error {
 	}
 
 	// update metadata with socket file path
-	sr.metadata.Status.SocketFile = sr.metadata.Spec.SocketFile
+	sr.metadataMu.Lock()
+	sr.metadata.Status.SocketFile = socketFile
+	sr.metadataMu.Unlock()
 	if err := sr.updateMetadata(); err != nil {
 		sr.logger.Error("OpenSocketCtrl: failed to update metadata", "error", err)
 		_ = ctrlLn.Close()
 		return err
 	}
 
-	sr.logger.Info("OpenSocketCtrl: listening on socket", "socket", sr.metadata.Spec.SocketFile)
+	sr.logger.Info("OpenSocketCtrl: listening on socket", "socket", socketFile)
 	return nil
 }
 

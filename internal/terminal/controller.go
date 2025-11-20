@@ -18,8 +18,11 @@ package terminal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/eminwux/sbsh/internal/errdefs"
@@ -35,13 +38,14 @@ type Controller struct {
 
 	NewTerminalRunner func(ctx context.Context, logger *slog.Logger, spec *api.TerminalSpec) terminalrunner.TerminalRunner
 
-	sr terminalrunner.TerminalRunner
+	sr   terminalrunner.TerminalRunner
+	srMu sync.RWMutex // protects sr field
 
 	ctrlReadyCh  chan struct{}
 	closeReqCh   chan error
 	closingCh    chan error
 	closedCh     chan struct{}
-	shuttingDown bool
+	shuttingDown atomic.Bool
 
 	eventsCh chan terminalrunner.Event
 
@@ -109,7 +113,9 @@ func (c *Controller) Run(spec *api.TerminalSpec) error {
 	defer c.logger.InfoContext(c.ctx, "controller stopped")
 
 	c.logger.DebugContext(c.ctx, "creating new terminal runner")
+	c.srMu.Lock()
 	c.sr = c.NewTerminalRunner(c.ctx, c.logger, spec)
+	c.srMu.Unlock()
 
 	if len(spec.Command) == 0 {
 		c.logger.ErrorContext(c.ctx, "empty command in TerminalSpec")
@@ -177,11 +183,9 @@ func (c *Controller) Run(spec *api.TerminalSpec) error {
 	close(c.ctrlReadyCh)
 
 	go func() {
-		select {
-		case err := <-c.closingCh:
-			c.shuttingDown = true
-			c.logger.WarnContext(c.ctx, "controller closing", "reason", err)
-		}
+		err := <-c.closingCh
+		c.shuttingDown.Store(true)
+		c.logger.WarnContext(c.ctx, "controller closing", "reason", err)
 	}()
 
 	for {
@@ -239,7 +243,7 @@ func (c *Controller) handleEvent(ev terminalrunner.Event) {
 }
 
 func (c *Controller) Close(reason error) error {
-	if !c.shuttingDown {
+	if !c.shuttingDown.Load() {
 		c.logger.InfoContext(c.ctx, "initiating shutdown sequence", "reason", reason)
 
 		// cancel the controller context so WaitReady unblocks
@@ -249,7 +253,12 @@ func (c *Controller) Close(reason error) error {
 		c.closingCh <- reason
 
 		// Notify terminal runner to close all terminals
-		_ = c.sr.Close(reason)
+		c.srMu.RLock()
+		sr := c.sr
+		c.srMu.RUnlock()
+		if sr != nil {
+			_ = sr.Close(reason)
+		}
 
 		// Notify Run to exit
 		c.closeReqCh <- reason
@@ -268,17 +277,28 @@ func (c *Controller) onClosed(err error) {
 }
 
 func (c *Controller) Resize(args api.ResizeArgs) {
-	c.sr.Resize(args)
+	c.srMu.RLock()
+	sr := c.sr
+	c.srMu.RUnlock()
+	if sr != nil {
+		sr.Resize(args)
+	}
 }
 
 func (c *Controller) Attach(id *api.ID, response *api.ResponseWithFD) error {
-	err := c.sr.Attach(id, response)
+	c.srMu.RLock()
+	sr := c.sr
+	c.srMu.RUnlock()
+	if sr == nil {
+		return errors.New("terminal runner not initialized")
+	}
+	err := sr.Attach(id, response)
 	if err != nil {
 		c.logger.ErrorContext(c.ctx, "Attach failed", "id", id, "error", err)
 		return err
 	}
 
-	errPostAttach := c.sr.PostAttachShell()
+	errPostAttach := sr.PostAttachShell()
 	if errPostAttach != nil {
 		c.logger.ErrorContext(c.ctx, "Attach failed", "id", id, "error", errPostAttach)
 		return errPostAttach
@@ -289,15 +309,33 @@ func (c *Controller) Attach(id *api.ID, response *api.ResponseWithFD) error {
 }
 
 func (c *Controller) Detach(id *api.ID) error {
-	return c.sr.Detach(id)
+	c.srMu.RLock()
+	sr := c.sr
+	c.srMu.RUnlock()
+	if sr == nil {
+		return errors.New("terminal runner not initialized")
+	}
+	return sr.Detach(id)
 }
 
 func (c *Controller) Metadata() (*api.TerminalDoc, error) {
-	return c.sr.Metadata()
+	c.srMu.RLock()
+	sr := c.sr
+	c.srMu.RUnlock()
+	if sr == nil {
+		return nil, errors.New("terminal runner not initialized")
+	}
+	return sr.Metadata()
 }
 
 func (c *Controller) State() (*api.TerminalStatusMode, error) {
-	metadata, err := c.sr.Metadata()
+	c.srMu.RLock()
+	sr := c.sr
+	c.srMu.RUnlock()
+	if sr == nil {
+		return nil, errors.New("terminal runner not initialized")
+	}
+	metadata, err := sr.Metadata()
 	if err != nil {
 		return nil, err
 	}

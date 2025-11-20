@@ -23,16 +23,20 @@ import (
 )
 
 func (sr *Exec) OpenSocketCtrl() error {
-	sr.logger.Debug("OpenSocketCtrl: preparing to listen", "socket", sr.metadata.Spec.SockerCtrl)
+	sr.metadataMu.RLock()
+	socketCtrl := sr.metadata.Spec.SockerCtrl
+	sr.metadataMu.RUnlock()
+
+	sr.logger.Debug("OpenSocketCtrl: preparing to listen", "socket", socketCtrl)
 
 	// remove stale socket if it exists
-	if _, err := os.Stat(sr.metadata.Spec.SockerCtrl); err == nil {
-		sr.logger.Warn("OpenSocketCtrl: removing stale socket", "socket", sr.metadata.Spec.SockerCtrl)
-		if rmErr := os.Remove(sr.metadata.Spec.SockerCtrl); rmErr != nil {
+	if _, err := os.Stat(socketCtrl); err == nil {
+		sr.logger.Warn("OpenSocketCtrl: removing stale socket", "socket", socketCtrl)
+		if rmErr := os.Remove(socketCtrl); rmErr != nil {
 			sr.logger.Error(
 				"OpenSocketCtrl: failed to remove stale socket",
 				"socket",
-				sr.metadata.Spec.SockerCtrl,
+				socketCtrl,
 				"error",
 				rmErr,
 			)
@@ -40,13 +44,13 @@ func (sr *Exec) OpenSocketCtrl() error {
 		}
 	}
 	lnCfg := net.ListenConfig{}
-	ln, err := lnCfg.Listen(sr.ctx, "unix", sr.metadata.Spec.SockerCtrl)
+	ln, err := lnCfg.Listen(sr.ctx, "unix", socketCtrl)
 	if err != nil {
-		sr.logger.Error("OpenSocketCtrl: cannot listen", "socket", sr.metadata.Spec.SockerCtrl, "error", err)
+		sr.logger.Error("OpenSocketCtrl: cannot listen", "socket", socketCtrl, "error", err)
 		return fmt.Errorf("cannot listen: %w", err)
 	}
 
 	sr.lnCtrl = ln
-	sr.logger.Info("OpenSocketCtrl: listening on socket", "socket", sr.metadata.Spec.SockerCtrl)
+	sr.logger.Info("OpenSocketCtrl: listening on socket", "socket", socketCtrl)
 	return nil
 }

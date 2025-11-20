@@ -20,6 +20,7 @@ import (
 	"context"
 	"log/slog"
 	"net"
+	"sync"
 
 	"github.com/eminwux/sbsh/internal/supervisor/terminalstore"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -28,8 +29,9 @@ import (
 )
 
 type Exec struct {
-	id       api.ID
-	metadata api.SupervisorDoc
+	id         api.ID
+	metadata   api.SupervisorDoc
+	metadataMu sync.RWMutex // protects metadata field
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc

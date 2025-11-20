@@ -35,6 +35,7 @@ type unixJSONClientCodec struct {
 	enc    *json.Encoder
 
 	// stash from last header read:
+	pendingMu     sync.RWMutex // protects pending fields
 	pendingResult []byte
 	pendingFDs    []int
 	pendingSeq    uint64
@@ -100,6 +101,7 @@ func (c *unixJSONClientCodec) ReadResponseHeader(resp *rpc.Response) error {
 	}
 
 	c.logger.Debug("ReadResponseHeader: parsing FDs", "oobn", oobn)
+	c.pendingMu.Lock()
 	c.pendingFDs = c.pendingFDs[:0]
 	if oobn > 0 {
 		if cmsgs, _ := unix.ParseSocketControlMessage(oob[:oobn]); len(cmsgs) > 0 {
@@ -119,6 +121,7 @@ func (c *unixJSONClientCodec) ReadResponseHeader(resp *rpc.Response) error {
 		Error  *string          `json:"error"`
 	}
 	if errUnmarshal := json.Unmarshal(buf[:n], &wire); errUnmarshal != nil {
+		c.pendingMu.Unlock()
 		c.logger.Error("ReadResponseHeader: JSON unmarshal failed", "error", errUnmarshal)
 		return errUnmarshal
 	}
@@ -137,33 +140,43 @@ func (c *unixJSONClientCodec) ReadResponseHeader(resp *rpc.Response) error {
 		c.logger.Debug("ReadResponseHeader: no result present")
 		c.pendingResult = c.pendingResult[:0]
 	}
+	c.pendingMu.Unlock()
 
 	// Fill rpc.Response header so net/rpc can match the call.
-	resp.ServiceMethod = ""   // not used by client matching
-	resp.Seq = c.pendingSeq   // IMPORTANT
-	resp.Error = c.pendingErr // net/rpc will surface this later
+	c.pendingMu.RLock()
+	pendingSeq := c.pendingSeq
+	pendingErr := c.pendingErr
+	c.pendingMu.RUnlock()
+	resp.ServiceMethod = "" // not used by client matching
+	resp.Seq = pendingSeq   // IMPORTANT
+	resp.Error = pendingErr // net/rpc will surface this later
 
 	c.logger.Info("ReadResponseHeader: finished", "seq", resp.Seq, "error", resp.Error)
 	return nil
 }
 
 func (c *unixJSONClientCodec) ReadResponseBody(body any) error {
-	if c.pendingErr != "" {
-		c.logger.Warn("ReadResponseBody: skipping due to error", "error", c.pendingErr)
+	c.pendingMu.Lock()
+	pendingErr := c.pendingErr
+	pendingResult := c.pendingResult
+	c.pendingMu.Unlock()
+
+	if pendingErr != "" {
+		c.logger.Warn("ReadResponseBody: skipping due to error", "error", pendingErr)
 		// Let net/rpc wrap it as error from Call()
 		return nil
 	}
-	if body == nil || len(c.pendingResult) == 0 {
+	if body == nil || len(pendingResult) == 0 {
 		c.logger.Debug(
 			"ReadResponseBody: nothing to unmarshal",
 			"body_nil",
 			body == nil,
 			"result_len",
-			len(c.pendingResult),
+			len(pendingResult),
 		)
 		return nil
 	}
-	err := json.Unmarshal(c.pendingResult, body)
+	err := json.Unmarshal(pendingResult, body)
 	if err != nil {
 		c.logger.Error("ReadResponseBody: unmarshal failed", "error", err)
 		return err
@@ -179,6 +192,8 @@ func (c *unixJSONClientCodec) Close() error {
 
 // Helper your client uses after Call():.
 func (c *unixJSONClientCodec) takeLastFDs() []int {
+	c.pendingMu.Lock()
+	defer c.pendingMu.Unlock()
 	c.logger.Debug("takeLastFDs: returning and clearing FDs", "count", len(c.pendingFDs))
 	f := c.pendingFDs
 	c.pendingFDs = nil

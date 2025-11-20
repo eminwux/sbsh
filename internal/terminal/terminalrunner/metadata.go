@@ -27,21 +27,28 @@ import (
 )
 
 func (sr *Exec) CreateMetadata() error {
-	sr.logger.Debug("CreateMetadata: creating terminal directory", "dir", sr.getTerminalDir())
-	if err := os.MkdirAll(sr.getTerminalDir(), 0o700); err != nil {
-		sr.logger.Error("CreateMetadata: failed to create terminal dir", "dir", sr.getTerminalDir(), "error", err)
+	sr.metadataMu.Lock()
+	runPath := sr.metadata.Spec.RunPath
+	dir := filepath.Join(runPath, defaults.TerminalsRunPath, string(sr.id))
+	sr.metadataMu.Unlock()
+
+	sr.logger.Debug("CreateMetadata: creating terminal directory", "dir", dir)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		sr.logger.Error("CreateMetadata: failed to create terminal dir", "dir", dir, "error", err)
 		return fmt.Errorf("mkdir terminal dir: %w", err)
 	}
 
+	sr.metadataMu.Lock()
 	sr.metadata.Status.Pid = os.Getpid()
-	sr.metadata.Status.BaseRunPath = sr.metadata.Spec.RunPath
-	sr.metadata.Status.TerminalRunPath = sr.getTerminalDir()
+	sr.metadata.Status.BaseRunPath = runPath
+	sr.metadata.Status.TerminalRunPath = dir
 	sr.metadata.Status.LogFile = sr.metadata.Spec.LogFile
 	sr.metadata.Status.LogLevel = sr.metadata.Spec.LogLevel
 	sr.metadata.Status.CaptureFile = sr.metadata.Spec.CaptureFile
 	sr.metadata.Status.State = api.Initializing
 
 	sr.logger.Info("CreateMetadata: terminal metadata set", "Spec", sr.metadata.Spec, "Status", sr.metadata.Status)
+	sr.metadataMu.Unlock()
 
 	err := sr.updateMetadata()
 	if err != nil {
@@ -53,15 +60,23 @@ func (sr *Exec) CreateMetadata() error {
 }
 
 func (sr *Exec) getTerminalDir() string {
+	sr.metadataMu.RLock()
+	defer sr.metadataMu.RUnlock()
 	return filepath.Join(sr.metadata.Spec.RunPath, defaults.TerminalsRunPath, string(sr.id))
 }
 
 func (sr *Exec) updateMetadata() error {
-	return shared.WriteMetadata(sr.ctx, sr.metadata, sr.getTerminalDir())
+	sr.metadataMu.RLock()
+	metadataCopy := sr.metadata
+	dir := filepath.Join(sr.metadata.Spec.RunPath, defaults.TerminalsRunPath, string(sr.id))
+	sr.metadataMu.RUnlock()
+	return shared.WriteMetadata(sr.ctx, metadataCopy, dir)
 }
 
 func (sr *Exec) updateTerminalState(status api.TerminalStatusMode) error {
+	sr.metadataMu.Lock()
 	sr.metadata.Status.State = status
+	sr.metadataMu.Unlock()
 
 	if err := sr.updateMetadata(); err != nil {
 		sr.logger.Warn("failed to update metadata on close", "id", sr.id, "err", err)
@@ -78,7 +93,9 @@ func (sr *Exec) updateTerminalAttachers() error {
 			strIDs = append(strIDs, string(*idPtr))
 		}
 	}
+	sr.metadataMu.Lock()
 	sr.metadata.Status.Attachers = strIDs
+	sr.metadataMu.Unlock()
 
 	if err := sr.updateMetadata(); err != nil {
 		sr.logger.Warn("failed to update metadata on close", "id", sr.id, "err", err)
@@ -88,5 +105,9 @@ func (sr *Exec) updateTerminalAttachers() error {
 }
 
 func (sr *Exec) Metadata() (*api.TerminalDoc, error) {
-	return &sr.metadata, nil
+	sr.metadataMu.RLock()
+	defer sr.metadataMu.RUnlock()
+	// Return a copy to avoid race conditions
+	metadataCopy := sr.metadata
+	return &metadataCopy, nil
 }

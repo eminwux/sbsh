@@ -139,7 +139,9 @@ func (sr *Exec) attach() error {
 	}
 	sr.logger.InfoContext(sr.ctx, "attach: received connection")
 
+	sr.metadataMu.Lock()
 	sr.metadata.Status.State = api.SupervisorAttached
+	sr.metadataMu.Unlock()
 	errM := sr.updateMetadata()
 	if errM != nil {
 		sr.logger.Error("failed to update metadata", "error", errM)
@@ -206,13 +208,16 @@ func (sr *Exec) waitReady(states ...api.TerminalStatusMode) error {
 	ctx, cancel := context.WithTimeout(sr.ctx, waitReadyTimeoutSeconds*time.Second)
 	defer cancel()
 
+	sr.metadataMu.RLock()
+	terminalName := sr.metadata.Spec.Name
+	sr.metadataMu.RUnlock()
 	sr.logger.InfoContext(
 		sr.ctx,
 		"waitReady: waiting for terminal to be ready",
 		"terminal_id",
 		sr.terminal.Spec.ID,
 		"terminal_name",
-		sr.metadata.Spec.Name,
+		terminalName,
 	)
 
 	ticker := time.NewTicker(waitReadyTickMilliseconds * time.Millisecond)
@@ -247,7 +252,7 @@ func (sr *Exec) waitReady(states ...api.TerminalStatusMode) error {
 				"terminal_id",
 				sr.terminal.Spec.ID,
 				"terminal_name",
-				sr.metadata.Spec.Name,
+				terminalName,
 			)
 		}
 	}
