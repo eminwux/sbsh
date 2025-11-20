@@ -29,6 +29,7 @@ import (
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/internal/supervisor"
 	"github.com/eminwux/sbsh/pkg/api"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
@@ -437,5 +438,106 @@ func TestRunTerminal_SuccessWithContextCanceled(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for runSupervisor to return")
+	}
+}
+
+func Test_setTerminalFlags_HappyPath(t *testing.T) {
+	t.Setenv(config.SBSH_ROOT_TERM_PROFILE.EnvVar(), "")
+	t.Cleanup(func() {
+		viper.Reset()
+	})
+
+	flagCases := []struct {
+		name     string
+		flagName string
+		value    string
+		viperKey string
+	}{
+		{
+			name:     "terminal-id",
+			flagName: "terminal-id",
+			value:    "term-id-123",
+			viperKey: config.SBSH_ROOT_TERM_ID.ViperKey,
+		},
+		{
+			name:     "terminal-command",
+			flagName: "terminal-command",
+			value:    "/usr/bin/zsh",
+			viperKey: config.SBSH_ROOT_TERM_COMMAND.ViperKey,
+		},
+		{
+			name:     "terminal-name",
+			flagName: "terminal-name",
+			value:    "dev-shell",
+			viperKey: config.SBSH_ROOT_TERM_NAME.ViperKey,
+		},
+		{
+			name:     "capture-file",
+			flagName: "capture-file",
+			value:    "/tmp/capture.log",
+			viperKey: config.SBSH_ROOT_TERM_CAPTURE_FILE.ViperKey,
+		},
+		{
+			name:     "terminal-logfile",
+			flagName: "terminal-logfile",
+			value:    "/tmp/term.log",
+			viperKey: config.SBSH_ROOT_TERM_LOG_FILE.ViperKey,
+		},
+		{
+			name:     "terminal-loglevel",
+			flagName: "terminal-loglevel",
+			value:    "debug",
+			viperKey: config.SBSH_ROOT_TERM_LOG_LEVEL.ViperKey,
+		},
+		{
+			name:     "profile-flag",
+			flagName: "profile",
+			value:    "default",
+			viperKey: config.SBSH_ROOT_TERM_PROFILE.ViperKey,
+		},
+		{
+			name:     "terminal-socket",
+			flagName: "terminal-socket",
+			value:    "/tmp/term.sock",
+			viperKey: config.SBSH_ROOT_TERM_SOCKET.ViperKey,
+		},
+	}
+
+	for _, tc := range flagCases {
+		t.Run(tc.name, func(t *testing.T) {
+			viper.Reset()
+
+			rootCmd := &cobra.Command{Use: "sbsh"}
+			if err := setTerminalFlags(rootCmd); err != nil {
+				t.Fatalf("setTerminalFlags() error = %v", err)
+			}
+
+			if err := rootCmd.Flags().Set(tc.flagName, tc.value); err != nil {
+				t.Fatalf("failed to set flag %s: %v", tc.flagName, err)
+			}
+
+			if got := viper.GetString(tc.viperKey); got != tc.value {
+				t.Fatalf("viper key %s: expected %s, got %s", tc.viperKey, tc.value, got)
+			}
+		})
+	}
+}
+
+func Test_setTerminalFlags_ProfileEnvBinding(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() {
+		viper.Reset()
+	})
+
+	envValue := "profile-from-env"
+	t.Setenv(config.SBSH_ROOT_TERM_PROFILE.EnvVar(), envValue)
+
+	rootCmd := &cobra.Command{Use: "sbsh"}
+	if err := setTerminalFlags(rootCmd); err != nil {
+		t.Fatalf("setTerminalFlags() error = %v", err)
+	}
+
+	if got := viper.GetString(config.SBSH_ROOT_TERM_PROFILE.ViperKey); got != envValue {
+		t.Fatalf("expected env value %s for key %s, got %s", envValue, config.SBSH_ROOT_TERM_PROFILE.ViperKey, got)
 	}
 }
