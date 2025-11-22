@@ -38,7 +38,7 @@ func TestRunTerminal_ErrContextDone(t *testing.T) {
 
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorSpec) error {
+			RunFunc: func(_ *api.SupervisorDoc) error {
 				// default: succeed without doing anything
 				return nil
 			},
@@ -61,13 +61,20 @@ func TestRunTerminal_ErrContextDone(t *testing.T) {
 	t.Cleanup(func() {})
 
 	// Define a new Supervisor
-	spec := &api.SupervisorSpec{
-		Kind:         api.RunNewTerminal,
-		ID:           api.ID(naming.RandomID()),
-		Name:         naming.RandomName(),
-		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-		TerminalSpec: nil,
+	doc := &api.SupervisorDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindSupervisor,
+		Metadata: api.SupervisorMetadata{
+			Name:        naming.RandomName(),
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.SupervisorSpec{
+			ID:           api.ID(naming.RandomID()),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+			TerminalSpec: nil,
+		},
 	}
 
 	done := make(chan error)
@@ -75,7 +82,7 @@ func TestRunTerminal_ErrContextDone(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, logger, ctrl, spec) // will block until ctx.Done()
+		done <- runSupervisor(ctx, cancel, logger, ctrl, doc) // will block until ctx.Done()
 	}()
 
 	// Give Run() time to set ready, then signal the process (NotifyContext listens to SIGTERM/INT)
@@ -98,7 +105,7 @@ func TestRunTerminal_ErrWaitOnReady(t *testing.T) {
 	expectedErr := errdefs.ErrStartRPCServer
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorSpec) error {
+			RunFunc: func(_ *api.SupervisorDoc) error {
 				return nil
 			},
 			WaitReadyFunc: func() error {
@@ -118,20 +125,27 @@ func TestRunTerminal_ErrWaitOnReady(t *testing.T) {
 	t.Cleanup(func() {})
 
 	// Define a new Supervisor
-	spec := &api.SupervisorSpec{
-		Kind:         api.RunNewTerminal,
-		ID:           api.ID(naming.RandomID()),
-		Name:         naming.RandomName(),
-		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-		TerminalSpec: nil,
+	doc := &api.SupervisorDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindSupervisor,
+		Metadata: api.SupervisorMetadata{
+			Name:        naming.RandomName(),
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.SupervisorSpec{
+			ID:           api.ID(naming.RandomID()),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+			TerminalSpec: nil,
+		},
 	}
 	done := make(chan error)
 	defer close(done)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, logger, ctrl, spec)
+		done <- runSupervisor(ctx, cancel, logger, ctrl, doc)
 	}()
 
 	select {
@@ -156,7 +170,7 @@ func TestRunTerminal_ErrContextDoneWithWaitCloseError(t *testing.T) {
 	waitCloseErr := errdefs.ErrOnClose
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorSpec) error {
+			RunFunc: func(_ *api.SupervisorDoc) error {
 				// Block to allow context cancellation
 				time.Sleep(100 * time.Millisecond)
 				return nil
@@ -178,13 +192,20 @@ func TestRunTerminal_ErrContextDoneWithWaitCloseError(t *testing.T) {
 	t.Cleanup(func() {})
 
 	// Define a new Supervisor
-	spec := &api.SupervisorSpec{
-		Kind:         api.RunNewTerminal,
-		ID:           api.ID(naming.RandomID()),
-		Name:         naming.RandomName(),
-		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-		TerminalSpec: nil,
+	doc := &api.SupervisorDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindSupervisor,
+		Metadata: api.SupervisorMetadata{
+			Name:        naming.RandomName(),
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.SupervisorSpec{
+			ID:           api.ID(naming.RandomID()),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+			TerminalSpec: nil,
+		},
 	}
 
 	done := make(chan error)
@@ -192,7 +213,7 @@ func TestRunTerminal_ErrContextDoneWithWaitCloseError(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, logger, ctrl, spec)
+		done <- runSupervisor(ctx, cancel, logger, ctrl, doc)
 	}()
 
 	// Give Run() time to set ready, then cancel context
@@ -224,7 +245,7 @@ func TestRunTerminal_ErrChildExit(t *testing.T) {
 	runErr := errdefs.ErrRPCServerExited
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorSpec) error {
+			RunFunc: func(_ *api.SupervisorDoc) error {
 				return runErr
 			},
 			WaitReadyFunc: func() error {
@@ -244,13 +265,20 @@ func TestRunTerminal_ErrChildExit(t *testing.T) {
 	t.Cleanup(func() {})
 
 	// Define a new Supervisor
-	spec := &api.SupervisorSpec{
-		Kind:         api.RunNewTerminal,
-		ID:           api.ID(naming.RandomID()),
-		Name:         naming.RandomName(),
-		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-		TerminalSpec: nil,
+	doc := &api.SupervisorDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindSupervisor,
+		Metadata: api.SupervisorMetadata{
+			Name:        naming.RandomName(),
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.SupervisorSpec{
+			ID:           api.ID(naming.RandomID()),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+			TerminalSpec: nil,
+		},
 	}
 
 	done := make(chan error)
@@ -258,7 +286,7 @@ func TestRunTerminal_ErrChildExit(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, logger, ctrl, spec)
+		done <- runSupervisor(ctx, cancel, logger, ctrl, doc)
 	}()
 
 	// Wait for Run() to complete and error to be handled
@@ -281,7 +309,7 @@ func TestRunTerminal_ErrChildExitWithWaitCloseError(t *testing.T) {
 	waitCloseErr := errdefs.ErrOnClose
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorSpec) error {
+			RunFunc: func(_ *api.SupervisorDoc) error {
 				return runErr
 			},
 			WaitReadyFunc: func() error {
@@ -301,13 +329,20 @@ func TestRunTerminal_ErrChildExitWithWaitCloseError(t *testing.T) {
 	t.Cleanup(func() {})
 
 	// Define a new Supervisor
-	spec := &api.SupervisorSpec{
-		Kind:         api.RunNewTerminal,
-		ID:           api.ID(naming.RandomID()),
-		Name:         naming.RandomName(),
-		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-		TerminalSpec: nil,
+	doc := &api.SupervisorDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindSupervisor,
+		Metadata: api.SupervisorMetadata{
+			Name:        naming.RandomName(),
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.SupervisorSpec{
+			ID:           api.ID(naming.RandomID()),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+			TerminalSpec: nil,
+		},
 	}
 
 	done := make(chan error)
@@ -315,7 +350,7 @@ func TestRunTerminal_ErrChildExitWithWaitCloseError(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, logger, ctrl, spec)
+		done <- runSupervisor(ctx, cancel, logger, ctrl, doc)
 	}()
 
 	// Wait for Run() to complete and error to be handled
@@ -336,7 +371,7 @@ func TestRunTerminal_SuccessWithNilError(t *testing.T) {
 
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorSpec) error {
+			RunFunc: func(_ *api.SupervisorDoc) error {
 				return nil
 			},
 			WaitReadyFunc: func() error {
@@ -356,13 +391,20 @@ func TestRunTerminal_SuccessWithNilError(t *testing.T) {
 	t.Cleanup(func() {})
 
 	// Define a new Supervisor
-	spec := &api.SupervisorSpec{
-		Kind:         api.RunNewTerminal,
-		ID:           api.ID(naming.RandomID()),
-		Name:         naming.RandomName(),
-		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-		TerminalSpec: nil,
+	doc := &api.SupervisorDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindSupervisor,
+		Metadata: api.SupervisorMetadata{
+			Name:        naming.RandomName(),
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.SupervisorSpec{
+			ID:           api.ID(naming.RandomID()),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+			TerminalSpec: nil,
+		},
 	}
 
 	done := make(chan error)
@@ -370,7 +412,7 @@ func TestRunTerminal_SuccessWithNilError(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, logger, ctrl, spec)
+		done <- runSupervisor(ctx, cancel, logger, ctrl, doc)
 	}()
 
 	// Wait for Run() to complete successfully
@@ -392,7 +434,7 @@ func TestRunTerminal_SuccessWithContextCanceled(t *testing.T) {
 
 	newSupervisorController := func(_ context.Context) api.SupervisorController {
 		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorSpec) error {
+			RunFunc: func(_ *api.SupervisorDoc) error {
 				return ctx.Err() // Return context.Canceled
 			},
 			WaitReadyFunc: func() error {
@@ -412,13 +454,20 @@ func TestRunTerminal_SuccessWithContextCanceled(t *testing.T) {
 	t.Cleanup(func() {})
 
 	// Define a new Supervisor
-	spec := &api.SupervisorSpec{
-		Kind:         api.RunNewTerminal,
-		ID:           api.ID(naming.RandomID()),
-		Name:         naming.RandomName(),
-		LogFile:      "/tmp/sbsh-logs/s0",
-		RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-		TerminalSpec: nil,
+	doc := &api.SupervisorDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindSupervisor,
+		Metadata: api.SupervisorMetadata{
+			Name:        naming.RandomName(),
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.SupervisorSpec{
+			ID:           api.ID(naming.RandomID()),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+			TerminalSpec: nil,
+		},
 	}
 
 	done := make(chan error)
@@ -426,7 +475,7 @@ func TestRunTerminal_SuccessWithContextCanceled(t *testing.T) {
 
 	runCtx, runCancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(runCtx, runCancel, logger, ctrl, spec)
+		done <- runSupervisor(runCtx, runCancel, logger, ctrl, doc)
 	}()
 
 	// Wait for Run() to complete with context.Canceled

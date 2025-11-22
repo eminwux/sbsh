@@ -108,6 +108,11 @@ var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_ATTACH_SOCKET = DefineKV("SB_ATTACH_SOCKET", "sb/attach/socket")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_ATTACH_DISABLE_DETACH_KEYSTROKE = DefineKV(
+		"SB_ATTACH_DISABLE_DETACH_KEYSTROKE",
+		"sb/attach/disableDetachKeystroke",
+	)
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_DETACH_NAME = DefineKV("SB_DETACH_NAME", "sb/detach/name")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_DETACH_ID = DefineKV("SB_DETACH_ID", "sb/detach/id")
@@ -152,6 +157,11 @@ var (
 	SBSH_SUPERVISOR_LOG_LEVEL = DefineKV("SBSH_SUPERVISOR_LOG_LEVEL", "sbsh.supervisor.logLevel")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_SUPERVISOR_DETACH = DefineKV("SBSH_SUPERVISOR_DETACH", "sbsh.supervisor.detach")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_SUPERVISOR_DISABLE_DETACH_KEYSTROKE = DefineKV(
+		"SBSH_SUPERVISOR_DISABLE_DETACH_KEYSTROKE",
+		"sbsh.supervisor.disableDetachKeystroke",
+	)
 
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_TERM_SOCKET = DefineKV("SBSH_TERM_SOCKET", "sbsh.terminal.socket")

@@ -134,7 +134,7 @@ func AutoCompleteListSupervisorNames(
 	var names []string
 	for _, t := range supervisors {
 		if showExited || t.Status.State != api.SupervisorExited {
-			names = append(names, t.Spec.Name)
+			names = append(names, t.Metadata.Name)
 		}
 	}
 	return names, nil

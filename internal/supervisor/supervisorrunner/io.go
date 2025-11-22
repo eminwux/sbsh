@@ -76,14 +76,23 @@ func (sr *Exec) startConnectionManager() error {
 
 	dc := dualcopier.NewCopier(sr.ctx, sr.logger)
 
-	escapeFilter := filter.NewSupervisorEscapeFilter(0, true, func() {
-		sr.logger.InfoContext(sr.ctx, "Escape sequence detected; detaching terminal")
-		trySendEvent(sr.logger, sr.events, Event{
-			ID:   sr.terminal.Spec.ID,
-			Type: EvDetach,
-			When: time.Now(),
+	// Only create escape filter if detach keystroke is enabled
+	var escapeFilter filter.Filter
+	sr.metadataMu.RLock()
+	detachKeystrokeEnabled := sr.metadata.Spec.DetachKeystroke
+	sr.metadataMu.RUnlock()
+
+	if detachKeystrokeEnabled {
+		escapeFilter = filter.NewSupervisorEscapeFilter(0, true, func() {
+			sr.logger.InfoContext(sr.ctx, "Escape sequence detected; detaching terminal")
+			trySendEvent(sr.logger, sr.events, Event{
+				ID:   sr.terminal.Spec.ID,
+				Type: EvDetach,
+				When: time.Now(),
+			})
 		})
-	})
+	}
+
 	// WRITER: stdin -> socket
 	readyWriter := make(chan struct{})
 	go dc.RunCopier(os.Stdin, sr.ioConn, readyWriter, func() {
@@ -93,10 +102,13 @@ func (sr *Exec) startConnectionManager() error {
 		}
 	}, escapeFilter)
 
-	// _, errHelp := os.Stdout.WriteString("To detach, press ^] twice.\r\n")
-	_, errHelp := os.Stdout.WriteString("\x1b[96mTo detach, press ^] twice\x1b[0m\r\n")
-	if errHelp != nil {
-		sr.logger.WarnContext(sr.ctx, "attachIOSocket: failed to write detach help message", "error", errHelp)
+	// Only show help message if detach keystroke is enabled
+	if detachKeystrokeEnabled {
+		// _, errHelp := os.Stdout.WriteString("To detach, press ^] twice.\r\n")
+		_, errHelp := os.Stdout.WriteString("\x1b[96mTo detach, press ^] twice\x1b[0m\r\n")
+		if errHelp != nil {
+			sr.logger.WarnContext(sr.ctx, "attachIOSocket: failed to write detach help message", "error", errHelp)
+		}
 	}
 
 	// READER: socket  -> stdout
@@ -209,7 +221,7 @@ func (sr *Exec) waitReady(states ...api.TerminalStatusMode) error {
 	defer cancel()
 
 	sr.metadataMu.RLock()
-	terminalName := sr.metadata.Spec.Name
+	terminalName := sr.metadata.Metadata.Name
 	sr.metadataMu.RUnlock()
 	sr.logger.InfoContext(
 		sr.ctx,

@@ -191,7 +191,7 @@ func ResolveSupervisorNameToID(
 	}
 
 	for _, t := range supervisors {
-		if t.Spec.Name == supervisorName {
+		if t.Metadata.Name == supervisorName {
 			return string(t.Spec.ID), nil
 		}
 	}

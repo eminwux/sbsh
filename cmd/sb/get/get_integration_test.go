@@ -156,9 +156,7 @@ func createTestSupervisorMetadata(
 			Annotations: make(map[string]string),
 		},
 		Spec: api.SupervisorSpec{
-			ID:   api.ID(id),
-			Kind: api.RunNewTerminal,
-			Name: name,
+			ID: api.ID(id),
 		},
 		Status: api.SupervisorStatus{
 			Pid:   12345,
@@ -843,8 +841,8 @@ func Test_GetTerminal_Integration(t *testing.T) {
 		if errUnmarshal := json.Unmarshal([]byte(output), &result); errUnmarshal != nil {
 			t.Fatalf("output is not valid JSON: %v, output: %s", errUnmarshal, output)
 		}
-		if result.Spec.Name != "twilight_anarion" {
-			t.Errorf("expected name 'twilight_anarion', got %q", result.Spec.Name)
+		if result.Metadata.Name != "twilight_anarion" {
+			t.Errorf("expected name 'twilight_anarion', got %q", result.Metadata.Name)
 		}
 	})
 
@@ -872,8 +870,8 @@ func Test_GetTerminal_Integration(t *testing.T) {
 		if errUnmarshal := yaml.Unmarshal([]byte(output), &result); errUnmarshal != nil {
 			t.Fatalf("output is not valid YAML: %v, output: %s", errUnmarshal, output)
 		}
-		if result.Spec.Name != "twilight_anarion" {
-			t.Errorf("expected name 'twilight_anarion', got %q", result.Spec.Name)
+		if result.Metadata.Name != "twilight_anarion" {
+			t.Errorf("expected name 'twilight_anarion', got %q", result.Metadata.Name)
 		}
 	})
 
@@ -1144,8 +1142,8 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 		if errUnmarshal := json.Unmarshal([]byte(output), &result); errUnmarshal != nil {
 			t.Fatalf("output is not valid JSON: %v, output: %s", errUnmarshal, output)
 		}
-		if result.Spec.Name != "super_one" {
-			t.Errorf("expected name 'super_one', got %q", result.Spec.Name)
+		if result.Metadata.Name != "super_one" {
+			t.Errorf("expected name 'super_one', got %q", result.Metadata.Name)
 		}
 	})
 
@@ -1173,8 +1171,8 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 		if errUnmarshal := yaml.Unmarshal([]byte(output), &result); errUnmarshal != nil {
 			t.Fatalf("output is not valid YAML: %v, output: %s", errUnmarshal, output)
 		}
-		if result.Spec.Name != "super_one" {
-			t.Errorf("expected name 'super_one', got %q", result.Spec.Name)
+		if result.Metadata.Name != "super_one" {
+			t.Errorf("expected name 'super_one', got %q", result.Metadata.Name)
 		}
 	})
 

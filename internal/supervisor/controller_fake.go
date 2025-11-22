@@ -31,7 +31,7 @@ type ControllerTest struct {
 	LastID  api.ID
 
 	// Stub functions (set these in tests)
-	RunFunc       func(spec *api.SupervisorSpec) error
+	RunFunc       func(doc *api.SupervisorDoc) error
 	WaitReadyFunc func() error
 	StartFunc     func() error
 	CloseFunc     func(reason error) error
@@ -41,7 +41,7 @@ type ControllerTest struct {
 
 func NewSupervisorControllerTest() *ControllerTest {
 	return &ControllerTest{
-		RunFunc: func(_ *api.SupervisorSpec) error {
+		RunFunc: func(_ *api.SupervisorDoc) error {
 			// default: succeed without doing anything
 			return nil
 		},
@@ -56,9 +56,9 @@ func NewSupervisorControllerTest() *ControllerTest {
 	}
 }
 
-func (t *ControllerTest) Run(spec *api.SupervisorSpec) error {
+func (t *ControllerTest) Run(doc *api.SupervisorDoc) error {
 	if t.RunFunc != nil {
-		return t.RunFunc(spec)
+		return t.RunFunc(doc)
 	}
 	return errdefs.ErrFuncNotSet
 }
