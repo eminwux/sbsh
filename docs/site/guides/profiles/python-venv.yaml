@@ -1,0 +1,37 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: python-venv
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~/projects/myapp"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      PYTHONPATH: "$PWD:$PYTHONPATH"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;33m\]sbsh(python-venv) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: |
+          if [ ! -d "venv" ]; then
+            python3 -m venv venv
+            echo "Created virtual environment"
+          fi
+          source venv/bin/activate
+          echo "Virtual environment activated"
+      - script: python --version
+      - script: pip --version
+    postAttach:
+      - script: |
+          if [ -d "venv" ]; then
+            source venv/bin/activate
+            echo "Virtual environment reactivated"
+            python --version
+            pip list | head -5
+          else
+            echo "Warning: venv directory not found"
+          fi

@@ -460,4 +460,3 @@ jobs:
 ## See Also
 
 - [Profiles Guide](profiles.md) - Learn how to create and customize profiles
-- [Main README](../README.md) - Overview of sbsh features and capabilities

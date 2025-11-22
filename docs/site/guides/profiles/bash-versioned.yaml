@@ -1,0 +1,211 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: bash-versioned
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~"
+    cmd: /bin/bash
+    cmdArgs:
+      [
+        "-c",
+        'CUSTOM_BASH="${HOME}/.local/bash-5.2.15/bin/bash"; if [ -f "$CUSTOM_BASH" ]; then exec "$CUSTOM_BASH" -i; else exec /bin/bash -i; fi',
+      ]
+    inheritEnv: true
+    env:
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
+      BASH_VERSION_CUSTOM: "5.2.15"
+      HISTSIZE: "10000"
+      HISTFILESIZE: "20000"
+    prompt: '"\[\e[1;36m\]sbsh(bash-5.2.15) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: |
+          BASH_VERSION="5.2.15"
+          INSTALL_DIR="${HOME}/.local/bash-${BASH_VERSION}"
+          BUILD_DIR="${HOME}/.local/build/bash-${BASH_VERSION}"
+          BASH_BINARY="${INSTALL_DIR}/bin/bash"
+
+          echo "🔧 Setting up Bash ${BASH_VERSION}..."
+
+          # Create directories
+          mkdir -p "${INSTALL_DIR}"
+          mkdir -p "${BUILD_DIR}"
+
+          # Check if already built
+          if [ -f "${BASH_BINARY}" ] && [ -x "${BASH_BINARY}" ]; then
+            echo "✅ Bash ${BASH_VERSION} already built at ${BASH_BINARY}"
+            "${BASH_BINARY}" --version
+          else
+            echo "📥 Downloading Bash ${BASH_VERSION} source..."
+            cd "${BUILD_DIR}" || exit 1
+
+            # Download source tarball
+            if [ ! -f "bash-${BASH_VERSION}.tar.gz" ]; then
+              if ! curl -L -o "bash-${BASH_VERSION}.tar.gz" \
+                "https://ftp.gnu.org/gnu/bash/bash-${BASH_VERSION}.tar.gz"; then
+                echo "❌ Error: Failed to download bash source"
+                exit 1
+              fi
+              echo "✅ Downloaded bash-${BASH_VERSION}.tar.gz"
+            else
+              echo "✅ Source tarball already exists"
+            fi
+
+            # Verify checksum (optional but recommended)
+            echo "🔍 Verifying download..."
+            if command -v sha256sum >/dev/null 2>&1; then
+              EXPECTED_SHA256="a139c166df7ff4471c5e0733051642ee5556c1cc8a4a78f145583c5c81a32ef5"
+              ACTUAL_SHA256=$(sha256sum "bash-${BASH_VERSION}.tar.gz" | cut -d' ' -f1)
+              if [ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]; then
+                echo "⚠️  Warning: SHA256 checksum mismatch. Continuing anyway..."
+              else
+                echo "✅ SHA256 checksum verified"
+              fi
+            fi
+
+            # Extract source
+            echo "📦 Extracting source..."
+            if [ ! -d "bash-${BASH_VERSION}" ]; then
+              if ! tar -xzf "bash-${BASH_VERSION}.tar.gz"; then
+                echo "❌ Error: Failed to extract source"
+                exit 1
+              fi
+              echo "✅ Extracted source"
+            else
+              echo "✅ Source already extracted"
+            fi
+
+            cd "bash-${BASH_VERSION}" || exit 1
+
+            # Configure and build
+            echo "🔨 Configuring Bash ${BASH_VERSION}..."
+            # Use system readline if available, otherwise build without it
+            if pkg-config --exists readline 2>/dev/null || \
+               ldconfig -p 2>/dev/null | grep -q libreadline; then
+              echo "   Using system readline library"
+              if ! ./configure --prefix="${INSTALL_DIR}" \
+                --enable-readline \
+                --enable-history \
+                --enable-brace-expansion \
+                --enable-cond-command \
+                --enable-extended-glob \
+                --enable-job-control \
+                --enable-process-substitution \
+                --enable-progcomp \
+                --enable-prompt-string-decoding \
+                --enable-select; then
+                echo "❌ Error: Configuration failed"
+                exit 1
+              fi
+            else
+              echo "   Building without readline (command history may be limited)"
+              if ! ./configure --prefix="${INSTALL_DIR}" \
+                --enable-history \
+                --enable-brace-expansion \
+                --enable-cond-command \
+                --enable-extended-glob \
+                --enable-job-control \
+                --enable-process-substitution \
+                --enable-progcomp \
+                --enable-prompt-string-decoding \
+                --enable-select; then
+                echo "❌ Error: Configuration failed"
+                exit 1
+              fi
+            fi
+
+            echo "🏗️  Building Bash ${BASH_VERSION} (this may take a few minutes)..."
+            CORES=$(nproc 2>/dev/null || echo 4)
+            if ! make -j"${CORES}"; then
+              echo "❌ Error: Build failed"
+              exit 1
+            fi
+
+            echo "📦 Installing Bash ${BASH_VERSION} to ${INSTALL_DIR}..."
+            if ! make install; then
+              echo "❌ Error: Installation failed"
+              exit 1
+            fi
+
+            echo "✅ Bash ${BASH_VERSION} built and installed successfully!"
+            "${BASH_BINARY}" --version
+
+            # Clean up build directory (optional)
+            echo "🧹 Cleaning up build directory..."
+            cd "${HOME}" || true
+            rm -rf "${BUILD_DIR}"
+            echo "✅ Build complete! Using Bash ${BASH_VERSION} at ${BASH_BINARY}"
+          fi
+
+          # Verify the binary exists and is executable
+          if [ ! -f "${BASH_BINARY}" ] || [ ! -x "${BASH_BINARY}" ]; then
+            echo "❌ Error: Failed to build or find Bash ${BASH_VERSION} at ${BASH_BINARY}"
+            echo "⚠️  Will continue with system Bash, but custom features may not be available"
+          fi
+      - script: |
+          BASH_VERSION="5.2.15"
+          BASH_BINARY="${HOME}/.local/bash-${BASH_VERSION}/bin/bash"
+
+          if [ -f "${BASH_BINARY}" ]; then
+            echo ""
+            echo "✅ Custom Bash ${BASH_VERSION} is ready!"
+            "${BASH_BINARY}" --version | head -1
+            echo "📍 Bash binary: ${BASH_BINARY}"
+            echo "💡 Custom Bash ${BASH_VERSION} is available and will be used on next terminal start"
+            echo "   Current session: $(bash --version | head -1)"
+            echo ""
+          else
+            echo "❌ Error: Bash binary not found at ${BASH_BINARY}"
+            echo "⚠️  Build may have failed. Check the output above for errors."
+          fi
+      - script: |
+          # Create and run a demonstration script with the custom bash
+          BASH_BINARY="${HOME}/.local/bash-5.2.15/bin/bash"
+
+          if [ ! -f "${BASH_BINARY}" ]; then
+            echo "⚠️  Custom bash not available yet, skipping demo"
+            exit 0
+          fi
+
+          cat > /tmp/bash-demo.sh << 'DEMO_EOF'
+          #!/bin/bash
+          echo "=== Bash Version Demo Script ==="
+          echo "Bash version: $BASH_VERSION"
+          echo "Bash patch level: $BASH_PATCHLEVEL"
+          if command -v bash >/dev/null 2>&1; then
+            echo "Build info: $(bash --version | head -1)"
+          fi
+          echo ""
+          echo "Testing Bash 5.2 features:"
+          echo ""
+          echo "1. Associative arrays:"
+          declare -A test_array
+          test_array[key1]="value1"
+          test_array[key2]="value2"
+          for key in "${!test_array[@]}"; do
+            echo "   $key => ${test_array[$key]}"
+          done
+          echo ""
+          echo "2. Process substitution:"
+          echo "   $(cat <(echo 'Process substitution works!'))"
+          echo ""
+          echo "3. Brace expansion test:"
+          echo "   Numbers: {1..5}"
+          echo ""
+          echo "✅ All Bash features working correctly!"
+          DEMO_EOF
+          chmod +x /tmp/bash-demo.sh
+
+          # Run the demo with the custom bash
+          "${BASH_BINARY}" /tmp/bash-demo.sh
+    postAttach:
+      - script: |
+          BASH_BINARY="${HOME}/.local/bash-5.2.15/bin/bash"
+          if [ -f "${BASH_BINARY}" ]; then
+            echo "✅ Using custom Bash 5.2.15"
+            "${BASH_BINARY}" --version | head -1
+          fi

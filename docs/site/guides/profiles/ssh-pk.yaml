@@ -1,0 +1,12 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: ssh-pk
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/ssh
+    cmdArgs: ["-t", "pk"]
+    setPrompt: false

@@ -1,0 +1,35 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: rust-dev
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~/projects/myapp"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      RUST_BACKTRACE: "1"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;31m\]sbsh(rust-dev) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: rustc --version
+      - script: cargo --version
+      - script: |
+          if [ -f "Cargo.toml" ]; then
+            echo "Rust project found"
+            cargo check
+          else
+            echo "No Cargo.toml found - initialize with: cargo init"
+          fi
+    postAttach:
+      - script: rustc --version
+      - script: cargo --version
+      - script: |
+          if [ -f "Cargo.toml" ]; then
+            echo "Project: $(grep '^name' Cargo.toml | head -1 | cut -d'"' -f2)"
+            cargo tree --depth=1 2>/dev/null || echo "Run 'cargo build' to resolve dependencies"
+          fi
