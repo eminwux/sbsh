@@ -8,7 +8,7 @@ repo_url: https://github.com/eminwux/sbsh
 edit_uri: edit/main/docs/site/
 
 docs_dir: docs/site
-site_dir: docs/site/build
+site_dir: build
 
 theme:
   name: material
