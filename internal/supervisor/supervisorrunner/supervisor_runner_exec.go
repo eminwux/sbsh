@@ -61,23 +61,25 @@ const (
 func NewSupervisorRunnerExec(
 	ctx context.Context,
 	logger *slog.Logger,
-	spec *api.SupervisorSpec,
+	doc *api.SupervisorDoc,
 	evCh chan<- Event,
 ) SupervisorRunner {
 	newCtx, cancel := context.WithCancel(ctx)
 
+	// Ensure the doc has the correct structure
+	if doc.APIVersion == "" {
+		doc.APIVersion = api.APIVersionV1Beta1
+	}
+	if doc.Kind == "" {
+		doc.Kind = api.KindSupervisor
+	}
+	if doc.Metadata.Annotations == nil {
+		doc.Metadata.Annotations = make(map[string]string)
+	}
+
 	return &Exec{
-		id: spec.ID,
-		metadata: api.SupervisorDoc{
-			APIVersion: api.APIVersionV1Beta1,
-			Kind:       api.KindSupervisor,
-			Metadata: api.SupervisorMetadata{
-				Name:        spec.Name,
-				Labels:      spec.Labels,
-				Annotations: make(map[string]string),
-			},
-			Spec: *spec,
-		},
+		id:       doc.Spec.ID,
+		metadata: *doc,
 
 		events:    evCh,
 		ctx:       newCtx,

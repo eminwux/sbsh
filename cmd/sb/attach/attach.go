@@ -160,6 +160,8 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 	)
 	attachCmd.Flags().String("socket", "", "Optional socket file for the terminal")
 	_ = viper.BindPFlag(config.SB_ATTACH_SOCKET.ViperKey, attachCmd.Flags().Lookup("socket"))
+	attachCmd.Flags().Bool("disable-detach", false, "Disable detach keystroke (^] twice)")
+	_ = viper.BindPFlag(config.SB_ATTACH_DISABLE_DETACH_KEYSTROKE.ViperKey, attachCmd.Flags().Lookup("disable-detach"))
 }
 
 func run(
@@ -205,13 +207,16 @@ func run(
 		return fmt.Errorf("%w: %w", errdefs.ErrCreateSupervisorDir, err)
 	}
 
-	supSpec := buildSupervisorSpec(ctx, supervisorID, runPath, socketFileFlag, logger)
+	supDoc := buildSupervisorDoc(ctx, supervisorID, runPath, socketFileFlag, logger)
+
+	disableDetach := viper.GetBool(config.SB_ATTACH_DISABLE_DETACH_KEYSTROKE.ViperKey)
+	supDoc.Spec.DetachKeystroke = !disableDetach
 
 	if terminalIDFlag != "" {
-		supSpec.TerminalSpec.ID = api.ID(terminalIDFlag)
+		supDoc.Spec.TerminalSpec.ID = api.ID(terminalIDFlag)
 	}
 	if terminalName != "" {
-		supSpec.TerminalSpec.Name = terminalName
+		supDoc.Spec.TerminalSpec.Name = terminalName
 	}
 
 	var socket string
@@ -247,14 +252,14 @@ func run(
 		socket = fmt.Sprintf("%s/%s/%s/socket", runPath, defaults.TerminalsRunPath, terminalID)
 	}
 
-	supSpec.TerminalSpec.SocketFile = socket
+	supDoc.Spec.TerminalSpec.SocketFile = socket
 
-	logger.DebugContext(ctx, "Built supervisor spec", "supervisorSpec", fmt.Sprintf("%+v", supSpec))
+	logger.DebugContext(ctx, "Built supervisor doc", "supervisorDoc", fmt.Sprintf("%+v", supDoc))
 
 	logger.DebugContext(ctx, "starting supervisor controller goroutine for attach")
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- supCtrl.Run(supSpec)
+		errCh <- supCtrl.Run(supDoc)
 		close(errCh)
 		logger.DebugContext(ctx, "controller goroutine exited (attach)")
 	}()
@@ -300,30 +305,36 @@ func run(
 	return nil
 }
 
-func buildSupervisorSpec(
+func buildSupervisorDoc(
 	ctx context.Context,
 	supervisorID string,
 	runPath string,
 	socketFileInput string,
 	logger *slog.Logger,
-) *api.SupervisorSpec {
-	var spec *api.SupervisorSpec
-
+) *api.SupervisorDoc {
 	supervisorName := naming.RandomName()
-	spec = &api.SupervisorSpec{
-		Kind:         api.AttachToTerminal,
-		ID:           api.ID(supervisorID),
-		Name:         supervisorName,
-		RunPath:      runPath,
-		SockerCtrl:   socketFileInput,
-		TerminalSpec: &api.TerminalSpec{},
+	doc := &api.SupervisorDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindSupervisor,
+		Metadata: api.SupervisorMetadata{
+			Name:        supervisorName,
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.SupervisorSpec{
+			ID:             api.ID(supervisorID),
+			RunPath:        runPath,
+			SockerCtrl:     socketFileInput,
+			TerminalSpec:   &api.TerminalSpec{},
+			SupervisorMode: api.AttachToTerminal,
+		},
 	}
-	logger.DebugContext(ctx, "attach spec created",
-		"kind", spec.Kind,
-		"id", spec.ID,
-		"name", spec.Name,
-		"run_path", spec.RunPath,
+	logger.DebugContext(ctx, "attach doc created",
+		"kind", doc.Kind,
+		"id", doc.Spec.ID,
+		"name", doc.Metadata.Name,
+		"run_path", doc.Spec.RunPath,
 	)
 
-	return spec
+	return doc
 }

@@ -41,7 +41,7 @@ type Controller struct {
 	cancel context.CancelCauseFunc
 	logger *slog.Logger
 
-	NewSupervisorRunner func(ctx context.Context, logger *slog.Logger, spec *api.SupervisorSpec, evCh chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner
+	NewSupervisorRunner func(ctx context.Context, logger *slog.Logger, doc *api.SupervisorDoc, evCh chan<- supervisorrunner.Event) supervisorrunner.SupervisorRunner
 	NewTerminalStore    func() terminalstore.TerminalStore
 
 	sr supervisorrunner.SupervisorRunner
@@ -94,11 +94,12 @@ func (s *Controller) WaitReady() error {
 // Run is the main orchestration loop. It owns all mode transitions.
 //
 //nolint:gocognit,funlen // long main function
-func (s *Controller) Run(spec *api.SupervisorSpec) error {
-	s.logger.Info("controller loop started", "spec_kind", spec.Kind, "run_path", spec.RunPath)
-	defer s.logger.Info("controller loop stopped", "run_path", spec.RunPath)
+func (s *Controller) Run(doc *api.SupervisorDoc) error {
+	supervisorMode := doc.Spec.SupervisorMode
+	s.logger.Info("controller loop started", "supervisor_mode", supervisorMode, "run_path", doc.Spec.RunPath)
+	defer s.logger.Info("controller loop stopped", "run_path", doc.Spec.RunPath)
 
-	s.sr = s.NewSupervisorRunner(s.ctx, s.logger, spec, s.eventsCh)
+	s.sr = s.NewSupervisorRunner(s.ctx, s.logger, doc, s.eventsCh)
 	s.ss = s.NewTerminalStore()
 
 	errMetadata := s.sr.CreateMetadata()
@@ -138,11 +139,11 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 
 	var terminal *api.SupervisedTerminal
 
-	switch spec.Kind {
+	switch supervisorMode {
 	case api.RunNewTerminal:
-		s.logger.Info("creating new terminal", "spec_id", spec.ID, "spec_name", spec.Name)
+		s.logger.Info("creating new terminal", "spec_id", doc.Spec.ID, "spec_name", doc.Metadata.Name)
 		var errCreate error
-		terminal, errCreate = s.createRunNewTerminal(spec)
+		terminal, errCreate = s.createRunNewTerminal(doc)
 		if errCreate != nil {
 			s.logger.Error("failed to create new terminal", "error", errCreate)
 			if errC := s.Close(errCreate); errC != nil {
@@ -168,7 +169,7 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 			return fmt.Errorf("%w: %w", errdefs.ErrStartCmd, errStart)
 		}
 	case api.AttachToTerminal:
-		if spec.TerminalSpec == nil || (spec.TerminalSpec.ID == "" && spec.TerminalSpec.Name == "") {
+		if doc.Spec.TerminalSpec == nil || (doc.Spec.TerminalSpec.ID == "" && doc.Spec.TerminalSpec.Name == "") {
 			s.logger.Error("no terminal ID or Name provided for attach")
 			errAttachSpec := errdefs.ErrAttachNoTerminalSpec
 			if errC := s.Close(errAttachSpec); errC != nil {
@@ -181,12 +182,12 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 		s.logger.Info(
 			"attaching to existing terminal",
 			"attach_id",
-			spec.TerminalSpec.ID,
+			doc.Spec.TerminalSpec.ID,
 			"attach_name",
-			spec.TerminalSpec.Name,
+			doc.Spec.TerminalSpec.Name,
 		)
 		var errAttach error
-		terminal, errAttach = s.createAttachTerminal(spec)
+		terminal, errAttach = s.createAttachTerminal(doc)
 		if errAttach != nil {
 			s.logger.Error("failed to create attach terminal", "error", errAttach)
 			if errC := s.Close(errAttach); errC != nil {
@@ -198,9 +199,9 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 		}
 
 	default:
-		s.logger.Error("invalid supervisor kind", "kind", spec.Kind)
-		errReturn := errdefs.ErrSupervisorKind
-		if errC := s.Close(errdefs.ErrSupervisorKind); errC != nil {
+		s.logger.Error("invalid supervisor mode", "mode", supervisorMode)
+		errReturn := errdefs.ErrSupervisorMode
+		if errC := s.Close(errdefs.ErrSupervisorMode); errC != nil {
 			s.logger.Error("error during Close after invalid kind", "error", errC)
 			errReturn = fmt.Errorf("%w: %w: %w", errReturn, errdefs.ErrOnClose, errC)
 		}
@@ -267,19 +268,25 @@ func (s *Controller) Run(spec *api.SupervisorSpec) error {
 	}
 }
 
-func (s *Controller) createAttachTerminal(spec *api.SupervisorSpec) (*api.SupervisedTerminal, error) {
+func (s *Controller) createAttachTerminal(doc *api.SupervisorDoc) (*api.SupervisedTerminal, error) {
 	var metadata *api.TerminalDoc
-	if spec.TerminalSpec.ID != "" {
-		s.logger.Debug("resolving terminal by id", "run_path", spec.RunPath, "attach_id", string(spec.TerminalSpec.ID))
+	if doc.Spec.TerminalSpec.ID != "" {
+		s.logger.Debug(
+			"resolving terminal by id",
+			"run_path",
+			doc.Spec.RunPath,
+			"attach_id",
+			string(doc.Spec.TerminalSpec.ID),
+		)
 		var err error
-		metadata, err = discovery.FindTerminalByID(s.ctx, s.logger, spec.RunPath, string(spec.TerminalSpec.ID))
+		metadata, err = discovery.FindTerminalByID(s.ctx, s.logger, doc.Spec.RunPath, string(doc.Spec.TerminalSpec.ID))
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errdefs.ErrTerminalNotFoundByID, err)
 		}
-	} else if spec.TerminalSpec.Name != "" {
-		s.logger.Debug("resolving terminal by name", "run_path", spec.RunPath, "attach_name", spec.TerminalSpec.Name)
+	} else if doc.Spec.TerminalSpec.Name != "" {
+		s.logger.Debug("resolving terminal by name", "run_path", doc.Spec.RunPath, "attach_name", doc.Spec.TerminalSpec.Name)
 		var err error
-		metadata, err = discovery.FindTerminalByName(s.ctx, s.logger, spec.RunPath, spec.TerminalSpec.Name)
+		metadata, err = discovery.FindTerminalByName(s.ctx, s.logger, doc.Spec.RunPath, doc.Spec.TerminalSpec.Name)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errdefs.ErrTerminalNotFoundByName, err)
 		}
@@ -296,8 +303,8 @@ func (s *Controller) createAttachTerminal(spec *api.SupervisorSpec) (*api.Superv
 	return terminal, nil
 }
 
-func (s *Controller) createRunNewTerminal(spec *api.SupervisorSpec) (*api.SupervisedTerminal, error) {
-	if spec.TerminalSpec == nil {
+func (s *Controller) createRunNewTerminal(doc *api.SupervisorDoc) (*api.SupervisedTerminal, error) {
+	if doc.Spec.TerminalSpec == nil {
 		return nil, errdefs.ErrNoTerminalSpec
 	}
 
@@ -305,7 +312,7 @@ func (s *Controller) createRunNewTerminal(spec *api.SupervisorSpec) (*api.Superv
 		"terminal", "-",
 	}
 
-	terminal := terminalstore.NewSupervisedTerminal(spec.TerminalSpec)
+	terminal := terminalstore.NewSupervisedTerminal(doc.Spec.TerminalSpec)
 
 	execPath, errExe := os.Executable()
 	if errExe != nil {

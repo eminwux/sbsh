@@ -127,12 +127,12 @@ func supervisorID(s api.SupervisorDoc) string {
 }
 
 func supervisorName(s api.SupervisorDoc) string {
-	return s.Spec.Name
+	return s.Metadata.Name
 }
 
 func supervisorLabels(s api.SupervisorDoc) map[string]string {
-	if len(s.Spec.Labels) != 0 {
-		return s.Spec.Labels
+	if len(s.Metadata.Labels) != 0 {
+		return s.Metadata.Labels
 	}
 	return map[string]string{}
 }
@@ -172,7 +172,7 @@ func printSupervisors(w io.Writer, supervisors []api.SupervisorDoc, printAll boo
 }
 
 // FindSupervisorByName scans runPath/supervisors/*/metadata.json and returns
-// the supervisor whose Spec.Name matches the given name. If not found, returns nil.
+// the supervisor whose Metadata.Name matches the given name. If not found, returns nil.
 func FindSupervisorByName(
 	ctx context.Context,
 	logger *slog.Logger,

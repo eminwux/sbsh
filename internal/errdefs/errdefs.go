@@ -29,7 +29,7 @@ var (
 	ErrStartRPCServer           = errors.New("error starting RPC server")
 	ErrStartTerminal            = errors.New("error starting terminal")
 	ErrAttach                   = errors.New("error attaching supervisor")
-	ErrSupervisorKind           = errors.New("error supervisor kind not implemented")
+	ErrSupervisorMode           = errors.New("error supervisor mode not implemented")
 	ErrRPCServerExited          = errors.New("RPC Server exited with error")
 	ErrOnClose                  = errors.New("error closing")
 	ErrCloseReq                 = errors.New("close requested")

@@ -17,7 +17,7 @@
 package api
 
 type SupervisorController interface {
-	Run(spec *SupervisorSpec) error
+	Run(doc *SupervisorDoc) error
 	WaitReady() error
 	Close(reason error) error
 	WaitClose() error
@@ -25,16 +25,20 @@ type SupervisorController interface {
 }
 
 type SupervisorSpec struct {
-	ID         ID                `json:"id"`
-	Kind       SupervisorKind    `json:"kind"`
-	Name       string            `json:"name"`
-	Labels     map[string]string `json:"context"`
-	LogFile    string            `json:"logDir"`
-	SockerCtrl string            `json:"socketCtrl"`
-	RunPath    string            `json:"runPath"`
+	ID         ID     `json:"id"`
+	LogFile    string `json:"logDir"`
+	SockerCtrl string `json:"socketCtrl"`
+	RunPath    string `json:"runPath"`
 
-	// Only valid when Kind == RunNewTerminal
+	// Only valid when SupervisorMode == RunNewTerminal
 	TerminalSpec *TerminalSpec `json:"terminal,omitempty"`
+
+	// DetachKeystroke controls whether the detach keystroke (^] twice) is enabled.
+	// When true, users can detach by pressing ^] twice. When false, detach keystroke is disabled.
+	DetachKeystroke bool `json:"detachKeystroke,omitempty"`
+
+	// SupervisorMode determines whether the supervisor runs a new terminal or attaches to an existing one.
+	SupervisorMode SupervisorMode `json:"supervisorMode,omitempty"`
 }
 
 type SupervisorStatus struct {
@@ -85,10 +89,10 @@ type SupervisorMetadata struct {
 	Annotations map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
 }
 
-type SupervisorKind int
+type SupervisorMode int
 
 const (
-	RunNewTerminal SupervisorKind = iota
+	RunNewTerminal SupervisorMode = iota
 	AttachToTerminal
 )
 

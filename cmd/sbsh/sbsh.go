@@ -175,24 +175,34 @@ You can also use sbsh with parameters. For example:
 
 			logger.Debug("Built terminal spec", "terminalSpec", fmt.Sprintf("%+v", terminalSpec))
 
-			// Define a new SupervisorSpec
-			spec := &api.SupervisorSpec{
-				Kind:         api.RunNewTerminal,
-				ID:           api.ID(supervisorID),
-				Name:         supervisorName,
-				RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-				LogFile:      supLogfile,
-				SockerCtrl:   socketFileInput,
-				TerminalSpec: terminalSpec,
+			// Define a new SupervisorDoc
+			disableDetach := viper.GetBool(config.SBSH_SUPERVISOR_DISABLE_DETACH_KEYSTROKE.ViperKey)
+			doc := &api.SupervisorDoc{
+				APIVersion: api.APIVersionV1Beta1,
+				Kind:       api.KindSupervisor,
+				Metadata: api.SupervisorMetadata{
+					Name:        supervisorName,
+					Labels:      make(map[string]string),
+					Annotations: make(map[string]string),
+				},
+				Spec: api.SupervisorSpec{
+					ID:              api.ID(supervisorID),
+					RunPath:         viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+					LogFile:         supLogfile,
+					SockerCtrl:      socketFileInput,
+					TerminalSpec:    terminalSpec,
+					DetachKeystroke: !disableDetach, // Invert flag: when disable-detach is true, DetachKeystroke is false
+					SupervisorMode:  api.RunNewTerminal,
+				},
 			}
 
-			logger.DebugContext(cmd.Context(), "SupervisorSpec values",
-				"Kind", spec.Kind,
-				"ID", spec.ID,
-				"Name", spec.Name,
-				"RunPath", spec.RunPath,
-				"SockerCtrl", spec.SockerCtrl,
-				"TerminalSpec", spec.TerminalSpec,
+			logger.DebugContext(cmd.Context(), "SupervisorDoc values",
+				"Kind", doc.Kind,
+				"ID", doc.Spec.ID,
+				"Name", doc.Metadata.Name,
+				"RunPath", doc.Spec.RunPath,
+				"SockerCtrl", doc.Spec.SockerCtrl,
+				"TerminalSpec", doc.Spec.TerminalSpec,
 			)
 
 			if logger.Enabled(cmd.Context(), slog.LevelDebug) {
@@ -204,7 +214,7 @@ You can also use sbsh with parameters. For example:
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			ctrl := supervisor.NewSupervisorController(ctx, logger)
 
-			return runSupervisor(ctx, cancel, logger, ctrl, spec)
+			return runSupervisor(ctx, cancel, logger, ctrl, doc)
 		},
 		PostRunE: func(cmd *cobra.Command, _ []string) error {
 			if c, _ := cmd.Context().Value(types.CtxCloser).(io.Closer); c != nil {
@@ -264,6 +274,11 @@ func setSupervisorFlags(rootCmd *cobra.Command) error {
 
 	rootCmd.Flags().BoolP("detach", "d", false, "Optional detach flag for the supervisor")
 	if err := viper.BindPFlag(config.SBSH_SUPERVISOR_DETACH.ViperKey, rootCmd.Flags().Lookup("detach")); err != nil {
+		return err
+	}
+
+	rootCmd.Flags().Bool("disable-detach", false, "Disable detach keystroke (^] twice)")
+	if err := viper.BindPFlag(config.SBSH_SUPERVISOR_DISABLE_DETACH_KEYSTROKE.ViperKey, rootCmd.Flags().Lookup("disable-detach")); err != nil {
 		return err
 	}
 
@@ -352,7 +367,7 @@ func runSupervisor(
 	cancel context.CancelFunc,
 	logger *slog.Logger,
 	ctrl api.SupervisorController,
-	spec *api.SupervisorSpec,
+	doc *api.SupervisorDoc,
 ) error {
 	defer cancel()
 
@@ -361,13 +376,13 @@ func runSupervisor(
 	logger.DebugContext(
 		ctx,
 		"starting supervisor controller goroutine",
-		"spec_kind",
-		spec.Kind,
+		"supervisor_mode",
+		doc.Spec.SupervisorMode,
 		"run_path",
-		spec.RunPath,
+		doc.Spec.RunPath,
 	)
 	go func() {
-		errCh <- ctrl.Run(spec)
+		errCh <- ctrl.Run(doc)
 		close(errCh)
 		logger.DebugContext(ctx, "controller goroutine exited")
 	}()

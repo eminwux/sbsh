@@ -91,9 +91,7 @@ func Test_WaitReady_WithMultipleStates(t *testing.T) {
 				Labels:      make(map[string]string),
 				Annotations: make(map[string]string),
 			},
-			Spec: api.SupervisorSpec{
-				Name: "test-supervisor",
-			},
+			Spec: api.SupervisorSpec{},
 		},
 	}
 
@@ -165,9 +163,7 @@ func Test_WaitReady_StartingState(t *testing.T) {
 				Labels:      make(map[string]string),
 				Annotations: make(map[string]string),
 			},
-			Spec: api.SupervisorSpec{
-				Name: "test-supervisor",
-			},
+			Spec: api.SupervisorSpec{},
 		},
 	}
 
@@ -206,9 +202,7 @@ func Test_WaitReady_StartingOrReady(t *testing.T) {
 				Labels:      make(map[string]string),
 				Annotations: make(map[string]string),
 			},
-			Spec: api.SupervisorSpec{
-				Name: "test-supervisor",
-			},
+			Spec: api.SupervisorSpec{},
 		},
 	}
 
@@ -261,9 +255,7 @@ func Test_WaitReady_Timeout(t *testing.T) {
 				Labels:      make(map[string]string),
 				Annotations: make(map[string]string),
 			},
-			Spec: api.SupervisorSpec{
-				Name: "test-supervisor",
-			},
+			Spec: api.SupervisorSpec{},
 		},
 	}
 
@@ -321,9 +313,7 @@ func Test_WaitReady_StateTransition(t *testing.T) {
 				Labels:      make(map[string]string),
 				Annotations: make(map[string]string),
 			},
-			Spec: api.SupervisorSpec{
-				Name: "test-supervisor",
-			},
+			Spec: api.SupervisorSpec{},
 		},
 	}
 
