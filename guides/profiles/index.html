@@ -1,0 +1,3680 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Terminal-as-Code for reproducible, persistent and shareable shell environments">
+      
+      
+        <meta name="author" content="Emiliano Spinella (eminwux)">
+      
+      
+        <link rel="canonical" href="https://sbsh.io/guides/profiles/">
+      
+      
+        <link rel="prev" href="../../architecture/process-model/">
+      
+      
+        <link rel="next" href="../cicd/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Terminal Profiles for sbsh - sbsh</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#terminal-profiles-for-sbsh" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="sbsh" class="md-header__button md-logo" aria-label="sbsh" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            sbsh
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Terminal Profiles for sbsh
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/eminwux/sbsh" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    eminwux/sbsh
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../install/prerequisites/" class="md-tabs__link">
+          
+  
+  
+  Installation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../concepts/terminals/" class="md-tabs__link">
+          
+  
+  
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/overview/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../cli/commands/" class="md-tabs__link">
+          
+  
+  
+  CLI Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/create-your-first-profile/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../faq/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  FAQ
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="sbsh" class="md-nav__button md-logo" aria-label="sbsh" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    sbsh
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/eminwux/sbsh" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    eminwux/sbsh
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Installation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/prerequisites/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prerequisites
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/install-linux/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installing sbsh on Linux
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/install-macos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installing sbsh on macOS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/install-windows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installing sbsh on Windows
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/terminals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/supervisor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supervisor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/terminal-state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal State
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/multi-attach/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Attach
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/event-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/environment-isolation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Environment Isolation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/process-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Process Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal Profiles for sbsh
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal Profiles for sbsh
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-to-put-your-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where to put your profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-your-first-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create your first profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minimal-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Minimal example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#profile-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile Structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#field-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Field Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#required-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spec-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        spec fields
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="spec fields">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runtarget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        runTarget
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#restartpolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        restartPolicy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shell-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        shell section
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stages-section-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stages section (optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Profiles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Profiles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#profile-examples-index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile Examples Index
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-profiles-explained" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Profiles Explained
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Profiles Explained">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-default-minimal-bash-terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. default - Minimal bash terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-zsh-minimal-zsh-terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. zsh - Minimal zsh terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-k8s-default-kubernetes-development-terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. k8s-default - Kubernetes development terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-terraform-prd-terraform-production-workspace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. terraform-prd - Terraform production workspace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-k8s-pod-ephemeral-kubernetes-pod-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. k8s-pod - Ephemeral Kubernetes pod shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-docker-container-ephemeral-container-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. docker-container - Ephemeral container shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-ssh-pk-ssh-to-remote-host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. ssh-pk - SSH to remote host
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-python-venv-python-virtual-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. python-venv - Python virtual environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-npm-dev-nodejsnpm-development-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. npm-dev - Node.js/npm development environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-go-dev-gogolang-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. go-dev - Go/Golang development
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-ci-test-cicd-test-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. ci-test - CI/CD test environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-terraform-dev-terraform-development-workspace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. terraform-dev - Terraform development workspace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-terraform-staging-terraform-staging-workspace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. terraform-staging - Terraform staging workspace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-postgres-postgresql-database-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. postgres - PostgreSQL database shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-aws-cli-aws-cli-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. aws-cli - AWS CLI environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16-docker-compose-docker-compose-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. docker-compose - Docker Compose development
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17-redis-redis-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. redis - Redis CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#18-rust-dev-rust-development-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        18. rust-dev - Rust development environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#19-mysql-mysql-database-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        19. mysql - MySQL database shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#20-mongo-mongodb-database-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        20. mongo - MongoDB database shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-your-own-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating Your Own Profile
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating Your Own Profile">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-by-step-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step-by-step guide
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best practices
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues-and-solutions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Issues and Solutions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Issues and Solutions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#profile-not-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile not found
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-variables-not-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment variables not working
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompt-not-showing-colors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompt not showing colors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stages-not-running" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stages not running
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tilde-not-expanding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tilde (~) not expanding
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-your-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Your Profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#viewing-available-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewing Available Profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-profile-file-location" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Profile File Location
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#profile-file-organization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile File Organization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributing Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cicd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI/CD Integration with sbsh
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Usage with sbsh
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sbsh vs screen and tmux
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CLI Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/commands/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Commands Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/sbsh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sbsh Command
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/sb/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sb Command
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/create-your-first-profile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Create Your First Profile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/share-a-terminal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Share a Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/automate-terminal-workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Automate Terminal Workflows
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-to-put-your-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where to put your profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-your-first-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create your first profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minimal-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Minimal example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#profile-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile Structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#field-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Field Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#required-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spec-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        spec fields
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="spec fields">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runtarget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        runTarget
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#restartpolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        restartPolicy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shell-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        shell section
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stages-section-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stages section (optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Profiles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Profiles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#profile-examples-index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile Examples Index
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-profiles-explained" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Profiles Explained
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Profiles Explained">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-default-minimal-bash-terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. default - Minimal bash terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-zsh-minimal-zsh-terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. zsh - Minimal zsh terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-k8s-default-kubernetes-development-terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. k8s-default - Kubernetes development terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-terraform-prd-terraform-production-workspace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. terraform-prd - Terraform production workspace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-k8s-pod-ephemeral-kubernetes-pod-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. k8s-pod - Ephemeral Kubernetes pod shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-docker-container-ephemeral-container-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. docker-container - Ephemeral container shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-ssh-pk-ssh-to-remote-host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. ssh-pk - SSH to remote host
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-python-venv-python-virtual-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. python-venv - Python virtual environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-npm-dev-nodejsnpm-development-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. npm-dev - Node.js/npm development environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-go-dev-gogolang-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. go-dev - Go/Golang development
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-ci-test-cicd-test-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. ci-test - CI/CD test environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-terraform-dev-terraform-development-workspace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. terraform-dev - Terraform development workspace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-terraform-staging-terraform-staging-workspace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. terraform-staging - Terraform staging workspace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-postgres-postgresql-database-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. postgres - PostgreSQL database shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-aws-cli-aws-cli-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. aws-cli - AWS CLI environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16-docker-compose-docker-compose-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. docker-compose - Docker Compose development
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17-redis-redis-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. redis - Redis CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#18-rust-dev-rust-development-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        18. rust-dev - Rust development environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#19-mysql-mysql-database-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        19. mysql - MySQL database shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#20-mongo-mongodb-database-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        20. mongo - MongoDB database shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-your-own-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating Your Own Profile
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating Your Own Profile">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-by-step-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step-by-step guide
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best practices
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues-and-solutions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Issues and Solutions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Issues and Solutions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#profile-not-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile not found
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-variables-not-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment variables not working
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompt-not-showing-colors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompt not showing colors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stages-not-running" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stages not running
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tilde-not-expanding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tilde (~) not expanding
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-your-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Your Profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#viewing-available-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewing Available Profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-profile-file-location" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Profile File Location
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#profile-file-organization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile File Organization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributing Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="terminal-profiles-for-sbsh">Terminal Profiles for sbsh<a class="headerlink" href="#terminal-profiles-for-sbsh" title="Permanent link">&para;</a></h1>
+<p>Profiles define how sbsh starts and manages terminals. They let you customize the command, environment, working directory, and lifecycle hooks for your terminals.</p>
+<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<h3 id="where-to-put-your-profiles">Where to put your profiles<a class="headerlink" href="#where-to-put-your-profiles" title="Permanent link">&para;</a></h3>
+<p>sbsh looks for profiles in <code>$HOME/.sbsh/profiles.yaml</code> by default. You can also specify a different file using:</p>
+<ul>
+<li>Environment variable: <code>SBSH_PROFILES_FILE=/path/to/profiles.yaml</code></li>
+<li>Command flag: <code>sbsh --profiles-file /path/to/profiles.yaml</code></li>
+</ul>
+<h3 id="create-your-first-profile">Create your first profile<a class="headerlink" href="#create-your-first-profile" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Create the profiles directory (if it doesn't exist):</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mkdir<span class="w"> </span>-p<span class="w"> </span>~/.sbsh
+</code></pre></div>
+<ol>
+<li>Copy example profiles to get started:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Copy the combined profiles file</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># Copy example profiles from the repository</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>cp<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/profiles.yaml<span class="w"> </span>~/.sbsh/profiles.yaml
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Or combine individual example files (provided for reference)</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>cat<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/*.yaml<span class="w"> </span>&gt;<span class="w"> </span>~/.sbsh/profiles.yaml
+</code></pre></div>
+<p><strong>Note</strong>: sbsh only supports a single <code>profiles.yaml</code> file. The individual <code>.yaml</code> files in the repository's <code>docs/profiles/</code> directory are provided as reference examples, but you must combine them into one file for use.</p>
+<ol>
+<li>Edit <code>~/.sbsh/profiles.yaml</code> and add your own profiles.</li>
+</ol>
+<h3 id="minimal-example">Minimal example<a class="headerlink" href="#minimal-example" title="Permanent link">&para;</a></h3>
+<p>Here's the simplest profile you can create:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh/v1beta1</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TerminalProfile</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-terminal</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">runTarget</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">local</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">restartPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">exit</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">shell</span><span class="p">:</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="nt">cmd</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/bin/bash</span>
+</code></pre></div>
+<p>To use it, run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>sbsh<span class="w"> </span>-p<span class="w"> </span>my-terminal
+</code></pre></div>
+<p>That's it! This will start a bash terminal with default settings.</p>
+<h2 id="profile-structure">Profile Structure<a class="headerlink" href="#profile-structure" title="Permanent link">&para;</a></h2>
+<p>Each profile is a YAML document (multiple profiles are separated by <code>---</code>). Here's the complete structure:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh/v1beta1</span><span class="w"> </span><span class="c1"># Always use this version</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TerminalProfile</span><span class="w"> </span><span class="c1"># Always use this kind</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">profile-name</span><span class="w"> </span><span class="c1"># Your profile identifier</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">runTarget</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">local</span><span class="w"> </span><span class="c1"># Where to run (currently only &quot;local&quot;)</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="nt">restartPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">exit</span><span class="w"> </span><span class="c1"># What happens on exit</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="nt">shell</span><span class="p">:</span><span class="w"> </span><span class="c1"># The command and environment</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="nt">cwd</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;~&quot;</span><span class="w"> </span><span class="c1"># Working directory</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="nt">cmd</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/bin/bash</span><span class="w"> </span><span class="c1"># Command to run</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="nt">cmdArgs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span><span class="w"> </span><span class="c1"># Arguments for the command</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="nt">inheritEnv</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w"> </span><span class="c1"># Inherit parent environment?</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="nt">env</span><span class="p">:</span><span class="w"> </span><span class="c1"># Environment variables</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">      </span><span class="nt">KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">value</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="nt">prompt</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;custom</span><span class="nv"> </span><span class="s">prompt&quot;</span><span class="w"> </span><span class="c1"># Shell prompt (optional)</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">  </span><span class="nt">stages</span><span class="p">:</span><span class="w"> </span><span class="c1"># Lifecycle hooks (optional)</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="nt">onInit</span><span class="p">:</span><span class="w"> </span><span class="c1"># Run before starting</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">script</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">echo &quot;Starting...&quot;</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span><span class="nt">postAttach</span><span class="p">:</span><span class="w"> </span><span class="c1"># Run after attaching</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">script</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">echo &quot;Attached!&quot;</span>
+</code></pre></div>
+<h2 id="field-reference">Field Reference<a class="headerlink" href="#field-reference" title="Permanent link">&para;</a></h2>
+<h3 id="required-fields">Required fields<a class="headerlink" href="#required-fields" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>metadata.name</code></strong>: A unique identifier for this profile. Use it with <code>sbsh -p &lt;name&gt;</code> to start a terminal.</li>
+</ul>
+<h3 id="spec-fields">spec fields<a class="headerlink" href="#spec-fields" title="Permanent link">&para;</a></h3>
+<h4 id="runtarget"><code>runTarget</code><a class="headerlink" href="#runtarget" title="Permanent link">&para;</a></h4>
+<p>Where the terminal runs. Currently only <code>local</code> is supported.</p>
+<h4 id="restartpolicy"><code>restartPolicy</code><a class="headerlink" href="#restartpolicy" title="Permanent link">&para;</a></h4>
+<p>Controls what happens when the terminal exits:</p>
+<ul>
+<li><strong><code>exit</code></strong>: Don't restart — terminal terminates (default for most use cases)</li>
+<li><strong><code>restart-on-error</code></strong>: Only restart if the process exits with a non-zero code</li>
+<li><strong><code>restart-unlimited</code></strong>: Always restart the terminal when it exits</li>
+</ul>
+<p><strong>When to use each:</strong></p>
+<ul>
+<li>Use <code>exit</code> for SSH terminals, container shells, or when you want the terminal to stay dead after it exits</li>
+<li>Use <code>restart-on-error</code> for persistent services or when you want automatic recovery from crashes</li>
+<li>Use <code>restart-unlimited</code> for services that should always be running</li>
+</ul>
+<h4 id="shell-section"><code>shell</code> section<a class="headerlink" href="#shell-section" title="Permanent link">&para;</a></h4>
+<p>Defines the command and environment for your terminal.</p>
+<p><strong><code>cwd</code></strong> (optional)</p>
+<ul>
+<li>Working directory where the terminal starts</li>
+<li>Use <code>~</code> for home directory (expands to <code>$HOME</code>)</li>
+<li>Use <code>$HOME/path</code> for paths relative to home</li>
+<li>Use absolute paths like <code>/tmp</code> for specific directories</li>
+</ul>
+<p><strong><code>cmd</code></strong> (required)</p>
+<ul>
+<li>Full path to the command or shell to execute</li>
+<li>Examples: <code>/bin/bash</code>, <code>/usr/bin/zsh</code>, <code>/usr/bin/ssh</code>, <code>/usr/bin/docker</code></li>
+</ul>
+<p><strong><code>cmdArgs</code></strong> (optional)</p>
+<ul>
+<li>Array of arguments passed to <code>cmd</code></li>
+<li>Example: <code>["--norc", "--noprofile"]</code> for bash</li>
+<li>Example: <code>["-t", "remote-host"]</code> for ssh</li>
+<li>Example: <code>["run", "--rm", "-ti", "ubuntu:latest"]</code> for docker</li>
+</ul>
+<p><strong><code>inheritEnv</code></strong> (optional, default: <code>true</code>)</p>
+<ul>
+<li>When <code>true</code>: terminal inherits all environment variables from the parent process</li>
+<li>When <code>false</code>: terminal starts with a minimal environment; only variables you specify in <code>env</code> are available</li>
+<li>Use <code>false</code> for reproducible, isolated environments</li>
+<li>Use <code>true</code> when you want access to your full environment (PATH, SSH_AUTH_SOCK, etc.)</li>
+</ul>
+<p><strong><code>env</code></strong> (optional)</p>
+<ul>
+<li>Key-value map of environment variables</li>
+<li>Values can reference other variables: <code>PATH: "$HOME/bin:$PATH"</code></li>
+<li>Numbers should be quoted as strings: <code>HISTSIZE: "5000"</code></li>
+</ul>
+<p><strong><code>prompt</code></strong> (optional)</p>
+<ul>
+<li>Custom shell prompt string</li>
+<li>Useful for identifying which profile you're using</li>
+<li>Supports shell escape sequences and sbsh variables:</li>
+<li><code>$SBSH_TERM_ID</code>: Current terminal ID</li>
+<li><code>$SBSH_TERM_PROFILE</code>: Current profile name</li>
+<li><strong>Quoting in YAML</strong>: Complex prompts with escape sequences need careful quoting</li>
+<li>Single quotes: <code>prompt: '"\[\e[1;31m\]...\[\e[0m\]" '</code></li>
+<li>Double quotes with escapes: <code>prompt: "\"[sbsh-$SBSH_TERM_ID] \\u@\\h:\\w$ \""</code></li>
+</ul>
+<h4 id="stages-section-optional"><code>stages</code> section (optional)<a class="headerlink" href="#stages-section-optional" title="Permanent link">&para;</a></h4>
+<p>Lifecycle hooks that run at specific points in the terminal lifecycle.</p>
+<p><strong><code>onInit</code></strong></p>
+<ul>
+<li>List of commands that run <strong>before</strong> the main <code>cmd</code> starts</li>
+<li>Runs in sequence; if one fails, subsequent commands may not run</li>
+<li>Common uses:</li>
+<li>Authenticating or configuring tools (<code>kubectl config use-context</code>)</li>
+<li>Initializing environments (<code>terraform init</code>)</li>
+<li>Setting up project state</li>
+<li>Each step is a script command:
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">onInit</span><span class="p">:</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">script</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kubectl config use-context production</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">script</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">terraform workspace select prod</span>
+</code></pre></div></li>
+</ul>
+<p><strong><code>postAttach</code></strong></p>
+<ul>
+<li>List of commands that run <strong>after</strong> you attach to the terminal</li>
+<li>Useful for showing status or context when you reconnect</li>
+<li>Common uses:</li>
+<li>Showing current state (<code>kubectl get pods</code>)</li>
+<li>Displaying project status</li>
+<li>Running health checks
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">postAttach</span><span class="p">:</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">script</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kubectl get pods</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">script</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">git status</span>
+</code></pre></div></li>
+</ul>
+<h2 id="example-profiles">Example Profiles<a class="headerlink" href="#example-profiles" title="Permanent link">&para;</a></h2>
+<p>This directory contains example profiles. The individual <code>.yaml</code> files are provided for reference, but sbsh only supports a single <code>profiles.yaml</code> file. All profiles must be combined into one file with <code>---</code> separators between documents.</p>
+<h3 id="profile-examples-index">Profile Examples Index<a class="headerlink" href="#profile-examples-index" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>Description</th>
+<th>File</th>
+<th>Section</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>default</code></td>
+<td>Minimal bash terminal with clean environment</td>
+<td><a href="./default.yaml"><code>default.yaml</code></a></td>
+<td><a href="#1-default---minimal-bash-terminal">Section 1</a></td>
+</tr>
+<tr>
+<td><code>zsh</code></td>
+<td>Minimal zsh terminal with clean environment</td>
+<td><a href="./zsh.yaml"><code>zsh.yaml</code></a></td>
+<td><a href="#2-zsh---minimal-zsh-terminal">Section 2</a></td>
+</tr>
+<tr>
+<td><code>k8s-default</code></td>
+<td>Kubernetes development terminal with kubectl context setup</td>
+<td><a href="./k8s-default.yaml"><code>k8s-default.yaml</code></a></td>
+<td><a href="#3-k8s-default---kubernetes-development-terminal">Section 3</a></td>
+</tr>
+<tr>
+<td><code>terraform-prd</code></td>
+<td>Terraform production workspace with environment variables</td>
+<td><a href="./terraform-prd.yaml"><code>terraform-prd.yaml</code></a></td>
+<td><a href="#4-terraform-prd---terraform-production-workspace">Section 4</a></td>
+</tr>
+<tr>
+<td><code>k8s-pod</code></td>
+<td>Ephemeral Kubernetes pod shell for debugging</td>
+<td><a href="./k8s-pod.yaml"><code>k8s-pod.yaml</code></a></td>
+<td><a href="#5-k8s-pod---ephemeral-kubernetes-pod-shell">Section 5</a></td>
+</tr>
+<tr>
+<td><code>docker-container</code></td>
+<td>Docker container shell for containerized workflows</td>
+<td><a href="./docker-container.yaml"><code>docker-container.yaml</code></a></td>
+<td><a href="#6-docker-container---ephemeral-container-shell">Section 6</a></td>
+</tr>
+<tr>
+<td><code>ssh-pk</code></td>
+<td>SSH remote host connection with persistent sessions</td>
+<td><a href="./ssh-pk.yaml"><code>ssh-pk.yaml</code></a></td>
+<td><a href="#7-ssh-pk---ssh-to-remote-host">Section 7</a></td>
+</tr>
+<tr>
+<td><code>python-venv</code></td>
+<td>Python virtual environment with automatic activation</td>
+<td><a href="./python-venv.yaml"><code>python-venv.yaml</code></a></td>
+<td><a href="#8-python-venv---python-virtual-environment">Section 8</a></td>
+</tr>
+<tr>
+<td><code>npm-dev</code></td>
+<td>Node.js/npm development environment with dependency management</td>
+<td><a href="./npm-dev.yaml"><code>npm-dev.yaml</code></a></td>
+<td><a href="#9-npm-dev---nodejsnpm-development-environment">Section 9</a></td>
+</tr>
+<tr>
+<td><code>go-dev</code></td>
+<td>Go/Golang development environment with module support</td>
+<td><a href="./go-dev.yaml"><code>go-dev.yaml</code></a></td>
+<td><a href="#10-go-dev---gogolang-development">Section 10</a></td>
+</tr>
+<tr>
+<td><code>ci-test</code></td>
+<td>CI/CD test environment for local testing that mirrors CI</td>
+<td><a href="./ci-test.yaml"><code>ci-test.yaml</code></a></td>
+<td><a href="#11-ci-test---cicd-test-environment">Section 11</a></td>
+</tr>
+<tr>
+<td><code>terraform-dev</code></td>
+<td>Terraform development workspace with environment variables</td>
+<td><a href="./terraform-dev.yaml"><code>terraform-dev.yaml</code></a></td>
+<td><a href="#12-terraform-dev---terraform-development-workspace">Section 12</a></td>
+</tr>
+<tr>
+<td><code>terraform-staging</code></td>
+<td>Terraform staging workspace with environment variables</td>
+<td><a href="./terraform-staging.yaml"><code>terraform-staging.yaml</code></a></td>
+<td><a href="#13-terraform-staging---terraform-staging-workspace">Section 13</a></td>
+</tr>
+<tr>
+<td><code>postgres</code></td>
+<td>PostgreSQL database shell for database operations and debugging</td>
+<td><a href="./postgres.yaml"><code>postgres.yaml</code></a></td>
+<td><a href="#14-postgres---postgresql-database-shell">Section 14</a></td>
+</tr>
+<tr>
+<td><code>aws-cli</code></td>
+<td>AWS CLI environment for infrastructure management</td>
+<td><a href="./aws-cli.yaml"><code>aws-cli.yaml</code></a></td>
+<td><a href="#15-aws-cli---aws-cli-environment">Section 15</a></td>
+</tr>
+<tr>
+<td><code>docker-compose</code></td>
+<td>Docker Compose development environment for multi-service setups</td>
+<td><a href="./docker-compose.yaml"><code>docker-compose.yaml</code></a></td>
+<td><a href="#16-docker-compose---docker-compose-development">Section 16</a></td>
+</tr>
+<tr>
+<td><code>redis</code></td>
+<td>Redis CLI for database operations and debugging</td>
+<td><a href="./redis.yaml"><code>redis.yaml</code></a></td>
+<td><a href="#17-redis---redis-cli">Section 17</a></td>
+</tr>
+<tr>
+<td><code>rust-dev</code></td>
+<td>Rust development environment with toolchain setup</td>
+<td><a href="./rust-dev.yaml"><code>rust-dev.yaml</code></a></td>
+<td><a href="#18-rust-dev---rust-development-environment">Section 18</a></td>
+</tr>
+<tr>
+<td><code>mysql</code></td>
+<td>MySQL database shell for database operations and debugging</td>
+<td><a href="./mysql.yaml"><code>mysql.yaml</code></a></td>
+<td><a href="#19-mysql---mysql-database-shell">Section 19</a></td>
+</tr>
+<tr>
+<td><code>mongo</code></td>
+<td>MongoDB database shell for database operations and debugging</td>
+<td><a href="./mongo.yaml"><code>mongo.yaml</code></a></td>
+<td><a href="#20-mongo---mongodb-database-shell">Section 20</a></td>
+</tr>
+</tbody>
+</table>
+<p>All profiles are also available in <a href="./profiles.yaml"><code>profiles.yaml</code></a> as a combined file ready to use.</p>
+<p><strong>To use these profiles:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Copy the combined file</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cp<span class="w"> </span>docs/profiles/profiles.yaml<span class="w"> </span>~/.sbsh/profiles.yaml
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Or copy specific example files and combine them</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cat<span class="w"> </span>docs/profiles/default.yaml<span class="w"> </span>docs/profiles/python-venv.yaml<span class="w"> </span>&gt;<span class="w"> </span>~/.sbsh/profiles.yaml
+</code></pre></div>
+<h2 id="example-profiles-explained">Example Profiles Explained<a class="headerlink" href="#example-profiles-explained" title="Permanent link">&para;</a></h2>
+<h3 id="1-default-minimal-bash-terminal">1. <code>default</code> - Minimal bash terminal<a class="headerlink" href="#1-default-minimal-bash-terminal" title="Permanent link">&para;</a></h3>
+<p>See <a href="./default.yaml"><code>default.yaml</code></a> for the complete profile.</p>
+<p>A clean bash terminal with minimal environment variables:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh/v1beta1</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TerminalProfile</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">  </span><span class="nt">runTarget</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">local</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">  </span><span class="nt">restartPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">restart-on-error</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">  </span><span class="nt">shell</span><span class="p">:</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span><span class="nt">cwd</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;~&quot;</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">    </span><span class="nt">cmd</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/bin/bash</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span><span class="nt">cmdArgs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;--norc&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;--noprofile&quot;</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># Start with a clean bash</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">    </span><span class="nt">inheritEnv</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w"> </span><span class="c1"># Don&#39;t inherit parent env</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="w">    </span><span class="nt">env</span><span class="p">:</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="w">      </span><span class="nt">LANG</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">en_US.UTF-8</span>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="w">      </span><span class="nt">EDITOR</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vim</span>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="w">      </span><span class="nt">HISTSIZE</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5000&quot;</span>
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="w">    </span><span class="nt">prompt</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;\&quot;[sbsh-$SBSH_TERM_ID]</span><span class="nv"> </span><span class="s">\\u@\\h:\\w$</span><span class="nv"> </span><span class="s">\&quot;&quot;</span>
+</code></pre></div>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>inheritEnv: false</code> creates a minimal, reproducible environment</li>
+<li><code>--norc --noprofile</code> prevents bash from loading your <code>.bashrc</code></li>
+<li>Custom prompt shows the terminal ID so you know which sbsh terminal you're in</li>
+</ul>
+<h3 id="2-zsh-minimal-zsh-terminal">2. <code>zsh</code> - Minimal zsh terminal<a class="headerlink" href="#2-zsh-minimal-zsh-terminal" title="Permanent link">&para;</a></h3>
+<p>See <a href="./zsh.yaml"><code>zsh.yaml</code></a> for the complete profile.</p>
+<p>A clean zsh terminal with minimal environment variables, similar to the default bash profile but using zsh:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh/v1beta1</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TerminalProfile</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">zsh</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">  </span><span class="nt">runTarget</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">local</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">  </span><span class="nt">restartPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">restart-on-error</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">  </span><span class="nt">shell</span><span class="p">:</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="nt">cwd</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;~&quot;</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">    </span><span class="nt">cmd</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/bin/zsh</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">    </span><span class="nt">cmdArgs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;-f&quot;</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># Start with a clean zsh (skip startup files)</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">    </span><span class="nt">inheritEnv</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w"> </span><span class="c1"># Don&#39;t inherit parent env</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">    </span><span class="nt">env</span><span class="p">:</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">      </span><span class="nt">LANG</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">en_US.UTF-8</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">      </span><span class="nt">EDITOR</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vim</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="w">      </span><span class="nt">HISTSIZE</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5000&quot;</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">    </span><span class="nt">prompt</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&quot;[sbsh-$SBSH_TERM_ID]</span><span class="nv"> </span><span class="s">%n@%m:%~$</span><span class="nv"> </span><span class="s">&quot;&#39;</span>
+</code></pre></div>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>inheritEnv: false</code> creates a minimal, reproducible environment</li>
+<li><code>-f</code> flag prevents zsh from loading startup files (<code>.zshrc</code>, <code>.zshenv</code>, etc.)</li>
+<li>Custom prompt uses zsh format (<code>%n@%m:%~$</code>) instead of bash format (<code>\u@\h:\w$</code>)</li>
+<li><code>%n</code> is username, <code>%m</code> is hostname, <code>%~</code> is current directory in zsh prompt format</li>
+</ul>
+<h3 id="3-k8s-default-kubernetes-development-terminal">3. <code>k8s-default</code> - Kubernetes development terminal<a class="headerlink" href="#3-k8s-default-kubernetes-development-terminal" title="Permanent link">&para;</a></h3>
+<p>See <a href="./k8s-default.yaml"><code>k8s-default.yaml</code></a> for the complete profile.</p>
+<p>Sets up kubectl context and shows cluster info on attach.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>onInit</code> sets up the kubectl context before the shell starts</li>
+<li><code>postAttach</code> shows cluster status when you reconnect</li>
+<li>Colored prompt distinguishes this profile from others</li>
+</ul>
+<h3 id="4-terraform-prd-terraform-production-workspace">4. <code>terraform-prd</code> - Terraform production workspace<a class="headerlink" href="#4-terraform-prd-terraform-production-workspace" title="Permanent link">&para;</a></h3>
+<p>See <a href="./terraform-prd.yaml"><code>terraform-prd.yaml</code></a> for the complete profile.</p>
+<p>Prepares a Terraform workspace and runs planning.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>restartPolicy: exit</code> prevents accidental restarts in production</li>
+<li><code>onInit</code> prepares the Terraform workspace before you start working</li>
+<li>Environment variable <code>TF_VAR_environment</code> is available to Terraform</li>
+</ul>
+<h3 id="5-k8s-pod-ephemeral-kubernetes-pod-shell">5. <code>k8s-pod</code> - Ephemeral Kubernetes pod shell<a class="headerlink" href="#5-k8s-pod-ephemeral-kubernetes-pod-shell" title="Permanent link">&para;</a></h3>
+<p>See <a href="./k8s-pod.yaml"><code>k8s-pod.yaml</code></a> for the complete profile.</p>
+<p>Creates a temporary Kubernetes pod and drops you into a shell.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li>Uses <code>kubectl run</code> to create an ephemeral pod</li>
+<li><code>--rm</code> removes the pod when it exits</li>
+<li><code>-ti</code> allocates a pseudo-TTY and keeps STDIN open</li>
+</ul>
+<h3 id="6-docker-container-ephemeral-container-shell">6. <code>docker-container</code> - Ephemeral container shell<a class="headerlink" href="#6-docker-container-ephemeral-container-shell" title="Permanent link">&para;</a></h3>
+<p>See <a href="./docker-container.yaml"><code>docker-container.yaml</code></a> for the complete profile.</p>
+<p>Starts a temporary Docker container and drops you into a shell.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>cmd</code> is <code>docker</code>, not a shell</li>
+<li><code>cmdArgs</code> contains all the docker arguments</li>
+<li><code>--rm</code> removes the container when it exits</li>
+<li><code>-ti</code> allocates a pseudo-TTY and keeps STDIN open</li>
+</ul>
+<h3 id="7-ssh-pk-ssh-to-remote-host">7. <code>ssh-pk</code> - SSH to remote host<a class="headerlink" href="#7-ssh-pk-ssh-to-remote-host" title="Permanent link">&para;</a></h3>
+<p>See <a href="./ssh-pk.yaml"><code>ssh-pk.yaml</code></a> for the complete profile.</p>
+<p>Connects to a remote host using SSH.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>cmd</code> is <code>ssh</code></li>
+<li><code>cmdArgs</code> contains SSH options and the host alias/name</li>
+<li><code>-t</code> forces pseudo-TTY allocation (needed for interactive shells)</li>
+</ul>
+<h3 id="8-python-venv-python-virtual-environment">8. <code>python-venv</code> - Python virtual environment<a class="headerlink" href="#8-python-venv-python-virtual-environment" title="Permanent link">&para;</a></h3>
+<p>See <a href="./python-venv.yaml"><code>python-venv.yaml</code></a> for the complete profile.</p>
+<p>Sets up a Python development environment with virtual environment activation. Teams can share this profile to ensure everyone uses the same Python environment for local development.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>onInit</code> creates a virtual environment if it doesn't exist, then activates it</li>
+<li>Sets <code>PYTHONPATH</code> to include the project directory</li>
+<li><code>postAttach</code> reactivates the venv and shows Python/pip versions when reconnecting</li>
+<li>Uses yellow-colored prompt to distinguish Python environments</li>
+<li><code>inheritEnv: true</code> allows PATH and other tools to work correctly</li>
+<li>Teams can customize the <code>cwd</code> path to match their project location</li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Update <code>cwd</code> to point to your project directory</li>
+<li>Adjust <code>venv</code> directory name if your team uses a different convention (e.g., <code>.venv</code>, <code>env</code>)</li>
+<li>Add additional environment variables or setup steps as needed</li>
+</ul>
+<h3 id="9-npm-dev-nodejsnpm-development-environment">9. <code>npm-dev</code> - Node.js/npm development environment<a class="headerlink" href="#9-npm-dev-nodejsnpm-development-environment" title="Permanent link">&para;</a></h3>
+<p>See <a href="./npm-dev.yaml"><code>npm-dev.yaml</code></a> for the complete profile.</p>
+<p>Sets up a Node.js development environment with dependency installation. Teams can share this profile to ensure consistent Node.js environment setup across team members.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>onInit</code> checks Node/npm versions and installs dependencies if <code>node_modules</code> doesn't exist</li>
+<li>Sets <code>NODE_ENV=development</code> for proper development mode</li>
+<li><code>postAttach</code> shows Node/npm versions and project name when reconnecting</li>
+<li>Uses cyan-colored prompt to distinguish Node.js environments</li>
+<li><code>inheritEnv: true</code> allows PATH and npm/node binaries to work correctly</li>
+<li>Teams can customize the <code>cwd</code> path to match their project location</li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Update <code>cwd</code> to point to your project directory</li>
+<li>Modify <code>npm install</code> command if you use different package managers (yarn, pnpm) or need additional flags</li>
+<li>Add environment variables for API keys, database URLs, or other configuration</li>
+<li>Adjust lifecycle hooks to run tests, linting, or other setup steps</li>
+</ul>
+<h3 id="10-go-dev-gogolang-development">10. <code>go-dev</code> - Go/Golang development<a class="headerlink" href="#10-go-dev-gogolang-development" title="Permanent link">&para;</a></h3>
+<p>See <a href="./go-dev.yaml"><code>go-dev.yaml</code></a> for the complete profile.</p>
+<p>Sets up a Go development environment with module support. Teams can share this profile to ensure consistent Go environment setup across team members.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>onInit</code> checks Go version, shows GOROOT and GOPATH, and verifies Go modules if present</li>
+<li>Sets <code>GO111MODULE=on</code> to enable Go modules</li>
+<li>Sets <code>CGO_ENABLED=1</code> for CGO support (useful for many Go packages)</li>
+<li><code>postAttach</code> shows Go version and module information when reconnecting</li>
+<li>Uses blue-colored prompt to distinguish Go environments</li>
+<li><code>inheritEnv: true</code> allows PATH and Go tools to work correctly</li>
+<li>Teams can customize the <code>cwd</code> path to match their project location</li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Update <code>cwd</code> to point to your project directory</li>
+<li>Adjust <code>GO111MODULE</code> or <code>CGO_ENABLED</code> based on your project needs</li>
+<li>Add additional environment variables for Go-specific configuration</li>
+<li>Modify lifecycle hooks to run tests, builds, or other setup steps</li>
+</ul>
+<h3 id="11-ci-test-cicd-test-environment">11. <code>ci-test</code> - CI/CD test environment<a class="headerlink" href="#11-ci-test-cicd-test-environment" title="Permanent link">&para;</a></h3>
+<p>See <a href="./ci-test.yaml"><code>ci-test.yaml</code></a> for the complete profile.</p>
+<p>Sets up a local test environment that mirrors CI/CD pipelines. Use this profile to test locally with the same environment variables as your CI system.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li>Sets <code>CI=true</code> to indicate CI environment</li>
+<li>Sets <code>NODE_ENV=test</code> and <code>PYTHON_ENV=test</code> for test configurations</li>
+<li><code>restartPolicy: exit</code> ensures clean test runs</li>
+<li><code>onInit</code> confirms CI environment variables are set</li>
+<li><code>postAttach</code> displays current environment status</li>
+<li>Uses purple-colored prompt to distinguish CI test environments</li>
+<li><code>inheritEnv: true</code> allows access to system tools and PATH</li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Add additional CI-specific environment variables</li>
+<li>Customize test environment variables based on your CI/CD setup</li>
+<li>Add lifecycle hooks to run tests or setup test databases</li>
+<li>Adjust <code>cwd</code> to point to your project directory</li>
+</ul>
+<h3 id="12-terraform-dev-terraform-development-workspace">12. <code>terraform-dev</code> - Terraform development workspace<a class="headerlink" href="#12-terraform-dev-terraform-development-workspace" title="Permanent link">&para;</a></h3>
+<p>See <a href="./terraform-dev.yaml"><code>terraform-dev.yaml</code></a> for the complete profile.</p>
+<p>Prepares a Terraform development workspace with environment-specific configuration. Similar to <code>terraform-prd</code> but for development environments.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>restartPolicy: exit</code> prevents accidental restarts in development</li>
+<li><code>onInit</code> prepares the Terraform workspace for development before you start working</li>
+<li>Environment variable <code>TF_VAR_environment: "dev"</code> is available to Terraform</li>
+<li>Uses blue-colored prompt (vs red for production) to distinguish environments</li>
+<li>Automatically runs <code>terraform workspace use dev</code> and <code>terraform init</code></li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Update <code>cwd</code> to point to your Terraform project directory</li>
+<li>Add additional Terraform variables via <code>env</code> section</li>
+<li>Modify lifecycle hooks to run specific Terraform commands</li>
+<li>Adjust workspace name if your team uses different naming conventions</li>
+</ul>
+<h3 id="13-terraform-staging-terraform-staging-workspace">13. <code>terraform-staging</code> - Terraform staging workspace<a class="headerlink" href="#13-terraform-staging-terraform-staging-workspace" title="Permanent link">&para;</a></h3>
+<p>See <a href="./terraform-staging.yaml"><code>terraform-staging.yaml</code></a> for the complete profile.</p>
+<p>Prepares a Terraform staging workspace with environment-specific configuration. Similar to <code>terraform-prd</code> and <code>terraform-dev</code> but for staging environments.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>restartPolicy: exit</code> prevents accidental restarts in staging</li>
+<li><code>onInit</code> prepares the Terraform workspace for staging before you start working</li>
+<li>Environment variable <code>TF_VAR_environment: "staging"</code> is available to Terraform</li>
+<li>Uses yellow-colored prompt (vs red for production, blue for dev) to distinguish environments</li>
+<li>Automatically runs <code>terraform workspace use staging</code> and <code>terraform init</code></li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Update <code>cwd</code> to point to your Terraform project directory</li>
+<li>Add additional Terraform variables via <code>env</code> section</li>
+<li>Modify lifecycle hooks to run specific Terraform commands</li>
+<li>Adjust workspace name if your team uses different naming conventions</li>
+</ul>
+<h3 id="14-postgres-postgresql-database-shell">14. <code>postgres</code> - PostgreSQL database shell<a class="headerlink" href="#14-postgres-postgresql-database-shell" title="Permanent link">&para;</a></h3>
+<p>See <a href="./postgres.yaml"><code>postgres.yaml</code></a> for the complete profile.</p>
+<p>Connects to a PostgreSQL database using the <code>psql</code> CLI. Perfect for database operations, debugging, and administration with persistent terminal sessions.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>cmd</code> is <code>psql</code>, not a shell</li>
+<li><code>cmdArgs</code> contains connection parameters: host, user, and database</li>
+<li>Uses environment variables for connection: <code>PGHOST</code>, <code>PGUSER</code>, <code>PGDATABASE</code>, <code>PGPORT</code></li>
+<li><code>restartPolicy: exit</code> ensures clean disconnection</li>
+<li>Password can be set via <code>PGPASSWORD</code> environment variable or entered interactively</li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Update environment variables to match your PostgreSQL connection details</li>
+<li>Add additional <code>psql</code> command-line arguments if needed</li>
+<li>Use connection string format: <code>psql "postgresql://user:password@host:port/database"</code></li>
+<li>Set <code>PGPASSWORD</code> in environment for non-interactive password entry</li>
+</ul>
+<h3 id="15-aws-cli-aws-cli-environment">15. <code>aws-cli</code> - AWS CLI environment<a class="headerlink" href="#15-aws-cli-aws-cli-environment" title="Permanent link">&para;</a></h3>
+<p>See <a href="./aws-cli.yaml"><code>aws-cli.yaml</code></a> for the complete profile.</p>
+<p>Sets up an AWS CLI environment for infrastructure management. Perfect for managing AWS resources with consistent profile and region configuration.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>onInit</code> verifies AWS CLI installation and authenticates with AWS</li>
+<li>Sets AWS profile and region via environment variables: <code>AWS_PROFILE</code>, <code>AWS_REGION</code>, <code>AWS_DEFAULT_REGION</code></li>
+<li><code>postAttach</code> shows current AWS identity and configuration when reconnecting</li>
+<li>Uses yellow-colored prompt showing AWS profile and region</li>
+<li>Verifies AWS credentials with <code>aws sts get-caller-identity</code></li>
+<li><code>inheritEnv: true</code> allows AWS CLI and other tools to work correctly</li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Update <code>AWS_PROFILE</code> to use a specific AWS profile</li>
+<li>Change <code>AWS_REGION</code> to your preferred default region</li>
+<li>Add additional AWS-specific environment variables</li>
+<li>Modify lifecycle hooks to verify specific AWS resources or run AWS commands</li>
+</ul>
+<h3 id="16-docker-compose-docker-compose-development">16. <code>docker-compose</code> - Docker Compose development<a class="headerlink" href="#16-docker-compose-docker-compose-development" title="Permanent link">&para;</a></h3>
+<p>See <a href="./docker-compose.yaml"><code>docker-compose.yaml</code></a> for the complete profile.</p>
+<p>Sets up a Docker Compose development environment for managing multi-service applications. Automatically starts services and shows status on attach.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>onInit</code> checks docker-compose version and starts services if <code>docker-compose.yml</code> exists</li>
+<li><code>postAttach</code> shows service status and recent logs when reconnecting</li>
+<li>Sets <code>COMPOSE_PROJECT_NAME</code> to organize Docker Compose projects</li>
+<li>Uses cyan-colored prompt to distinguish Docker Compose environments</li>
+<li><code>inheritEnv: true</code> allows Docker and docker-compose commands to work correctly</li>
+<li>Automatically runs <code>docker-compose up -d</code> to start services in detached mode</li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Update <code>cwd</code> to point to your project directory with <code>docker-compose.yml</code></li>
+<li>Modify <code>COMPOSE_PROJECT_NAME</code> to match your project naming</li>
+<li>Add lifecycle hooks to run specific docker-compose commands</li>
+<li>Adjust service startup behavior (e.g., <code>docker-compose up</code> vs <code>docker-compose up -d</code>)</li>
+</ul>
+<h3 id="17-redis-redis-cli">17. <code>redis</code> - Redis CLI<a class="headerlink" href="#17-redis-redis-cli" title="Permanent link">&para;</a></h3>
+<p>See <a href="./redis.yaml"><code>redis.yaml</code></a> for the complete profile.</p>
+<p>Connects to a Redis instance using the <code>redis-cli</code> command. Perfect for debugging cache issues and performing Redis operations with persistent sessions.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>cmd</code> is <code>redis-cli</code>, not a shell</li>
+<li><code>cmdArgs</code> contains connection parameters: host and port</li>
+<li>Uses environment variables for connection: <code>REDIS_HOST</code>, <code>REDIS_PORT</code>, <code>REDIS_PASSWORD</code></li>
+<li><code>restartPolicy: exit</code> ensures clean disconnection</li>
+<li>Password can be set via <code>REDIS_PASSWORD</code> environment variable or passed via <code>-a</code> flag</li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Update environment variables to match your Redis connection details</li>
+<li>Add password authentication: <code>-a "$REDIS_PASSWORD"</code> in <code>cmdArgs</code></li>
+<li>Use connection string format: <code>redis-cli -u redis://password@host:port</code></li>
+<li>Add additional Redis CLI options as needed</li>
+</ul>
+<h3 id="18-rust-dev-rust-development-environment">18. <code>rust-dev</code> - Rust development environment<a class="headerlink" href="#18-rust-dev-rust-development-environment" title="Permanent link">&para;</a></h3>
+<p>See <a href="./rust-dev.yaml"><code>rust-dev.yaml</code></a> for the complete profile.</p>
+<p>Sets up a Rust development environment with toolchain verification. Teams can share this profile to ensure consistent Rust environment setup across team members.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>onInit</code> checks Rust and Cargo versions, verifies Rust project if <code>Cargo.toml</code> exists</li>
+<li>Sets <code>RUST_BACKTRACE=1</code> for better error debugging</li>
+<li><code>postAttach</code> shows Rust/Cargo versions and project information when reconnecting</li>
+<li>Uses red-colored prompt to distinguish Rust environments</li>
+<li><code>inheritEnv: true</code> allows PATH and Rust tools to work correctly</li>
+<li>Teams can customize the <code>cwd</code> path to match their project location</li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Update <code>cwd</code> to point to your project directory</li>
+<li>Adjust <code>RUST_BACKTRACE</code> setting based on your debugging needs</li>
+<li>Add additional Rust-specific environment variables</li>
+<li>Modify lifecycle hooks to run tests, builds, or other setup steps</li>
+</ul>
+<h3 id="19-mysql-mysql-database-shell">19. <code>mysql</code> - MySQL database shell<a class="headerlink" href="#19-mysql-mysql-database-shell" title="Permanent link">&para;</a></h3>
+<p>See <a href="./mysql.yaml"><code>mysql.yaml</code></a> for the complete profile.</p>
+<p>Connects to a MySQL database using the <code>mysql</code> CLI. Perfect for database operations, debugging, and administration with persistent terminal sessions.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>cmd</code> is <code>mysql</code>, not a shell</li>
+<li><code>cmdArgs</code> contains connection parameters: host, user, database, and password prompt</li>
+<li>Uses environment variables for connection: <code>MYSQL_HOST</code>, <code>MYSQL_USER</code>, <code>MYSQL_DATABASE</code>, <code>MYSQL_PASSWORD</code></li>
+<li><code>restartPolicy: exit</code> ensures clean disconnection</li>
+<li>Password can be set via <code>MYSQL_PWD</code> environment variable or entered interactively with <code>-p</code> flag</li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Update environment variables to match your MySQL connection details</li>
+<li>Use <code>MYSQL_PWD</code> environment variable for non-interactive password entry (less secure)</li>
+<li>Add additional MySQL command-line arguments if needed</li>
+<li>Use connection string format: <code>mysql -h host -u user -p password database</code></li>
+</ul>
+<h3 id="20-mongo-mongodb-database-shell">20. <code>mongo</code> - MongoDB database shell<a class="headerlink" href="#20-mongo-mongodb-database-shell" title="Permanent link">&para;</a></h3>
+<p>See <a href="./mongo.yaml"><code>mongo.yaml</code></a> for the complete profile.</p>
+<p>Connects to a MongoDB database using the <code>mongosh</code> CLI (MongoDB Shell). Perfect for database operations, debugging, and administration with persistent terminal sessions.</p>
+<p><strong>Key points:</strong></p>
+<ul>
+<li><code>cmd</code> is <code>mongosh</code>, not a shell</li>
+<li><code>cmdArgs</code> contains connection URI: <code>mongodb://localhost:27017</code> by default</li>
+<li>Uses environment variables for connection: <code>MONGO_URI</code>, <code>MONGO_HOST</code>, <code>MONGO_PORT</code>, <code>MONGO_DATABASE</code>, <code>MONGO_USER</code>, <code>MONGO_PASSWORD</code></li>
+<li><code>restartPolicy: exit</code> ensures clean disconnection</li>
+<li>Supports connection string format: <code>mongodb://user:password@host:port/database</code></li>
+</ul>
+<p><strong>Customization:</strong></p>
+<ul>
+<li>Update <code>MONGO_URI</code> to match your MongoDB connection string</li>
+<li>Use individual environment variables (<code>MONGO_HOST</code>, <code>MONGO_PORT</code>, etc.) to build connection string</li>
+<li>Add authentication: <code>mongodb://username:password@host:port/database</code></li>
+<li>Add additional mongosh command-line arguments if needed</li>
+<li>Use connection string with authentication: Update <code>MONGO_URI</code> to include credentials</li>
+</ul>
+<h2 id="creating-your-own-profile">Creating Your Own Profile<a class="headerlink" href="#creating-your-own-profile" title="Permanent link">&para;</a></h2>
+<h3 id="step-by-step-guide">Step-by-step guide<a class="headerlink" href="#step-by-step-guide" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Start with a copy</strong>: Copy an existing profile that's close to what you need</li>
+<li><strong>Change the name</strong>: Update <code>metadata.name</code> to something meaningful</li>
+<li><strong>Customize the command</strong>: Set <code>cmd</code> and <code>cmdArgs</code> for what you want to run</li>
+<li><strong>Set the working directory</strong>: Use <code>cwd</code> to start in the right place</li>
+<li><strong>Configure environment</strong>: Add <code>env</code> variables or set <code>inheritEnv</code></li>
+<li><strong>Add lifecycle hooks</strong>: Use <code>onInit</code> and <code>postAttach</code> if needed</li>
+<li><strong>Test it</strong>: Run <code>sbsh -p &lt;your-profile-name&gt;</code> and verify everything works</li>
+</ol>
+<h3 id="best-practices">Best practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Use descriptive names</strong>: <code>my-project-dev</code> is better than <code>test1</code></li>
+<li><strong>Prefer <code>cmdArgs</code> arrays</strong>: Keep <code>cmd</code> clean and use <code>cmdArgs</code> for arguments</li>
+<li><strong>Use <code>inheritEnv: false</code> for isolation</strong>: Better for reproducible environments</li>
+<li><strong>Use <code>inheritEnv: true</code> for convenience</strong>: When you need full PATH and other tools</li>
+<li><strong>Quote numbers in env</strong>: <code>HISTSIZE: "5000"</code> not <code>HISTSIZE: 5000</code></li>
+<li><strong>Use <code>~</code> for home directory</strong>: It's expanded at terminal start</li>
+<li><strong>Use <code>restartPolicy: exit</code> for containers/SSH</strong>: These should exit cleanly</li>
+<li><strong>Use <code>restartPolicy: restart-on-error</code> for services</strong>: When you want resilience</li>
+</ol>
+<h2 id="common-issues-and-solutions">Common Issues and Solutions<a class="headerlink" href="#common-issues-and-solutions" title="Permanent link">&para;</a></h2>
+<h3 id="profile-not-found">Profile not found<a class="headerlink" href="#profile-not-found" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: <code>sbsh</code> says "profile not found"</p>
+<p><strong>Solutions:</strong></p>
+<ul>
+<li>Check the profile name matches exactly (case-sensitive)</li>
+<li>Verify <code>~/.sbsh/profiles.yaml</code> exists</li>
+<li>Run <code>sb get profiles</code> to see available profiles</li>
+<li>Check if you're using a custom profiles file path</li>
+</ul>
+<h3 id="environment-variables-not-working">Environment variables not working<a class="headerlink" href="#environment-variables-not-working" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Environment variables aren't available in the terminal</p>
+<p><strong>Solutions:</strong></p>
+<ul>
+<li>If <code>inheritEnv: false</code>, make sure variables are in the <code>env</code> map</li>
+<li>Use <code>$HOME</code> instead of <code>~</code> in env values</li>
+<li>Quote variable values that contain spaces or special characters</li>
+<li>Numbers must be strings: <code>"5000"</code> not <code>5000</code></li>
+</ul>
+<h3 id="prompt-not-showing-colors">Prompt not showing colors<a class="headerlink" href="#prompt-not-showing-colors" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Shell prompt lacks colors or escape sequences</p>
+<p><strong>Solutions:</strong></p>
+<ul>
+<li>Quote prompts carefully in YAML</li>
+<li>Use double quotes around the prompt string: <code>prompt: '"\[\e[1;31m\]...\""</code></li>
+<li>Test with simpler prompts first, then add complexity</li>
+<li>Remember to escape backslashes: <code>\\u</code> not <code>\u</code></li>
+</ul>
+<h3 id="stages-not-running">Stages not running<a class="headerlink" href="#stages-not-running" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Commands in <code>onInit</code> or <code>postAttach</code> don't execute</p>
+<p><strong>Solutions:</strong></p>
+<ul>
+<li>Verify YAML syntax is correct (indentation matters!)</li>
+<li>Check that <code>script:</code> is indented under each stage item</li>
+<li>Ensure commands are available in the environment</li>
+<li>Use absolute paths for commands if PATH isn't set</li>
+</ul>
+<h3 id="tilde-not-expanding">Tilde (<code>~</code>) not expanding<a class="headerlink" href="#tilde-not-expanding" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: <code>~</code> appears literally instead of expanding to home directory</p>
+<p><strong>Solutions:</strong></p>
+<ul>
+<li>Tilde expands in <code>cwd</code> but not in <code>env</code> values</li>
+<li>Use <code>$HOME</code> in environment variables: <code>PATH: "$HOME/bin:$PATH"</code></li>
+<li>Use absolute paths if expansion is unreliable</li>
+</ul>
+<h2 id="testing-your-profiles">Testing Your Profiles<a class="headerlink" href="#testing-your-profiles" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Validate syntax</strong>: Use a YAML validator or check with <code>yaml</code> tools</li>
+<li><strong>List profiles</strong>: Run <code>sb get profiles</code> to see if your profile appears</li>
+<li><strong>Test the profile</strong>: Run <code>sbsh -p &lt;profile-name&gt;</code> to start a terminal</li>
+<li><strong>Check environment</strong>: Run <code>env</code> to verify variables are set correctly</li>
+<li><strong>Test stages</strong>: Detach and reattach to verify <code>postAttach</code> runs</li>
+<li><strong>Test restart policy</strong>: Exit the terminal and see if it restarts as expected</li>
+</ol>
+<h2 id="viewing-available-profiles">Viewing Available Profiles<a class="headerlink" href="#viewing-available-profiles" title="Permanent link">&para;</a></h2>
+<p>List all profiles in your profiles file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>sb<span class="w"> </span>get<span class="w"> </span>profiles
+</code></pre></div>
+<p>This shows:</p>
+<ul>
+<li>Profile name</li>
+<li>Run target</li>
+<li>Number of environment variables</li>
+<li>Command that will be executed</li>
+</ul>
+<h2 id="custom-profile-file-location">Custom Profile File Location<a class="headerlink" href="#custom-profile-file-location" title="Permanent link">&para;</a></h2>
+<p>By default, sbsh uses <code>~/.sbsh/profiles.yaml</code>. To use a different location:</p>
+<p><strong>Using environment variable:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SBSH_PROFILES_FILE</span><span class="o">=</span>/path/to/custom/profiles.yaml
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>sbsh<span class="w"> </span>-p<span class="w"> </span>my-profile
+</code></pre></div>
+<p><strong>Using command flag:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>sbsh<span class="w"> </span>--profiles-file<span class="w"> </span>/path/to/custom/profiles.yaml<span class="w"> </span>-p<span class="w"> </span>my-profile
+</code></pre></div>
+<h2 id="profile-file-organization">Profile File Organization<a class="headerlink" href="#profile-file-organization" title="Permanent link">&para;</a></h2>
+<p>sbsh loads all profiles from a single <code>profiles.yaml</code> file. Multiple profiles are defined in the same file, separated by <code>---</code> (YAML document separator).</p>
+<p>Example profiles are provided as individual files in this directory for reference and documentation purposes. To use them, you must combine them into a single <code>profiles.yaml</code> file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Copy the pre-combined file (recommended)</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="c1"># Copy from repository</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>cp<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/profiles.yaml<span class="w"> </span>~/.sbsh/profiles.yaml
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="c1"># Or combine specific example files</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>cat<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/default.yaml<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/python-venv.yaml<span class="w"> </span>&gt;<span class="w"> </span>~/.sbsh/profiles.yaml
+</code></pre></div>
+<p><strong>Important</strong>: sbsh only reads from a single <code>profiles.yaml</code> file. The individual <code>.yaml</code> files in the repository's <code>docs/profiles/</code> directory are examples for reference only.</p>
+<h2 id="contributing-examples">Contributing Examples<a class="headerlink" href="#contributing-examples" title="Permanent link">&para;</a></h2>
+<p>Found a useful profile pattern? We'd love to see it! Consider opening a pull request with:</p>
+<ul>
+<li>Your profile as a new file in the repository's <code>docs/profiles/</code> directory (e.g., <code>my-profile.yaml</code>) - provided as a reference example</li>
+<li>Add the profile to <code>docs/profiles/profiles.yaml</code> (the combined file) with <code>---</code> separator</li>
+<li>Update this README to document the new profile</li>
+<li>A brief description of the use case</li>
+<li>Any special requirements or setup instructions</li>
+</ul>
+<hr />
+<p>Happy profiling! 🚀</p>
+
+
+
+
+
+
+
+  
+    
+  
+  
+    
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 22, 2025 19:35:27 UTC">November 22, 2025</span>
+  </span>
+
+    
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Created">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"/></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 22, 2025 19:35:27 UTC">November 22, 2025</span>
+  </span>
+
+    
+    
+    
+  </aside>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/eminwux/sbsh" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.annotate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+    
+  </body>
+</html>
