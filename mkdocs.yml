@@ -1,0 +1,105 @@
+site_name: sbsh
+site_description: Terminal-as-Code for reproducible, persistent and shareable shell environments
+site_author: Emiliano Spinella (eminwux)
+site_url: https://sbsh.io
+
+repo_name: eminwux/sbsh
+repo_url: https://github.com/eminwux/sbsh
+edit_uri: edit/main/docs/site/
+
+docs_dir: docs/site
+site_dir: docs/site/build
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.annotate
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Installation:
+      - install/prerequisites.md
+      - install/install-linux.md
+      - install/install-macos.md
+      - install/install-windows.md
+  - Concepts:
+      - concepts/terminals.md
+      - concepts/profiles.md
+      - concepts/supervisor.md
+      - concepts/terminal-state.md
+      - concepts/multi-attach.md
+      - concepts/event-log.md
+      - concepts/environment-isolation.md
+  - Architecture:
+      - architecture/overview.md
+      - architecture/process-model.md
+  - Guides:
+      - guides/profiles.md
+      - guides/cicd.md
+      - guides/container.md
+      - guides/comparison.md
+  - CLI Reference:
+      - cli/commands.md
+      - cli/sbsh.md
+      - cli/sb.md
+  - Tutorials:
+      - tutorials/create-your-first-profile.md
+      - tutorials/share-a-terminal.md
+      - tutorials/automate-terminal-workflows.md
+  - FAQ: faq.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/eminwux/sbsh
+  version:
+    provider: mike
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
