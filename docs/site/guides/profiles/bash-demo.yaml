@@ -1,0 +1,20 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: bash-demo
+spec:
+  shell:
+    cmd: /bin/bash
+    cmdArgs: ["--norc", "--noprofile"]
+    cwd: "~"
+    env:
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
+      APP_ENV: "dev"
+      EDITOR: "vim"
+    prompt: '"\[\e[1;34m\]sbsh(dev)🚀 \[\e[0;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: 'echo "🧠 Loading dev environment..."'
+    postAttach:
+      - script: 'echo "✅ Ready to hack!"'

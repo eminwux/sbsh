@@ -96,8 +96,6 @@ Planned features:
 - Terminal replay based on capture
 - Structured log format
 
-See the [Roadmap](../roadmap.md) for details.
-
 ## Related Concepts
 
 - [Terminals](terminals.md) - Terminal lifecycle

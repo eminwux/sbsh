@@ -64,8 +64,6 @@ Native Windows support is planned for future releases. This will include:
 - Integration with Windows Terminal
 - PowerShell profile support
 
-See the [Roadmap](../roadmap.md) for updates on Windows support.
-
 ## Next Steps
 
 - [Getting Started](../getting-started.md) - Your first terminal session

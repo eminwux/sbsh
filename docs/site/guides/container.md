@@ -573,7 +573,5 @@ spec:
 
 ## See Also
 
-- [Profiles Documentation](./profiles/README.md) - Learn how to create and customize profiles
+- [Profiles Documentation](./profiles.md) - Learn how to create and customize profiles
 - [CI/CD Integration](./cicd.md) - Using sbsh in CI/CD pipelines
-- [Main README](../README.md) - Overview of sbsh features and capabilities
-- [Architecture Documentation](./README.md) - Understanding sbsh internals
