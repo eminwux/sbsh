@@ -51,7 +51,7 @@ Install sbsh in your GitHub Actions workflow:
 ```yaml
 - name: Setup sbsh
   run: |
-    wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
+    wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-linux-amd64
     chmod +x sbsh && sudo install -m 0755 sbsh /usr/local/bin/sbsh
     sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
 ```
@@ -71,7 +71,7 @@ jobs:
 
       - name: Setup sbsh
         run: |
-          wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
+          wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-linux-amd64
           chmod +x sbsh && sudo install -m 0755 sbsh /usr/local/bin/sbsh
           sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
 
@@ -138,7 +138,7 @@ Install sbsh in your GitLab CI pipeline:
 before_script:
   - |
     if ! command -v sbsh &> /dev/null; then
-      wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
+      wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-linux-amd64
       chmod +x sbsh && sudo install -m 0755 sbsh /usr/local/bin/sbsh
       sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
     fi
@@ -153,7 +153,7 @@ test:
   before_script:
     - apt-get update && apt-get install -y wget procps
     - |
-      wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
+      wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-linux-amd64
       chmod +x sbsh && sudo install -m 0755 sbsh /usr/local/bin/sbsh
       sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
   script:
@@ -209,7 +209,7 @@ Install sbsh in your Jenkins pipeline:
 
 ```groovy
 sh '''
-  wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
+  wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-linux-amd64
   chmod +x sbsh && sudo mv sbsh /usr/local/bin/
   sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
 '''
@@ -223,7 +223,7 @@ pipeline {
     agent any
 
     environment {
-        SBSH_VERSION = 'v0.5.0'
+        SBSH_VERSION = 'v0.6.0'
     }
 
     stages {
@@ -288,7 +288,7 @@ node {
 
     stage('Setup') {
         sh '''
-                    wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
+                    wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-linux-amd64
                     chmod +x sbsh && sudo install -m 0755 sbsh /usr/local/bin/sbsh
             sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
         '''

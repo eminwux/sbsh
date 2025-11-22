@@ -10,7 +10,7 @@ export ARCH=arm64      # For Apple Silicon (M1/M2/M3)
 # export ARCH=amd64    # For Intel Macs
 
 # Install sbsh
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-darwin-${ARCH} && \
+curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-darwin-${ARCH} && \
 chmod +x sbsh && \
 sudo install -m 0755 sbsh /usr/local/bin/sbsh && \
 sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
@@ -76,10 +76,10 @@ Download and install manually:
 
 ```bash
 # Download (Apple Silicon)
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-darwin-arm64
+curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-darwin-arm64
 
 # Or for Intel Macs
-# curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-darwin-amd64
+# curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-darwin-amd64
 
 # Make executable
 chmod +x sbsh
@@ -95,7 +95,7 @@ Install to `~/bin` (add to PATH):
 
 ```bash
 mkdir -p ~/bin
-curl -L -o ~/bin/sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-darwin-arm64
+curl -L -o ~/bin/sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-darwin-arm64
 chmod +x ~/bin/sbsh
 ln -f ~/bin/sbsh ~/bin/sb
 

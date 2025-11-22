@@ -400,7 +400,7 @@ export OS=linux        # Options: linux, darwin, freebsd, android(arm64 only)
 export ARCH=amd64      # Options: amd64, arm64
 
 # Install sbsh
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-${OS}-${ARCH} && \
+curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-${OS}-${ARCH} && \
 chmod +x sbsh && \
 sudo install -m 0755 sbsh /usr/local/bin/sbsh && \
 sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
