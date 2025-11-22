@@ -47,7 +47,7 @@ jobs:
 
       - name: Setup sbsh
         run: |
-          wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-linux-amd64
+          wget -O sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-linux-amd64
           chmod +x sbsh && sudo install -m 0755 sbsh /usr/local/bin/sbsh
           sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
 
@@ -163,7 +163,7 @@ fi
 version: "3.8"
 services:
   sbsh:
-    image: docker.io/eminwux/sbsh:v0.5.0-linux-amd64
+    image: docker.io/eminwux/sbsh:v0.6.0-linux-amd64
     volumes:
       - ~/.sbsh:/root/.sbsh
     command: sbsh terminal --name automated-task -p my-profile
@@ -181,7 +181,7 @@ spec:
     spec:
       containers:
         - name: sbsh
-          image: docker.io/eminwux/sbsh:v0.5.0-linux-amd64
+          image: docker.io/eminwux/sbsh:v0.6.0-linux-amd64
           command:
             ["/bin/sbsh", "terminal", "--name", "k8s-task", "-p", "my-profile"]
 ```

@@ -22,7 +22,7 @@ export OS=linux        # Options: linux, darwin, freebsd
 export ARCH=amd64      # Options: amd64, arm64
 
 # Install sbsh
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.5.0/sbsh-${OS}-${ARCH} && \
+curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-${OS}-${ARCH} && \
 chmod +x sbsh && \
 sudo install -m 0755 sbsh /usr/local/bin/sbsh && \
 sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
@@ -36,6 +36,10 @@ source <(sbsh autocomplete bash)
 source <(sb autocomplete bash)
 EOF
 ```
+
+## Documentation
+
+Complete documentation is available at [https://sbsh.io](https://sbsh.io), including guides, tutorials, API reference, and examples.
 
 ## Why sbsh
 
@@ -237,10 +241,10 @@ Key benefits: reproducibility (same profile locally and in CI), debugging (persi
 Official Docker images for running persistent terminals in containerized environments. Quick deployment in Docker, Kubernetes, or any container orchestration platform.
 
 ```bash
-docker pull docker.io/eminwux/sbsh:v0.5.0-linux-amd64
+docker pull docker.io/eminwux/sbsh:v0.6.0-linux-amd64
 docker run -it --rm \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 \
+  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
   sbsh
 ```
 

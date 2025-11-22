@@ -41,7 +41,7 @@ Run sbsh in a Docker container on Windows:
 # Run sbsh interactively
 docker run -it --rm `
   -v ${env:USERPROFILE}\.sbsh:/root/.sbsh `
-  docker.io/eminwux/sbsh:v0.5.0-linux-amd64 `
+  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 `
   sbsh
 ```
 
