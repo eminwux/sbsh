@@ -9,3 +9,4 @@ spec:
     cwd: "~"
     cmd: /usr/bin/ssh
     cmdArgs: ["-t", "pk"]
+    setPrompt: false

@@ -16,6 +16,7 @@ spec:
       - "-D"
       - "${MYSQL_DATABASE:-mysql}"
       - "-p"
+    setPrompt: false
     env:
       MYSQL_HOST: "localhost"
       MYSQL_USER: "root"

@@ -15,6 +15,7 @@ spec:
       - "${PGUSER:-postgres}"
       - "-d"
       - "${PGDATABASE:-postgres}"
+    setPrompt: false
     env:
       PGHOST: "localhost"
       PGUSER: "postgres"
