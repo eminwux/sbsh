@@ -1,0 +1,20 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: terraform-dev
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~/project/terraform"
+    cmd: /bin/bash
+    cmdArgs: []
+    env:
+      HISTSIZE: "5000"
+      TF_VAR_environment: "dev"
+    prompt: '"\[\e[1;34m\]sbsh($SBSH_TERM_PROFILE/$SBSH_TERM_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: terraform workspace use $TF_VAR_environment
+      - script: terraform init
+      - script: terraform plan -out=tfplan

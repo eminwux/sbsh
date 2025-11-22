@@ -1,0 +1,24 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: mysql
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/mysql
+    cmdArgs:
+      - "-h"
+      - "${MYSQL_HOST:-localhost}"
+      - "-u"
+      - "${MYSQL_USER:-root}"
+      - "-D"
+      - "${MYSQL_DATABASE:-mysql}"
+      - "-p"
+    setPrompt: false
+    env:
+      MYSQL_HOST: "localhost"
+      MYSQL_USER: "root"
+      MYSQL_DATABASE: "mysql"
+      MYSQL_PASSWORD: ""
