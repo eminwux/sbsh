@@ -14,7 +14,7 @@ sbsh treats terminals as independent, managed services with declarative configur
 
 ### Is sbsh production-ready?
 
-sbsh is currently in beta. It's under active development with a focus on correctness, portability, and clear abstractions. See the [Roadmap](roadmap.md) for current status and planned features.
+sbsh is currently in beta. It's under active development with a focus on correctness, portability, and clear abstractions.
 
 ## Installation
 

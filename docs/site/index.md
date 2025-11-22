@@ -89,8 +89,6 @@ sbsh applies the same principles of Infrastructure-as-Code to interactive enviro
 
 sbsh is under active development, with a focus on correctness, portability, and clear abstractions before adding integrations.
 
-See the [Roadmap](roadmap.md) for work in progress, planned features, and the project roadmap.
-
 ## License
 
 Apache License 2.0

@@ -1,0 +1,488 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: default
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~"
+    cmd: /bin/bash
+    cmdArgs: ["--norc", "--noprofile"]
+    inheritEnv: false
+    env:
+      LANG: en_US.UTF-8
+      EDITOR: vim
+      HISTSIZE: "5000"
+    prompt: "\"[sbsh-$SBSH_TERM_ID] \\u@\\h:\\w$ \""
+  stages:
+    onInit:
+    postAttach:
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: zsh
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~"
+    cmd: /bin/zsh
+    cmdArgs: ["-f"]
+    inheritEnv: false
+    env:
+      LANG: en_US.UTF-8
+      EDITOR: vim
+      HISTSIZE: "5000"
+    prompt: '"[sbsh-$SBSH_TERM_ID] %n@%m:%~$ "'
+  stages:
+    onInit:
+    postAttach:
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: k8s-default
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~/projects"
+    cmd: /bin/bash
+    cmdArgs: []
+    env:
+      KUBECONF: "$HOME/.kube/config"
+      KUBE_CONTEXT: default
+      KUBE_NAMESPACE: default
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;31m\]sbsh($SBSH_TERM_PROFILE/$SBSH_TERM_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: kubectl config use-context $KUBE_CONTEXT
+      - script: kubectl config get-contexts
+    postAttach:
+      - script: kubectl get ns
+      - script: kubectl -n $KUBE_NAMESPACE get pods
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: terraform-prd
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~/project/terraform"
+    cmd: /bin/bash
+    cmdArgs: []
+    env:
+      HISTSIZE: "5000"
+      TF_VAR_environment: "prd"
+    prompt: '"\[\e[1;31m\]sbsh($SBSH_TERM_PROFILE/$SBSH_TERM_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: terraform workspace use $TF_VAR_environment
+      - script: terraform init
+      - script: terraform plan -out=tfplan
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: k8s-pod
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/local/bin/kubectl
+    cmdArgs:
+      ["run", "-ti", "--rm", "--image", "debian:stable-slim", "ephemeral"]
+    env:
+      KUBECONF: "~/.kube/config"
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: docker-container
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/docker
+    cmdArgs: ["run", "--rm", "-ti", "debian:stable-slim", "/bin/bash"]
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: ssh-pk
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/ssh
+    cmdArgs: ["-t", "pk"]
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: python-venv
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~/projects/myapp"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      PYTHONPATH: "$PWD:$PYTHONPATH"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;33m\]sbsh(python-venv) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: |
+          if [ ! -d "venv" ]; then
+            python3 -m venv venv
+            echo "Created virtual environment"
+          fi
+          source venv/bin/activate
+          echo "Virtual environment activated"
+      - script: python --version
+      - script: pip --version
+    postAttach:
+      - script: |
+          if [ -d "venv" ]; then
+            source venv/bin/activate
+            echo "Virtual environment reactivated"
+            python --version
+            pip list | head -5
+          else
+            echo "Warning: venv directory not found"
+          fi
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: npm-dev
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~/projects/myapp"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      NODE_ENV: "development"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;36m\]sbsh(npm-dev) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: node --version
+      - script: npm --version
+      - script: |
+          if [ ! -d "node_modules" ]; then
+            echo "Installing dependencies..."
+            npm install
+          else
+            echo "Dependencies already installed"
+          fi
+    postAttach:
+      - script: node --version
+      - script: npm --version
+      - script: |
+          if [ -f "package.json" ]; then
+            echo "Project: $(grep '"name"' package.json | head -1 | cut -d'"' -f4)"
+          fi
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: go-dev
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~/projects/myapp"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      GO111MODULE: "on"
+      CGO_ENABLED: "1"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;34m\]sbsh(go-dev) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: go version
+      - script: go env GOROOT
+      - script: go env GOPATH
+      - script: |
+          if [ -f "go.mod" ]; then
+            echo "Go module found"
+            go mod verify
+          else
+            echo "No go.mod found - initialize with: go mod init <module-name>"
+          fi
+    postAttach:
+      - script: go version
+      - script: |
+          if [ -f "go.mod" ]; then
+            echo "Module: $(grep '^module' go.mod | awk '{print $2}')"
+            go list -m all | head -5
+          fi
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: ci-test
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~/project"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      CI: "true"
+      NODE_ENV: "test"
+      PYTHON_ENV: "test"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;35m\]sbsh(ci-test) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: 'echo "CI environment: $CI"'
+      - script: 'echo "Test environment variables set"'
+    postAttach:
+      - script: 'echo "CI Test Environment"'
+      - script: 'echo "CI=$CI, NODE_ENV=$NODE_ENV"'
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: terraform-dev
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~/project/terraform"
+    cmd: /bin/bash
+    cmdArgs: []
+    env:
+      HISTSIZE: "5000"
+      TF_VAR_environment: "dev"
+    prompt: '"\[\e[1;34m\]sbsh($SBSH_TERM_PROFILE/$SBSH_TERM_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: terraform workspace use $TF_VAR_environment
+      - script: terraform init
+      - script: terraform plan -out=tfplan
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: terraform-staging
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~/project/terraform"
+    cmd: /bin/bash
+    cmdArgs: []
+    env:
+      HISTSIZE: "5000"
+      TF_VAR_environment: "staging"
+    prompt: '"\[\e[1;33m\]sbsh($SBSH_TERM_PROFILE/$SBSH_TERM_ID) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: terraform workspace use $TF_VAR_environment
+      - script: terraform init
+      - script: terraform plan -out=tfplan
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: postgres
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/psql
+    cmdArgs:
+      - "-h"
+      - "${PGHOST:-localhost}"
+      - "-U"
+      - "${PGUSER:-postgres}"
+      - "-d"
+      - "${PGDATABASE:-postgres}"
+    setPrompt: false
+    env:
+      PGHOST: "localhost"
+      PGUSER: "postgres"
+      PGDATABASE: "postgres"
+      PGPORT: "5432"
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: aws-cli
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      AWS_PROFILE: "default"
+      AWS_REGION: "us-east-1"
+      AWS_DEFAULT_REGION: "us-east-1"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;33m\]sbsh(aws:$AWS_PROFILE/$AWS_REGION) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: aws --version
+      - script: aws configure list
+      - script: aws sts get-caller-identity
+    postAttach:
+      - script: 'echo "AWS Profile: $AWS_PROFILE"'
+      - script: 'echo "AWS Region: $AWS_REGION"'
+      - script: aws sts get-caller-identity
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: docker-compose
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~/project"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      COMPOSE_PROJECT_NAME: "myapp"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;36m\]sbsh(docker-compose) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: docker-compose --version
+      - script: |
+          if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ]; then
+            echo "Starting docker-compose services..."
+            docker-compose up -d
+          else
+            echo "No docker-compose.yml found"
+          fi
+    postAttach:
+      - script: docker-compose ps
+      - script: docker-compose logs --tail=10
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: redis
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/redis-cli
+    cmdArgs:
+      - "-h"
+      - "${REDIS_HOST:-localhost}"
+      - "-p"
+      - "${REDIS_PORT:-6379}"
+    env:
+      REDIS_HOST: "localhost"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: rust-dev
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~/projects/myapp"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      RUST_BACKTRACE: "1"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;31m\]sbsh(rust-dev) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: rustc --version
+      - script: cargo --version
+      - script: |
+          if [ -f "Cargo.toml" ]; then
+            echo "Rust project found"
+            cargo check
+          else
+            echo "No Cargo.toml found - initialize with: cargo init"
+          fi
+    postAttach:
+      - script: rustc --version
+      - script: cargo --version
+      - script: |
+          if [ -f "Cargo.toml" ]; then
+            echo "Project: $(grep '^name' Cargo.toml | head -1 | cut -d'"' -f2)"
+            cargo tree --depth=1 2>/dev/null || echo "Run 'cargo build' to resolve dependencies"
+          fi
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: mysql
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/mysql
+    cmdArgs:
+      - "-h"
+      - "${MYSQL_HOST:-localhost}"
+      - "-u"
+      - "${MYSQL_USER:-root}"
+      - "-D"
+      - "${MYSQL_DATABASE:-mysql}"
+      - "-p"
+    setPrompt: false
+    env:
+      MYSQL_HOST: "localhost"
+      MYSQL_USER: "root"
+      MYSQL_DATABASE: "mysql"
+      MYSQL_PASSWORD: ""
+---
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: mongo
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/mongosh
+    cmdArgs:
+      - "${MONGO_URI:-mongodb://localhost:27017}"
+    setPrompt: false
+    env:
+      MONGO_URI: "mongodb://localhost:27017"
+      MONGO_HOST: "localhost"
+      MONGO_PORT: "27017"
+      MONGO_DATABASE: "test"
+      MONGO_USER: ""
+      MONGO_PASSWORD: ""

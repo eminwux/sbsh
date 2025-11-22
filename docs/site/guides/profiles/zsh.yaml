@@ -1,0 +1,20 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: zsh
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~"
+    cmd: /bin/zsh
+    cmdArgs: ["-f"]
+    inheritEnv: false
+    env:
+      LANG: en_US.UTF-8
+      EDITOR: vim
+      HISTSIZE: "5000"
+    prompt: '"[sbsh-$SBSH_TERM_ID] %n@%m:%~$ "'
+  stages:
+    onInit:
+    postAttach:

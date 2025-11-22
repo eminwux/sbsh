@@ -1,0 +1,25 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: ci-test
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~/project"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      CI: "true"
+      NODE_ENV: "test"
+      PYTHON_ENV: "test"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;35m\]sbsh(ci-test) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: 'echo "CI environment: $CI"'
+      - script: 'echo "Test environment variables set"'
+    postAttach:
+      - script: 'echo "CI Test Environment"'
+      - script: 'echo "CI=$CI, NODE_ENV=$NODE_ENV"'

@@ -1,0 +1,27 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: aws-cli
+spec:
+  runTarget: local
+  restartPolicy: restart-on-error
+  shell:
+    cwd: "~"
+    cmd: /bin/bash
+    cmdArgs: []
+    inheritEnv: true
+    env:
+      AWS_PROFILE: "default"
+      AWS_REGION: "us-east-1"
+      AWS_DEFAULT_REGION: "us-east-1"
+      HISTSIZE: "5000"
+    prompt: '"\[\e[1;33m\]sbsh(aws:$AWS_PROFILE/$AWS_REGION) \[\e[1;32m\]\u@\h\[\e[0m\]:\w\$ "'
+  stages:
+    onInit:
+      - script: aws --version
+      - script: aws configure list
+      - script: aws sts get-caller-identity
+    postAttach:
+      - script: 'echo "AWS Profile: $AWS_PROFILE"'
+      - script: 'echo "AWS Region: $AWS_REGION"'
+      - script: aws sts get-caller-identity

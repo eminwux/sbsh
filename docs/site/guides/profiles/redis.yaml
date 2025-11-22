@@ -1,0 +1,20 @@
+apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: redis
+spec:
+  runTarget: local
+  restartPolicy: exit
+  shell:
+    cwd: "~"
+    cmd: /usr/bin/redis-cli
+    cmdArgs:
+      - "-h"
+      - "${REDIS_HOST:-localhost}"
+      - "-p"
+      - "${REDIS_PORT:-6379}"
+    setPrompt: false
+    env:
+      REDIS_HOST: "localhost"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
