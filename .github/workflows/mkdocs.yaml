@@ -1,12 +1,16 @@
 name: Deploy Docs
+permissions:
+  contents: write
+  pages: write
+  id-token: write
 
 on:
   push:
     branches:
       - main
-
-permissions:
-  contents: write
+    paths:
+      - 'docs/site/**'
+  workflow_dispatch:
 
 jobs:
   build_mkdocs:
