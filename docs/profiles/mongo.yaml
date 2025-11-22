@@ -10,6 +10,7 @@ spec:
     cmd: /usr/bin/mongosh
     cmdArgs:
       - "${MONGO_URI:-mongodb://localhost:27017}"
+    setPrompt: false
     env:
       MONGO_URI: "mongodb://localhost:27017"
       MONGO_HOST: "localhost"

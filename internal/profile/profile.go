@@ -92,6 +92,7 @@ func CreateTerminalFromProfile(profile *api.TerminalProfileDoc) (*api.TerminalSp
 		Labels:      copyStringMap(profile.Metadata.Labels),
 		ProfileName: profile.Metadata.Name,
 		Prompt:      profile.Spec.Shell.Prompt,
+		SetPrompt:   true,
 		Stages:      profile.Spec.Stages,
 	}
 
@@ -110,18 +111,19 @@ func copyStringMap(in map[string]string) map[string]string {
 }
 
 type BuildTerminalSpecParams struct {
-	TerminalID      string
-	TerminalName    string
-	TerminalCmd     string
-	TerminalCmdArgs []string
-	CaptureFile     string
-	RunPath         string
-	ProfilesFile    string
-	ProfileName     string
-	LogFile         string
-	LogLevel        string
-	SocketFile      string
-	EnvVars         []string
+	TerminalID       string
+	TerminalName     string
+	TerminalCmd      string
+	TerminalCmdArgs  []string
+	CaptureFile      string
+	RunPath          string
+	ProfilesFile     string
+	ProfileName      string
+	LogFile          string
+	LogLevel         string
+	SocketFile       string
+	EnvVars          []string
+	DisableSetPrompt bool
 }
 
 // BuildTerminalSpec builds a TerminalSpec from command-line inputs and/or a profile.
@@ -254,6 +256,8 @@ func addInputValuesToTerminal(terminalSpec *api.TerminalSpec, input *BuildTermin
 	terminalSpec.LogLevel = input.LogLevel
 	terminalSpec.SocketFile = input.SocketFile
 	terminalSpec.Env = append(terminalSpec.Env, input.EnvVars...)
+	// Inverted logic: when DisableSetPrompt is true, SetPrompt is false
+	terminalSpec.SetPrompt = !input.DisableSetPrompt
 }
 
 // GetDefaultHardcodedProfile constructs a default TerminalProfileDoc using command-line or terminal defaults.

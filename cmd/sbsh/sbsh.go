@@ -155,16 +155,17 @@ You can also use sbsh with parameters. For example:
 				cmd.Context(),
 				logger,
 				&profile.BuildTerminalSpecParams{
-					TerminalID:   viper.GetString(config.SBSH_ROOT_TERM_ID.ViperKey),
-					TerminalName: viper.GetString(config.SBSH_ROOT_TERM_NAME.ViperKey),
-					TerminalCmd:  viper.GetString(config.SBSH_ROOT_TERM_COMMAND.ViperKey),
-					CaptureFile:  viper.GetString(config.SBSH_ROOT_TERM_CAPTURE_FILE.ViperKey),
-					RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-					ProfilesFile: viper.GetString(config.SBSH_ROOT_PROFILES_FILE.ViperKey),
-					ProfileName:  viper.GetString(config.SBSH_ROOT_TERM_PROFILE.ViperKey),
-					LogFile:      viper.GetString(config.SBSH_ROOT_TERM_LOG_FILE.ViperKey),
-					LogLevel:     viper.GetString(config.SBSH_ROOT_TERM_LOG_LEVEL.ViperKey),
-					SocketFile:   viper.GetString(config.SBSH_ROOT_TERM_SOCKET.ViperKey),
+					TerminalID:       viper.GetString(config.SBSH_ROOT_TERM_ID.ViperKey),
+					TerminalName:     viper.GetString(config.SBSH_ROOT_TERM_NAME.ViperKey),
+					TerminalCmd:      viper.GetString(config.SBSH_ROOT_TERM_COMMAND.ViperKey),
+					CaptureFile:      viper.GetString(config.SBSH_ROOT_TERM_CAPTURE_FILE.ViperKey),
+					RunPath:          viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+					ProfilesFile:     viper.GetString(config.SBSH_ROOT_PROFILES_FILE.ViperKey),
+					ProfileName:      viper.GetString(config.SBSH_ROOT_TERM_PROFILE.ViperKey),
+					LogFile:          viper.GetString(config.SBSH_ROOT_TERM_LOG_FILE.ViperKey),
+					LogLevel:         viper.GetString(config.SBSH_ROOT_TERM_LOG_LEVEL.ViperKey),
+					SocketFile:       viper.GetString(config.SBSH_ROOT_TERM_SOCKET.ViperKey),
+					DisableSetPrompt: viper.GetBool(config.SBSH_ROOT_TERM_DISABLE_SET_PROMPT.ViperKey),
 				},
 			)
 
@@ -329,6 +330,11 @@ func setTerminalFlags(rootCmd *cobra.Command) error {
 
 	rootCmd.Flags().String("terminal-socket", "", "Optional socket file for the terminal")
 	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_SOCKET.ViperKey, rootCmd.Flags().Lookup("terminal-socket")); err != nil {
+		return err
+	}
+
+	rootCmd.Flags().Bool("terminal-disable-set-prompt", false, "Disable setting the prompt")
+	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_DISABLE_SET_PROMPT.ViperKey, rootCmd.Flags().Lookup("terminal-disable-set-prompt")); err != nil {
 		return err
 	}
 

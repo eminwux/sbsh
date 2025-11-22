@@ -81,16 +81,17 @@ func buildTerminalSpecFromFlags(cmd *cobra.Command, logger *slog.Logger) (*api.T
 		cmd.Context(),
 		logger,
 		&profile.BuildTerminalSpecParams{
-			TerminalID:   viper.GetString(config.SBSH_TERM_ID.ViperKey),
-			TerminalName: viper.GetString(config.SBSH_TERM_NAME.ViperKey),
-			TerminalCmd:  viper.GetString(config.SBSH_TERM_COMMAND.ViperKey),
-			CaptureFile:  viper.GetString(config.SBSH_TERM_CAPTURE_FILE.ViperKey),
-			RunPath:      viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
-			ProfilesFile: viper.GetString(config.SBSH_ROOT_PROFILES_FILE.ViperKey),
-			ProfileName:  viper.GetString(config.SBSH_TERM_PROFILE.ViperKey),
-			LogFile:      viper.GetString(config.SBSH_TERM_LOG_FILE.ViperKey),
-			LogLevel:     viper.GetString(config.SBSH_TERM_LOG_LEVEL.ViperKey),
-			SocketFile:   viper.GetString(config.SBSH_TERM_SOCKET.ViperKey),
+			TerminalID:       viper.GetString(config.SBSH_TERM_ID.ViperKey),
+			TerminalName:     viper.GetString(config.SBSH_TERM_NAME.ViperKey),
+			TerminalCmd:      viper.GetString(config.SBSH_TERM_COMMAND.ViperKey),
+			CaptureFile:      viper.GetString(config.SBSH_TERM_CAPTURE_FILE.ViperKey),
+			RunPath:          viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
+			ProfilesFile:     viper.GetString(config.SBSH_ROOT_PROFILES_FILE.ViperKey),
+			ProfileName:      viper.GetString(config.SBSH_TERM_PROFILE.ViperKey),
+			LogFile:          viper.GetString(config.SBSH_TERM_LOG_FILE.ViperKey),
+			LogLevel:         viper.GetString(config.SBSH_TERM_LOG_LEVEL.ViperKey),
+			SocketFile:       viper.GetString(config.SBSH_TERM_SOCKET.ViperKey),
+			DisableSetPrompt: viper.GetBool(config.SBSH_TERM_DISABLE_SET_PROMPT.ViperKey),
 		},
 	)
 
@@ -359,6 +360,9 @@ func setupTerminalCmdFlags(terminalCmd *cobra.Command) {
 
 	terminalCmd.Flags().StringP("file", "f", "", "Optional JSON file with the terminal spec (use '-' for stdin)")
 	_ = viper.BindPFlag(config.SBSH_TERM_SPEC.ViperKey, terminalCmd.Flags().Lookup("file"))
+
+	terminalCmd.Flags().Bool("disable-set-prompt", false, "Disable setting the prompt")
+	_ = viper.BindPFlag(config.SBSH_TERM_DISABLE_SET_PROMPT.ViperKey, terminalCmd.Flags().Lookup("disable-set-prompt"))
 }
 
 func runTerminal(

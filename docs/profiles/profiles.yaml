@@ -320,6 +320,7 @@ spec:
       - "${PGUSER:-postgres}"
       - "-d"
       - "${PGDATABASE:-postgres}"
+    setPrompt: false
     env:
       PGHOST: "localhost"
       PGUSER: "postgres"
@@ -458,6 +459,7 @@ spec:
       - "-D"
       - "${MYSQL_DATABASE:-mysql}"
       - "-p"
+    setPrompt: false
     env:
       MYSQL_HOST: "localhost"
       MYSQL_USER: "root"
@@ -476,6 +478,7 @@ spec:
     cmd: /usr/bin/mongosh
     cmdArgs:
       - "${MONGO_URI:-mongodb://localhost:27017}"
+    setPrompt: false
     env:
       MONGO_URI: "mongodb://localhost:27017"
       MONGO_HOST: "localhost"

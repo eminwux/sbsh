@@ -56,6 +56,7 @@ type TerminalSpec struct {
 	EnvInherit  bool     `json:"inheritEnv"`
 	Env         []string `json:"env"`
 	Prompt      string   `json:"prompt"`
+	SetPrompt   bool     `json:"setPrompt,omitempty"`
 
 	RunPath     string `json:"runPath"`
 	CaptureFile string `json:"captureFile"`

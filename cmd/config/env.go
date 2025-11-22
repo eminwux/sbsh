@@ -146,6 +146,11 @@ var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_ROOT_TERM_SOCKET = DefineKV("SBSH_ROOT_TERM_SOCKET", "sbsh.root.terminal.socket")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_ROOT_TERM_DISABLE_SET_PROMPT = DefineKV(
+		"SBSH_ROOT_TERM_DISABLE_SET_PROMPT",
+		"sbsh.root.terminal.disableSetPrompt",
+	)
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_SUPERVISOR_ID = DefineKV("SBSH_SUPERVISOR_ID", "sbsh.supervisor.id")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_SUPERVISOR_NAME = DefineKV("SBSH_SUPERVISOR_NAME", "sbsh.supervisor.name")
@@ -183,4 +188,6 @@ var (
 	SBSH_TERM_TERMINAL_LOG = DefineKV("SBSH_TERM_TERMINAL_LOG", "sbsh.terminal.terminalLog")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_TERM_SPEC = DefineKV("SBSH_TERM_SPEC", "sbsh.terminal.spec")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_TERM_DISABLE_SET_PROMPT = DefineKV("SBSH_TERM_DISABLE_SET_PROMPT", "sbsh.terminal.disableSetPrompt")
 )

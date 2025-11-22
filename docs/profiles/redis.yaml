@@ -13,6 +13,7 @@ spec:
       - "${REDIS_HOST:-localhost}"
       - "-p"
       - "${REDIS_PORT:-6379}"
+    setPrompt: false
     env:
       REDIS_HOST: "localhost"
       REDIS_PORT: "6379"

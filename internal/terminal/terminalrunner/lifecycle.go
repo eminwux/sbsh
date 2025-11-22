@@ -237,16 +237,17 @@ func (sr *Exec) SetupShell() error {
 	// 	sr.logger.Error("failed to send CTRL-L", "id", sr.id, "err", err)
 	// 	return fmt.Errorf("failed to send CTRL-L: %w", err)
 	// }
+	if sr.metadata.Spec.SetPrompt {
+		if sr.metadata.Spec.Prompt == "" {
+			sr.metadata.Spec.Prompt = "(sbsh-" + string(sr.metadata.Spec.ID) + ")"
+		}
+		promptCmd := `export PS1=` + sr.metadata.Spec.Prompt + "\n"
 
-	if sr.metadata.Spec.Prompt == "" {
-		sr.metadata.Spec.Prompt = "(sbsh-" + string(sr.metadata.Spec.ID) + ")"
-	}
-	promptCmd := `export PS1=` + sr.metadata.Spec.Prompt + "\n"
-
-	sr.logger.Debug("setupShell: setting prompt", "cmd", promptCmd)
-	if _, err := sr.Write([]byte(promptCmd)); err != nil {
-		sr.logger.Error("failed to set prompt", "id", sr.id, "cmd", promptCmd, "err", err)
-		return fmt.Errorf("failed to set prompt: %w", err)
+		sr.logger.Debug("setupShell: setting prompt", "cmd", promptCmd)
+		if _, err := sr.Write([]byte(promptCmd)); err != nil {
+			sr.logger.Error("failed to set prompt", "id", sr.id, "cmd", promptCmd, "err", err)
+			return fmt.Errorf("failed to set prompt: %w", err)
+		}
 	}
 
 	//nolint:mnd // small delay between commands
