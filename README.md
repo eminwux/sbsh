@@ -276,6 +276,16 @@ sbsh is under active development, with a focus on correctness, portability, and 
 
 → See [ROADMAP.md](./ROADMAP.md) for work in progress, planned features, and the project roadmap.
 
+## 📖 Developer & API Documentation
+
+If you are looking to build integrations, create custom clients, or understand the `sbsh` internal manifests, check out our structured API guides:
+
+* **[API Overview](./docs/api/index.md)**: Architecture and communication protocols.
+* **[Terminal API](./docs/api/terminal-api.md)**: Methods for PTY management and attachment.
+* **[Supervisor API](./docs/api/supervisor-api.md)**: Lifecycle management and session persistence.
+* **[YAML Schema Reference](./docs/api/schemas.md)**: Breakdown of the `TerminalProfile` manifest.
+* **[Usage Examples](./docs/api/examples.md)**: Practical Go code snippets to get started.
+
 ## Contribute
 
 sbsh is an open project that welcomes thoughtful contributions. The goal is to build a simple, reliable foundation for reproducible, shareable shell environments, not a large framework. Discussions, code reviews, and design proposals are encouraged, especially around clarity, portability, and correctness.

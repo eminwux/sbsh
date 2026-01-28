@@ -85,3 +85,18 @@ type ExecStep struct {
 	Script string            `json:"script"        yaml:"script"`
 	Env    map[string]string `json:"env,omitempty" yaml:"env,omitempty"`
 }
+
+// TerminalProfileDoc models one YAML document containing a TerminalProfile configuration.
+type TerminalProfileDoc struct { ... }
+
+// ShellSpec describes the base interactive process (like bash or zsh) 
+// that owns the terminal lifetime.
+type ShellSpec struct {
+	// Cwd is the initial working directory for the shell.
+	Cwd        string            `json:"cwd,omitempty"        yaml:"cwd,omitempty"`
+	// Cmd is the path to the executable (e.g., /bin/bash).
+	Cmd        string            `json:"cmd"                  yaml:"cmd"`
+	// Env allows setting custom environment variables for the session.
+	Env        map[string]string `json:"env,omitempty"        yaml:"env,omitempty"`
+    // ... (Keep other fields)
+}

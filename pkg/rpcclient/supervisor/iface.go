@@ -24,3 +24,4 @@ type Client interface {
 	Detach(ctx context.Context) error
 	Close() error
 }
+
