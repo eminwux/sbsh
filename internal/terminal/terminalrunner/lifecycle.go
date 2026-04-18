@@ -253,20 +253,6 @@ func (sr *Exec) SetupShell() error {
 	//nolint:mnd // small delay between commands
 	time.Sleep(10 * time.Millisecond)
 
-	// setup current working directory
-	if sr.metadata.Spec.Cwd != "" {
-		cmdLine := "cd " + sr.metadata.Spec.Cwd + "\n"
-		sr.logger.Info("OnInit command", "cmd", cmdLine)
-
-		if _, err := sr.Write([]byte(cmdLine)); err != nil {
-			sr.logger.Error("failed to write OnInit command to PTY", "cmd", cmdLine, "err", err)
-			return fmt.Errorf("failed to write OnInit command to PTY: %w", err)
-		}
-
-		//nolint:mnd // small delay between commands
-		time.Sleep(10 * time.Millisecond)
-	}
-
 	return nil
 }
 
