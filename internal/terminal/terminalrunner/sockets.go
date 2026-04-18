@@ -86,11 +86,11 @@ func (sr *Exec) OpenSocketCtrl() error {
 	return nil
 }
 
-func (sr *Exec) CreateNewClient(supervisorID *api.ID) (int, error) {
-	sr.logger.Debug("CreateNewClient: creating socketpair", "id", supervisorID)
+func (sr *Exec) CreateNewClient(clientID *api.ID) (int, error) {
+	sr.logger.Debug("CreateNewClient: creating socketpair", "id", clientID)
 	sv, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|sockCloexec, 0)
 	if err != nil {
-		sr.logger.Error("CreateNewClient: Socketpair failed", "id", supervisorID, "error", err)
+		sr.logger.Error("CreateNewClient: Socketpair failed", "id", clientID, "error", err)
 		return -1, err
 	}
 
@@ -101,18 +101,18 @@ func (sr *Exec) CreateNewClient(supervisorID *api.ID) (int, error) {
 
 	ioConn, err := net.FileConn(f)
 	if err != nil {
-		sr.logger.Error("CreateNewClient: FileConn failed", "id", supervisorID, "error", err)
+		sr.logger.Error("CreateNewClient: FileConn failed", "id", clientID, "error", err)
 		return -1, fmt.Errorf("FileConn: %w", err)
 	}
 	_ = f.Close() // release the duplicate, keep using ioConn
 
-	cl := &ioClient{id: supervisorID, conn: ioConn}
+	cl := &ioClient{id: clientID, conn: ioConn}
 
 	sr.addClient(cl)
-	sr.logger.Info("CreateNewClient: client added", "id", supervisorID)
+	sr.logger.Info("CreateNewClient: client added", "id", clientID)
 	go sr.handleClient(cl)
 
-	sr.logger.Debug("CreateNewClient: returning client FD", "id", supervisorID, "fd", cliFD)
+	sr.logger.Debug("CreateNewClient: returning client FD", "id", clientID, "fd", cliFD)
 	return cliFD, nil
 }
 

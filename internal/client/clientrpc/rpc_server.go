@@ -14,9 +14,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package discovery
+package clientrpc
 
-const (
-	NoClientsString   = "no active or inactive clients found\r\n"
-	NoTerminalsString = "no active or inactive terminals found\r\n"
-)
+import "github.com/eminwux/sbsh/pkg/api"
+
+type ClientControllerRPC struct {
+	Core api.ClientController // the real server-side controller
+}
+
+// WaitReady Optional: usually you don’t expose Run over RPC because it blocks.
+func (s *ClientControllerRPC) WaitReady(_ *api.Empty, _ *api.Empty) error {
+	return s.Core.WaitReady()
+}
+
+func (s *ClientControllerRPC) Detach(_ *api.Empty, _ *api.Empty) error {
+	return s.Core.Detach()
+}

@@ -14,21 +14,36 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package terminal
+package client
 
 import (
 	"context"
 	"net"
-
-	"github.com/eminwux/sbsh/pkg/api"
+	"time"
 )
 
-type Client interface {
-	Ping(ctx context.Context, ping *api.PingMessage, pong *api.PingMessage) error
-	Resize(ctx context.Context, args *api.ResizeArgs) error
-	Detach(ctx context.Context, id *api.ID) error
-	Attach(ctx context.Context, clientID *api.ID, response any) (net.Conn, error)
-	Close() error
-	Metadata(ctx context.Context, metadata *api.TerminalDoc) error
-	State(ctx context.Context, state *api.TerminalStatusMode) error
+type (
+	Option   func(*unixOpts)
+	unixOpts struct {
+		DialTimeout time.Duration
+	}
+)
+
+func WithDialTimeout(d time.Duration) Option {
+	return func(o *unixOpts) { o.DialTimeout = d }
+}
+
+// NewUnix returns a ctx-aware client that dials a Unix socket per call.
+func NewUnix(sockPath string, opts ...Option) Client {
+	//nolint:mnd // default timeout
+	cfg := unixOpts{DialTimeout: 5 * time.Second}
+	for _, o := range opts {
+		o(&cfg)
+	}
+
+	dialer := func(ctx context.Context) (net.Conn, error) {
+		d := net.Dialer{Timeout: cfg.DialTimeout}
+		return d.DialContext(ctx, "unix", sockPath)
+	}
+	return &client{dial: dialer}
 }

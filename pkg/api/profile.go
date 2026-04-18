@@ -28,7 +28,7 @@ const (
 	APIVersionV1Beta1   Version = "sbsh/v1beta1"
 	KindTerminalProfile Kind    = "TerminalProfile"
 	KindTerminal        Kind    = "Terminal"
-	KindSupervisor      Kind    = "Supervisor"
+	KindClient          Kind    = "Client"
 )
 
 type (

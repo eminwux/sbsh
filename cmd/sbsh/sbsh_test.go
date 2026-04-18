@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/eminwux/sbsh/cmd/config"
+	"github.com/eminwux/sbsh/internal/client"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
-	"github.com/eminwux/sbsh/internal/supervisor"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -36,9 +36,9 @@ import (
 func TestRunTerminal_ErrContextDone(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	newSupervisorController := func(_ context.Context) api.SupervisorController {
-		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorDoc) error {
+	newClientController := func(_ context.Context) api.ClientController {
+		return &client.ControllerTest{
+			RunFunc: func(_ *api.ClientDoc) error {
 				// default: succeed without doing anything
 				return nil
 			},
@@ -56,20 +56,20 @@ func TestRunTerminal_ErrContextDone(t *testing.T) {
 		}
 	}
 
-	ctrl := newSupervisorController(context.Background())
+	ctrl := newClientController(context.Background())
 
 	t.Cleanup(func() {})
 
-	// Define a new Supervisor
-	doc := &api.SupervisorDoc{
+	// Define a new Client
+	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindSupervisor,
-		Metadata: api.SupervisorMetadata{
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
 			Name:        naming.RandomName(),
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: api.SupervisorSpec{
+		Spec: api.ClientSpec{
 			ID:           api.ID(naming.RandomID()),
 			LogFile:      "/tmp/sbsh-logs/s0",
 			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
@@ -82,7 +82,7 @@ func TestRunTerminal_ErrContextDone(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, logger, ctrl, doc) // will block until ctx.Done()
+		done <- runClient(ctx, cancel, logger, ctrl, doc) // will block until ctx.Done()
 	}()
 
 	// Give Run() time to set ready, then signal the process (NotifyContext listens to SIGTERM/INT)
@@ -95,7 +95,7 @@ func TestRunTerminal_ErrContextDone(t *testing.T) {
 			t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrContextDone, err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for runSupervisor to return after close")
+		t.Fatal("timeout waiting for runClient to return after close")
 	}
 }
 
@@ -103,9 +103,9 @@ func TestRunTerminal_ErrWaitOnReady(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	expectedErr := errdefs.ErrStartRPCServer
-	newSupervisorController := func(_ context.Context) api.SupervisorController {
-		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorDoc) error {
+	newClientController := func(_ context.Context) api.ClientController {
+		return &client.ControllerTest{
+			RunFunc: func(_ *api.ClientDoc) error {
 				return nil
 			},
 			WaitReadyFunc: func() error {
@@ -120,20 +120,20 @@ func TestRunTerminal_ErrWaitOnReady(t *testing.T) {
 		}
 	}
 
-	ctrl := newSupervisorController(context.Background())
+	ctrl := newClientController(context.Background())
 
 	t.Cleanup(func() {})
 
-	// Define a new Supervisor
-	doc := &api.SupervisorDoc{
+	// Define a new Client
+	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindSupervisor,
-		Metadata: api.SupervisorMetadata{
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
 			Name:        naming.RandomName(),
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: api.SupervisorSpec{
+		Spec: api.ClientSpec{
 			ID:           api.ID(naming.RandomID()),
 			LogFile:      "/tmp/sbsh-logs/s0",
 			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
@@ -145,7 +145,7 @@ func TestRunTerminal_ErrWaitOnReady(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, logger, ctrl, doc)
+		done <- runClient(ctx, cancel, logger, ctrl, doc)
 	}()
 
 	select {
@@ -160,7 +160,7 @@ func TestRunTerminal_ErrWaitOnReady(t *testing.T) {
 			t.Fatalf("expected wrapped error '%v'; got: '%v'", expectedErr, err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for runSupervisor to return")
+		t.Fatal("timeout waiting for runClient to return")
 	}
 }
 
@@ -168,9 +168,9 @@ func TestRunTerminal_ErrContextDoneWithWaitCloseError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	waitCloseErr := errdefs.ErrOnClose
-	newSupervisorController := func(_ context.Context) api.SupervisorController {
-		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorDoc) error {
+	newClientController := func(_ context.Context) api.ClientController {
+		return &client.ControllerTest{
+			RunFunc: func(_ *api.ClientDoc) error {
 				// Block to allow context cancellation
 				time.Sleep(100 * time.Millisecond)
 				return nil
@@ -187,20 +187,20 @@ func TestRunTerminal_ErrContextDoneWithWaitCloseError(t *testing.T) {
 		}
 	}
 
-	ctrl := newSupervisorController(context.Background())
+	ctrl := newClientController(context.Background())
 
 	t.Cleanup(func() {})
 
-	// Define a new Supervisor
-	doc := &api.SupervisorDoc{
+	// Define a new Client
+	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindSupervisor,
-		Metadata: api.SupervisorMetadata{
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
 			Name:        naming.RandomName(),
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: api.SupervisorSpec{
+		Spec: api.ClientSpec{
 			ID:           api.ID(naming.RandomID()),
 			LogFile:      "/tmp/sbsh-logs/s0",
 			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
@@ -213,7 +213,7 @@ func TestRunTerminal_ErrContextDoneWithWaitCloseError(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, logger, ctrl, doc)
+		done <- runClient(ctx, cancel, logger, ctrl, doc)
 	}()
 
 	// Give Run() time to set ready, then cancel context
@@ -235,7 +235,7 @@ func TestRunTerminal_ErrContextDoneWithWaitCloseError(t *testing.T) {
 			t.Fatalf("expected wrapped error '%v'; got: '%v'", waitCloseErr, err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for runSupervisor to return")
+		t.Fatal("timeout waiting for runClient to return")
 	}
 }
 
@@ -243,9 +243,9 @@ func TestRunTerminal_ErrChildExit(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	runErr := errdefs.ErrRPCServerExited
-	newSupervisorController := func(_ context.Context) api.SupervisorController {
-		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorDoc) error {
+	newClientController := func(_ context.Context) api.ClientController {
+		return &client.ControllerTest{
+			RunFunc: func(_ *api.ClientDoc) error {
 				return runErr
 			},
 			WaitReadyFunc: func() error {
@@ -260,20 +260,20 @@ func TestRunTerminal_ErrChildExit(t *testing.T) {
 		}
 	}
 
-	ctrl := newSupervisorController(context.Background())
+	ctrl := newClientController(context.Background())
 
 	t.Cleanup(func() {})
 
-	// Define a new Supervisor
-	doc := &api.SupervisorDoc{
+	// Define a new Client
+	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindSupervisor,
-		Metadata: api.SupervisorMetadata{
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
 			Name:        naming.RandomName(),
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: api.SupervisorSpec{
+		Spec: api.ClientSpec{
 			ID:           api.ID(naming.RandomID()),
 			LogFile:      "/tmp/sbsh-logs/s0",
 			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
@@ -286,19 +286,19 @@ func TestRunTerminal_ErrChildExit(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, logger, ctrl, doc)
+		done <- runClient(ctx, cancel, logger, ctrl, doc)
 	}()
 
 	// Wait for Run() to complete and error to be handled
 	select {
 	case err := <-done:
-		// runSupervisor returns nil when errCh receives error (line 412)
+		// runClient returns nil when errCh receives error (line 412)
 		// The error is logged but not returned to avoid polluting terminal
 		if err != nil {
 			t.Fatalf("expected nil (error logged but not returned); got: '%v'", err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for runSupervisor to return")
+		t.Fatal("timeout waiting for runClient to return")
 	}
 }
 
@@ -307,9 +307,9 @@ func TestRunTerminal_ErrChildExitWithWaitCloseError(t *testing.T) {
 
 	runErr := errdefs.ErrRPCServerExited
 	waitCloseErr := errdefs.ErrOnClose
-	newSupervisorController := func(_ context.Context) api.SupervisorController {
-		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorDoc) error {
+	newClientController := func(_ context.Context) api.ClientController {
+		return &client.ControllerTest{
+			RunFunc: func(_ *api.ClientDoc) error {
 				return runErr
 			},
 			WaitReadyFunc: func() error {
@@ -324,20 +324,20 @@ func TestRunTerminal_ErrChildExitWithWaitCloseError(t *testing.T) {
 		}
 	}
 
-	ctrl := newSupervisorController(context.Background())
+	ctrl := newClientController(context.Background())
 
 	t.Cleanup(func() {})
 
-	// Define a new Supervisor
-	doc := &api.SupervisorDoc{
+	// Define a new Client
+	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindSupervisor,
-		Metadata: api.SupervisorMetadata{
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
 			Name:        naming.RandomName(),
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: api.SupervisorSpec{
+		Spec: api.ClientSpec{
 			ID:           api.ID(naming.RandomID()),
 			LogFile:      "/tmp/sbsh-logs/s0",
 			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
@@ -350,28 +350,28 @@ func TestRunTerminal_ErrChildExitWithWaitCloseError(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, logger, ctrl, doc)
+		done <- runClient(ctx, cancel, logger, ctrl, doc)
 	}()
 
 	// Wait for Run() to complete and error to be handled
 	select {
 	case err := <-done:
-		// runSupervisor returns nil when errCh receives error (line 412)
+		// runClient returns nil when errCh receives error (line 412)
 		// The error is logged but not returned to avoid polluting terminal
 		if err != nil {
 			t.Fatalf("expected nil (error logged but not returned); got: '%v'", err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for runSupervisor to return")
+		t.Fatal("timeout waiting for runClient to return")
 	}
 }
 
 func TestRunTerminal_SuccessWithNilError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	newSupervisorController := func(_ context.Context) api.SupervisorController {
-		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorDoc) error {
+	newClientController := func(_ context.Context) api.ClientController {
+		return &client.ControllerTest{
+			RunFunc: func(_ *api.ClientDoc) error {
 				return nil
 			},
 			WaitReadyFunc: func() error {
@@ -386,20 +386,20 @@ func TestRunTerminal_SuccessWithNilError(t *testing.T) {
 		}
 	}
 
-	ctrl := newSupervisorController(context.Background())
+	ctrl := newClientController(context.Background())
 
 	t.Cleanup(func() {})
 
-	// Define a new Supervisor
-	doc := &api.SupervisorDoc{
+	// Define a new Client
+	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindSupervisor,
-		Metadata: api.SupervisorMetadata{
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
 			Name:        naming.RandomName(),
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: api.SupervisorSpec{
+		Spec: api.ClientSpec{
 			ID:           api.ID(naming.RandomID()),
 			LogFile:      "/tmp/sbsh-logs/s0",
 			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
@@ -412,7 +412,7 @@ func TestRunTerminal_SuccessWithNilError(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(ctx, cancel, logger, ctrl, doc)
+		done <- runClient(ctx, cancel, logger, ctrl, doc)
 	}()
 
 	// Wait for Run() to complete successfully
@@ -422,7 +422,7 @@ func TestRunTerminal_SuccessWithNilError(t *testing.T) {
 			t.Fatalf("expected nil error; got: '%v'", err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for runSupervisor to return")
+		t.Fatal("timeout waiting for runClient to return")
 	}
 }
 
@@ -432,9 +432,9 @@ func TestRunTerminal_SuccessWithContextCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately so Run() receives context.Canceled
 
-	newSupervisorController := func(_ context.Context) api.SupervisorController {
-		return &supervisor.ControllerTest{
-			RunFunc: func(_ *api.SupervisorDoc) error {
+	newClientController := func(_ context.Context) api.ClientController {
+		return &client.ControllerTest{
+			RunFunc: func(_ *api.ClientDoc) error {
 				return ctx.Err() // Return context.Canceled
 			},
 			WaitReadyFunc: func() error {
@@ -449,20 +449,20 @@ func TestRunTerminal_SuccessWithContextCanceled(t *testing.T) {
 		}
 	}
 
-	ctrl := newSupervisorController(context.Background())
+	ctrl := newClientController(context.Background())
 
 	t.Cleanup(func() {})
 
-	// Define a new Supervisor
-	doc := &api.SupervisorDoc{
+	// Define a new Client
+	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindSupervisor,
-		Metadata: api.SupervisorMetadata{
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
 			Name:        naming.RandomName(),
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: api.SupervisorSpec{
+		Spec: api.ClientSpec{
 			ID:           api.ID(naming.RandomID()),
 			LogFile:      "/tmp/sbsh-logs/s0",
 			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
@@ -475,18 +475,18 @@ func TestRunTerminal_SuccessWithContextCanceled(t *testing.T) {
 
 	runCtx, runCancel := context.WithCancel(context.Background())
 	go func() {
-		done <- runSupervisor(runCtx, runCancel, logger, ctrl, doc)
+		done <- runClient(runCtx, runCancel, logger, ctrl, doc)
 	}()
 
 	// Wait for Run() to complete with context.Canceled
 	select {
 	case err := <-done:
-		// When errCh receives context.Canceled, runSupervisor returns nil (line 414)
+		// When errCh receives context.Canceled, runClient returns nil (line 414)
 		if err != nil {
 			t.Fatalf("expected nil (context.Canceled is ignored); got: '%v'", err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for runSupervisor to return")
+		t.Fatal("timeout waiting for runClient to return")
 	}
 }
 

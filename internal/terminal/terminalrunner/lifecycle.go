@@ -162,8 +162,8 @@ func (sr *Exec) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (sr *Exec) Attach(supervisorID *api.ID, response *api.ResponseWithFD) error {
-	cliFD, err := sr.CreateNewClient(supervisorID)
+func (sr *Exec) Attach(clientID *api.ID, response *api.ResponseWithFD) error {
+	cliFD, err := sr.CreateNewClient(clientID)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (sr *Exec) Attach(supervisorID *api.ID, response *api.ResponseWithFD) error
 
 	fds := []int{cliFD}
 
-	sr.logger.Debug("Attach response", "id", supervisorID, "ok", payload.OK, "fds", fds)
+	sr.logger.Debug("Attach response", "id", clientID, "ok", payload.OK, "fds", fds)
 
 	response.JSON = payload
 	response.FDs = fds
@@ -186,7 +186,7 @@ func (sr *Exec) Detach(id *api.ID) error {
 	// 1) Lookup
 	ioClient, okClient := sr.getClient(*id)
 	if !okClient {
-		return fmt.Errorf("supervisor %s not found among clients", *id)
+		return fmt.Errorf("client %s not found among clients", *id)
 	}
 
 	// 2) Remove from fan-out paths first so no more writes target it

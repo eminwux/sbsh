@@ -14,9 +14,27 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package discovery
+package prune
 
-const (
-	NoClientsString   = "no active or inactive clients found\r\n"
-	NoTerminalsString = "no active or inactive terminals found\r\n"
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/eminwux/sbsh/internal/errdefs"
 )
+
+func Test_ErrLoggerNotFound_Client_RunE(t *testing.T) {
+	cmd := NewPruneClientsCmd()
+	ctx := context.Background()
+	// Don't set CtxLogger, so it will be nil
+	cmd.SetContext(ctx)
+
+	err := cmd.RunE(cmd, []string{})
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+	if !errors.Is(err, errdefs.ErrLoggerNotFound) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrLoggerNotFound, err)
+	}
+}

@@ -39,7 +39,7 @@ func TestSbsh_Default(t *testing.T) {
 	t.Cleanup(func() {
 		runPathEnv := buildSbRunPathEnv(t, runPath)
 		runReturningBinary(t, []string{runPathEnv}, sb, "prune", "terminals", "--verbose", "--log-level", "debug")
-		runReturningBinary(t, []string{runPathEnv}, sb, "prune", "supervisors", "--verbose", "--log-level", "debug")
+		runReturningBinary(t, []string{runPathEnv}, sb, "prune", "clients", "--verbose", "--log-level", "debug")
 	})
 
 	// Setup pty
@@ -117,7 +117,7 @@ func TestSbsh_CustomId(t *testing.T) {
 	t.Cleanup(func() {
 		runPathEnv := buildSbRunPathEnv(t, runPath)
 		runReturningBinary(t, []string{runPathEnv}, sb, "prune", "terminals", "--verbose", "--log-level", "debug")
-		runReturningBinary(t, []string{runPathEnv}, sb, "prune", "supervisors", "--verbose", "--log-level", "debug")
+		runReturningBinary(t, []string{runPathEnv}, sb, "prune", "clients", "--verbose", "--log-level", "debug")
 	})
 
 	// Setup pty
@@ -195,7 +195,7 @@ func TestSbsh_Detach(t *testing.T) {
 	t.Cleanup(func() {
 		runPathEnv := buildSbRunPathEnv(t, runPath)
 		runReturningBinary(t, []string{runPathEnv}, sb, "prune", "terminals", "--verbose", "--log-level", "debug")
-		runReturningBinary(t, []string{runPathEnv}, sb, "prune", "supervisors", "--verbose", "--log-level", "debug")
+		runReturningBinary(t, []string{runPathEnv}, sb, "prune", "clients", "--verbose", "--log-level", "debug")
 	})
 
 	// Setup pty

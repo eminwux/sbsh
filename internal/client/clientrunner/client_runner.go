@@ -14,9 +14,27 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package discovery
+package clientrunner
 
-const (
-	NoClientsString   = "no active or inactive clients found\r\n"
-	NoTerminalsString = "no active or inactive terminals found\r\n"
+import (
+	"context"
+
+	"github.com/eminwux/sbsh/internal/client/clientrpc"
+	"github.com/eminwux/sbsh/pkg/api"
 )
+
+type ClientRunner interface {
+	OpenSocketCtrl() error
+	StartServer(ctx context.Context, sc *clientrpc.ClientControllerRPC, readyCh chan error, doneCh chan error)
+	Attach(terminal *api.AttachedTerminal) error
+	ID() api.ID
+	Close(reason error) error
+	Resize(args api.ResizeArgs)
+	CreateMetadata() error
+	Detach() error
+	StartTerminalCmd(terminal *api.AttachedTerminal) error
+}
+
+func (sr *Exec) ID() api.ID {
+	return sr.id
+}

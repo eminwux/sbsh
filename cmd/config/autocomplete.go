@@ -110,7 +110,7 @@ func AutoCompleteListTerminalIDs(
 	return ids, nil
 }
 
-func AutoCompleteListSupervisorNames(
+func AutoCompleteListClientNames(
 	ctx context.Context,
 	logger *slog.Logger,
 	runPath string,
@@ -120,20 +120,20 @@ func AutoCompleteListSupervisorNames(
 	if logger == nil {
 		logger = logging.NewNoopLogger()
 	}
-	supervisors, err := discovery.ScanSupervisors(ctx, logger, runPath)
+	clients, err := discovery.ScanClients(ctx, logger, runPath)
 	if err != nil {
 		if logger != nil {
-			logger.ErrorContext(ctx, "ListSupervisors: failed to load supervisors", "path", runPath, "error", err)
+			logger.ErrorContext(ctx, "ListClients: failed to load clients", "path", runPath, "error", err)
 		}
 		return nil, err
 	}
-	if supervisors == nil {
-		return nil, errors.New("no supervisors found")
+	if clients == nil {
+		return nil, errors.New("no clients found")
 	}
 
 	var names []string
-	for _, t := range supervisors {
-		if showExited || t.Status.State != api.SupervisorExited {
+	for _, t := range clients {
+		if showExited || t.Status.State != api.ClientExited {
 			names = append(names, t.Metadata.Name)
 		}
 	}

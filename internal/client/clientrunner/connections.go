@@ -14,9 +14,4 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package discovery
-
-const (
-	NoClientsString   = "no active or inactive clients found\r\n"
-	NoTerminalsString = "no active or inactive terminals found\r\n"
-)
+package clientrunner

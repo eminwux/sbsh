@@ -14,9 +14,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package discovery
+package client
 
-const (
-	NoClientsString   = "no active or inactive clients found\r\n"
-	NoTerminalsString = "no active or inactive terminals found\r\n"
+import (
+	"context"
 )
+
+type Client interface {
+	Detach(ctx context.Context) error
+	Close() error
+}

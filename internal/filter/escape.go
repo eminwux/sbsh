@@ -22,7 +22,7 @@ package filter
 
 import "bytes"
 
-// SupervisorEscapeFilter implements adjacent-^]^] detach detection on stdin->PTY streams.
+// ClientEscapeFilter implements adjacent-^]^] detach detection on stdin->PTY streams.
 // Policy:
 //   - Single ^] (0x1D) is written through immediately.
 //   - If the *very next byte* is ^] again (adjacent, possibly across reads),
@@ -30,7 +30,7 @@ import "bytes"
 //   - No timers (pure adjacency, zero added latency).
 //   - If PasteAware is true, escape detection is disabled between
 //     ESC[200~ (paste start) and ESC[201~ (paste end).
-type SupervisorEscapeFilter struct {
+type ClientEscapeFilter struct {
 	// Esc is the escape byte; default is 0x1d (Ctrl+]).
 	Esc byte
 
@@ -47,13 +47,13 @@ type SupervisorEscapeFilter struct {
 	pasteMode bool // true while inside ESC[200~ ... ESC[201~]
 }
 
-// NewSupervisorEscapeFilter creates an EscapeFilter with sensible defaults.
+// NewClientEscapeFilter creates an EscapeFilter with sensible defaults.
 // If esc == 0, it defaults to Ctrl+] (0x1d).
-func NewSupervisorEscapeFilter(esc byte, pasteAware bool, onDetach func()) *SupervisorEscapeFilter {
+func NewClientEscapeFilter(esc byte, pasteAware bool, onDetach func()) *ClientEscapeFilter {
 	if esc == 0 {
 		esc = 0x1d // Ctrl+]
 	}
-	return &SupervisorEscapeFilter{
+	return &ClientEscapeFilter{
 		Esc:        esc,
 		PasteAware: pasteAware,
 		OnDetach:   onDetach,
@@ -75,7 +75,7 @@ func NewSupervisorEscapeFilter(esc byte, pasteAware bool, onDetach func()) *Supe
 //
 // This design allows the caller to loop until the whole chunk is consumed without
 // extra allocations and with precise control over "consume but don't write" cases.
-func (e *SupervisorEscapeFilter) Process(buf []byte, n int) ([]byte, int, int, error) {
+func (e *ClientEscapeFilter) Process(buf []byte, n int) ([]byte, int, int, error) {
 	if n == 0 {
 		return nil, 0, 0, nil
 	}

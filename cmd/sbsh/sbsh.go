@@ -34,13 +34,13 @@ import (
 	"github.com/eminwux/sbsh/cmd/sbsh/terminal"
 	"github.com/eminwux/sbsh/cmd/sbsh/version"
 	"github.com/eminwux/sbsh/cmd/types"
+	"github.com/eminwux/sbsh/internal/client"
 	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/logging"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/internal/profile"
-	"github.com/eminwux/sbsh/internal/supervisor"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -52,7 +52,7 @@ func NewSbshRootCmd() (*cobra.Command, error) {
 	rootCmd := &cobra.Command{
 		Use:   "sbsh",
 		Short: "sbsh command line tool",
-		Long: `sbsh is a command line tool to launch sbsh supervisors and terminals
+		Long: `sbsh is a command line tool to launch sbsh clients and terminals
 You can see available options and commands with:
   sbsh help
 
@@ -76,23 +76,23 @@ You can also use sbsh with parameters. For example:
 			return nil
 		},
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
-			supervisorID := viper.GetString(config.SBSH_SUPERVISOR_ID.ViperKey)
-			if supervisorID == "" {
-				supervisorID = naming.RandomID()
-				viper.Set(config.SBSH_SUPERVISOR_ID.ViperKey, supervisorID)
+			clientID := viper.GetString(config.SBSH_CLIENT_ID.ViperKey)
+			if clientID == "" {
+				clientID = naming.RandomID()
+				viper.Set(config.SBSH_CLIENT_ID.ViperKey, clientID)
 			}
 
-			supLogLevel := viper.GetString(config.SBSH_SUPERVISOR_LOG_LEVEL.ViperKey)
+			supLogLevel := viper.GetString(config.SBSH_CLIENT_LOG_LEVEL.ViperKey)
 			if supLogLevel == "" {
 				supLogLevel = "info"
 			}
 
-			supLogfile := viper.GetString(config.SBSH_SUPERVISOR_LOG_FILE.ViperKey)
+			supLogfile := viper.GetString(config.SBSH_CLIENT_LOG_FILE.ViperKey)
 			if supLogfile == "" {
 				supLogfile = filepath.Join(
 					viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-					defaults.SupervisorsRunPath,
-					supervisorID,
+					defaults.ClientsRunPath,
+					clientID,
 					"log",
 				)
 			}
@@ -110,7 +110,7 @@ You can also use sbsh with parameters. For example:
 				return errors.New("logger not found in context")
 			}
 
-			if viper.GetBool(config.SBSH_SUPERVISOR_DETACH.ViperKey) {
+			if viper.GetBool(config.SBSH_CLIENT_DETACH.ViperKey) {
 				detachSelf()
 				return nil
 			}
@@ -127,26 +127,26 @@ You can also use sbsh with parameters. For example:
 				"terminalLogFilename", viper.GetString(config.SBSH_ROOT_TERM_LOG_FILE.ViperKey),
 				"terminalProfile", viper.GetString(config.SBSH_ROOT_TERM_PROFILE.ViperKey),
 				"terminalSocket", viper.GetString(config.SBSH_ROOT_TERM_SOCKET.ViperKey),
-				"supervisorSocket", viper.GetString(config.SBSH_SUPERVISOR_SOCKET.ViperKey),
-				"detach", viper.GetBool(config.SBSH_SUPERVISOR_DETACH.ViperKey),
+				"clientSocket", viper.GetString(config.SBSH_CLIENT_SOCKET.ViperKey),
+				"detach", viper.GetBool(config.SBSH_CLIENT_DETACH.ViperKey),
 			)
 
 			// Set in PreRunE - shouldn't be null here
-			supervisorID := viper.GetString(config.SBSH_SUPERVISOR_ID.ViperKey)
-			supLogfile := viper.GetString(config.SBSH_SUPERVISOR_LOG_FILE.ViperKey)
+			clientID := viper.GetString(config.SBSH_CLIENT_ID.ViperKey)
+			supLogfile := viper.GetString(config.SBSH_CLIENT_LOG_FILE.ViperKey)
 
-			supervisorName := viper.GetString(config.SBSH_SUPERVISOR_NAME.ViperKey)
-			if supervisorName == "" {
-				supervisorName = naming.RandomName()
-				viper.Set(config.SBSH_SUPERVISOR_NAME.ViperKey, supervisorName)
+			clientName := viper.GetString(config.SBSH_CLIENT_NAME.ViperKey)
+			if clientName == "" {
+				clientName = naming.RandomName()
+				viper.Set(config.SBSH_CLIENT_NAME.ViperKey, clientName)
 			}
 
-			socketFileInput := viper.GetString(config.SBSH_SUPERVISOR_SOCKET.ViperKey)
+			socketFileInput := viper.GetString(config.SBSH_CLIENT_SOCKET.ViperKey)
 			if socketFileInput == "" {
 				socketFileInput = filepath.Join(
 					viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-					defaults.SupervisorsRunPath,
-					supervisorID,
+					defaults.ClientsRunPath,
+					clientID,
 					"socket",
 				)
 			}
@@ -176,28 +176,28 @@ You can also use sbsh with parameters. For example:
 
 			logger.Debug("Built terminal spec", "terminalSpec", fmt.Sprintf("%+v", terminalSpec))
 
-			// Define a new SupervisorDoc
-			disableDetach := viper.GetBool(config.SBSH_SUPERVISOR_DISABLE_DETACH_KEYSTROKE.ViperKey)
-			doc := &api.SupervisorDoc{
+			// Define a new ClientDoc
+			disableDetach := viper.GetBool(config.SBSH_CLIENT_DISABLE_DETACH_KEYSTROKE.ViperKey)
+			doc := &api.ClientDoc{
 				APIVersion: api.APIVersionV1Beta1,
-				Kind:       api.KindSupervisor,
-				Metadata: api.SupervisorMetadata{
-					Name:        supervisorName,
+				Kind:       api.KindClient,
+				Metadata: api.ClientMetadata{
+					Name:        clientName,
 					Labels:      make(map[string]string),
 					Annotations: make(map[string]string),
 				},
-				Spec: api.SupervisorSpec{
-					ID:              api.ID(supervisorID),
+				Spec: api.ClientSpec{
+					ID:              api.ID(clientID),
 					RunPath:         viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
 					LogFile:         supLogfile,
 					SockerCtrl:      socketFileInput,
 					TerminalSpec:    terminalSpec,
 					DetachKeystroke: !disableDetach, // Invert flag: when disable-detach is true, DetachKeystroke is false
-					SupervisorMode:  api.RunNewTerminal,
+					ClientMode:      api.RunNewTerminal,
 				},
 			}
 
-			logger.DebugContext(cmd.Context(), "SupervisorDoc values",
+			logger.DebugContext(cmd.Context(), "ClientDoc values",
 				"Kind", doc.Kind,
 				"ID", doc.Spec.ID,
 				"Name", doc.Metadata.Name,
@@ -213,9 +213,9 @@ You can also use sbsh with parameters. For example:
 			}
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-			ctrl := supervisor.NewSupervisorController(ctx, logger)
+			ctrl := client.NewClientController(ctx, logger)
 
-			return runSupervisor(ctx, cancel, logger, ctrl, doc)
+			return runClient(ctx, cancel, logger, ctrl, doc)
 		},
 		PostRunE: func(cmd *cobra.Command, _ []string) error {
 			if c, _ := cmd.Context().Value(types.CtxCloser).(io.Closer); c != nil {
@@ -234,7 +234,7 @@ You can also use sbsh with parameters. For example:
 }
 
 func setPersistentLoggingFlags(rootCmd *cobra.Command) error {
-	rootCmd.PersistentFlags().String("run-path", "", "Optional run path for the supervisor")
+	rootCmd.PersistentFlags().String("run-path", "", "Optional run path for the client")
 	if err := viper.BindPFlag(config.SBSH_ROOT_RUN_PATH.ViperKey, rootCmd.PersistentFlags().Lookup("run-path")); err != nil {
 		return err
 	}
@@ -252,34 +252,34 @@ func setPersistentLoggingFlags(rootCmd *cobra.Command) error {
 	return nil
 }
 
-func setSupervisorFlags(rootCmd *cobra.Command) error {
-	rootCmd.Flags().String("id", "", "Optional ID for the supervisor")
-	if err := viper.BindPFlag(config.SBSH_SUPERVISOR_ID.ViperKey, rootCmd.Flags().Lookup("id")); err != nil {
+func setClientFlags(rootCmd *cobra.Command) error {
+	rootCmd.Flags().String("id", "", "Optional ID for the client")
+	if err := viper.BindPFlag(config.SBSH_CLIENT_ID.ViperKey, rootCmd.Flags().Lookup("id")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().String("socket", "", "Optional socket file for the supervisor")
-	if err := viper.BindPFlag(config.SBSH_SUPERVISOR_SOCKET.ViperKey, rootCmd.Flags().Lookup("socket")); err != nil {
+	rootCmd.Flags().String("socket", "", "Optional socket file for the client")
+	if err := viper.BindPFlag(config.SBSH_CLIENT_SOCKET.ViperKey, rootCmd.Flags().Lookup("socket")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().String("log-file", "", "Optional socket file for the supervisor")
-	if err := viper.BindPFlag(config.SBSH_SUPERVISOR_LOG_FILE.ViperKey, rootCmd.Flags().Lookup("log-file")); err != nil {
+	rootCmd.Flags().String("log-file", "", "Optional socket file for the client")
+	if err := viper.BindPFlag(config.SBSH_CLIENT_LOG_FILE.ViperKey, rootCmd.Flags().Lookup("log-file")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().String("log-level", "", "Optional log level for the supervisor")
-	if err := viper.BindPFlag(config.SBSH_SUPERVISOR_LOG_LEVEL.ViperKey, rootCmd.Flags().Lookup("log-level")); err != nil {
+	rootCmd.Flags().String("log-level", "", "Optional log level for the client")
+	if err := viper.BindPFlag(config.SBSH_CLIENT_LOG_LEVEL.ViperKey, rootCmd.Flags().Lookup("log-level")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().BoolP("detach", "d", false, "Optional detach flag for the supervisor")
-	if err := viper.BindPFlag(config.SBSH_SUPERVISOR_DETACH.ViperKey, rootCmd.Flags().Lookup("detach")); err != nil {
+	rootCmd.Flags().BoolP("detach", "d", false, "Optional detach flag for the client")
+	if err := viper.BindPFlag(config.SBSH_CLIENT_DETACH.ViperKey, rootCmd.Flags().Lookup("detach")); err != nil {
 		return err
 	}
 
 	rootCmd.Flags().Bool("disable-detach", false, "Disable detach keystroke (^] twice)")
-	if err := viper.BindPFlag(config.SBSH_SUPERVISOR_DISABLE_DETACH_KEYSTROKE.ViperKey, rootCmd.Flags().Lookup("disable-detach")); err != nil {
+	if err := viper.BindPFlag(config.SBSH_CLIENT_DISABLE_DETACH_KEYSTROKE.ViperKey, rootCmd.Flags().Lookup("disable-detach")); err != nil {
 		return err
 	}
 
@@ -355,8 +355,8 @@ func setupRootCmd(rootCmd *cobra.Command) error {
 	}
 
 	// Bind Non-persistent Flags to Viper
-	// Supervisor flags
-	if err := setSupervisorFlags(rootCmd); err != nil {
+	// Client flags
+	if err := setClientFlags(rootCmd); err != nil {
 		return err
 	}
 
@@ -368,12 +368,12 @@ func setupRootCmd(rootCmd *cobra.Command) error {
 	return nil
 }
 
-func runSupervisor(
+func runClient(
 	ctx context.Context,
 	cancel context.CancelFunc,
 	logger *slog.Logger,
-	ctrl api.SupervisorController,
-	doc *api.SupervisorDoc,
+	ctrl api.ClientController,
+	doc *api.ClientDoc,
 ) error {
 	defer cancel()
 
@@ -381,9 +381,9 @@ func runSupervisor(
 
 	logger.DebugContext(
 		ctx,
-		"starting supervisor controller goroutine",
-		"supervisor_mode",
-		doc.Spec.SupervisorMode,
+		"starting client controller goroutine",
+		"client_mode",
+		doc.Spec.ClientMode,
 		"run_path",
 		doc.Spec.RunPath,
 	)
@@ -399,7 +399,7 @@ func runSupervisor(
 		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
 	}
 
-	logger.DebugContext(ctx, "controller ready, entering supervisor event loop")
+	logger.DebugContext(ctx, "controller ready, entering client event loop")
 	select {
 	case <-ctx.Done():
 		var err error
@@ -421,7 +421,7 @@ func runSupervisor(
 			if errC := ctrl.WaitClose(); errC != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrWaitOnClose, errC)
 			}
-			logger.ErrorContext(ctx, "supervisor controller exited with error", "error", err)
+			logger.ErrorContext(ctx, "client controller exited with error", "error", err)
 			logger.DebugContext(ctx, "controller exited after error")
 
 			// return err

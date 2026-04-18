@@ -38,7 +38,7 @@ func Test_ErrLoggerNotFound_RunE(t *testing.T) {
 	// Don't set CtxLogger, so it will be nil
 	cmd.SetContext(ctx)
 
-	err := cmd.RunE(cmd, []string{"supervisor-name"})
+	err := cmd.RunE(cmd, []string{"client-name"})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -47,7 +47,7 @@ func Test_ErrLoggerNotFound_RunE(t *testing.T) {
 	}
 }
 
-func Test_ErrNoSupervisorIdentifier(t *testing.T) {
+func Test_ErrNoClientIdentifier(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	cmd := NewDetachCmd()
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
@@ -58,8 +58,8 @@ func Test_ErrNoSupervisorIdentifier(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
-	if !errors.Is(err, errdefs.ErrNoSupervisorIdentifier) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrNoSupervisorIdentifier, err)
+	if !errors.Is(err, errdefs.ErrNoClientIdentifier) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrNoClientIdentifier, err)
 	}
 }
 
@@ -69,10 +69,10 @@ func Test_ErrInvalidFlag_ID(t *testing.T) {
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	cmd.SetContext(ctx)
 	// Set --id flag when using positional argument
-	cmd.SetArgs([]string{"--id", "test-id", "supervisor-name"})
+	cmd.SetArgs([]string{"--id", "test-id", "client-name"})
 	_ = cmd.Execute()
 
-	err := cmd.RunE(cmd, []string{"supervisor-name"})
+	err := cmd.RunE(cmd, []string{"client-name"})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -87,10 +87,10 @@ func Test_ErrInvalidFlag_Name(t *testing.T) {
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	cmd.SetContext(ctx)
 	// Set --name flag when using positional argument
-	cmd.SetArgs([]string{"--name", "test-name", "supervisor-name"})
+	cmd.SetArgs([]string{"--name", "test-name", "client-name"})
 	_ = cmd.Execute()
 
-	err := cmd.RunE(cmd, []string{"supervisor-name"})
+	err := cmd.RunE(cmd, []string{"client-name"})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -105,10 +105,10 @@ func Test_ErrInvalidFlag_Socket(t *testing.T) {
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	cmd.SetContext(ctx)
 	// Set --socket flag when using positional argument
-	cmd.SetArgs([]string{"--socket", "/tmp/socket", "supervisor-name"})
+	cmd.SetArgs([]string{"--socket", "/tmp/socket", "client-name"})
 	_ = cmd.Execute()
 
-	err := cmd.RunE(cmd, []string{"supervisor-name"})
+	err := cmd.RunE(cmd, []string{"client-name"})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -124,7 +124,7 @@ func Test_ErrTooManyArguments(t *testing.T) {
 	cmd.SetContext(ctx)
 
 	// Too many args
-	err := cmd.RunE(cmd, []string{"supervisor-name-1", "supervisor-name-2"})
+	err := cmd.RunE(cmd, []string{"client-name-1", "client-name-2"})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -138,7 +138,7 @@ func Test_ErrLoggerNotFound_RunDetachCmd(t *testing.T) {
 	ctx := context.Background()
 	cmd.SetContext(ctx)
 
-	err := runDetachCmd(cmd, []string{"supervisor-name"})
+	err := runDetachCmd(cmd, []string{"client-name"})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -158,7 +158,7 @@ func Test_ErrPositionalWithFlags(t *testing.T) {
 	viper.Set(config.SB_DETACH_SOCKET.ViperKey, "")
 
 	// Positional arg with flags set
-	err := runDetachCmd(cmd, []string{"supervisor-name"})
+	err := runDetachCmd(cmd, []string{"client-name"})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -224,7 +224,7 @@ func Test_ErrConflictingFlags_NameAndSocket(t *testing.T) {
 	}
 }
 
-func Test_ErrNoSupervisorIdentification_BuildSocket(t *testing.T) {
+func Test_ErrNoClientIdentification_BuildSocket(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	cmd := &cobra.Command{}
 	cmd.Flags().String("run-path", "", "Run path directory")
@@ -238,19 +238,19 @@ func Test_ErrNoSupervisorIdentification_BuildSocket(t *testing.T) {
 	tmpDir := t.TempDir()
 	cmd.Flags().Set("run-path", tmpDir)
 
-	// No supervisor ID, name, or socket provided
+	// No client ID, name, or socket provided
 	_, err := buildSocket(cmd, logger, "", "", "")
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
-	if !errors.Is(err, errdefs.ErrNoSupervisorIdentification) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrNoSupervisorIdentification, err)
+	if !errors.Is(err, errdefs.ErrNoClientIdentification) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrNoClientIdentification, err)
 	}
 }
 
 func Test_ErrDetachTerminal(t *testing.T) {
 	// This test verifies that ErrDetachTerminal is properly defined
-	// Testing the actual detach flow requires a real supervisor socket
+	// Testing the actual detach flow requires a real client socket
 	// The error type is verified through integration tests
 	err := errdefs.ErrDetachTerminal
 	if err == nil {
@@ -263,7 +263,7 @@ func Test_ErrDetachTerminal(t *testing.T) {
 
 func Test_ErrResolveTerminalName(t *testing.T) {
 	// This test verifies that ErrResolveTerminalName is properly defined
-	// Testing the actual resolution requires a real supervisor store
+	// Testing the actual resolution requires a real client store
 	err := errdefs.ErrResolveTerminalName
 	if err == nil {
 		t.Fatal("ErrResolveTerminalName should not be nil")
@@ -321,12 +321,12 @@ func Test_BuildSocket_WithIDFlag(t *testing.T) {
 	tmpDir := t.TempDir()
 	cmd.Flags().Set("run-path", tmpDir)
 
-	supervisorID := "test-supervisor-id"
-	socket, err := buildSocket(cmd, logger, "", supervisorID, "")
+	clientID := "test-client-id"
+	socket, err := buildSocket(cmd, logger, "", clientID, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	expectedSocket := filepath.Join(tmpDir, defaults.SupervisorsRunPath, supervisorID, "socket")
+	expectedSocket := filepath.Join(tmpDir, defaults.ClientsRunPath, clientID, "socket")
 	if socket != expectedSocket {
 		t.Fatalf("expected socket '%s'; got: '%s'", expectedSocket, socket)
 	}

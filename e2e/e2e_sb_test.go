@@ -54,22 +54,20 @@ func TestSb_NoTerminals(t *testing.T) {
 	}
 }
 
-func TestSb_NoSupervisors(t *testing.T) {
+func TestSb_NoClients(t *testing.T) {
 	t.Parallel()
 
 	var out []byte
 	var expected, got string
 	tests := [][]string{
-		{"get", "supervisors"},
-		{"get", "super"},
-		{"g", "s"},
+		{"get", "clients"},
 	}
 	for _, args := range tests {
 		runPath := getRandomRunPath(t)
 		mkdirRunPath(t, runPath)
 		runPathEnv := buildSbRunPathEnv(t, runPath)
 		out = runReturningBinary(t, []string{runPathEnv}, sb, args...)
-		expected = discovery.NoSupervisorsString
+		expected = discovery.NoClientsString
 		got = string(out)
 		if got != expected {
 			t.Fatalf("expected %s\n got:\n%s", expected, got)
