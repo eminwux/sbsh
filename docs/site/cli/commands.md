@@ -4,17 +4,17 @@ sbsh provides three main commands through a single binary using hard links (busy
 
 | Command         | Purpose              | Launches              | Attached      |
 | --------------- | -------------------- | --------------------- | ------------- |
-| `sbsh`          | Interactive terminal | Supervisor + Terminal | Yes           |
+| `sbsh`          | Interactive terminal | Client + Terminal     | Yes           |
 | `sbsh terminal` | Background terminal  | Terminal only         | No (detached) |
-| `sb`            | Management client    | Nothing (client only) | N/A           |
+| `sb`            | Management tool      | Nothing (client only) | N/A           |
 
 All three are the same binary; behavior is determined by the executable name at runtime.
 
 ## Command Comparison
 
-### `sbsh` - Interactive Supervisor + Terminal
+### `sbsh` - Interactive Client + Terminal
 
-Launches a supervisor attached to a terminal. Designed for interactive use:
+Launches a client attached to a terminal. Designed for interactive use:
 
 ```bash
 sbsh
@@ -23,13 +23,13 @@ sbsh -p profile-name
 
 **Features:**
 
-- Supervisor stays attached
+- Client stays attached
 - Press `Ctrl-]` twice to detach
 - Terminal continues running after detach
 
 ### `sbsh terminal` - Terminal Only
 
-Launches a terminal in the background with no attached supervisor:
+Launches a terminal in the background with no attached client:
 
 ```bash
 sbsh terminal --name my-terminal
@@ -39,16 +39,17 @@ sbsh terminal --name my-terminal -p profile-name
 **Features:**
 
 - Terminal runs independently
-- No supervisor attached initially
+- No client attached initially
 - Attach later with `sb attach <name>`
 - Perfect for automation and background tasks
 
-### `sb` - Client Management Tool
+### `sb` - Management Tool
 
-Pure client tool for managing existing supervisors and terminals:
+Pure client tool for managing existing clients and terminals:
 
 ```bash
 sb get terminals
+sb get clients
 sb attach <name>
 sb detach
 sb get profiles
@@ -90,6 +91,9 @@ sb attach background-task
 ```bash
 # List terminals
 sb get terminals
+
+# List clients
+sb get clients
 
 # List profiles
 sb get profiles

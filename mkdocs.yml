@@ -69,7 +69,7 @@ nav:
   - Concepts:
       - concepts/terminals.md
       - concepts/profiles.md
-      - concepts/supervisor.md
+      - concepts/client.md
       - concepts/terminal-state.md
       - concepts/multi-attach.md
       - concepts/event-log.md

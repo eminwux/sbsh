@@ -27,7 +27,7 @@ sbsh's process model ensures terminals are independent, isolated, and durable. U
 
 ```
 ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-│ Supervisor  │  │ Supervisor  │  │ Supervisor  │
+│   Client    │  │   Client    │  │   Client    │
 │     1       │  │     2       │  │     3       │
 └──────┬──────┘  └──────┬──────┘  └──────┬──────┘
        │                │                │
@@ -35,15 +35,15 @@ sbsh's process model ensures terminals are independent, isolated, and durable. U
                 │
          ┌──────┴──────┐
          │   Terminal  │  Independent process
-         │  (Process)  │  Not a child of supervisor
-         └─────────────┘  Survives supervisor exit
+         │  (Process)  │  Not a child of the client
+         └─────────────┘  Survives client exit
 ```
 
 **Benefits:**
 
 - No single point of failure
 - Isolated failure domains
-- Supervisor crashes don't affect terminals
+- Client crashes don't affect terminals
 - True process independence
 
 ## Process Independence
@@ -53,18 +53,18 @@ sbsh's process model ensures terminals are independent, isolated, and durable. U
 Terminals run as independent processes:
 
 - Own process group
-- Not children of supervisors
-- Continue running if supervisor exits
-- Can be attached to by new supervisors
+- Not children of clients
+- Continue running if client exits
+- Can be attached to by new clients
 
-### Supervisor Processes
+### Client Processes
 
-Supervisors are lightweight:
+Clients are lightweight:
 
 - Manage terminal attachment
 - Forward I/O
 - Can exit without affecting terminals
-- New supervisors can attach to existing terminals
+- New clients can attach to existing terminals
 
 ## Process Lifecycle
 
@@ -79,10 +79,10 @@ Terminal Process
 └── Exited (or restarted per policy)
 ```
 
-### Supervisor Lifecycle
+### Client Lifecycle
 
 ```
-Supervisor Process
+Client Process
 ├── Created
 ├── Attaching (connecting to terminal)
 ├── Attached (forwarding I/O)
@@ -95,7 +95,7 @@ Supervisor Process
 ### Failure Isolation
 
 - Terminal crash doesn't affect other terminals
-- Supervisor crash doesn't affect terminals
+- Client crash doesn't affect terminals
 - No cascading failures
 - Each terminal is self-contained
 
@@ -108,16 +108,16 @@ Supervisor Process
 
 ## Multi-Attach Process Model
 
-Multiple supervisors can attach to the same terminal:
+Multiple clients can attach to the same terminal:
 
 ```
 Terminal Process
-├── Supervisor 1 (process A)
-├── Supervisor 2 (process B)
-└── Supervisor 3 (process C)
+├── Client 1 (process A)
+├── Client 2 (process B)
+└── Client 3 (process C)
 ```
 
-All supervisors connect via the same Unix domain socket. The terminal broadcasts output to all attached supervisors.
+All clients connect via the same Unix domain socket. The terminal broadcasts output to all attached clients.
 
 ## Process Groups
 
@@ -132,5 +132,5 @@ Terminals run in their own process groups:
 
 - [Architecture Overview](overview.md) - System architecture
 - [Terminals](../concepts/terminals.md) - Terminal lifecycle
-- [Supervisor](../concepts/supervisor.md) - Supervisor architecture
+- [Client](../concepts/client.md) - Client architecture
 - [Comparison Guide](../guides/comparison.md) - Comparison with screen/tmux

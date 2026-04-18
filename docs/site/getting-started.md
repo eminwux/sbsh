@@ -100,7 +100,7 @@ See the [Profiles Guide](guides/profiles.md) for creating your own profiles.
 
 ## Next Steps
 
-- **[Concepts](concepts/terminals.md)** - Learn about terminals, profiles, and supervisors
+- **[Concepts](concepts/terminals.md)** - Learn about terminals, profiles, and clients
 - **[Create Your First Profile](tutorials/create-your-first-profile.md)** - Build a custom profile
 - **[CLI Reference](cli/commands.md)** - Explore all available commands
 - **[FAQ](faq.md)** - Common questions and answers

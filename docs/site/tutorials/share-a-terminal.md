@@ -153,4 +153,4 @@ sb attach k8s-shared
 
 - [Multi-Attach](../concepts/multi-attach.md) - How multi-attach works
 - [Terminals](../concepts/terminals.md) - Terminal lifecycle
-- [Supervisor](../concepts/supervisor.md) - Supervisor architecture
+- [Client](../concepts/client.md) - Client architecture

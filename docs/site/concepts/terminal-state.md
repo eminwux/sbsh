@@ -13,7 +13,7 @@ The terminal is being created and `onInit` hooks are executing. Input is disable
 - Terminal process is running
 - `onInit` hooks are executing
 - No input accepted yet
-- Supervisor waits for Ready state
+- Client waits for Ready state
 
 ### Ready
 
@@ -28,23 +28,23 @@ The terminal has completed initialization and is ready for input. This state is 
 
 ### Attached
 
-A supervisor is currently connected to the terminal and forwarding I/O.
+A client is currently connected to the terminal and forwarding I/O.
 
 **Characteristics:**
 
-- Supervisor is connected
+- Client is connected
 - I/O is being forwarded
 - User can interact with terminal
-- Multiple supervisors can attach (multi-attach)
+- Multiple clients can attach (multi-attach)
 
 ### Detached
 
-The terminal is running but no supervisor is currently attached.
+The terminal is running but no client is currently attached.
 
 **Characteristics:**
 
 - Terminal continues running
-- No active supervisor connection
+- No active client connection
 - Can be reattached anytime
 - Terminal process is independent
 
@@ -70,8 +70,8 @@ Created → Initializing → Ready → [Attached/Detached] → Exited
 1. **Created**: Terminal process spawned
 2. **Initializing**: `onInit` hooks running
 3. **Ready**: Initialization complete
-4. **Attached**: Supervisor connects
-5. **Detached**: Supervisor disconnects (terminal continues)
+4. **Attached**: Client connects
+5. **Detached**: Client disconnects (terminal continues)
 6. **Exited**: Terminal process terminates
 
 ### With Restart Policy
@@ -104,5 +104,5 @@ Terminal state is persisted in `~/.sbsh/run/terminals/<id>/meta.json`, including
 ## Related Concepts
 
 - [Terminals](terminals.md) - Terminal lifecycle
-- [Supervisor](supervisor.md) - State management
+- [Client](client.md) - State management
 - [Event Log](event-log.md) - State history

@@ -1,6 +1,6 @@
 # Architecture Overview
 
-sbsh is built on a clean architecture that separates terminals (work environments) from supervisors (controllers), making terminals as durable and manageable as background services.
+sbsh is built on a clean architecture that separates terminals (work environments) from clients (controllers), making terminals as durable and manageable as background services.
 
 ## Core Principles
 
@@ -8,7 +8,7 @@ sbsh is built on a clean architecture that separates terminals (work environment
 
 Terminals run as independent processes with their own process groups. This means:
 
-- Terminals survive supervisor crashes
+- Terminals survive client crashes
 - No central server or daemon process
 - Each terminal is isolated from others
 - Failures are contained to individual terminals
@@ -16,7 +16,7 @@ Terminals run as independent processes with their own process groups. This means
 ### Separation of Concerns
 
 ```
-Terminal (Environment)  ←→  Supervisor (Controller)
+Terminal (Environment)  ←→  Client (Controller)
      ↓                           ↓
   Process                   Management
   I/O Capture              Attachment/Detachment
@@ -24,13 +24,13 @@ Terminal (Environment)  ←→  Supervisor (Controller)
 ```
 
 - **Terminal**: The actual shell environment that runs your commands
-- **Supervisor**: The lightweight process that manages and attaches to terminals
+- **Client**: The lightweight process that manages and attaches to terminals
 
 ## Architecture Diagram
 
 ```
 ┌─────────────┐
-│  Supervisor │  Manages and attaches to terminals
+│   Client    │  Manages and attaches to terminals
 │  (sbsh/sb)  │  Handles I/O forwarding
 └──────┬──────┘  Lightweight, can exit without affecting terminals
        │
@@ -40,7 +40,7 @@ Terminal (Environment)  ←→  Supervisor (Controller)
 ┌─────────────┐
 │   Terminal  │  Independent process
 │  (Process)  │  Runs shell/command
-└─────────────┘  Survives supervisor exit
+└─────────────┘  Survives client exit
 ```
 
 ## Key Components
@@ -50,9 +50,9 @@ Terminal (Environment)  ←→  Supervisor (Controller)
 - Independent processes running shell/commands
 - Store metadata in `~/.sbsh/run/terminals/<id>/`
 - Communicate via Unix domain sockets
-- Continue running even if supervisors exit
+- Continue running even if clients exit
 
-### Supervisors
+### Clients
 
 - Lightweight management processes
 - Handle attachment/detachment
@@ -69,7 +69,7 @@ Terminal (Environment)  ←→  Supervisor (Controller)
 ### Metadata Directory
 
 - `~/.sbsh/run/terminals/`: Terminal state and logs
-- `~/.sbsh/run/supervisors/`: Supervisor state
+- `~/.sbsh/run/clients/`: Client state
 - Enables discovery and reattachment
 - Persists across restarts
 
@@ -77,7 +77,7 @@ Terminal (Environment)  ←→  Supervisor (Controller)
 
 ### Unix Domain Sockets
 
-Terminals and supervisors communicate via Unix domain sockets:
+Terminals and clients communicate via Unix domain sockets:
 
 - Located in `~/.sbsh/run/terminals/<id>/socket`
 - Enables local inter-process communication
@@ -86,7 +86,7 @@ Terminals and supervisors communicate via Unix domain sockets:
 
 ### RPC Protocol
 
-Supervisors use JSON-RPC to communicate with terminals:
+Clients use JSON-RPC to communicate with terminals:
 
 - Structured request/response
 - State queries
@@ -99,7 +99,7 @@ Supervisors use JSON-RPC to communicate with terminals:
 
 Terminals are designed to survive:
 
-- Supervisor crashes
+- Client crashes
 - Network disconnections
 - Accidental disconnects
 - System restarts (with proper volume mounting)
@@ -108,7 +108,7 @@ Terminals are designed to survive:
 
 - No central server process
 - Each terminal is independent
-- Supervisor failures don't cascade
+- Client failures don't cascade
 - Metadata persists on disk
 
 ## Discovery
@@ -124,5 +124,5 @@ Terminals are discoverable via metadata directory:
 
 - [Process Model](process-model.md) - Detailed process architecture
 - [Terminals](../concepts/terminals.md) - Terminal lifecycle
-- [Supervisor](../concepts/supervisor.md) - Supervisor architecture
+- [Client](../concepts/client.md) - Client architecture
 - [Comparison Guide](../guides/comparison.md) - Comparison with screen/tmux

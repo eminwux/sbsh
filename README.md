@@ -4,7 +4,7 @@
 ![state: beta](https://img.shields.io/badge/state-beta-orange)
 ![license: apache2](https://img.shields.io/badge/license-Apache%202.0-green)
 
-sbsh brings _Terminal-as-Code_ to your workflow: define terminal environments declaratively with YAML manifests that can be version-controlled, shared, and reused across your team. Each profile specifies environment variables, lifecycle hooks, startup commands, and visual prompts, ensuring consistent setups across local machines, jump hosts, and CI/CD pipelines. Terminals survive network drops, supervisor restarts, and accidental disconnects, remaining discoverable and shareable for collaboration.
+sbsh brings _Terminal-as-Code_ to your workflow: define terminal environments declaratively with YAML manifests that can be version-controlled, shared, and reused across your team. Each profile specifies environment variables, lifecycle hooks, startup commands, and visual prompts, ensuring consistent setups across local machines, jump hosts, and CI/CD pipelines. Terminals survive network drops, client restarts, and accidental disconnects, remaining discoverable and shareable for collaboration.
 
 **Demo - Launch a Terraform production workspace: profile automatically configures environment, workspace, and shows red warning prompt**
 
@@ -119,15 +119,15 @@ Three commands, one binary: sbsh uses hard links (busybox-style) to provide diff
 
 | Command         | Purpose              | Launches              | Attached      |
 | --------------- | -------------------- | --------------------- | ------------- |
-| `sbsh`          | Interactive terminal | Supervisor + Terminal | Yes           |
+| `sbsh`          | Interactive terminal | Client + Terminal     | Yes           |
 | `sbsh terminal` | Background terminal  | Terminal only         | No (detached) |
-| `sb`            | Management client    | Nothing (client only) | N/A           |
+| `sb`            | Management tool      | Nothing (client only) | N/A           |
 
 All three are the same binary; behavior is determined by the executable name at runtime.
 
-### `sbsh` - Interactive Supervisor + Terminal
+### `sbsh` - Interactive Client + Terminal
 
-Launches a supervisor attached to a terminal. Designed for interactive use and can be set as your login shell:
+Launches a client attached to a terminal. Designed for interactive use and can be set as your login shell:
 
 ```bash
 $ sbsh
@@ -138,7 +138,7 @@ Press `Ctrl-]` twice to detach. The terminal keeps running.
 
 ### `sbsh terminal` - Terminal Only
 
-Launches a terminal in the background with no attached supervisor:
+Launches a terminal in the background with no attached client:
 
 ```bash
 $ sbsh terminal --name my-terminal
@@ -147,14 +147,15 @@ $ sbsh terminal --name my-terminal
 
 Perfect for background tasks and automation.
 
-### `sb` - Client Management Tool
+### `sb` - Management Tool
 
-Pure client tool for managing existing supervisors and terminals:
+Pure client tool for managing existing clients and terminals:
 
 ```bash
 $ sb get terminals    # List all terminals
+$ sb get clients      # List all clients
 $ sb attach <name>    # Attach to a terminal
-$ sb detach           # Detach from supervisor
+$ sb detach           # Detach from a client
 $ sb get profiles     # List available profiles
 ```
 
@@ -209,10 +210,10 @@ spec:
 
 ## How It Works
 
-Terminals run independently from supervisors, defined by profiles and running persistently.
+Terminals run independently from clients, defined by profiles and running persistently.
 
 1. Profile defines environment: YAML manifest specifies env vars, commands, hooks, and prompts
-2. Terminal runs independently: Shell environment continues even if supervisor exits
+2. Terminal runs independently: Shell environment continues even if client exits
 3. All I/O captured and logged: Complete audit trail stored for every environment
 4. Metadata stored for discovery: Terminal information enables true session discovery
 5. Shareable and attachable: Multiple people can attach to the same environment
@@ -254,15 +255,15 @@ Images are available for both `linux-amd64` and `linux-arm64` architectures.
 
 ## How sbsh Differs from screen and tmux
 
-sbsh is designed for environment management and team collaboration. Key differences: declarative YAML profiles (not dotfiles), built-in discovery and multi-attach, lifecycle hooks, and terminals that survive supervisor crashes.
+sbsh is designed for environment management and team collaboration. Key differences: declarative YAML profiles (not dotfiles), built-in discovery and multi-attach, lifecycle hooks, and terminals that survive client crashes.
 
-Unlike tmux or screen, sbsh has no central server or daemon process. Each terminal runs as an independent process with its own lightweight supervisor, so failures are isolated and do not affect other terminals.
+Unlike tmux or screen, sbsh has no central server or daemon process. Each terminal runs as an independent process with its own lightweight client, so failures are isolated and do not affect other terminals.
 
 → See [docs/comparison.md](docs/comparison.md) for detailed comparison.
 
 ## Why sbsh Exists
 
-Shell environments are still treated as ephemeral and manually configured. Once a shell closes or a connection drops, the environment and all its configuration dies with it. sbsh changes that by making shell environments first-class resources: defined by profiles and durable. Each terminal continues running even if the supervisor exits or restarts.
+Shell environments are still treated as ephemeral and manually configured. Once a shell closes or a connection drops, the environment and all its configuration dies with it. sbsh changes that by making shell environments first-class resources: defined by profiles and durable. Each terminal continues running even if the client exits or restarts.
 
 ## Philosophy
 
