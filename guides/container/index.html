@@ -1249,45 +1249,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Pulling sbsh Images">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#amd64-x86_64" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        AMD64 (x86_64)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#arm64" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ARM64
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#using-docker-hub-short-syntax" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using Docker Hub Short Syntax
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -1614,21 +1575,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#platform-specific-pulls" class="md-nav__link">
+  <a href="#building-multi-architecture-images-locally" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Platform-Specific Pulls
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#using-docker-buildx" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using Docker Buildx
+        Building Multi-Architecture Images Locally
       
     </span>
   </a>
@@ -2230,45 +2180,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Pulling sbsh Images">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#amd64-x86_64" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        AMD64 (x86_64)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#arm64" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ARM64
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#using-docker-hub-short-syntax" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using Docker Hub Short Syntax
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -2595,21 +2506,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#platform-specific-pulls" class="md-nav__link">
+  <a href="#building-multi-architecture-images-locally" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Platform-Specific Pulls
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#using-docker-buildx" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using Docker Buildx
+        Building Multi-Architecture Images Locally
       
     </span>
   </a>
@@ -2835,27 +2735,20 @@
 <li><strong>CI/CD Integration</strong>: Use containers in CI/CD pipelines for reproducible environments</li>
 </ul>
 <h2 id="pulling-sbsh-images">Pulling sbsh Images<a class="headerlink" href="#pulling-sbsh-images" title="Permanent link">&para;</a></h2>
-<p>sbsh images are available on Docker Hub at <code>docker.io/eminwux/sbsh</code>. Images are tagged with version and architecture:</p>
-<h3 id="amd64-x86_64">AMD64 (x86_64)<a class="headerlink" href="#amd64-x86_64" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>docker<span class="w"> </span>pull<span class="w"> </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64
+<p>sbsh images are published on the GitHub Container Registry at <code>ghcr.io/eminwux/sbsh</code>. Images are multi-arch manifests supporting <code>linux/amd64</code> and <code>linux/arm64</code>, tagged with the release version:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/eminwux/sbsh:v0.6.0
 </code></pre></div>
-<h3 id="arm64">ARM64<a class="headerlink" href="#arm64" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>docker<span class="w"> </span>pull<span class="w"> </span>docker.io/eminwux/sbsh:v0.6.0-linux-arm64
+<p>Or use the <code>latest</code> tag to always pull the most recent release:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/eminwux/sbsh:latest
 </code></pre></div>
-<h3 id="using-docker-hub-short-syntax">Using Docker Hub Short Syntax<a class="headerlink" href="#using-docker-hub-short-syntax" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># AMD64</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>docker<span class="w"> </span>pull<span class="w"> </span>eminwux/sbsh:v0.6.0-linux-amd64
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># ARM64</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>docker<span class="w"> </span>pull<span class="w"> </span>eminwux/sbsh:v0.6.0-linux-arm64
-</code></pre></div>
+<p>Docker automatically selects the correct architecture for your host.</p>
 <h2 id="image-architecture">Image Architecture<a class="headerlink" href="#image-architecture" title="Permanent link">&para;</a></h2>
 <p>The sbsh Docker image is built using a multi-stage build process:</p>
 <h3 id="build-stage">Build Stage<a class="headerlink" href="#build-stage" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Base</strong>: <code>golang:1.25-bookworm</code> (builder stage)</li>
 <li><strong>Build Process</strong>: Compiles sbsh binary for the target architecture</li>
-<li><strong>Build Args</strong>: <code>ARCH</code> (amd64/arm64) and <code>OS</code> (linux)</li>
+<li><strong>Build Args</strong>: <code>VERSION</code> (plus <code>TARGETOS</code> / <code>TARGETARCH</code> provided by Docker Buildx)</li>
 </ul>
 <h3 id="runtime-stage">Runtime Stage<a class="headerlink" href="#runtime-stage" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2865,8 +2758,8 @@
 <li><strong>Default CMD</strong>: <code>["/bin/sbsh", "terminal"]</code> (runs terminal only by default; can be overridden to use <code>CMD ["/bin/sbsh"]</code> for client+terminal)</li>
 </ul>
 <h3 id="image-structure">Image Structure<a class="headerlink" href="#image-structure" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>/bin/sbsh          # Main sbsh binary
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>/bin/sb            # Hard link to sbsh (client tool)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>/bin/sbsh          # Main sbsh binary
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>/bin/sb            # Hard link to sbsh (client tool)
 </code></pre></div>
 <h2 id="choosing-the-right-cmd">Choosing the Right CMD<a class="headerlink" href="#choosing-the-right-cmd" title="Permanent link">&para;</a></h2>
 <p>The sbsh Docker image supports two different CMD options depending on your use case:</p>
@@ -2879,8 +2772,8 @@
 <li><strong>Behavior</strong>: You interact directly with the terminal; client stays attached</li>
 </ul>
 <p><strong>Example Dockerfile:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">docker.io/eminwux/sbsh:v0.6.0-linux-amd64</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/bin/sbsh&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">ghcr.io/eminwux/sbsh:v0.6.0</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/bin/sbsh&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>When to use:</strong></p>
 <ul>
@@ -2899,8 +2792,8 @@
 <li><strong>Important</strong>: Always use <code>--name &lt;name&gt;</code> with <code>sbsh terminal</code> to identify the terminal for later attachment</li>
 </ul>
 <p><strong>Example Dockerfile:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">docker.io/eminwux/sbsh:v0.6.0-linux-amd64</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/bin/sbsh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;terminal&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;my-terminal&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">ghcr.io/eminwux/sbsh:v0.6.0</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/bin/sbsh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;terminal&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;my-terminal&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>When to use:</strong></p>
 <ul>
@@ -2911,11 +2804,11 @@
 <li>When you want to attach to the terminal later from outside the container</li>
 </ul>
 <p><strong>Attaching to the terminal:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># From outside the container (if you have sb installed):</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>sb<span class="w"> </span>attach<span class="w"> </span>my-terminal
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Or from within the container:</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;container&gt;<span class="w"> </span>sb<span class="w"> </span>attach<span class="w"> </span>my-terminal
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># From outside the container (if you have sb installed):</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>sb<span class="w"> </span>attach<span class="w"> </span>my-terminal
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Or from within the container:</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;container&gt;<span class="w"> </span>sb<span class="w"> </span>attach<span class="w"> </span>my-terminal
 </code></pre></div>
 <h3 id="comparison">Comparison<a class="headerlink" href="#comparison" title="Permanent link">&para;</a></h3>
 <table>
@@ -2962,10 +2855,10 @@
 <h2 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h2>
 <h3 id="running-sbsh-interactively">Running sbsh Interactively<a class="headerlink" href="#running-sbsh-interactively" title="Permanent link">&para;</a></h3>
 <p>Run sbsh with an attached client and terminal:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span>sbsh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>sbsh
 </code></pre></div>
 <p><strong>Key Points:</strong></p>
 <ul>
@@ -2976,25 +2869,25 @@
 </ul>
 <h3 id="running-a-detached-terminal">Running a Detached Terminal<a class="headerlink" href="#running-a-detached-terminal" title="Permanent link">&para;</a></h3>
 <p>Launch a terminal that runs independently (no client initially). <strong>Important</strong>: Always use <code>--name</code> to identify the terminal:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>--name<span class="w"> </span>my-sbsh-terminal<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">  </span>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>my-terminal
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--name<span class="w"> </span>my-sbsh-terminal<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>my-terminal
 </code></pre></div>
 <p>The terminal runs independently. A client is not running initially - it will be launched when you attach via <code>sb attach</code>.</p>
 <h3 id="attaching-to-a-running-terminal">Attaching to a Running Terminal<a class="headerlink" href="#attaching-to-a-running-terminal" title="Permanent link">&para;</a></h3>
 <p>Use the <code>sb</code> client to attach to a terminal running in a container:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>my-sbsh-terminal<span class="w"> </span>sb<span class="w"> </span>attach<span class="w"> </span>my-terminal
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>my-sbsh-terminal<span class="w"> </span>sb<span class="w"> </span>attach<span class="w"> </span>my-terminal
 </code></pre></div>
 <p>Or from the host, if you have <code>sb</code> installed locally:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>sb<span class="w"> </span>attach<span class="w"> </span>my-terminal
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>sb<span class="w"> </span>attach<span class="w"> </span>my-terminal
 </code></pre></div>
 <p>This works because the <code>~/.sbsh</code> volume is shared between the container and host.</p>
 <h2 id="volume-requirements">Volume Requirements<a class="headerlink" href="#volume-requirements" title="Permanent link">&para;</a></h2>
 <p>sbsh requires persistent storage for terminal metadata, sockets, and logs. Mount the <code>~/.sbsh</code> directory as a volume:</p>
 <h3 id="volume-mount">Volume Mount<a class="headerlink" href="#volume-mount" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>-v<span class="w"> </span>~/.sbsh:/root/.sbsh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>-v<span class="w"> </span>~/.sbsh:/root/.sbsh
 </code></pre></div>
 <h3 id="what-gets-stored">What Gets Stored<a class="headerlink" href="#what-gets-stored" title="Permanent link">&para;</a></h3>
 <p>The <code>~/.sbsh</code> directory contains:</p>
@@ -3005,216 +2898,214 @@
 </ul>
 <h3 id="using-named-volumes">Using Named Volumes<a class="headerlink" href="#using-named-volumes" title="Permanent link">&para;</a></h3>
 <p>For better Docker management, use named volumes:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>docker<span class="w"> </span>volume<span class="w"> </span>create<span class="w"> </span>sbsh-data
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span>-v<span class="w"> </span>sbsh-data:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">  </span>sbsh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>docker<span class="w"> </span>volume<span class="w"> </span>create<span class="w"> </span>sbsh-data
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span>-v<span class="w"> </span>sbsh-data:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span>sbsh
 </code></pre></div>
 <h3 id="using-bind-mounts">Using Bind Mounts<a class="headerlink" href="#using-bind-mounts" title="Permanent link">&para;</a></h3>
 <p>For direct access to files from the host:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span>-v<span class="w"> </span>/home/user/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span>sbsh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span>-v<span class="w"> </span>/home/user/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span>sbsh
 </code></pre></div>
 <h2 id="running-sbsh-commands">Running sbsh Commands<a class="headerlink" href="#running-sbsh-commands" title="Permanent link">&para;</a></h2>
 <h3 id="interactive-mode-sbsh">Interactive Mode (<code>sbsh</code>)<a class="headerlink" href="#interactive-mode-sbsh" title="Permanent link">&para;</a></h3>
 <p>Launch a client with an attached terminal:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span>sbsh<span class="w"> </span>-p<span class="w"> </span>terraform-prd
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span>sbsh<span class="w"> </span>-p<span class="w"> </span>terraform-prd
 </code></pre></div>
 <h3 id="detached-terminal-sbsh-terminal">Detached Terminal (<code>sbsh terminal</code>)<a class="headerlink" href="#detached-terminal-sbsh-terminal" title="Permanent link">&para;</a></h3>
 <p>Create a terminal that runs independently:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span>--name<span class="w"> </span>terraform-terminal<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">  </span>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>terraform-prd<span class="w"> </span>-p<span class="w"> </span>terraform-prd
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span>--name<span class="w"> </span>terraform-terminal<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">  </span>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>terraform-prd<span class="w"> </span>-p<span class="w"> </span>terraform-prd
 </code></pre></div>
 <h3 id="client-commands-sb">Client Commands (<code>sb</code>)<a class="headerlink" href="#client-commands-sb" title="Permanent link">&para;</a></h3>
 <p>List terminals, attach, or manage sessions:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># List terminals</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">  </span>sb<span class="w"> </span>get<span class="w"> </span>terminals
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>
-<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="c1"># Attach to a terminal</span>
-<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="w">  </span>sb<span class="w"> </span>attach<span class="w"> </span>my-terminal
-<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>
-<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="c1"># List profiles</span>
-<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a><span class="w">  </span>sb<span class="w"> </span>get<span class="w"> </span>profiles
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># List terminals</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">  </span>sb<span class="w"> </span>get<span class="w"> </span>terminals
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="c1"># Attach to a terminal</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="w">  </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="w">  </span>sb<span class="w"> </span>attach<span class="w"> </span>my-terminal
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="c1"># List profiles</span>
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a><span class="w">  </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a><span class="w">  </span>sb<span class="w"> </span>get<span class="w"> </span>profiles
 </code></pre></div>
 <h2 id="using-sbsh-as-a-base-image">Using sbsh as a Base Image<a class="headerlink" href="#using-sbsh-as-a-base-image" title="Permanent link">&para;</a></h2>
 <p>You can use the sbsh image as a base for custom Dockerfiles:</p>
 <h3 id="example-1-interactive-development-environment-client-terminal">Example 1: Interactive Development Environment (Client + Terminal)<a class="headerlink" href="#example-1-interactive-development-environment-client-terminal" title="Permanent link">&para;</a></h3>
 <p>Use <code>CMD ["/bin/sbsh"]</code> for interactive development where you want the client attached:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">docker.io/eminwux/sbsh:v0.6.0-linux-amd64</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="c"># Install additional tools</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">    </span>git<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">    </span>vim<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">    </span>curl<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span>rm<span class="w"> </span>-rf<span class="w"> </span>/var/lib/apt/lists/*
-<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>
-<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="c"># Copy custom profiles</span>
-<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="k">COPY</span><span class="w"> </span>profiles.yaml<span class="w"> </span>/root/.sbsh/profiles.yaml
-<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>
-<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="c"># Set working directory</span>
-<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/workspace</span>
-<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>
-<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="c"># Run client + terminal (interactive)</span>
-<a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a><span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/bin/sbsh&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">ghcr.io/eminwux/sbsh:v0.6.0</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="c"># Install additional tools</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">    </span>git<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">    </span>vim<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">    </span>curl<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span>rm<span class="w"> </span>-rf<span class="w"> </span>/var/lib/apt/lists/*
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="c"># Copy custom profiles</span>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="k">COPY</span><span class="w"> </span>profiles.yaml<span class="w"> </span>/root/.sbsh/profiles.yaml
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>
+<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="c"># Set working directory</span>
+<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/workspace</span>
+<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>
+<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a><span class="c"># Run client + terminal (interactive)</span>
+<a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a><span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/bin/sbsh&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>Building and Running:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>my-sbsh-env<span class="w"> </span>.
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">  </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/workspace<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">  </span>my-sbsh-env
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>my-sbsh-env<span class="w"> </span>.
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">  </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/workspace<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">  </span>my-sbsh-env
 </code></pre></div>
 <p>This runs an interactive terminal with an attached client. Press <code>Ctrl-]</code> twice to detach.</p>
 <h3 id="example-2-background-terminal-service-terminal-only">Example 2: Background Terminal Service (Terminal Only)<a class="headerlink" href="#example-2-background-terminal-service-terminal-only" title="Permanent link">&para;</a></h3>
 <p>Use <code>CMD ["/bin/sbsh", "terminal"]</code> for background terminals that run independently. <strong>Important</strong>: Always specify <code>--name</code> to identify the terminal for later attachment:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">docker.io/eminwux/sbsh:v0.6.0-linux-amd64</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="c"># Install additional tools</span>
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">    </span>git<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">    </span>curl<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span>rm<span class="w"> </span>-rf<span class="w"> </span>/var/lib/apt/lists/*
-<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>
-<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="c"># Copy custom profiles</span>
-<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="k">COPY</span><span class="w"> </span>profiles.yaml<span class="w"> </span>/root/.sbsh/profiles.yaml
-<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>
-<a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a><span class="c"># Set working directory</span>
-<a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/workspace</span>
-<a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a>
-<a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a><span class="c"># Run terminal only (no client initially)</span>
-<a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a><span class="c"># The client will be launched when you attach via sb attach</span>
-<a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a><span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/bin/sbsh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;terminal&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;background-terminal&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-p&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;default&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">ghcr.io/eminwux/sbsh:v0.6.0</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="c"># Install additional tools</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">    </span>git<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">    </span>curl<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span>rm<span class="w"> </span>-rf<span class="w"> </span>/var/lib/apt/lists/*
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="c"># Copy custom profiles</span>
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="k">COPY</span><span class="w"> </span>profiles.yaml<span class="w"> </span>/root/.sbsh/profiles.yaml
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="c"># Set working directory</span>
+<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/workspace</span>
+<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a>
+<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a><span class="c"># Run terminal only (no client initially)</span>
+<a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a><span class="c"># The client will be launched when you attach via sb attach</span>
+<a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a><span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/bin/sbsh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;terminal&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;background-terminal&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-p&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;default&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>Building and Running:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>my-sbsh-background<span class="w"> </span>.
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span>--name<span class="w"> </span>my-terminal-service<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span>my-sbsh-background
-<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>
-<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="c1"># Attach later - this launches a client to connect to the terminal:</span>
-<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>my-terminal-service<span class="w"> </span>sb<span class="w"> </span>attach<span class="w"> </span>background-terminal
-<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="c1"># Or from host (if sb is installed):</span>
-<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>sb<span class="w"> </span>attach<span class="w"> </span>background-terminal
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>my-sbsh-background<span class="w"> </span>.
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span>--name<span class="w"> </span>my-terminal-service<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">  </span>my-sbsh-background
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="c1"># Attach later - this launches a client to connect to the terminal:</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>my-terminal-service<span class="w"> </span>sb<span class="w"> </span>attach<span class="w"> </span>background-terminal
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="c1"># Or from host (if sb is installed):</span>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>sb<span class="w"> </span>attach<span class="w"> </span>background-terminal
 </code></pre></div>
 <p>This runs a terminal that continues independently. The client is not running initially - it's launched when you execute <code>sb attach background-terminal</code>, which creates a client to connect to the existing terminal.</p>
 <h2 id="docker-compose-example">Docker Compose Example<a class="headerlink" href="#docker-compose-example" title="Permanent link">&para;</a></h2>
 <p>Use Docker Compose for easier management:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;3.8&quot;</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="nt">services</span><span class="p">:</span>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">  </span><span class="nt">sbsh</span><span class="p">:</span>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docker.io/eminwux/sbsh:v0.6.0-linux-amd64</span>
-<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">    </span><span class="nt">container_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh</span>
-<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
-<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">~/.sbsh:/root/.sbsh</span>
-<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./workspace:/workspace</span>
-<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="w">    </span><span class="nt">stdin_open</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="w">    </span><span class="nt">tty</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="w">    </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh -p default</span>
-<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a><span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
-<a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TERM=xterm-256color</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;3.8&quot;</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="nt">services</span><span class="p">:</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">sbsh</span><span class="p">:</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/eminwux/sbsh:v0.6.0</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">    </span><span class="nt">container_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">~/.sbsh:/root/.sbsh</span>
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./workspace:/workspace</span>
+<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="w">    </span><span class="nt">stdin_open</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a><span class="w">    </span><span class="nt">tty</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a><span class="w">    </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh -p default</span>
+<a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a><span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TERM=xterm-256color</span>
 </code></pre></div>
 <p>Run with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>docker-compose<span class="w"> </span>up
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>docker-compose<span class="w"> </span>up
 </code></pre></div>
 <h2 id="multi-architecture-support">Multi-Architecture Support<a class="headerlink" href="#multi-architecture-support" title="Permanent link">&para;</a></h2>
-<p>sbsh images are available for multiple architectures:</p>
+<p>sbsh images are published as multi-arch manifests supporting:</p>
 <ul>
 <li><strong>linux/amd64</strong>: x86_64 processors (Intel, AMD)</li>
 <li><strong>linux/arm64</strong>: ARM64 processors (Apple Silicon, AWS Graviton, etc.)</li>
 </ul>
-<h3 id="platform-specific-pulls">Platform-Specific Pulls<a class="headerlink" href="#platform-specific-pulls" title="Permanent link">&para;</a></h3>
-<p>Docker automatically selects the correct image for your platform:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>docker<span class="w"> </span>pull<span class="w"> </span>eminwux/sbsh:v0.6.0-linux-amd64
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>docker<span class="w"> </span>pull<span class="w"> </span>eminwux/sbsh:v0.6.0-linux-arm64
+<p>Docker automatically selects the correct architecture when pulling from the manifest:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/eminwux/sbsh:v0.6.0
 </code></pre></div>
-<h3 id="using-docker-buildx">Using Docker Buildx<a class="headerlink" href="#using-docker-buildx" title="Permanent link">&para;</a></h3>
-<p>For multi-architecture builds, use Docker Buildx:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>docker<span class="w"> </span>buildx<span class="w"> </span>create<span class="w"> </span>--use
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>docker<span class="w"> </span>buildx<span class="w"> </span>build<span class="w"> </span>--platform<span class="w"> </span>linux/amd64,linux/arm64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span>-t<span class="w"> </span>eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="w">  </span>--push<span class="w"> </span>.
+<h3 id="building-multi-architecture-images-locally">Building Multi-Architecture Images Locally<a class="headerlink" href="#building-multi-architecture-images-locally" title="Permanent link">&para;</a></h3>
+<p>To build the sbsh image yourself for multiple architectures, use Docker Buildx:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>docker<span class="w"> </span>buildx<span class="w"> </span>create<span class="w"> </span>--use
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>docker<span class="w"> </span>buildx<span class="w"> </span>build<span class="w"> </span>--platform<span class="w"> </span>linux/amd64,linux/arm64<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span>-t<span class="w"> </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span>--push<span class="w"> </span>.
 </code></pre></div>
 <h2 id="docker-in-docker-dind">Docker-in-Docker (DinD)<a class="headerlink" href="#docker-in-docker-dind" title="Permanent link">&para;</a></h2>
 <p>If you need to run Docker commands inside sbsh containers, you can use Docker-in-Docker:</p>
 <h3 id="using-docker-socket">Using Docker Socket<a class="headerlink" href="#using-docker-socket" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span>-v<span class="w"> </span>/var/run/docker.sock:/var/run/docker.sock<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">  </span>sbsh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span>-v<span class="w"> </span>/var/run/docker.sock:/var/run/docker.sock<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="w">  </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="w">  </span>sbsh
 </code></pre></div>
 <p>Then install Docker client inside the container or use a profile that includes it.</p>
 <h3 id="using-dind-container">Using DinD Container<a class="headerlink" href="#using-dind-container" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">  </span>--privileged<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="w">  </span>sbsh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span>--privileged<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="w">  </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">  </span>sbsh
 </code></pre></div>
 <p><strong>Security Note</strong>: Using <code>--privileged</code> or mounting the Docker socket grants extensive permissions. Use with caution in production environments.</p>
 <h2 id="kubernetes-integration">Kubernetes Integration<a class="headerlink" href="#kubernetes-integration" title="Permanent link">&para;</a></h2>
 <h3 id="deployment-example">Deployment Example<a class="headerlink" href="#deployment-example" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
-<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deployment</span>
-<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh</span>
-<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
-<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a><span class="w">  </span><span class="nt">selector</span><span class="p">:</span>
-<a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a><span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span>
-<a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a><span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh</span>
-<a id="__codelineno-27-10" name="__codelineno-27-10" href="#__codelineno-27-10"></a><span class="w">  </span><span class="nt">template</span><span class="p">:</span>
-<a id="__codelineno-27-11" name="__codelineno-27-11" href="#__codelineno-27-11"></a><span class="w">    </span><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-27-12" name="__codelineno-27-12" href="#__codelineno-27-12"></a><span class="w">      </span><span class="nt">labels</span><span class="p">:</span>
-<a id="__codelineno-27-13" name="__codelineno-27-13" href="#__codelineno-27-13"></a><span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh</span>
-<a id="__codelineno-27-14" name="__codelineno-27-14" href="#__codelineno-27-14"></a><span class="w">    </span><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-27-15" name="__codelineno-27-15" href="#__codelineno-27-15"></a><span class="w">      </span><span class="nt">containers</span><span class="p">:</span>
-<a id="__codelineno-27-16" name="__codelineno-27-16" href="#__codelineno-27-16"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh</span>
-<a id="__codelineno-27-17" name="__codelineno-27-17" href="#__codelineno-27-17"></a><span class="w">          </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docker.io/eminwux/sbsh:v0.6.0-linux-amd64</span>
-<a id="__codelineno-27-18" name="__codelineno-27-18" href="#__codelineno-27-18"></a><span class="w">          </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/bin/sbsh&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;terminal&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;--name&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;k8s-terminal&quot;</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-27-19" name="__codelineno-27-19" href="#__codelineno-27-19"></a><span class="w">          </span><span class="nt">volumeMounts</span><span class="p">:</span>
-<a id="__codelineno-27-20" name="__codelineno-27-20" href="#__codelineno-27-20"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh-data</span>
-<a id="__codelineno-27-21" name="__codelineno-27-21" href="#__codelineno-27-21"></a><span class="w">              </span><span class="nt">mountPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/root/.sbsh</span>
-<a id="__codelineno-27-22" name="__codelineno-27-22" href="#__codelineno-27-22"></a><span class="w">          </span><span class="nt">stdin</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-27-23" name="__codelineno-27-23" href="#__codelineno-27-23"></a><span class="w">          </span><span class="nt">tty</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-27-24" name="__codelineno-27-24" href="#__codelineno-27-24"></a><span class="w">      </span><span class="nt">volumes</span><span class="p">:</span>
-<a id="__codelineno-27-25" name="__codelineno-27-25" href="#__codelineno-27-25"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh-data</span>
-<a id="__codelineno-27-26" name="__codelineno-27-26" href="#__codelineno-27-26"></a><span class="w">          </span><span class="nt">persistentVolumeClaim</span><span class="p">:</span>
-<a id="__codelineno-27-27" name="__codelineno-27-27" href="#__codelineno-27-27"></a><span class="w">            </span><span class="nt">claimName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh-pvc</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="w">  </span><span class="nt">selector</span><span class="p">:</span>
+<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span>
+<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a><span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh</span>
+<a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a><span class="w">  </span><span class="nt">template</span><span class="p">:</span>
+<a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a><span class="w">    </span><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-26-12" name="__codelineno-26-12" href="#__codelineno-26-12"></a><span class="w">      </span><span class="nt">labels</span><span class="p">:</span>
+<a id="__codelineno-26-13" name="__codelineno-26-13" href="#__codelineno-26-13"></a><span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh</span>
+<a id="__codelineno-26-14" name="__codelineno-26-14" href="#__codelineno-26-14"></a><span class="w">    </span><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-26-15" name="__codelineno-26-15" href="#__codelineno-26-15"></a><span class="w">      </span><span class="nt">containers</span><span class="p">:</span>
+<a id="__codelineno-26-16" name="__codelineno-26-16" href="#__codelineno-26-16"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh</span>
+<a id="__codelineno-26-17" name="__codelineno-26-17" href="#__codelineno-26-17"></a><span class="w">          </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/eminwux/sbsh:v0.6.0</span>
+<a id="__codelineno-26-18" name="__codelineno-26-18" href="#__codelineno-26-18"></a><span class="w">          </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/bin/sbsh&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;terminal&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;--name&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;k8s-terminal&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-26-19" name="__codelineno-26-19" href="#__codelineno-26-19"></a><span class="w">          </span><span class="nt">volumeMounts</span><span class="p">:</span>
+<a id="__codelineno-26-20" name="__codelineno-26-20" href="#__codelineno-26-20"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh-data</span>
+<a id="__codelineno-26-21" name="__codelineno-26-21" href="#__codelineno-26-21"></a><span class="w">              </span><span class="nt">mountPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/root/.sbsh</span>
+<a id="__codelineno-26-22" name="__codelineno-26-22" href="#__codelineno-26-22"></a><span class="w">          </span><span class="nt">stdin</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-26-23" name="__codelineno-26-23" href="#__codelineno-26-23"></a><span class="w">          </span><span class="nt">tty</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-26-24" name="__codelineno-26-24" href="#__codelineno-26-24"></a><span class="w">      </span><span class="nt">volumes</span><span class="p">:</span>
+<a id="__codelineno-26-25" name="__codelineno-26-25" href="#__codelineno-26-25"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh-data</span>
+<a id="__codelineno-26-26" name="__codelineno-26-26" href="#__codelineno-26-26"></a><span class="w">          </span><span class="nt">persistentVolumeClaim</span><span class="p">:</span>
+<a id="__codelineno-26-27" name="__codelineno-26-27" href="#__codelineno-26-27"></a><span class="w">            </span><span class="nt">claimName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh-pvc</span>
 </code></pre></div>
 <h3 id="persistent-volume-claim">Persistent Volume Claim<a class="headerlink" href="#persistent-volume-claim" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
-<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PersistentVolumeClaim</span>
-<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh-pvc</span>
-<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a><span class="w">  </span><span class="nt">accessModes</span><span class="p">:</span>
-<a id="__codelineno-28-7" name="__codelineno-28-7" href="#__codelineno-28-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ReadWriteOnce</span>
-<a id="__codelineno-28-8" name="__codelineno-28-8" href="#__codelineno-28-8"></a><span class="w">  </span><span class="nt">resources</span><span class="p">:</span>
-<a id="__codelineno-28-9" name="__codelineno-28-9" href="#__codelineno-28-9"></a><span class="w">    </span><span class="nt">requests</span><span class="p">:</span>
-<a id="__codelineno-28-10" name="__codelineno-28-10" href="#__codelineno-28-10"></a><span class="w">      </span><span class="nt">storage</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1Gi</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PersistentVolumeClaim</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh-pvc</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="w">  </span><span class="nt">accessModes</span><span class="p">:</span>
+<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ReadWriteOnce</span>
+<a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a><span class="w">  </span><span class="nt">resources</span><span class="p">:</span>
+<a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a><span class="w">    </span><span class="nt">requests</span><span class="p">:</span>
+<a id="__codelineno-27-10" name="__codelineno-27-10" href="#__codelineno-27-10"></a><span class="w">      </span><span class="nt">storage</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1Gi</span>
 </code></pre></div>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="permission-denied-errors">Permission Denied Errors<a class="headerlink" href="#permission-denied-errors" title="Permanent link">&para;</a></h3>
@@ -3224,11 +3115,11 @@
 <li>Check volume mount permissions</li>
 <li>Ensure directory exists: <code>mkdir -p ~/.sbsh</code></li>
 <li>Use <code>--user</code> flag if running as non-root:
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="w">  </span>--user<span class="w"> </span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>:<span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/home/user/.sbsh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a><span class="w">  </span>sbsh
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">  </span>--user<span class="w"> </span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>:<span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/home/user/.sbsh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="w">  </span>ghcr.io/eminwux/sbsh:v0.6.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="w">  </span>sbsh
 </code></pre></div></li>
 </ul>
 <h3 id="terminals-not-persisting">Terminals Not Persisting<a class="headerlink" href="#terminals-not-persisting" title="Permanent link">&para;</a></h3>
@@ -3262,10 +3153,8 @@
 <p><strong>Problem</strong>: Image won't run on host architecture</p>
 <p><strong>Solutions</strong>:</p>
 <ul>
-<li>Pull the correct architecture image:</li>
-<li>AMD64: <code>docker.io/eminwux/sbsh:v0.6.0-linux-amd64</code></li>
-<li>ARM64: <code>docker.io/eminwux/sbsh:v0.6.0-linux-arm64</code></li>
-<li>Use <code>docker manifest inspect</code> to check available architectures</li>
+<li>Pull the multi-arch image — Docker selects the correct architecture automatically: <code>ghcr.io/eminwux/sbsh:v0.6.0</code></li>
+<li>Use <code>docker manifest inspect ghcr.io/eminwux/sbsh:v0.6.0</code> to verify the available architectures</li>
 <li>Verify host architecture: <code>uname -m</code></li>
 </ul>
 <h3 id="container-exits-immediately">Container Exits Immediately<a class="headerlink" href="#container-exits-immediately" title="Permanent link">&para;</a></h3>
@@ -3280,7 +3169,7 @@
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Use Named Volumes</strong>: For production, use named volumes instead of bind mounts for better portability</li>
-<li><strong>Version Pinning</strong>: Always pin to specific version tags (e.g., <code>v0.6.0-linux-amd64</code>) instead of <code>latest</code></li>
+<li><strong>Version Pinning</strong>: Always pin to specific version tags (e.g., <code>v0.6.0</code>) instead of <code>latest</code></li>
 <li><strong>Profile Management</strong>: Store profiles in version control and mount them as volumes</li>
 <li><strong>Resource Limits</strong>: Set appropriate CPU and memory limits for containers</li>
 <li><strong>Security</strong>: Avoid using <code>--privileged</code> unless absolutely necessary</li>
@@ -3314,7 +3203,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 18, 2026 17:15:20 UTC">April 18, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 19, 2026 13:47:29 UTC">April 19, 2026</span>
   </span>
 
     
