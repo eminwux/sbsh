@@ -37,6 +37,6 @@ func NewGetCmd() *cobra.Command {
 
 func setupListCmd(getCmd *cobra.Command) {
 	getCmd.AddCommand(NewGetTerminalCmd())
-	getCmd.AddCommand(NewGetSupervisorCmd())
+	getCmd.AddCommand(NewGetClientCmd())
 	getCmd.AddCommand(NewGetProfilesCmd())
 }

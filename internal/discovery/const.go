@@ -17,6 +17,6 @@
 package discovery
 
 const (
-	NoSupervisorsString = "no active or inactive supervisors found\r\n"
-	NoTerminalsString   = "no active or inactive terminals found\r\n"
+	NoClientsString   = "no active or inactive clients found\r\n"
+	NoTerminalsString = "no active or inactive terminals found\r\n"
 )

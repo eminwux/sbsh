@@ -30,10 +30,10 @@ import (
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sb/get"
 	"github.com/eminwux/sbsh/cmd/types"
+	"github.com/eminwux/sbsh/internal/client"
 	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
-	"github.com/eminwux/sbsh/internal/supervisor"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -177,7 +177,7 @@ func run(
 	ctx, cancel := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	supervisorID := naming.RandomID()
+	clientID := naming.RandomID()
 	socketFileFlag := viper.GetString(config.SB_ATTACH_SOCKET.ViperKey)
 	runPath := viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey)
 
@@ -195,19 +195,19 @@ func run(
 	}
 
 	// Create a new Controller
-	logger.DebugContext(ctx, "creating supervisor controller for attach", "run_path", runPath)
-	supCtrl := supervisor.NewSupervisorController(ctx, logger)
+	logger.DebugContext(ctx, "creating client controller for attach", "run_path", runPath)
+	supCtrl := client.NewClientController(ctx, logger)
 
 	if socketFileFlag == "" {
-		socketFileFlag = filepath.Join(runPath, defaults.SupervisorsRunPath, supervisorID, "socket")
+		socketFileFlag = filepath.Join(runPath, defaults.ClientsRunPath, clientID, "socket")
 	}
 
 	if err := os.MkdirAll(filepath.Dir(socketFileFlag), 0o700); err != nil {
-		logger.ErrorContext(ctx, "failed to create supervisor dir", "dir", filepath.Dir(socketFileFlag), "error", err)
-		return fmt.Errorf("%w: %w", errdefs.ErrCreateSupervisorDir, err)
+		logger.ErrorContext(ctx, "failed to create client dir", "dir", filepath.Dir(socketFileFlag), "error", err)
+		return fmt.Errorf("%w: %w", errdefs.ErrCreateClientDir, err)
 	}
 
-	supDoc := buildSupervisorDoc(ctx, supervisorID, runPath, socketFileFlag, logger)
+	supDoc := buildClientDoc(ctx, clientID, runPath, socketFileFlag, logger)
 
 	disableDetach := viper.GetBool(config.SB_ATTACH_DISABLE_DETACH_KEYSTROKE.ViperKey)
 	supDoc.Spec.DetachKeystroke = !disableDetach
@@ -254,9 +254,9 @@ func run(
 
 	supDoc.Spec.TerminalSpec.SocketFile = socket
 
-	logger.DebugContext(ctx, "Built supervisor doc", "supervisorDoc", fmt.Sprintf("%+v", supDoc))
+	logger.DebugContext(ctx, "Built client doc", "clientDoc", fmt.Sprintf("%+v", supDoc))
 
-	logger.DebugContext(ctx, "starting supervisor controller goroutine for attach")
+	logger.DebugContext(ctx, "starting client controller goroutine for attach")
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- supCtrl.Run(supDoc)
@@ -264,7 +264,7 @@ func run(
 		logger.DebugContext(ctx, "controller goroutine exited (attach)")
 	}()
 
-	logger.DebugContext(ctx, "waiting for supervisor controller to signal ready (attach)")
+	logger.DebugContext(ctx, "waiting for client controller to signal ready (attach)")
 	if err := supCtrl.WaitReady(); err != nil {
 		logger.DebugContext(ctx, "controller not ready (attach)", "error", err)
 		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
@@ -305,28 +305,28 @@ func run(
 	return nil
 }
 
-func buildSupervisorDoc(
+func buildClientDoc(
 	ctx context.Context,
-	supervisorID string,
+	clientID string,
 	runPath string,
 	socketFileInput string,
 	logger *slog.Logger,
-) *api.SupervisorDoc {
-	supervisorName := naming.RandomName()
-	doc := &api.SupervisorDoc{
+) *api.ClientDoc {
+	clientName := naming.RandomName()
+	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindSupervisor,
-		Metadata: api.SupervisorMetadata{
-			Name:        supervisorName,
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
+			Name:        clientName,
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: api.SupervisorSpec{
-			ID:             api.ID(supervisorID),
-			RunPath:        runPath,
-			SockerCtrl:     socketFileInput,
-			TerminalSpec:   &api.TerminalSpec{},
-			SupervisorMode: api.AttachToTerminal,
+		Spec: api.ClientSpec{
+			ID:           api.ID(clientID),
+			RunPath:      runPath,
+			SockerCtrl:   socketFileInput,
+			TerminalSpec: &api.TerminalSpec{},
+			ClientMode:   api.AttachToTerminal,
 		},
 	}
 	logger.DebugContext(ctx, "attach doc created",

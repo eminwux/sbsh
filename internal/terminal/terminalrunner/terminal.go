@@ -22,6 +22,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -39,6 +41,14 @@ func (sr *Exec) prepareTerminalCommand() error {
 	// Prepare the exec.Cmd based on terminal metadata
 	//nolint:gosec // User has to specify the command and its args
 	cmd := exec.CommandContext(sr.ctx, sr.metadata.Spec.Command, sr.metadata.Spec.CommandArgs...)
+
+	if sr.metadata.Spec.Cwd != "" {
+		dir, err := expandCwd(sr.metadata.Spec.Cwd)
+		if err != nil {
+			return fmt.Errorf("failed to expand cwd %q: %w", sr.metadata.Spec.Cwd, err)
+		}
+		cmd.Dir = dir
+	}
 
 	// Inherit Environment Variables
 	if sr.metadata.Spec.EnvInherit {
@@ -92,6 +102,22 @@ func (sr *Exec) prepareTerminalCommand() error {
 	sr.cmd = cmd
 
 	return nil
+}
+
+// expandCwd resolves a leading "~" or "~/" against the user's home directory.
+// Other shell expansions (env vars, globs) are not performed.
+func expandCwd(p string) (string, error) {
+	if p == "~" || strings.HasPrefix(p, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		if p == "~" {
+			return home, nil
+		}
+		return filepath.Join(home, p[2:]), nil
+	}
+	return p, nil
 }
 
 func (sr *Exec) startPty() error {

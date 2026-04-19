@@ -44,7 +44,7 @@ spec:
 
 ### Persistent Terminals
 
-Terminals survive network drops, supervisor restarts, and accidental disconnects. Reattach anytime with `sb attach <name>`.
+Terminals survive network drops, client restarts, and accidental disconnects. Reattach anytime with `sb attach <name>`.
 
 ### Multi-Attach Support
 
@@ -52,7 +52,7 @@ Multiple people can attach to the same terminal for pair programming and collabo
 
 ### Clean Architecture
 
-sbsh separates the terminal (your work environment) from the supervisor (the controller), making terminals as durable and manageable as background services. Terminals run independently and survive supervisor crashes.
+sbsh separates the terminal from the client, making terminals as durable and manageable as background services. Terminals run independently and survive client crashes.
 
 ## Quick Start
 
@@ -80,7 +80,7 @@ sbsh applies the same principles of Infrastructure-as-Code to interactive enviro
 ## Documentation
 
 - **[Getting Started](getting-started.md)** - Install and configure sbsh
-- **[Concepts](concepts/terminals.md)** - Understand terminals, profiles, and supervisors
+- **[Concepts](concepts/terminals.md)** - Understand terminals, profiles, and clients
 - **[Guides](guides/profiles.md)** - Comprehensive guides for profiles, CI/CD, and containers
 - **[CLI Reference](cli/commands.md)** - Complete command documentation
 - **[Tutorials](tutorials/create-your-first-profile.md)** - Step-by-step tutorials

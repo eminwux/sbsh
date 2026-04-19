@@ -26,8 +26,9 @@ import (
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sb/get"
 	"github.com/eminwux/sbsh/cmd/types"
+	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/errdefs"
-	"github.com/eminwux/sbsh/pkg/rpcclient/supervisor"
+	"github.com/eminwux/sbsh/pkg/rpcclient/client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -39,11 +40,11 @@ func NewDetachCmd() *cobra.Command {
 	detachCmd := &cobra.Command{
 		Use:     "detach",
 		Aliases: []string{"d"},
-		Short:   "Detach from a running supervisor",
-		Long: `Detach from a running supervisor.
+		Short:   "Detach from a running client",
+		Long: `Detach from a running client.
 
-This command takes a --socket argument to specify the supervisor socket path.
-If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
+This command takes a --socket argument to specify the client socket path.
+If not provided, it will look for the SBSH_ROOT_CLIENT_SOCKET environment variable.`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
@@ -56,7 +57,7 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 			switch {
 			case len(args) == 0:
 				if !cmd.Flags().Changed("id") && !cmd.Flags().Changed("name") && !cmd.Flags().Changed("socket") {
-					return errdefs.ErrNoSupervisorIdentifier
+					return errdefs.ErrNoClientIdentifier
 				}
 			case len(args) == 1:
 				// If user passed -n when listing, reject it
@@ -91,7 +92,7 @@ If not provided, it will look for the SBSH_SUP_SOCKET environment variable.`,
 			logger.DebugContext(cmd.Context(), "detach command completed successfully")
 			return nil
 		},
-		ValidArgsFunction: get.CompleteSupervisors,
+		ValidArgsFunction: get.CompleteClients,
 	}
 	setupDetachCmd(detachCmd)
 	return detachCmd
@@ -102,7 +103,7 @@ func setupDetachCmd(detachCmd *cobra.Command) {
 	_ = viper.BindPFlag(config.SB_DETACH_ID.ViperKey, detachCmd.Flags().Lookup("id"))
 	detachCmd.Flags().StringP("name", "n", "", "Optional terminal name, cannot be set together with --id")
 	_ = viper.BindPFlag(config.SB_DETACH_NAME.ViperKey, detachCmd.Flags().Lookup("name"))
-	detachCmd.Flags().String("socket", "", "Supervisor Socket Path")
+	detachCmd.Flags().String("socket", "", "Client Socket Path")
 	_ = viper.BindPFlag(config.SB_DETACH_SOCKET.ViperKey, detachCmd.Flags().Lookup("socket"))
 }
 
@@ -112,52 +113,52 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 		return errdefs.ErrLoggerNotFound
 	}
 
-	supervisorSocketFlag := viper.GetString(config.SB_DETACH_SOCKET.ViperKey)
-	supervisorIDFlag := viper.GetString(config.SB_DETACH_ID.ViperKey)
-	supervisorNameFlag := viper.GetString(config.SB_DETACH_NAME.ViperKey)
+	clientSocketFlag := viper.GetString(config.SB_DETACH_SOCKET.ViperKey)
+	clientIDFlag := viper.GetString(config.SB_DETACH_ID.ViperKey)
+	clientNameFlag := viper.GetString(config.SB_DETACH_NAME.ViperKey)
 
 	if len(args) == 1 {
-		if supervisorIDFlag != "" || supervisorNameFlag != "" || supervisorSocketFlag != "" {
+		if clientIDFlag != "" || clientNameFlag != "" || clientSocketFlag != "" {
 			return errdefs.ErrPositionalWithFlags
 		}
 	}
 
-	var supervisorNamePositional string
+	var clientNamePositional string
 	if len(args) == 1 {
-		supervisorNamePositional = args[0]
+		clientNamePositional = args[0]
 	}
 
-	if supervisorIDFlag != "" && supervisorNameFlag != "" {
+	if clientIDFlag != "" && clientNameFlag != "" {
 		return fmt.Errorf("%w: only one of --id or --name can be provided", errdefs.ErrConflictingFlags)
 	}
 
-	if supervisorIDFlag != "" && supervisorSocketFlag != "" {
+	if clientIDFlag != "" && clientSocketFlag != "" {
 		return fmt.Errorf("%w: only one of --id or --socket can be provided", errdefs.ErrConflictingFlags)
 	}
 
-	if supervisorNameFlag != "" && supervisorSocketFlag != "" {
+	if clientNameFlag != "" && clientSocketFlag != "" {
 		return fmt.Errorf("%w: only one of --name or --socket can be provided", errdefs.ErrConflictingFlags)
 	}
 
-	supervisorName := supervisorNamePositional
-	if supervisorNamePositional == "" {
-		supervisorName = supervisorNameFlag
+	clientName := clientNamePositional
+	if clientNamePositional == "" {
+		clientName = clientNameFlag
 	}
 
-	socket, errC := buildSocket(cmd, logger, supervisorSocketFlag, supervisorIDFlag, supervisorName)
+	socket, errC := buildSocket(cmd, logger, clientSocketFlag, clientIDFlag, clientName)
 	if errC != nil {
 		logger.ErrorContext(cmd.Context(), "cannot build socket path", "error", errC)
 		return fmt.Errorf("%w: %w", errdefs.ErrBuildSocketPath, errC)
 	}
 
-	logger.DebugContext(cmd.Context(), "creating supervisor unix client", "socket", socket)
-	sup := supervisor.NewUnix(socket)
+	logger.DebugContext(cmd.Context(), "creating client unix client", "socket", socket)
+	sup := client.NewUnix(socket)
 	defer sup.Close()
 
 	ctx, cancel := context.WithTimeout(cmd.Context(), detachTimeout)
 	defer cancel()
 
-	logger.DebugContext(ctx, "detaching from supervisor", "timeout", detachTimeout)
+	logger.DebugContext(ctx, "detaching from client", "timeout", detachTimeout)
 	fmt.Fprintf(os.Stdout, "detaching..\r\n")
 	if err := sup.Detach(ctx); err != nil {
 		logger.DebugContext(ctx, "detach failed", "error", err)
@@ -173,12 +174,12 @@ func runDetachCmd(cmd *cobra.Command, args []string) error {
 func buildSocket(
 	cmd *cobra.Command,
 	logger *slog.Logger,
-	supervisorSocketFlag string,
-	supervisorIDFlag string,
-	supervisorName string,
+	clientSocketFlag string,
+	clientIDFlag string,
+	clientName string,
 ) (string, error) {
-	if supervisorSocketFlag != "" {
-		return supervisorSocketFlag, nil
+	if clientSocketFlag != "" {
+		return clientSocketFlag, nil
 	}
 
 	runPath, err := config.GetRunPathFromEnvAndFlags(cmd, config.SB_ROOT_RUN_PATH.EnvVar())
@@ -187,18 +188,18 @@ func buildSocket(
 		return "", fmt.Errorf("%w: %w", errdefs.ErrDetermineRunPath, err)
 	}
 
-	var supervisorID string
+	var clientID string
 	switch {
-	case supervisorIDFlag != "":
-		supervisorID = supervisorIDFlag
-	case supervisorName != "":
-		supervisorID, err = get.ResolveSupervisorNameToID(cmd.Context(), logger, runPath, supervisorName)
+	case clientIDFlag != "":
+		clientID = clientIDFlag
+	case clientName != "":
+		clientID, err = get.ResolveClientNameToID(cmd.Context(), logger, runPath, clientName)
 		if err != nil {
 			logger.ErrorContext(
 				cmd.Context(),
 				"cannot resolve terminal name to ID",
 				"terminal_name",
-				supervisorName,
+				clientName,
 				"error",
 				err,
 			)
@@ -207,11 +208,11 @@ func buildSocket(
 	default:
 		logger.DebugContext(
 			cmd.Context(),
-			"no supervisor identification method provided, cannot detach",
+			"no client identification method provided, cannot detach",
 		)
-		return "", errdefs.ErrNoSupervisorIdentification
+		return "", errdefs.ErrNoClientIdentification
 	}
 
-	socket := fmt.Sprintf("%s/supervisors/%s/socket", runPath, supervisorID)
+	socket := fmt.Sprintf("%s/%s/%s/socket", runPath, defaults.ClientsRunPath, clientID)
 	return socket, nil
 }

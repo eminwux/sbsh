@@ -46,13 +46,6 @@ func NewGetTerminalCmd() *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				// If user passed -o when listing, reject it
-				if cmd.Flags().Changed("output") {
-					return fmt.Errorf(
-						"%w: the -o/--output flag is only valid when specifying a terminal name",
-						errdefs.ErrInvalidFlag,
-					)
-				}
 				return listTerminals(cmd, args)
 			} else if len(args) > 1 {
 				return errdefs.ErrTooManyArguments
@@ -72,13 +65,13 @@ func setupNewGetTerminalCmd(cmd *cobra.Command) {
 	cmd.Flags().BoolP("all", "a", false, "List all terminals, including Exited")
 	_ = viper.BindPFlag(listAllInput, cmd.Flags().Lookup("all"))
 
-	cmd.Flags().StringP("output", "o", "", "Output format: json|yaml (default: human-readable)")
+	cmd.Flags().StringP("output", "o", "", "Output format: wide|json|yaml (default: compact table / human-readable)")
 	_ = viper.BindPFlag(outputFormat, cmd.Flags().Lookup("output"))
 
 	_ = cmd.RegisterFlagCompletionFunc(
 		"output",
 		func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-			return []string{"json", "yaml"}, cobra.ShellCompDirectiveNoFileComp
+			return []string{"wide", "json", "yaml"}, cobra.ShellCompDirectiveNoFileComp
 		},
 	)
 }
@@ -89,9 +82,15 @@ func listTerminals(cmd *cobra.Command, _ []string) error {
 		return errdefs.ErrLoggerNotFound
 	}
 
+	format := viper.GetString(outputFormat)
+	if format != "" && format != "wide" && format != "json" && format != "yaml" {
+		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
+	}
+
 	logger.Debug("terminals list command invoked",
 		"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 		"list_all", viper.GetBool(listAllInput),
+		"output_format", format,
 		"args", cmd.Flags().Args(),
 	)
 
@@ -101,6 +100,7 @@ func listTerminals(cmd *cobra.Command, _ []string) error {
 		viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 		os.Stdout,
 		viper.GetBool(listAllInput),
+		format,
 	)
 	if err != nil {
 		logger.Debug("error scanning and printing terminals", "error", err)
@@ -161,7 +161,7 @@ func getTerminal(cmd *cobra.Command, args []string) error {
 	terminalName := args[0]
 	format := viper.GetString(outputFormat)
 	if format != "" && format != "json" && format != "yaml" {
-		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
+		return fmt.Errorf("%w: %s (use json|yaml for a single terminal)", errdefs.ErrInvalidOutputFormat, format)
 	}
 	logger.Debug("get terminal command invoked",
 		"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),

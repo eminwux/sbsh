@@ -23,10 +23,10 @@ import (
 func NewPruneCmd() *cobra.Command {
 	pruneCmd := &cobra.Command{
 		Use:   "prune",
-		Short: "Prune stale supervisors and terminals",
-		Long: `Prune stale supervisors and terminals from the sbsh environment.
-A stale supervisor is one that is no longer running.
-A stale terminal is one whose supervisor is no longer running.`,
+		Short: "Prune stale clients and terminals",
+		Long: `Prune stale clients and terminals from the sbsh environment.
+A stale client is one that is no longer running.
+A stale terminal is one whose client is no longer running.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
@@ -38,5 +38,5 @@ A stale terminal is one whose supervisor is no longer running.`,
 
 func setupPruneCmd(pruneCmd *cobra.Command) {
 	pruneCmd.AddCommand(NewPruneTerminalsCmd())
-	pruneCmd.AddCommand(NewPruneSupervisorsCmd())
+	pruneCmd.AddCommand(NewPruneClientsCmd())
 }

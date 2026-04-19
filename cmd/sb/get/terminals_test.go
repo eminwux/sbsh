@@ -45,22 +45,21 @@ func Test_ErrLoggerNotFound_Terminal_RunE(t *testing.T) {
 	}
 }
 
-func Test_ErrInvalidFlag_Terminal_Output(t *testing.T) {
+func Test_ErrInvalidOutputFormat_Terminal_List(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	cmd := NewGetTerminalCmd()
+	cmd := &cobra.Command{}
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	cmd.SetContext(ctx)
 
-	// Set output flag when listing (no args)
-	cmd.SetArgs([]string{"--output", "json"})
-	_ = cmd.Execute()
+	viper.Set(outputFormat, "bogus")
+	defer viper.Set(outputFormat, "")
 
-	err := cmd.RunE(cmd, []string{})
+	err := listTerminals(cmd, []string{})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
-	if !errors.Is(err, errdefs.ErrInvalidFlag) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInvalidFlag, err)
+	if !errors.Is(err, errdefs.ErrInvalidOutputFormat) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInvalidOutputFormat, err)
 	}
 }
 

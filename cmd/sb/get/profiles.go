@@ -41,13 +41,6 @@ func NewGetProfilesCmd() *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				// If user passed -o when listing, reject it
-				if cmd.Flags().Changed("output") {
-					return fmt.Errorf(
-						"%w: the -o/--output flag is only valid when specifying a profile name",
-						errdefs.ErrInvalidFlag,
-					)
-				}
 				return listProfiles(cmd, args)
 			} else if len(args) > 1 {
 				return errdefs.ErrTooManyArguments
@@ -64,13 +57,13 @@ func NewGetProfilesCmd() *cobra.Command {
 }
 
 func setupNewGetProfilesCmd(cmd *cobra.Command) {
-	cmd.Flags().StringP("output", "o", "", "Output format: json|yaml (default: human-readable)")
+	cmd.Flags().StringP("output", "o", "", "Output format: wide|json|yaml (default: compact table / human-readable)")
 	_ = viper.BindPFlag(config.SB_GET_PROFILES_OUTPUT.ViperKey, cmd.Flags().Lookup("output"))
 
 	_ = cmd.RegisterFlagCompletionFunc(
 		"output",
 		func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-			return []string{"json", "yaml"}, cobra.ShellCompDirectiveNoFileComp
+			return []string{"wide", "json", "yaml"}, cobra.ShellCompDirectiveNoFileComp
 		},
 	)
 }
@@ -81,10 +74,15 @@ func listProfiles(cmd *cobra.Command, _ []string) error {
 		return errdefs.ErrLoggerNotFound
 	}
 
+	format := viper.GetString(config.SB_GET_PROFILES_OUTPUT.ViperKey)
+	if format != "" && format != "wide" && format != "json" && format != "yaml" {
+		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
+	}
+
 	logger.Debug("profiles list command invoked",
 		"profiles_file", viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey),
 		"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
-		"list_all", listAllInput,
+		"output_format", format,
 		"args", cmd.Flags().Args(),
 	)
 
@@ -93,6 +91,7 @@ func listProfiles(cmd *cobra.Command, _ []string) error {
 		logger,
 		viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey),
 		os.Stdout,
+		format,
 	)
 	if err != nil {
 		logger.Debug("error scanning and printing profiles", "error", err)
@@ -144,7 +143,7 @@ func getProfile(cmd *cobra.Command, args []string) error {
 	profileName := args[0]
 	format := viper.GetString(config.SB_GET_PROFILES_OUTPUT.ViperKey)
 	if format != "" && format != "json" && format != "yaml" {
-		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
+		return fmt.Errorf("%w: %s (use json|yaml for a single profile)", errdefs.ErrInvalidOutputFormat, format)
 	}
 	logger.Debug("get profile command invoked",
 		"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),

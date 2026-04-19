@@ -26,6 +26,7 @@ import (
 	"sort"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -33,16 +34,47 @@ import (
 )
 
 // ScanAndPrintTerminals finds all metadata.json under runPath/terminals/*,
-// unmarshals them into api.TerminalSpec, and prints a table to w.
-func ScanAndPrintTerminals(ctx context.Context, logger *slog.Logger, runPath string, w io.Writer, printAll bool) error {
+// unmarshals them into api.TerminalSpec, and prints them to w.
+// format: "" (compact table), "wide" (full table), "json", "yaml".
+func ScanAndPrintTerminals(
+	ctx context.Context,
+	logger *slog.Logger,
+	runPath string,
+	w io.Writer,
+	printAll bool,
+	format string,
+) error {
 	logger.DebugContext(ctx, "ScanAndPrintTerminals: scanning terminals", "runPath", runPath)
 	terminals, err := ScanTerminals(ctx, logger, runPath)
 	if err != nil {
 		logger.ErrorContext(ctx, "ScanAndPrintTerminals: failed to scan terminals", "error", err)
 		return err
 	}
+	ReconcileTerminals(ctx, logger, runPath, terminals)
 	logger.InfoContext(ctx, "ScanAndPrintTerminals: scanned terminals", "count", len(terminals))
-	return printTerminals(w, terminals, printAll)
+
+	switch format {
+	case "json", "yaml":
+		filtered := filterTerminals(terminals, printAll)
+		return printTerminalMetadata(w, filtered, format)
+	case "", "wide":
+		return printTerminals(w, terminals, printAll, format == "wide")
+	default:
+		return fmt.Errorf("unknown output format: %q (use wide|json|yaml)", format)
+	}
+}
+
+func filterTerminals(terminals []api.TerminalDoc, printAll bool) []api.TerminalDoc {
+	if printAll {
+		return terminals
+	}
+	out := make([]api.TerminalDoc, 0, len(terminals))
+	for _, t := range terminals {
+		if t.Status.State != api.Exited {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // ScanAndPruneTerminals finds all metadata.json under runPath/terminals/*,
@@ -118,7 +150,7 @@ func ScanTerminals(ctx context.Context, logger *slog.Logger, runPath string) ([]
 	return out, nil
 }
 
-func printTerminals(w io.Writer, terminals []api.TerminalDoc, printAll bool) error {
+func printTerminals(w io.Writer, terminals []api.TerminalDoc, printAll, wide bool) error {
 	//nolint:mnd // tabwriter padding
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	activeCount := 0
@@ -138,10 +170,17 @@ func printTerminals(w io.Writer, terminals []api.TerminalDoc, printAll bool) err
 		return tw.Flush()
 	}
 
-	fmt.Fprintln(tw, "ID\tNAME\tPROFILE\tCMD\tTTY\tSTATUS\tATTACHERS\tLABELS")
+	if wide {
+		fmt.Fprintln(tw, "ID\tNAME\tPROFILE\tCMD\tTTY\tSTATUS\tATTACHERS\tCREATED\tATTACHED\tLABELS")
+	} else {
+		fmt.Fprintln(tw, "NAME\tPROFILE\tTTY\tCREATED")
+	}
 	for _, s := range terminals {
-		if s.Status.State != api.Exited || (printAll && s.Status.State == api.Exited) {
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		if s.Status.State == api.Exited && !printAll {
+			continue
+		}
+		if wide {
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 				terminalID(s),
 				terminalName(s),
 				terminalProfile(s),
@@ -149,11 +188,41 @@ func printTerminals(w io.Writer, terminals []api.TerminalDoc, printAll bool) err
 				terminalPty(s),
 				s.Status.State.String(),
 				terminalAttachers(s),
+				formatAge(s.Metadata.CreatedAt),
+				formatAge(s.Status.LastAttachedAt),
 				joinLabels(terminalLabels(s)),
+			)
+		} else {
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
+				terminalName(s),
+				terminalProfile(s),
+				terminalPty(s),
+				formatAge(s.Metadata.CreatedAt),
 			)
 		}
 	}
 	return tw.Flush()
+}
+
+// formatAge renders a timestamp as a short, human-readable duration since now
+// ("5s", "3m", "2h", "4d"). Zero timestamps render as "-".
+func formatAge(t time.Time) string {
+	if t.IsZero() {
+		return "-"
+	}
+	d := max(time.Since(t), 0)
+	switch {
+	case d < time.Minute:
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	case d < time.Hour:
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh", int(d.Hours()))
+	default:
+		//nolint:mnd // 24h = day
+		return fmt.Sprintf("%dd", int(d.Hours()/24))
+	}
 }
 
 func terminalAttachers(s api.TerminalDoc) string {
@@ -320,6 +389,9 @@ func FindAndPrintTerminalMetadata(
 	if err != nil {
 		logger.ErrorContext(ctx, "FindAndPrintTerminalMetadata: failed to scan terminals", "error", err)
 		return err
+	}
+	if terminals != nil {
+		reconcileTerminal(ctx, logger, runPath, terminals)
 	}
 	return printTerminalMetadata(w, terminals, format)
 }

@@ -1,6 +1,6 @@
 # Terminals
 
-Terminals are the core abstraction in sbsh. A terminal represents an independent shell environment that runs persistently, separate from any supervisor process.
+Terminals are the core abstraction in sbsh. A terminal represents an independent shell environment that runs persistently, separate from any client process.
 
 ## Terminal Lifecycle
 
@@ -13,7 +13,7 @@ Created → Initializing → Ready → [Attached/Detached] → Exited
 1. **Created**: Terminal process is spawned
 2. **Initializing**: `onInit` hooks are executing
 3. **Ready**: Terminal is ready for input (after `onInit` completes)
-4. **Attached/Detached**: Terminal can be attached to or detached from supervisors
+4. **Attached/Detached**: Terminal can be attached to or detached from clients
 5. **Exited**: Terminal process has terminated
 
 See [Terminal State](terminal-state.md) for detailed state information.
@@ -23,9 +23,9 @@ See [Terminal State](terminal-state.md) for detailed state information.
 Terminals run as independent processes with their own process groups. Key characteristics:
 
 - **Process isolation**: Each terminal is a standalone process
-- **Survival guarantee**: Terminals continue running even if supervisors exit
+- **Survival guarantee**: Terminals continue running even if clients exit
 - **Metadata persistence**: Terminal state is stored on disk in `~/.sbsh/run/terminals/`
-- **Socket-based communication**: Supervisors communicate via Unix domain sockets
+- **Socket-based communication**: Clients communicate via Unix domain sockets
 
 ## Terminal Discovery
 
@@ -58,7 +58,7 @@ Terminals are configured via [Profiles](profiles.md), which specify:
 ## Related Concepts
 
 - [Profiles](profiles.md) - Terminal configuration
-- [Supervisor](supervisor.md) - Terminal management
+- [Client](client.md) - Terminal management
 - [Terminal State](terminal-state.md) - State management
-- [Multi-Attach](multi-attach.md) - Multiple supervisors
+- [Multi-Attach](multi-attach.md) - Multiple clients
 - [Event Log](event-log.md) - I/O capture

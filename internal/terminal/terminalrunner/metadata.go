@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/shared"
@@ -46,6 +47,9 @@ func (sr *Exec) CreateMetadata() error {
 	sr.metadata.Status.LogLevel = sr.metadata.Spec.LogLevel
 	sr.metadata.Status.CaptureFile = sr.metadata.Spec.CaptureFile
 	sr.metadata.Status.State = api.Initializing
+	if sr.metadata.Metadata.CreatedAt.IsZero() {
+		sr.metadata.Metadata.CreatedAt = time.Now().UTC()
+	}
 
 	sr.logger.Info("CreateMetadata: terminal metadata set", "Spec", sr.metadata.Spec, "Status", sr.metadata.Status)
 	sr.metadataMu.Unlock()
@@ -94,7 +98,11 @@ func (sr *Exec) updateTerminalAttachers() error {
 		}
 	}
 	sr.metadataMu.Lock()
+	previous := len(sr.metadata.Status.Attachers)
 	sr.metadata.Status.Attachers = strIDs
+	if len(strIDs) > previous {
+		sr.metadata.Status.LastAttachedAt = time.Now().UTC()
+	}
 	sr.metadataMu.Unlock()
 
 	if err := sr.updateMetadata(); err != nil {

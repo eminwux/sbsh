@@ -1,19 +1,19 @@
 # Multi-Attach
 
-sbsh supports multiple supervisors attaching to the same terminal concurrently. This enables collaborative debugging, pair programming, and shared terminal sessions.
+sbsh supports multiple clients attaching to the same terminal concurrently. This enables collaborative debugging, pair programming, and shared terminal sessions.
 
 ## How Multi-Attach Works
 
-Multiple supervisors can connect to the same terminal simultaneously:
+Multiple clients can connect to the same terminal simultaneously:
 
 ```
 Terminal (my-terminal)
-├── Supervisor 1 (user@host1)
-├── Supervisor 2 (user@host2)
-└── Supervisor 3 (user@host3)
+├── Client 1 (user@host1)
+├── Client 2 (user@host2)
+└── Client 3 (user@host3)
 ```
 
-All supervisors see the same terminal output and can send input. Input from any supervisor is forwarded to the terminal.
+All clients see the same terminal output and can send input. Input from any client is forwarded to the terminal.
 
 ## Use Cases
 
@@ -62,15 +62,15 @@ sb attach k8s-maintenance
 
 ### Input Handling
 
-Input from any attached supervisor is forwarded to the terminal. If multiple supervisors send input simultaneously, it's interleaved.
+Input from any attached client is forwarded to the terminal. If multiple clients send input simultaneously, it's interleaved.
 
 ### Output Broadcasting
 
-Terminal output is broadcast to all attached supervisors. Each supervisor receives a copy of all output.
+Terminal output is broadcast to all attached clients. Each client receives a copy of all output.
 
 ### Detachment
 
-When a supervisor detaches, other supervisors remain attached. The terminal continues running independently.
+When a client detaches, other clients remain attached. The terminal continues running independently.
 
 ## Discovery Across Machines
 
@@ -86,12 +86,12 @@ sb attach shared-terminal
 
 ## Limitations
 
-- Input from multiple supervisors is interleaved (no coordination)
-- All supervisors see the same output (no filtering)
+- Input from multiple clients is interleaved (no coordination)
+- All clients see the same output (no filtering)
 - Requires shared filesystem access for cross-machine multi-attach
 
 ## Related Concepts
 
 - [Terminals](terminals.md) - Terminal lifecycle
-- [Supervisor](supervisor.md) - Supervisor architecture
+- [Client](client.md) - Client architecture
 - [Terminal State](terminal-state.md) - State management

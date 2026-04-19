@@ -1,6 +1,6 @@
 # sb Command
 
-The `sb` command is a pure client tool for managing existing supervisors and terminals. It doesn't spawn any processes itself—it only connects to existing terminals.
+The `sb` command is a pure client tool for managing existing clients and terminals. It doesn't spawn any processes itself—it only connects to existing terminals.
 
 ## Usage
 
@@ -28,7 +28,7 @@ sb attach abc123
 
 ### `sb detach`
 
-Detach from a terminal:
+Detach from a client:
 
 ```bash
 sb detach
@@ -37,14 +37,14 @@ sb detach <name-or-id>
 
 ### `sb get`
 
-Query terminals, supervisors, and profiles:
+Query terminals, clients, and profiles:
 
 ```bash
 # List terminals
 sb get terminals
 
-# List supervisors
-sb get supervisors
+# List clients
+sb get clients
 
 # List profiles
 sb get profiles
@@ -52,8 +52,8 @@ sb get profiles
 # Get specific terminal
 sb get terminal <name-or-id>
 
-# Get specific supervisor
-sb get supervisor <name-or-id>
+# Get specific client
+sb get clients <name-or-id>
 
 # Get specific profile
 sb get profile <name>
@@ -61,21 +61,19 @@ sb get profile <name>
 
 **Flags:**
 
-- `-a, --all`: Show all terminals/supervisors including exited ones
+- `-a, --all`: Show all terminals/clients including exited ones
 - `-o, --output <format>`: Output format (json, yaml, or human-readable)
 
 ### `sb prune`
 
-Prune old terminals and supervisors:
+Prune stale clients and terminals:
 
 ```bash
-sb prune
-sb prune --older-than 30d
+sb prune terminals
+sb prune clients
 ```
 
-**Flags:**
-
-- `--older-than <duration>`: Prune terminals/supervisors older than duration (e.g., `30d`, `1w`, `2h`)
+A stale client is one that is no longer running. A stale terminal is one whose client is no longer running.
 
 ### `sb version`
 
@@ -141,10 +139,16 @@ sb get terminal my-terminal -o json
 sb get profile terraform-prd
 ```
 
-### Prune Old Terminals
+### Prune Stale Terminals
 
 ```bash
-sb prune --older-than 7d
+sb prune terminals
+```
+
+### Prune Stale Clients
+
+```bash
+sb prune clients
 ```
 
 ## Output Formats
@@ -169,6 +173,6 @@ sb get terminals -o yaml
 
 ## See Also
 
-- [sbsh Command](sbsh.md) - Interactive supervisor + terminal
+- [sbsh Command](sbsh.md) - Interactive client + terminal
 - [Commands Overview](commands.md) - Command comparison
 - [Getting Started](../getting-started.md) - Basic usage

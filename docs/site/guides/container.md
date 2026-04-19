@@ -51,7 +51,7 @@ The sbsh Docker image is built using a multi-stage build process:
 - **Base**: `debian:bookworm-slim` (minimal Debian image)
 - **Dependencies**: `procps` package (for process management utilities)
 - **Binary**: `/bin/sbsh` and `/bin/sb` (hard-linked)
-- **Default CMD**: `["/bin/sbsh", "terminal"]` (runs terminal only by default; can be overridden to use `CMD ["/bin/sbsh"]` for supervisor+terminal)
+- **Default CMD**: `["/bin/sbsh", "terminal"]` (runs terminal only by default; can be overridden to use `CMD ["/bin/sbsh"]` for client+terminal)
 
 ### Image Structure
 
@@ -64,14 +64,14 @@ The sbsh Docker image is built using a multi-stage build process:
 
 The sbsh Docker image supports two different CMD options depending on your use case:
 
-### `CMD ["/bin/sbsh"]` - Supervisor + Terminal (Interactive)
+### `CMD ["/bin/sbsh"]` - Client + Terminal (Interactive)
 
-Runs a **supervisor attached to a terminal**. This is the default behavior when using `sbsh` interactively:
+Runs a **client attached to a terminal**. This is the default behavior when using `sbsh` interactively:
 
-- **Supervisor**: Manages the terminal and stays attached
+- **Client**: Manages the terminal and stays attached
 - **Terminal**: Interactive shell session
 - **Use case**: Interactive development, debugging, login shells
-- **Behavior**: You interact directly with the terminal; supervisor stays attached
+- **Behavior**: You interact directly with the terminal; client stays attached
 
 **Example Dockerfile:**
 
@@ -85,16 +85,16 @@ CMD ["/bin/sbsh"]
 - Interactive containers where you need to attach and detach
 - Login shell scenarios
 - Development environments where you want direct terminal access
-- When you need the supervisor to manage the terminal lifecycle
+- When you need the client to manage the terminal lifecycle
 
 ### `CMD ["/bin/sbsh", "terminal"]` - Terminal Only
 
-Runs **just a terminal** without a supervisor. The supervisor is launched externally when you attach:
+Runs **just a terminal** without a client. The client is launched externally when you attach:
 
-- **Supervisor**: Not running initially; launched when you execute `sb attach <name>` from outside
+- **Client**: Not running initially; launched when you execute `sb attach <name>` from outside
 - **Terminal**: Independent terminal session that runs on its own
 - **Use case**: Background services, automation, CI/CD pipelines
-- **Behavior**: Terminal runs independently; supervisor is created when you attach via `sb attach`
+- **Behavior**: Terminal runs independently; client is created when you attach via `sb attach`
 - **Important**: Always use `--name <name>` with `sbsh terminal` to identify the terminal for later attachment
 
 **Example Dockerfile:**
@@ -109,7 +109,7 @@ CMD ["/bin/sbsh", "terminal", "--name", "my-terminal"]
 - Background terminals that need to persist
 - Automation and CI/CD pipelines
 - Services that should run detached
-- When terminals need to survive supervisor restarts
+- When terminals need to survive client restarts
 - When you want to attach to the terminal later from outside the container
 
 **Attaching to the terminal:**
@@ -126,18 +126,18 @@ docker exec -it <container> sb attach my-terminal
 
 | Feature           | `CMD ["/bin/sbsh"]`     | `CMD ["/bin/sbsh", "terminal"]`                 |
 | ----------------- | ----------------------- | ----------------------------------------------- |
-| **Supervisor**    | Launched and attached   | Not running initially; launched when you attach |
-| **Terminal**      | Managed by supervisor   | Independent, runs on its own                    |
+| **Client**        | Launched and attached   | Not running initially; launched when you attach |
+| **Terminal**      | Managed by client       | Independent, runs on its own                    |
 | **Use case**      | Interactive development | Background services                             |
-| **Detach**        | Press `Ctrl-]` twice    | No supervisor attached initially                |
-| **Attach**        | Already attached        | Launch supervisor with `sb attach <name>`       |
+| **Detach**        | Press `Ctrl-]` twice    | No client attached initially                    |
+| **Attach**        | Already attached        | Launch client with `sb attach <name>`           |
 | **Name required** | Optional                | **Required** (use `--name`)                     |
 
 ## Basic Usage
 
 ### Running sbsh Interactively
 
-Run sbsh with an attached supervisor and terminal:
+Run sbsh with an attached client and terminal:
 
 ```bash
 docker run -it --rm \
@@ -155,7 +155,7 @@ docker run -it --rm \
 
 ### Running a Detached Terminal
 
-Launch a terminal that runs independently (no supervisor initially). **Important**: Always use `--name` to identify the terminal:
+Launch a terminal that runs independently (no client initially). **Important**: Always use `--name` to identify the terminal:
 
 ```bash
 docker run -d \
@@ -165,7 +165,7 @@ docker run -d \
   sbsh terminal --name my-terminal
 ```
 
-The terminal runs independently. A supervisor is not running initially - it will be launched when you attach via `sb attach`.
+The terminal runs independently. A client is not running initially - it will be launched when you attach via `sb attach`.
 
 ### Attaching to a Running Terminal
 
@@ -198,7 +198,7 @@ sbsh requires persistent storage for terminal metadata, sockets, and logs. Mount
 The `~/.sbsh` directory contains:
 
 - **`~/.sbsh/run/terminals/`**: Terminal metadata and socket files
-- **`~/.sbsh/run/supervisors/`**: Supervisor metadata
+- **`~/.sbsh/run/clients/`**: Client metadata
 - **`~/.sbsh/profiles.yaml`**: Profile definitions (optional)
 
 ### Using Named Volumes
@@ -229,7 +229,7 @@ docker run -it --rm \
 
 ### Interactive Mode (`sbsh`)
 
-Launch a supervisor with an attached terminal:
+Launch a client with an attached terminal:
 
 ```bash
 docker run -it --rm \
@@ -278,9 +278,9 @@ docker run --rm \
 
 You can use the sbsh image as a base for custom Dockerfiles:
 
-### Example 1: Interactive Development Environment (Supervisor + Terminal)
+### Example 1: Interactive Development Environment (Client + Terminal)
 
-Use `CMD ["/bin/sbsh"]` for interactive development where you want the supervisor attached:
+Use `CMD ["/bin/sbsh"]` for interactive development where you want the client attached:
 
 ```dockerfile
 FROM docker.io/eminwux/sbsh:v0.6.0-linux-amd64
@@ -298,7 +298,7 @@ COPY profiles.yaml /root/.sbsh/profiles.yaml
 # Set working directory
 WORKDIR /workspace
 
-# Run supervisor + terminal (interactive)
+# Run client + terminal (interactive)
 CMD ["/bin/sbsh"]
 ```
 
@@ -312,7 +312,7 @@ docker run -it --rm \
   my-sbsh-env
 ```
 
-This runs an interactive terminal with an attached supervisor. Press `Ctrl-]` twice to detach.
+This runs an interactive terminal with an attached client. Press `Ctrl-]` twice to detach.
 
 ### Example 2: Background Terminal Service (Terminal Only)
 
@@ -333,8 +333,8 @@ COPY profiles.yaml /root/.sbsh/profiles.yaml
 # Set working directory
 WORKDIR /workspace
 
-# Run terminal only (no supervisor initially)
-# The supervisor will be launched when you attach via sb attach
+# Run terminal only (no client initially)
+# The client will be launched when you attach via sb attach
 CMD ["/bin/sbsh", "terminal", "--name", "background-terminal", "-p", "default"]
 ```
 
@@ -347,13 +347,13 @@ docker run -d \
   -v ~/.sbsh:/root/.sbsh \
   my-sbsh-background
 
-# Attach later - this launches a supervisor to connect to the terminal:
+# Attach later - this launches a client to connect to the terminal:
 docker exec -it my-terminal-service sb attach background-terminal
 # Or from host (if sb is installed):
 sb attach background-terminal
 ```
 
-This runs a terminal that continues independently. The supervisor is not running initially - it's launched when you execute `sb attach background-terminal`, which creates a supervisor to connect to the existing terminal.
+This runs a terminal that continues independently. The client is not running initially - it's launched when you execute `sb attach background-terminal`, which creates a client to connect to the existing terminal.
 
 ## Docker Compose Example
 

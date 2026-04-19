@@ -17,6 +17,6 @@
 package defaults
 
 const (
-	TerminalsRunPath   = "terminals"
-	SupervisorsRunPath = "supervisors"
+	TerminalsRunPath = "terminals"
+	ClientsRunPath   = "clients"
 )

@@ -1,6 +1,6 @@
 # sbsh Command
 
-The `sbsh` command launches a supervisor attached to a terminal. It's designed for interactive use and can be set as your login shell.
+The `sbsh` command launches a client attached to a terminal. It's designed for interactive use and can be set as your login shell.
 
 ## Usage
 
@@ -13,7 +13,7 @@ sbsh terminal [flags]
 
 ### `sbsh` (default)
 
-Launches a supervisor attached to a terminal:
+Launches a client attached to a terminal:
 
 ```bash
 sbsh
@@ -22,13 +22,13 @@ sbsh -p profile-name
 
 **Behavior:**
 
-- Supervisor stays attached to terminal
+- Client stays attached to terminal
 - Press `Ctrl-]` twice to detach
 - Terminal continues running after detach
 
 ### `sbsh terminal`
 
-Launches a terminal in the background with no attached supervisor:
+Launches a terminal in the background with no attached client:
 
 ```bash
 sbsh terminal --name my-terminal
@@ -38,7 +38,7 @@ sbsh terminal --name my-terminal -p profile-name
 **Behavior:**
 
 - Terminal runs independently
-- No supervisor attached initially
+- No client attached initially
 - Attach later with `sb attach <name>`
 - **Important**: Always use `--name` to identify the terminal
 
@@ -48,17 +48,17 @@ sbsh terminal --name my-terminal -p profile-name
 
 These flags apply to all `sbsh` commands:
 
-- `--run-path <path>`: Optional run path for the supervisor
+- `--run-path <path>`: Optional run path for the client
 - `--config <file>`: Config file (default: `$HOME/.sbsh/config.yaml`)
 - `--profiles <file>`: Profiles manifests file (default: `$HOME/.sbsh/profiles.yaml`)
 
-### Supervisor Flags
+### Client Flags
 
-- `--id <id>`: Optional ID for the supervisor
-- `--socket <file>`: Optional socket file for the supervisor
-- `--log-file <file>`: Optional log file for the supervisor
+- `--id <id>`: Optional ID for the client
+- `--socket <file>`: Optional socket file for the client
+- `--log-file <file>`: Optional log file for the client
 - `--log-level <level>`: Optional log level (debug, info, warn, error)
-- `-d, --detach`: Detach supervisor immediately
+- `-d, --detach`: Detach client immediately
 - `--disable-detach`: Disable detach keystroke (`Ctrl-]` twice)
 
 ### Terminal Flags
@@ -109,7 +109,7 @@ sbsh -d -p my-profile
 
 ### `sbsh terminal`
 
-Launch a terminal without an attached supervisor:
+Launch a terminal without an attached client:
 
 ```bash
 sbsh terminal --name my-terminal
@@ -135,6 +135,10 @@ sbsh autocomplete zsh
 ## Environment Variables
 
 - `SBSH_PROFILES_FILE`: Path to profiles file (overrides `--profiles`)
+- `SBSH_ROOT_CLIENT_SOCKET`: Default client socket path
+- `SBSH_CLIENT_ID`, `SBSH_CLIENT_NAME`, `SBSH_CLIENT_SOCKET`: Client identity overrides
+- `SBSH_CLIENT_LOG_FILE`, `SBSH_CLIENT_LOG_LEVEL`: Client logging overrides
+- `SBSH_CLIENT_DETACH`, `SBSH_CLIENT_DISABLE_DETACH_KEYSTROKE`: Client behavior flags
 
 ## See Also
 

@@ -52,7 +52,7 @@ func setupTestCmd(t *testing.T, logger *slog.Logger) (*cobra.Command, context.Co
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	cmd := &cobra.Command{}
 	cmd.SetContext(ctx)
-	// Initialize flags for getTerminal/getSupervisor
+	// Initialize flags for getTerminal/getClient
 	cmd.Flags().String("run-path", "", "Run path")
 	return cmd, ctx
 }
@@ -117,7 +117,7 @@ func createTestTerminalMetadata(t *testing.T, runPath string, id string, name st
 			RunPath:     runPath,
 		},
 		Status: api.TerminalStatus{
-			Pid:   12345,
+			Pid:   os.Getpid(),
 			Tty:   "/dev/pts/0",
 			State: state,
 		},
@@ -133,33 +133,33 @@ func createTestTerminalMetadata(t *testing.T, runPath string, id string, name st
 	}
 }
 
-func createTestSupervisorMetadata(
+func createTestClientMetadata(
 	t *testing.T,
 	runPath string,
 	id string,
 	name string,
-	state api.SupervisorStatusMode,
+	state api.ClientStatusMode,
 ) {
-	// Create directory: runPath/supervisors/{id}/
-	supDir := filepath.Join(runPath, defaults.SupervisorsRunPath, id)
+	// Create directory: runPath/clients/{id}/
+	supDir := filepath.Join(runPath, defaults.ClientsRunPath, id)
 	if err := os.MkdirAll(supDir, 0o755); err != nil {
-		t.Fatalf("failed to create supervisor dir: %v", err)
+		t.Fatalf("failed to create client dir: %v", err)
 	}
 
-	// Create metadata.json with SupervisorMetadata structure
-	metadata := api.SupervisorDoc{
+	// Create metadata.json with ClientMetadata structure
+	metadata := api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindSupervisor,
-		Metadata: api.SupervisorMetadata{
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
 			Name:        name,
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: api.SupervisorSpec{
+		Spec: api.ClientSpec{
 			ID: api.ID(id),
 		},
-		Status: api.SupervisorStatus{
-			Pid:   12345,
+		Status: api.ClientStatus{
+			Pid:   os.Getpid(),
 			State: state,
 		},
 	}
@@ -892,19 +892,19 @@ func Test_GetTerminal_Integration(t *testing.T) {
 	})
 }
 
-// Supervisor Integration Tests
+// Client Integration Tests
 
-func Test_FetchSupervisorNames_Integration(t *testing.T) {
+func Test_FetchClientNames_Integration(t *testing.T) {
 	logger := setupTestLogger(t)
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 
-	t.Run("success with multiple supervisors", func(t *testing.T) {
+	t.Run("success with multiple clients", func(t *testing.T) {
 		runPath := t.TempDir()
-		createTestSupervisorMetadata(t, runPath, "sup1", "super_one", api.SupervisorReady)
-		createTestSupervisorMetadata(t, runPath, "sup2", "super_two", api.SupervisorReady)
-		createTestSupervisorMetadata(t, runPath, "sup3", "super_three", api.SupervisorReady)
+		createTestClientMetadata(t, runPath, "sup1", "super_one", api.ClientReady)
+		createTestClientMetadata(t, runPath, "sup2", "super_two", api.ClientReady)
+		createTestClientMetadata(t, runPath, "sup3", "super_three", api.ClientReady)
 
-		names, err := fetchSupervisorNames(ctx, runPath, "")
+		names, err := fetchClientNames(ctx, runPath, "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -928,11 +928,11 @@ func Test_FetchSupervisorNames_Integration(t *testing.T) {
 
 	t.Run("success with prefix filtering", func(t *testing.T) {
 		runPath := t.TempDir()
-		createTestSupervisorMetadata(t, runPath, "sup1", "super_one", api.SupervisorReady)
-		createTestSupervisorMetadata(t, runPath, "sup2", "super_two", api.SupervisorReady)
-		createTestSupervisorMetadata(t, runPath, "sup3", "super_three", api.SupervisorReady)
+		createTestClientMetadata(t, runPath, "sup1", "super_one", api.ClientReady)
+		createTestClientMetadata(t, runPath, "sup2", "super_two", api.ClientReady)
+		createTestClientMetadata(t, runPath, "sup3", "super_three", api.ClientReady)
 
-		names, err := fetchSupervisorNames(ctx, runPath, "super_one")
+		names, err := fetchClientNames(ctx, runPath, "super_one")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -947,8 +947,8 @@ func Test_FetchSupervisorNames_Integration(t *testing.T) {
 	t.Run("success with empty runPath", func(t *testing.T) {
 		emptyDir := t.TempDir()
 
-		names, err := fetchSupervisorNames(ctx, emptyDir, "")
-		// AutoCompleteListSupervisorNames may return error for empty directory
+		names, err := fetchClientNames(ctx, emptyDir, "")
+		// AutoCompleteListClientNames may return error for empty directory
 		if err != nil {
 			// This is acceptable - empty directory results in error
 			return
@@ -962,15 +962,15 @@ func Test_FetchSupervisorNames_Integration(t *testing.T) {
 	})
 }
 
-func Test_ResolveSupervisorNameToID_Integration(t *testing.T) {
+func Test_ResolveClientNameToID_Integration(t *testing.T) {
 	logger := setupTestLogger(t)
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 
 	t.Run("success: resolves name to ID correctly", func(t *testing.T) {
 		runPath := t.TempDir()
-		createTestSupervisorMetadata(t, runPath, "sup123", "super_one", api.SupervisorReady)
+		createTestClientMetadata(t, runPath, "sup123", "super_one", api.ClientReady)
 
-		id, err := ResolveSupervisorNameToID(ctx, logger, runPath, "super_one")
+		id, err := ResolveClientNameToID(ctx, logger, runPath, "super_one")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -979,52 +979,52 @@ func Test_ResolveSupervisorNameToID_Integration(t *testing.T) {
 		}
 	})
 
-	t.Run("error: supervisor name not found", func(t *testing.T) {
+	t.Run("error: client name not found", func(t *testing.T) {
 		runPath := t.TempDir()
-		createTestSupervisorMetadata(t, runPath, "sup123", "super_one", api.SupervisorReady)
+		createTestClientMetadata(t, runPath, "sup123", "super_one", api.ClientReady)
 
-		_, err := ResolveSupervisorNameToID(ctx, logger, runPath, "nonexistent")
+		_, err := ResolveClientNameToID(ctx, logger, runPath, "nonexistent")
 		if err == nil {
 			t.Fatal("expected error but got nil")
 		}
-		if !errors.Is(err, errdefs.ErrSupervisorNotFound) {
-			t.Errorf("expected ErrSupervisorNotFound, got: %v", err)
+		if !errors.Is(err, errdefs.ErrClientNotFound) {
+			t.Errorf("expected ErrClientNotFound, got: %v", err)
 		}
 	})
 
-	t.Run("error: no supervisors found", func(t *testing.T) {
+	t.Run("error: no clients found", func(t *testing.T) {
 		runPath := t.TempDir()
 
-		_, err := ResolveSupervisorNameToID(ctx, logger, runPath, "any-name")
+		_, err := ResolveClientNameToID(ctx, logger, runPath, "any-name")
 		if err == nil {
 			t.Fatal("expected error but got nil")
 		}
-		// When no supervisors are found, it returns ErrSupervisorNotFound (not ErrNoSupervisorsFound)
-		// because the check for nil supervisors is never true (ScanSupervisors returns empty slice)
-		if !errors.Is(err, errdefs.ErrSupervisorNotFound) {
-			t.Errorf("expected ErrSupervisorNotFound, got: %v", err)
+		// When no clients are found, it returns ErrClientNotFound (not ErrNoClientsFound)
+		// because the check for nil clients is never true (ScanClients returns empty slice)
+		if !errors.Is(err, errdefs.ErrClientNotFound) {
+			t.Errorf("expected ErrClientNotFound, got: %v", err)
 		}
 	})
 }
 
-func Test_ListSupervisors_Integration(t *testing.T) {
+func Test_ListClients_Integration(t *testing.T) {
 	logger := setupTestLogger(t)
 
-	t.Run("success with supervisors", func(t *testing.T) {
+	t.Run("success with clients", func(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 		runPath := t.TempDir()
-		createTestSupervisorMetadata(t, runPath, "sup1", "super_one", api.SupervisorReady)
-		createTestSupervisorMetadata(t, runPath, "sup2", "super_two", api.SupervisorReady)
+		createTestClientMetadata(t, runPath, "sup1", "super_one", api.ClientReady)
+		createTestClientMetadata(t, runPath, "sup2", "super_two", api.ClientReady)
 
 		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
-		viper.Set(config.SB_GET_SUPERVISORS_ALL.ViperKey, false)
+		viper.Set(config.SB_GET_CLIENTS_ALL.ViperKey, false)
 		defer func() {
 			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
-			viper.Set(config.SB_GET_SUPERVISORS_ALL.ViperKey, false)
+			viper.Set(config.SB_GET_CLIENTS_ALL.ViperKey, false)
 		}()
 
 		output, err := captureStdout(func() {
-			_ = listSupervisors(cmd, []string{})
+			_ = listClients(cmd, []string{})
 		})
 		if err != nil {
 			t.Fatalf("failed to capture stdout: %v", err)
@@ -1041,18 +1041,18 @@ func Test_ListSupervisors_Integration(t *testing.T) {
 	t.Run("success with --all flag", func(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 		runPath := t.TempDir()
-		createTestSupervisorMetadata(t, runPath, "sup1", "super_one", api.SupervisorReady)
-		createTestSupervisorMetadata(t, runPath, "sup2", "super_two", api.SupervisorExited)
+		createTestClientMetadata(t, runPath, "sup1", "super_one", api.ClientReady)
+		createTestClientMetadata(t, runPath, "sup2", "super_two", api.ClientExited)
 
 		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
-		viper.Set(config.SB_GET_SUPERVISORS_ALL.ViperKey, true)
+		viper.Set(config.SB_GET_CLIENTS_ALL.ViperKey, true)
 		defer func() {
 			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
-			viper.Set(config.SB_GET_SUPERVISORS_ALL.ViperKey, false)
+			viper.Set(config.SB_GET_CLIENTS_ALL.ViperKey, false)
 		}()
 
 		output, err := captureStdout(func() {
-			_ = listSupervisors(cmd, []string{})
+			_ = listClients(cmd, []string{})
 		})
 		if err != nil {
 			t.Fatalf("failed to capture stdout: %v", err)
@@ -1071,43 +1071,43 @@ func Test_ListSupervisors_Integration(t *testing.T) {
 		runPath := t.TempDir()
 
 		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
-		viper.Set(config.SB_GET_SUPERVISORS_ALL.ViperKey, false)
+		viper.Set(config.SB_GET_CLIENTS_ALL.ViperKey, false)
 		defer func() {
 			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
-			viper.Set(config.SB_GET_SUPERVISORS_ALL.ViperKey, false)
+			viper.Set(config.SB_GET_CLIENTS_ALL.ViperKey, false)
 		}()
 
 		output, err := captureStdout(func() {
-			_ = listSupervisors(cmd, []string{})
+			_ = listClients(cmd, []string{})
 		})
 		if err != nil {
 			t.Fatalf("failed to capture stdout: %v", err)
 		}
 
-		if !strings.Contains(output, "no active or inactive supervisors found") {
-			t.Errorf("output should contain 'no active or inactive supervisors found', got: %s", output)
+		if !strings.Contains(output, "no active or inactive clients found") {
+			t.Errorf("output should contain 'no active or inactive clients found', got: %s", output)
 		}
 	})
 }
 
-func Test_GetSupervisor_Integration(t *testing.T) {
+func Test_GetClient_Integration(t *testing.T) {
 	logger := setupTestLogger(t)
 
 	t.Run("success with default format", func(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 		runPath := t.TempDir()
-		createTestSupervisorMetadata(t, runPath, "sup1", "super_one", api.SupervisorReady)
+		createTestClientMetadata(t, runPath, "sup1", "super_one", api.ClientReady)
 
 		cmd.Flags().Set("run-path", runPath)
 		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
-		viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "")
+		viper.Set(config.SB_GET_CLIENTS_OUTPUT.ViperKey, "")
 		defer func() {
 			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
-			viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "")
+			viper.Set(config.SB_GET_CLIENTS_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
-			_ = getSupervisor(cmd, []string{"super_one"})
+			_ = getClient(cmd, []string{"super_one"})
 		})
 		if err != nil {
 			t.Fatalf("failed to capture stdout: %v", err)
@@ -1121,24 +1121,24 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 	t.Run("success with json format", func(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 		runPath := t.TempDir()
-		createTestSupervisorMetadata(t, runPath, "sup1", "super_one", api.SupervisorReady)
+		createTestClientMetadata(t, runPath, "sup1", "super_one", api.ClientReady)
 
 		cmd.Flags().Set("run-path", runPath)
 		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
-		viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "json")
+		viper.Set(config.SB_GET_CLIENTS_OUTPUT.ViperKey, "json")
 		defer func() {
 			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
-			viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "")
+			viper.Set(config.SB_GET_CLIENTS_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
-			_ = getSupervisor(cmd, []string{"super_one"})
+			_ = getClient(cmd, []string{"super_one"})
 		})
 		if err != nil {
 			t.Fatalf("failed to capture stdout: %v", err)
 		}
 
-		var result api.SupervisorDoc
+		var result api.ClientDoc
 		if errUnmarshal := json.Unmarshal([]byte(output), &result); errUnmarshal != nil {
 			t.Fatalf("output is not valid JSON: %v, output: %s", errUnmarshal, output)
 		}
@@ -1150,24 +1150,24 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 	t.Run("success with yaml format", func(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 		runPath := t.TempDir()
-		createTestSupervisorMetadata(t, runPath, "sup1", "super_one", api.SupervisorReady)
+		createTestClientMetadata(t, runPath, "sup1", "super_one", api.ClientReady)
 
 		cmd.Flags().Set("run-path", runPath)
 		viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
-		viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "yaml")
+		viper.Set(config.SB_GET_CLIENTS_OUTPUT.ViperKey, "yaml")
 		defer func() {
 			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
-			viper.Set(config.SB_GET_SUPERVISORS_OUTPUT.ViperKey, "")
+			viper.Set(config.SB_GET_CLIENTS_OUTPUT.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
-			_ = getSupervisor(cmd, []string{"super_one"})
+			_ = getClient(cmd, []string{"super_one"})
 		})
 		if err != nil {
 			t.Fatalf("failed to capture stdout: %v", err)
 		}
 
-		var result api.SupervisorDoc
+		var result api.ClientDoc
 		if errUnmarshal := yaml.Unmarshal([]byte(output), &result); errUnmarshal != nil {
 			t.Fatalf("output is not valid YAML: %v, output: %s", errUnmarshal, output)
 		}
@@ -1176,7 +1176,7 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 		}
 	})
 
-	t.Run("error when supervisor doesn't exist", func(t *testing.T) {
+	t.Run("error when client doesn't exist", func(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 		runPath := t.TempDir()
 
@@ -1186,7 +1186,7 @@ func Test_GetSupervisor_Integration(t *testing.T) {
 			viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, "")
 		}()
 
-		err := getSupervisor(cmd, []string{"nonexistent"})
+		err := getClient(cmd, []string{"nonexistent"})
 		if err == nil {
 			t.Fatal("expected error but got nil")
 		}

@@ -128,7 +128,7 @@ func Test_ErrLoggerNotFound_Run(t *testing.T) {
 	}
 }
 
-func Test_ErrCreateSupervisorDir(t *testing.T) {
+func Test_ErrCreateClientDir(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	cmd := &cobra.Command{}
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
@@ -147,10 +147,10 @@ func Test_ErrCreateSupervisorDir(t *testing.T) {
 	viper.Set(config.SB_ATTACH_SOCKET.ViperKey, "")
 
 	err = run(cmd, []string{"terminal-name"})
-	// This might fail earlier, but if it gets to directory creation, it should return ErrCreateSupervisorDir
-	if err != nil && !errors.Is(err, errdefs.ErrCreateSupervisorDir) {
+	// This might fail earlier, but if it gets to directory creation, it should return ErrCreateClientDir
+	if err != nil && !errors.Is(err, errdefs.ErrCreateClientDir) {
 		// If we get a different error, that's fine - the directory creation might not be reached
-		// But if we do reach it and it fails, it should be ErrCreateSupervisorDir
+		// But if we do reach it and it fails, it should be ErrCreateClientDir
 		t.Logf("Got error (may be expected): %v", err)
 	}
 }
@@ -197,7 +197,7 @@ func Test_ErrResolveTerminalName(t *testing.T) {
 }
 
 func Test_ErrWaitOnReady(t *testing.T) {
-	// We can't easily mock the supervisor controller creation in run(),
+	// We can't easily mock the client controller creation in run(),
 	// so this test verifies the error type exists and is used correctly
 	// The actual integration would be tested in higher-level tests
 	err := errdefs.ErrWaitOnReady

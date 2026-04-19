@@ -4,7 +4,7 @@ This document compares sbsh with traditional terminal multiplexers (screen and t
 
 **screen** and **tmux** are terminal multiplexers: they manage multiple terminal sessions within a single process, providing window management and session persistence.
 
-**sbsh** is a terminal supervisor: it treats terminals as independent, managed services with declarative configuration, built-in discovery, and programmatic control. Unlike screen and tmux, sbsh has no central server process—each terminal runs autonomously. sbsh exists to make terminal environments reproducible, shareable, and automatable across teams and CI/CD pipelines.
+**sbsh** treats terminals as independent, managed services with declarative configuration, built-in discovery, and programmatic control. Unlike screen and tmux, sbsh has no central server process—each terminal runs autonomously. sbsh exists to make terminal environments reproducible, shareable, and automatable across teams and CI/CD pipelines.
 
 ## Overview
 
@@ -12,9 +12,9 @@ This document compares sbsh with traditional terminal multiplexers (screen and t
 | ----------------------------------- | ------------------------------------------ | ----------------------------------------------- |
 | **Server Architecture**             | Single server process manages all sessions | No central server; each terminal is independent |
 | **Terminal Process**                | Tied to the terminal multiplexer           | Independent, runs separately                    |
-| **Supervisor Model**                | The multiplexer IS the terminal            | Separate supervisor and terminal                |
+| **Control Model**                   | The multiplexer IS the terminal            | Separate client and terminal                    |
 | **Failure Domain**                  | Shared—server crash affects all sessions   | Isolated—each terminal independent              |
-| **Supervisor Crash**                | Terminal typically dies with supervisor    | Terminal continues running                      |
+| **Client Crash**                    | Terminal typically dies with multiplexer   | Terminal continues running                      |
 | **Configuration**                   | Dotfiles (`.screenrc`, `.tmux.conf`)       | Declarative YAML profiles                       |
 | **Discovery**                       | Manual socket management                   | Built-in discovery by name or ID                |
 | **Reattach from Different Machine** | Requires shared socket files / setup       | Built-in discovery, works from anywhere         |
@@ -29,19 +29,19 @@ This document compares sbsh with traditional terminal multiplexers (screen and t
 - Sessions are children of the multiplexer process
 - Server process crash can affect all sessions
 - Sessions share the same failure domain
-- Supervisor crash typically terminates the terminal
+- Multiplexer crash typically terminates the terminal
 
 **sbsh:**
 
 - No central server or daemon process
-- Each terminal runs as an independent process with its own lightweight supervisor
+- Each terminal runs as an independent process with its own lightweight client
 - Terminals are self-contained with individual lifecycles, logs, and metadata
 - Complete process isolation: one terminal's failure does not affect others
-- Supervisor crash does not affect the terminal; it continues running independently
+- Client crash does not affect the terminal; it continues running independently
 
 ### Benefits of No-Server Architecture
 
-- **Isolated failure domains**: If one supervisor crashes, other terminals continue running
+- **Isolated failure domains**: If one client crashes, other terminals continue running
 - **True isolation**: Each terminal is a standalone process, not a child of a global daemon
 - **Simpler integration**: Terminals can be created, discovered, or attached to individually
 - **Scalability**: Run hundreds of terminals without a single point of failure
@@ -120,7 +120,7 @@ sbsh maintains a metadata directory (`~/.sbsh/run/terminals/`) with full session
 **sbsh:**
 
 - Built-in multi-attach from the start
-- Multiple supervisors can connect concurrently to the same terminal
+- Multiple clients can connect concurrently to the same terminal
 - Designed for collaboration and team workflows
 - No special configuration required
 
@@ -176,7 +176,7 @@ sbsh maintains a metadata directory (`~/.sbsh/run/terminals/`) with full session
 - You need API access for automation
 - You want structured logging and metadata
 - Multiple people need to share terminals
-- Terminals must survive supervisor crashes
+- Terminals must survive client crashes
 - You need isolated failure domains without process dependencies
 - You're running many terminals and need high reliability
 - You want autonomous terminals without a central server dependency

@@ -34,15 +34,15 @@ Press `Ctrl-]` twice, or run `sb detach` from within the terminal. The terminal 
 
 ### Can multiple people attach to the same terminal?
 
-Yes! sbsh supports multi-attach by default. Multiple supervisors can connect to the same terminal concurrently. See [Multi-Attach](concepts/multi-attach.md) for details.
+Yes! sbsh supports multi-attach by default. Multiple clients can connect to the same terminal concurrently. See [Multi-Attach](concepts/multi-attach.md) for details.
 
 ### How do I find terminals after disconnecting?
 
 Use `sb get terminals` to list all active terminals. You can attach by name or ID: `sb attach <name>` or `sb attach <id>`.
 
-### What happens if the supervisor crashes?
+### What happens if the client crashes?
 
-Terminals are independent processes and continue running even if the supervisor exits. You can reattach with `sb attach <name>`.
+Terminals are independent processes and continue running even if the client exits. You can reattach with `sb attach <name>`.
 
 ## Profiles
 
