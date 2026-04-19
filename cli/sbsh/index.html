@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -793,14 +793,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../concepts/supervisor/" class="md-nav__link">
+      <a href="../../concepts/client/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Supervisor
+    Client
   
 
     
@@ -1448,10 +1448,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#supervisor-flags" class="md-nav__link">
+  <a href="#client-flags" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Supervisor Flags
+        Client Flags
       
     </span>
   </a>
@@ -1934,10 +1934,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#supervisor-flags" class="md-nav__link">
+  <a href="#client-flags" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Supervisor Flags
+        Client Flags
       
     </span>
   </a>
@@ -2125,32 +2125,32 @@
 
 
 <h1 id="sbsh-command">sbsh Command<a class="headerlink" href="#sbsh-command" title="Permanent link">&para;</a></h1>
-<p>The <code>sbsh</code> command launches a supervisor attached to a terminal. It's designed for interactive use and can be set as your login shell.</p>
+<p>The <code>sbsh</code> command launches a client attached to a terminal. It's designed for interactive use and can be set as your login shell.</p>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>sbsh<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>sbsh<span class="w"> </span>terminal<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
 </code></pre></div>
 <h2 id="commands">Commands<a class="headerlink" href="#commands" title="Permanent link">&para;</a></h2>
 <h3 id="sbsh-default"><code>sbsh</code> (default)<a class="headerlink" href="#sbsh-default" title="Permanent link">&para;</a></h3>
-<p>Launches a supervisor attached to a terminal:</p>
+<p>Launches a client attached to a terminal:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>sbsh
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>sbsh<span class="w"> </span>-p<span class="w"> </span>profile-name
 </code></pre></div>
 <p><strong>Behavior:</strong></p>
 <ul>
-<li>Supervisor stays attached to terminal</li>
+<li>Client stays attached to terminal</li>
 <li>Press <code>Ctrl-]</code> twice to detach</li>
 <li>Terminal continues running after detach</li>
 </ul>
 <h3 id="sbsh-terminal"><code>sbsh terminal</code><a class="headerlink" href="#sbsh-terminal" title="Permanent link">&para;</a></h3>
-<p>Launches a terminal in the background with no attached supervisor:</p>
+<p>Launches a terminal in the background with no attached client:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>my-terminal
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>my-terminal<span class="w"> </span>-p<span class="w"> </span>profile-name
 </code></pre></div>
 <p><strong>Behavior:</strong></p>
 <ul>
 <li>Terminal runs independently</li>
-<li>No supervisor attached initially</li>
+<li>No client attached initially</li>
 <li>Attach later with <code>sb attach &lt;name&gt;</code></li>
 <li><strong>Important</strong>: Always use <code>--name</code> to identify the terminal</li>
 </ul>
@@ -2158,17 +2158,17 @@
 <h3 id="persistent-flags">Persistent Flags<a class="headerlink" href="#persistent-flags" title="Permanent link">&para;</a></h3>
 <p>These flags apply to all <code>sbsh</code> commands:</p>
 <ul>
-<li><code>--run-path &lt;path&gt;</code>: Optional run path for the supervisor</li>
+<li><code>--run-path &lt;path&gt;</code>: Optional run path for the client</li>
 <li><code>--config &lt;file&gt;</code>: Config file (default: <code>$HOME/.sbsh/config.yaml</code>)</li>
 <li><code>--profiles &lt;file&gt;</code>: Profiles manifests file (default: <code>$HOME/.sbsh/profiles.yaml</code>)</li>
 </ul>
-<h3 id="supervisor-flags">Supervisor Flags<a class="headerlink" href="#supervisor-flags" title="Permanent link">&para;</a></h3>
+<h3 id="client-flags">Client Flags<a class="headerlink" href="#client-flags" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>--id &lt;id&gt;</code>: Optional ID for the supervisor</li>
-<li><code>--socket &lt;file&gt;</code>: Optional socket file for the supervisor</li>
-<li><code>--log-file &lt;file&gt;</code>: Optional log file for the supervisor</li>
+<li><code>--id &lt;id&gt;</code>: Optional ID for the client</li>
+<li><code>--socket &lt;file&gt;</code>: Optional socket file for the client</li>
+<li><code>--log-file &lt;file&gt;</code>: Optional log file for the client</li>
 <li><code>--log-level &lt;level&gt;</code>: Optional log level (debug, info, warn, error)</li>
-<li><code>-d, --detach</code>: Detach supervisor immediately</li>
+<li><code>-d, --detach</code>: Detach client immediately</li>
 <li><code>--disable-detach</code>: Disable detach keystroke (<code>Ctrl-]</code> twice)</li>
 </ul>
 <h3 id="terminal-flags">Terminal Flags<a class="headerlink" href="#terminal-flags" title="Permanent link">&para;</a></h3>
@@ -2201,7 +2201,7 @@
 </code></pre></div>
 <h2 id="subcommands">Subcommands<a class="headerlink" href="#subcommands" title="Permanent link">&para;</a></h2>
 <h3 id="sbsh-terminal_1"><code>sbsh terminal</code><a class="headerlink" href="#sbsh-terminal_1" title="Permanent link">&para;</a></h3>
-<p>Launch a terminal without an attached supervisor:</p>
+<p>Launch a terminal without an attached client:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>my-terminal
 </code></pre></div>
 <h3 id="sbsh-version"><code>sbsh version</code><a class="headerlink" href="#sbsh-version" title="Permanent link">&para;</a></h3>
@@ -2216,6 +2216,10 @@
 <h2 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>SBSH_PROFILES_FILE</code>: Path to profiles file (overrides <code>--profiles</code>)</li>
+<li><code>SBSH_ROOT_CLIENT_SOCKET</code>: Default client socket path</li>
+<li><code>SBSH_CLIENT_ID</code>, <code>SBSH_CLIENT_NAME</code>, <code>SBSH_CLIENT_SOCKET</code>: Client identity overrides</li>
+<li><code>SBSH_CLIENT_LOG_FILE</code>, <code>SBSH_CLIENT_LOG_LEVEL</code>: Client logging overrides</li>
+<li><code>SBSH_CLIENT_DETACH</code>, <code>SBSH_CLIENT_DISABLE_DETACH_KEYSTROKE</code>: Client behavior flags</li>
 </ul>
 <h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2245,7 +2249,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 22, 2025 19:26:06 UTC">November 22, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 18, 2026 17:15:20 UTC">April 18, 2026</span>
   </span>
 
     
@@ -2326,10 +2330,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.annotate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.annotate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -793,14 +793,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../concepts/supervisor/" class="md-nav__link">
+      <a href="../../concepts/client/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Supervisor
+    Client
   
 
     
@@ -1586,10 +1586,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#prune-old-terminals" class="md-nav__link">
+  <a href="#prune-stale-terminals" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prune Old Terminals
+        Prune Stale Terminals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prune-stale-clients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prune Stale Clients
       
     </span>
   </a>
@@ -2060,10 +2071,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#prune-old-terminals" class="md-nav__link">
+  <a href="#prune-stale-terminals" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prune Old Terminals
+        Prune Stale Terminals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prune-stale-clients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prune Stale Clients
       
     </span>
   </a>
@@ -2157,7 +2179,7 @@
 
 
 <h1 id="sb-command">sb Command<a class="headerlink" href="#sb-command" title="Permanent link">&para;</a></h1>
-<p>The <code>sb</code> command is a pure client tool for managing existing supervisors and terminals. It doesn't spawn any processes itself—it only connects to existing terminals.</p>
+<p>The <code>sb</code> command is a pure client tool for managing existing clients and terminals. It doesn't spawn any processes itself—it only connects to existing terminals.</p>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>sb<span class="w"> </span><span class="o">[</span>command<span class="o">]</span><span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
 </code></pre></div>
@@ -2175,17 +2197,17 @@
 <li><code>--socket &lt;file&gt;</code>: Socket file path</li>
 </ul>
 <h3 id="sb-detach"><code>sb detach</code><a class="headerlink" href="#sb-detach" title="Permanent link">&para;</a></h3>
-<p>Detach from a terminal:</p>
+<p>Detach from a client:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sb<span class="w"> </span>detach
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>sb<span class="w"> </span>detach<span class="w"> </span>&lt;name-or-id&gt;
 </code></pre></div>
 <h3 id="sb-get"><code>sb get</code><a class="headerlink" href="#sb-get" title="Permanent link">&para;</a></h3>
-<p>Query terminals, supervisors, and profiles:</p>
+<p>Query terminals, clients, and profiles:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># List terminals</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>sb<span class="w"> </span>get<span class="w"> </span>terminals
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># List supervisors</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>sb<span class="w"> </span>get<span class="w"> </span>supervisors
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># List clients</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>sb<span class="w"> </span>get<span class="w"> </span>clients
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># List profiles</span>
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>sb<span class="w"> </span>get<span class="w"> </span>profiles
@@ -2193,26 +2215,23 @@
 <a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="c1"># Get specific terminal</span>
 <a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>sb<span class="w"> </span>get<span class="w"> </span>terminal<span class="w"> </span>&lt;name-or-id&gt;
 <a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="c1"># Get specific supervisor</span>
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>sb<span class="w"> </span>get<span class="w"> </span>supervisor<span class="w"> </span>&lt;name-or-id&gt;
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="c1"># Get specific client</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>sb<span class="w"> </span>get<span class="w"> </span>clients<span class="w"> </span>&lt;name-or-id&gt;
 <a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
 <a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="c1"># Get specific profile</span>
 <a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>sb<span class="w"> </span>get<span class="w"> </span>profile<span class="w"> </span>&lt;name&gt;
 </code></pre></div>
 <p><strong>Flags:</strong></p>
 <ul>
-<li><code>-a, --all</code>: Show all terminals/supervisors including exited ones</li>
+<li><code>-a, --all</code>: Show all terminals/clients including exited ones</li>
 <li><code>-o, --output &lt;format&gt;</code>: Output format (json, yaml, or human-readable)</li>
 </ul>
 <h3 id="sb-prune"><code>sb prune</code><a class="headerlink" href="#sb-prune" title="Permanent link">&para;</a></h3>
-<p>Prune old terminals and supervisors:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>sb<span class="w"> </span>prune
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>sb<span class="w"> </span>prune<span class="w"> </span>--older-than<span class="w"> </span>30d
+<p>Prune stale clients and terminals:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>sb<span class="w"> </span>prune<span class="w"> </span>terminals
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>sb<span class="w"> </span>prune<span class="w"> </span>clients
 </code></pre></div>
-<p><strong>Flags:</strong></p>
-<ul>
-<li><code>--older-than &lt;duration&gt;</code>: Prune terminals/supervisors older than duration (e.g., <code>30d</code>, <code>1w</code>, <code>2h</code>)</li>
-</ul>
+<p>A stale client is one that is no longer running. A stale terminal is one whose client is no longer running.</p>
 <h3 id="sb-version"><code>sb version</code><a class="headerlink" href="#sb-version" title="Permanent link">&para;</a></h3>
 <p>Show version information:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>sb<span class="w"> </span>version
@@ -2249,22 +2268,25 @@
 <h3 id="get-profile-details">Get Profile Details<a class="headerlink" href="#get-profile-details" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>sb<span class="w"> </span>get<span class="w"> </span>profile<span class="w"> </span>terraform-prd
 </code></pre></div>
-<h3 id="prune-old-terminals">Prune Old Terminals<a class="headerlink" href="#prune-old-terminals" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>sb<span class="w"> </span>prune<span class="w"> </span>--older-than<span class="w"> </span>7d
+<h3 id="prune-stale-terminals">Prune Stale Terminals<a class="headerlink" href="#prune-stale-terminals" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>sb<span class="w"> </span>prune<span class="w"> </span>terminals
+</code></pre></div>
+<h3 id="prune-stale-clients">Prune Stale Clients<a class="headerlink" href="#prune-stale-clients" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>sb<span class="w"> </span>prune<span class="w"> </span>clients
 </code></pre></div>
 <h2 id="output-formats">Output Formats<a class="headerlink" href="#output-formats" title="Permanent link">&para;</a></h2>
 <h3 id="human-readable-default">Human-Readable (Default)<a class="headerlink" href="#human-readable-default" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>sb<span class="w"> </span>get<span class="w"> </span>terminals
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>sb<span class="w"> </span>get<span class="w"> </span>terminals
 </code></pre></div>
 <h3 id="json">JSON<a class="headerlink" href="#json" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>sb<span class="w"> </span>get<span class="w"> </span>terminals<span class="w"> </span>-o<span class="w"> </span>json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>sb<span class="w"> </span>get<span class="w"> </span>terminals<span class="w"> </span>-o<span class="w"> </span>json
 </code></pre></div>
 <h3 id="yaml">YAML<a class="headerlink" href="#yaml" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>sb<span class="w"> </span>get<span class="w"> </span>terminals<span class="w"> </span>-o<span class="w"> </span>yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>sb<span class="w"> </span>get<span class="w"> </span>terminals<span class="w"> </span>-o<span class="w"> </span>yaml
 </code></pre></div>
 <h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../sbsh/">sbsh Command</a> - Interactive supervisor + terminal</li>
+<li><a href="../sbsh/">sbsh Command</a> - Interactive client + terminal</li>
 <li><a href="../commands/">Commands Overview</a> - Command comparison</li>
 <li><a href="../../getting-started/">Getting Started</a> - Basic usage</li>
 </ul>
@@ -2290,7 +2312,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 22, 2025 19:26:06 UTC">November 22, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 18, 2026 17:15:20 UTC">April 18, 2026</span>
   </span>
 
     
@@ -2371,10 +2393,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.annotate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.annotate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

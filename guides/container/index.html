@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -793,14 +793,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../concepts/supervisor/" class="md-nav__link">
+      <a href="../../concepts/client/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Supervisor
+    Client
   
 
     
@@ -1353,10 +1353,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#cmd-binsbsh-supervisor-terminal-interactive" class="md-nav__link">
+  <a href="#cmd-binsbsh-client-terminal-interactive" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CMD ["/bin/sbsh"] - Supervisor + Terminal (Interactive)
+        CMD ["/bin/sbsh"] - Client + Terminal (Interactive)
       
     </span>
   </a>
@@ -1564,10 +1564,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#example-1-interactive-development-environment-supervisor-terminal" class="md-nav__link">
+  <a href="#example-1-interactive-development-environment-client-terminal" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example 1: Interactive Development Environment (Supervisor + Terminal)
+        Example 1: Interactive Development Environment (Client + Terminal)
       
     </span>
   </a>
@@ -2334,10 +2334,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#cmd-binsbsh-supervisor-terminal-interactive" class="md-nav__link">
+  <a href="#cmd-binsbsh-client-terminal-interactive" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CMD ["/bin/sbsh"] - Supervisor + Terminal (Interactive)
+        CMD ["/bin/sbsh"] - Client + Terminal (Interactive)
       
     </span>
   </a>
@@ -2545,10 +2545,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#example-1-interactive-development-environment-supervisor-terminal" class="md-nav__link">
+  <a href="#example-1-interactive-development-environment-client-terminal" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example 1: Interactive Development Environment (Supervisor + Terminal)
+        Example 1: Interactive Development Environment (Client + Terminal)
       
     </span>
   </a>
@@ -2862,7 +2862,7 @@
 <li><strong>Base</strong>: <code>debian:bookworm-slim</code> (minimal Debian image)</li>
 <li><strong>Dependencies</strong>: <code>procps</code> package (for process management utilities)</li>
 <li><strong>Binary</strong>: <code>/bin/sbsh</code> and <code>/bin/sb</code> (hard-linked)</li>
-<li><strong>Default CMD</strong>: <code>["/bin/sbsh", "terminal"]</code> (runs terminal only by default; can be overridden to use <code>CMD ["/bin/sbsh"]</code> for supervisor+terminal)</li>
+<li><strong>Default CMD</strong>: <code>["/bin/sbsh", "terminal"]</code> (runs terminal only by default; can be overridden to use <code>CMD ["/bin/sbsh"]</code> for client+terminal)</li>
 </ul>
 <h3 id="image-structure">Image Structure<a class="headerlink" href="#image-structure" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>/bin/sbsh          # Main sbsh binary
@@ -2870,13 +2870,13 @@
 </code></pre></div>
 <h2 id="choosing-the-right-cmd">Choosing the Right CMD<a class="headerlink" href="#choosing-the-right-cmd" title="Permanent link">&para;</a></h2>
 <p>The sbsh Docker image supports two different CMD options depending on your use case:</p>
-<h3 id="cmd-binsbsh-supervisor-terminal-interactive"><code>CMD ["/bin/sbsh"]</code> - Supervisor + Terminal (Interactive)<a class="headerlink" href="#cmd-binsbsh-supervisor-terminal-interactive" title="Permanent link">&para;</a></h3>
-<p>Runs a <strong>supervisor attached to a terminal</strong>. This is the default behavior when using <code>sbsh</code> interactively:</p>
+<h3 id="cmd-binsbsh-client-terminal-interactive"><code>CMD ["/bin/sbsh"]</code> - Client + Terminal (Interactive)<a class="headerlink" href="#cmd-binsbsh-client-terminal-interactive" title="Permanent link">&para;</a></h3>
+<p>Runs a <strong>client attached to a terminal</strong>. This is the default behavior when using <code>sbsh</code> interactively:</p>
 <ul>
-<li><strong>Supervisor</strong>: Manages the terminal and stays attached</li>
+<li><strong>Client</strong>: Manages the terminal and stays attached</li>
 <li><strong>Terminal</strong>: Interactive shell session</li>
 <li><strong>Use case</strong>: Interactive development, debugging, login shells</li>
-<li><strong>Behavior</strong>: You interact directly with the terminal; supervisor stays attached</li>
+<li><strong>Behavior</strong>: You interact directly with the terminal; client stays attached</li>
 </ul>
 <p><strong>Example Dockerfile:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">docker.io/eminwux/sbsh:v0.6.0-linux-amd64</span>
@@ -2887,15 +2887,15 @@
 <li>Interactive containers where you need to attach and detach</li>
 <li>Login shell scenarios</li>
 <li>Development environments where you want direct terminal access</li>
-<li>When you need the supervisor to manage the terminal lifecycle</li>
+<li>When you need the client to manage the terminal lifecycle</li>
 </ul>
 <h3 id="cmd-binsbsh-terminal-terminal-only"><code>CMD ["/bin/sbsh", "terminal"]</code> - Terminal Only<a class="headerlink" href="#cmd-binsbsh-terminal-terminal-only" title="Permanent link">&para;</a></h3>
-<p>Runs <strong>just a terminal</strong> without a supervisor. The supervisor is launched externally when you attach:</p>
+<p>Runs <strong>just a terminal</strong> without a client. The client is launched externally when you attach:</p>
 <ul>
-<li><strong>Supervisor</strong>: Not running initially; launched when you execute <code>sb attach &lt;name&gt;</code> from outside</li>
+<li><strong>Client</strong>: Not running initially; launched when you execute <code>sb attach &lt;name&gt;</code> from outside</li>
 <li><strong>Terminal</strong>: Independent terminal session that runs on its own</li>
 <li><strong>Use case</strong>: Background services, automation, CI/CD pipelines</li>
-<li><strong>Behavior</strong>: Terminal runs independently; supervisor is created when you attach via <code>sb attach</code></li>
+<li><strong>Behavior</strong>: Terminal runs independently; client is created when you attach via <code>sb attach</code></li>
 <li><strong>Important</strong>: Always use <code>--name &lt;name&gt;</code> with <code>sbsh terminal</code> to identify the terminal for later attachment</li>
 </ul>
 <p><strong>Example Dockerfile:</strong></p>
@@ -2907,7 +2907,7 @@
 <li>Background terminals that need to persist</li>
 <li>Automation and CI/CD pipelines</li>
 <li>Services that should run detached</li>
-<li>When terminals need to survive supervisor restarts</li>
+<li>When terminals need to survive client restarts</li>
 <li>When you want to attach to the terminal later from outside the container</li>
 </ul>
 <p><strong>Attaching to the terminal:</strong></p>
@@ -2928,13 +2928,13 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>Supervisor</strong></td>
+<td><strong>Client</strong></td>
 <td>Launched and attached</td>
 <td>Not running initially; launched when you attach</td>
 </tr>
 <tr>
 <td><strong>Terminal</strong></td>
-<td>Managed by supervisor</td>
+<td>Managed by client</td>
 <td>Independent, runs on its own</td>
 </tr>
 <tr>
@@ -2945,12 +2945,12 @@
 <tr>
 <td><strong>Detach</strong></td>
 <td>Press <code>Ctrl-]</code> twice</td>
-<td>No supervisor attached initially</td>
+<td>No client attached initially</td>
 </tr>
 <tr>
 <td><strong>Attach</strong></td>
 <td>Already attached</td>
-<td>Launch supervisor with <code>sb attach &lt;name&gt;</code></td>
+<td>Launch client with <code>sb attach &lt;name&gt;</code></td>
 </tr>
 <tr>
 <td><strong>Name required</strong></td>
@@ -2961,7 +2961,7 @@
 </table>
 <h2 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h2>
 <h3 id="running-sbsh-interactively">Running sbsh Interactively<a class="headerlink" href="#running-sbsh-interactively" title="Permanent link">&para;</a></h3>
-<p>Run sbsh with an attached supervisor and terminal:</p>
+<p>Run sbsh with an attached client and terminal:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
@@ -2975,14 +2975,14 @@
 <li>Default user is <code>root</code>; adjust paths if using a different user</li>
 </ul>
 <h3 id="running-a-detached-terminal">Running a Detached Terminal<a class="headerlink" href="#running-a-detached-terminal" title="Permanent link">&para;</a></h3>
-<p>Launch a terminal that runs independently (no supervisor initially). <strong>Important</strong>: Always use <code>--name</code> to identify the terminal:</p>
+<p>Launch a terminal that runs independently (no client initially). <strong>Important</strong>: Always use <code>--name</code> to identify the terminal:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>--name<span class="w"> </span>my-sbsh-terminal<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">  </span>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>my-terminal
 </code></pre></div>
-<p>The terminal runs independently. A supervisor is not running initially - it will be launched when you attach via <code>sb attach</code>.</p>
+<p>The terminal runs independently. A client is not running initially - it will be launched when you attach via <code>sb attach</code>.</p>
 <h3 id="attaching-to-a-running-terminal">Attaching to a Running Terminal<a class="headerlink" href="#attaching-to-a-running-terminal" title="Permanent link">&para;</a></h3>
 <p>Use the <code>sb</code> client to attach to a terminal running in a container:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>my-sbsh-terminal<span class="w"> </span>sb<span class="w"> </span>attach<span class="w"> </span>my-terminal
@@ -3000,7 +3000,7 @@
 <p>The <code>~/.sbsh</code> directory contains:</p>
 <ul>
 <li><strong><code>~/.sbsh/run/terminals/</code></strong>: Terminal metadata and socket files</li>
-<li><strong><code>~/.sbsh/run/supervisors/</code></strong>: Supervisor metadata</li>
+<li><strong><code>~/.sbsh/run/clients/</code></strong>: Client metadata</li>
 <li><strong><code>~/.sbsh/profiles.yaml</code></strong>: Profile definitions (optional)</li>
 </ul>
 <h3 id="using-named-volumes">Using Named Volumes<a class="headerlink" href="#using-named-volumes" title="Permanent link">&para;</a></h3>
@@ -3021,7 +3021,7 @@
 </code></pre></div>
 <h2 id="running-sbsh-commands">Running sbsh Commands<a class="headerlink" href="#running-sbsh-commands" title="Permanent link">&para;</a></h2>
 <h3 id="interactive-mode-sbsh">Interactive Mode (<code>sbsh</code>)<a class="headerlink" href="#interactive-mode-sbsh" title="Permanent link">&para;</a></h3>
-<p>Launch a supervisor with an attached terminal:</p>
+<p>Launch a client with an attached terminal:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span>docker.io/eminwux/sbsh:v0.6.0-linux-amd64<span class="w"> </span><span class="se">\</span>
@@ -3057,8 +3057,8 @@
 </code></pre></div>
 <h2 id="using-sbsh-as-a-base-image">Using sbsh as a Base Image<a class="headerlink" href="#using-sbsh-as-a-base-image" title="Permanent link">&para;</a></h2>
 <p>You can use the sbsh image as a base for custom Dockerfiles:</p>
-<h3 id="example-1-interactive-development-environment-supervisor-terminal">Example 1: Interactive Development Environment (Supervisor + Terminal)<a class="headerlink" href="#example-1-interactive-development-environment-supervisor-terminal" title="Permanent link">&para;</a></h3>
-<p>Use <code>CMD ["/bin/sbsh"]</code> for interactive development where you want the supervisor attached:</p>
+<h3 id="example-1-interactive-development-environment-client-terminal">Example 1: Interactive Development Environment (Client + Terminal)<a class="headerlink" href="#example-1-interactive-development-environment-client-terminal" title="Permanent link">&para;</a></h3>
+<p>Use <code>CMD ["/bin/sbsh"]</code> for interactive development where you want the client attached:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">docker.io/eminwux/sbsh:v0.6.0-linux-amd64</span>
 <a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
 <a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="c"># Install additional tools</span>
@@ -3074,7 +3074,7 @@
 <a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="c"># Set working directory</span>
 <a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/workspace</span>
 <a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>
-<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="c"># Run supervisor + terminal (interactive)</span>
+<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="c"># Run client + terminal (interactive)</span>
 <a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a><span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/bin/sbsh&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>Building and Running:</strong></p>
@@ -3084,7 +3084,7 @@
 <a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">  </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/workspace<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">  </span>my-sbsh-env
 </code></pre></div>
-<p>This runs an interactive terminal with an attached supervisor. Press <code>Ctrl-]</code> twice to detach.</p>
+<p>This runs an interactive terminal with an attached client. Press <code>Ctrl-]</code> twice to detach.</p>
 <h3 id="example-2-background-terminal-service-terminal-only">Example 2: Background Terminal Service (Terminal Only)<a class="headerlink" href="#example-2-background-terminal-service-terminal-only" title="Permanent link">&para;</a></h3>
 <p>Use <code>CMD ["/bin/sbsh", "terminal"]</code> for background terminals that run independently. <strong>Important</strong>: Always specify <code>--name</code> to identify the terminal for later attachment:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">docker.io/eminwux/sbsh:v0.6.0-linux-amd64</span>
@@ -3101,8 +3101,8 @@
 <a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a><span class="c"># Set working directory</span>
 <a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/workspace</span>
 <a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a>
-<a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a><span class="c"># Run terminal only (no supervisor initially)</span>
-<a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a><span class="c"># The supervisor will be launched when you attach via sb attach</span>
+<a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a><span class="c"># Run terminal only (no client initially)</span>
+<a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a><span class="c"># The client will be launched when you attach via sb attach</span>
 <a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a><span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/bin/sbsh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;terminal&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;background-terminal&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-p&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;default&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>Building and Running:</strong></p>
@@ -3112,12 +3112,12 @@
 <a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span>-v<span class="w"> </span>~/.sbsh:/root/.sbsh<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span>my-sbsh-background
 <a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>
-<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="c1"># Attach later - this launches a supervisor to connect to the terminal:</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="c1"># Attach later - this launches a client to connect to the terminal:</span>
 <a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>my-terminal-service<span class="w"> </span>sb<span class="w"> </span>attach<span class="w"> </span>background-terminal
 <a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="c1"># Or from host (if sb is installed):</span>
 <a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>sb<span class="w"> </span>attach<span class="w"> </span>background-terminal
 </code></pre></div>
-<p>This runs a terminal that continues independently. The supervisor is not running initially - it's launched when you execute <code>sb attach background-terminal</code>, which creates a supervisor to connect to the existing terminal.</p>
+<p>This runs a terminal that continues independently. The client is not running initially - it's launched when you execute <code>sb attach background-terminal</code>, which creates a client to connect to the existing terminal.</p>
 <h2 id="docker-compose-example">Docker Compose Example<a class="headerlink" href="#docker-compose-example" title="Permanent link">&para;</a></h2>
 <p>Use Docker Compose for easier management:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;3.8&quot;</span>
@@ -3314,7 +3314,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 22, 2025 20:51:06 UTC">November 22, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 18, 2026 17:15:20 UTC">April 18, 2026</span>
   </span>
 
     
@@ -3395,10 +3395,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.annotate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.annotate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -793,14 +793,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../concepts/supervisor/" class="md-nav__link">
+      <a href="../../concepts/client/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Supervisor
+    Client
   
 
     
@@ -1147,10 +1147,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#supervisor-processes" class="md-nav__link">
+  <a href="#client-processes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Supervisor Processes
+        Client Processes
       
     </span>
   </a>
@@ -1186,10 +1186,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#supervisor-lifecycle" class="md-nav__link">
+  <a href="#client-lifecycle" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Supervisor Lifecycle
+        Client Lifecycle
       
     </span>
   </a>
@@ -1868,10 +1868,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#supervisor-processes" class="md-nav__link">
+  <a href="#client-processes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Supervisor Processes
+        Client Processes
       
     </span>
   </a>
@@ -1907,10 +1907,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#supervisor-lifecycle" class="md-nav__link">
+  <a href="#client-lifecycle" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Supervisor Lifecycle
+        Client Lifecycle
       
     </span>
   </a>
@@ -2035,7 +2035,7 @@
 </ul>
 <h3 id="sbsh-architecture">sbsh Architecture<a class="headerlink" href="#sbsh-architecture" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>│ Supervisor  │  │ Supervisor  │  │ Supervisor  │
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>│   Client    │  │   Client    │  │   Client    │
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│     1       │  │     2       │  │     3       │
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>└──────┬──────┘  └──────┬──────┘  └──────┬──────┘
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>       │                │                │
@@ -2043,14 +2043,14 @@
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>                │
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>         ┌──────┴──────┐
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>         │   Terminal  │  Independent process
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>         │  (Process)  │  Not a child of supervisor
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>         └─────────────┘  Survives supervisor exit
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>         │  (Process)  │  Not a child of the client
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>         └─────────────┘  Survives client exit
 </code></pre></div>
 <p><strong>Benefits:</strong></p>
 <ul>
 <li>No single point of failure</li>
 <li>Isolated failure domains</li>
-<li>Supervisor crashes don't affect terminals</li>
+<li>Client crashes don't affect terminals</li>
 <li>True process independence</li>
 </ul>
 <h2 id="process-independence">Process Independence<a class="headerlink" href="#process-independence" title="Permanent link">&para;</a></h2>
@@ -2058,17 +2058,17 @@
 <p>Terminals run as independent processes:</p>
 <ul>
 <li>Own process group</li>
-<li>Not children of supervisors</li>
-<li>Continue running if supervisor exits</li>
-<li>Can be attached to by new supervisors</li>
+<li>Not children of clients</li>
+<li>Continue running if client exits</li>
+<li>Can be attached to by new clients</li>
 </ul>
-<h3 id="supervisor-processes">Supervisor Processes<a class="headerlink" href="#supervisor-processes" title="Permanent link">&para;</a></h3>
-<p>Supervisors are lightweight:</p>
+<h3 id="client-processes">Client Processes<a class="headerlink" href="#client-processes" title="Permanent link">&para;</a></h3>
+<p>Clients are lightweight:</p>
 <ul>
 <li>Manage terminal attachment</li>
 <li>Forward I/O</li>
 <li>Can exit without affecting terminals</li>
-<li>New supervisors can attach to existing terminals</li>
+<li>New clients can attach to existing terminals</li>
 </ul>
 <h2 id="process-lifecycle">Process Lifecycle<a class="headerlink" href="#process-lifecycle" title="Permanent link">&para;</a></h2>
 <h3 id="terminal-lifecycle">Terminal Lifecycle<a class="headerlink" href="#terminal-lifecycle" title="Permanent link">&para;</a></h3>
@@ -2079,8 +2079,8 @@
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>├── Running (executing commands)
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>└── Exited (or restarted per policy)
 </code></pre></div>
-<h3 id="supervisor-lifecycle">Supervisor Lifecycle<a class="headerlink" href="#supervisor-lifecycle" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Supervisor Process
+<h3 id="client-lifecycle">Client Lifecycle<a class="headerlink" href="#client-lifecycle" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Client Process
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>├── Created
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>├── Attaching (connecting to terminal)
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>├── Attached (forwarding I/O)
@@ -2091,7 +2091,7 @@
 <h3 id="failure-isolation">Failure Isolation<a class="headerlink" href="#failure-isolation" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Terminal crash doesn't affect other terminals</li>
-<li>Supervisor crash doesn't affect terminals</li>
+<li>Client crash doesn't affect terminals</li>
 <li>No cascading failures</li>
 <li>Each terminal is self-contained</li>
 </ul>
@@ -2103,13 +2103,13 @@
 <li>Clean process boundaries</li>
 </ul>
 <h2 id="multi-attach-process-model">Multi-Attach Process Model<a class="headerlink" href="#multi-attach-process-model" title="Permanent link">&para;</a></h2>
-<p>Multiple supervisors can attach to the same terminal:</p>
+<p>Multiple clients can attach to the same terminal:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Terminal Process
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>├── Supervisor 1 (process A)
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>├── Supervisor 2 (process B)
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>└── Supervisor 3 (process C)
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>├── Client 1 (process A)
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>├── Client 2 (process B)
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>└── Client 3 (process C)
 </code></pre></div>
-<p>All supervisors connect via the same Unix domain socket. The terminal broadcasts output to all attached supervisors.</p>
+<p>All clients connect via the same Unix domain socket. The terminal broadcasts output to all attached clients.</p>
 <h2 id="process-groups">Process Groups<a class="headerlink" href="#process-groups" title="Permanent link">&para;</a></h2>
 <p>Terminals run in their own process groups:</p>
 <ul>
@@ -2122,7 +2122,7 @@
 <ul>
 <li><a href="../overview/">Architecture Overview</a> - System architecture</li>
 <li><a href="../../concepts/terminals/">Terminals</a> - Terminal lifecycle</li>
-<li><a href="../../concepts/supervisor/">Supervisor</a> - Supervisor architecture</li>
+<li><a href="../../concepts/client/">Client</a> - Client architecture</li>
 <li><a href="../../guides/comparison/">Comparison Guide</a> - Comparison with screen/tmux</li>
 </ul>
 
@@ -2147,7 +2147,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 22, 2025 19:26:06 UTC">November 22, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 18, 2026 17:15:20 UTC">April 18, 2026</span>
   </span>
 
     
@@ -2228,10 +2228,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.annotate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.annotate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

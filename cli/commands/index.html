@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -793,14 +793,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../concepts/supervisor/" class="md-nav__link">
+      <a href="../../concepts/client/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Supervisor
+    Client
   
 
     
@@ -1359,10 +1359,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#sbsh-interactive-supervisor-terminal" class="md-nav__link">
+  <a href="#sbsh-interactive-client-terminal" class="md-nav__link">
     <span class="md-ellipsis">
       
-        sbsh - Interactive Supervisor + Terminal
+        sbsh - Interactive Client + Terminal
       
     </span>
   </a>
@@ -1381,10 +1381,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#sb-client-management-tool" class="md-nav__link">
+  <a href="#sb-management-tool" class="md-nav__link">
     <span class="md-ellipsis">
       
-        sb - Client Management Tool
+        sb - Management Tool
       
     </span>
   </a>
@@ -1740,10 +1740,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#sbsh-interactive-supervisor-terminal" class="md-nav__link">
+  <a href="#sbsh-interactive-client-terminal" class="md-nav__link">
     <span class="md-ellipsis">
       
-        sbsh - Interactive Supervisor + Terminal
+        sbsh - Interactive Client + Terminal
       
     </span>
   </a>
@@ -1762,10 +1762,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#sb-client-management-tool" class="md-nav__link">
+  <a href="#sb-management-tool" class="md-nav__link">
     <span class="md-ellipsis">
       
-        sb - Client Management Tool
+        sb - Management Tool
       
     </span>
   </a>
@@ -1873,7 +1873,7 @@
 <tr>
 <td><code>sbsh</code></td>
 <td>Interactive terminal</td>
-<td>Supervisor + Terminal</td>
+<td>Client + Terminal</td>
 <td>Yes</td>
 </tr>
 <tr>
@@ -1884,7 +1884,7 @@
 </tr>
 <tr>
 <td><code>sb</code></td>
-<td>Management client</td>
+<td>Management tool</td>
 <td>Nothing (client only)</td>
 <td>N/A</td>
 </tr>
@@ -1892,35 +1892,36 @@
 </table>
 <p>All three are the same binary; behavior is determined by the executable name at runtime.</p>
 <h2 id="command-comparison">Command Comparison<a class="headerlink" href="#command-comparison" title="Permanent link">&para;</a></h2>
-<h3 id="sbsh-interactive-supervisor-terminal"><code>sbsh</code> - Interactive Supervisor + Terminal<a class="headerlink" href="#sbsh-interactive-supervisor-terminal" title="Permanent link">&para;</a></h3>
-<p>Launches a supervisor attached to a terminal. Designed for interactive use:</p>
+<h3 id="sbsh-interactive-client-terminal"><code>sbsh</code> - Interactive Client + Terminal<a class="headerlink" href="#sbsh-interactive-client-terminal" title="Permanent link">&para;</a></h3>
+<p>Launches a client attached to a terminal. Designed for interactive use:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>sbsh
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>sbsh<span class="w"> </span>-p<span class="w"> </span>profile-name
 </code></pre></div>
 <p><strong>Features:</strong></p>
 <ul>
-<li>Supervisor stays attached</li>
+<li>Client stays attached</li>
 <li>Press <code>Ctrl-]</code> twice to detach</li>
 <li>Terminal continues running after detach</li>
 </ul>
 <h3 id="sbsh-terminal-terminal-only"><code>sbsh terminal</code> - Terminal Only<a class="headerlink" href="#sbsh-terminal-terminal-only" title="Permanent link">&para;</a></h3>
-<p>Launches a terminal in the background with no attached supervisor:</p>
+<p>Launches a terminal in the background with no attached client:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>my-terminal
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>my-terminal<span class="w"> </span>-p<span class="w"> </span>profile-name
 </code></pre></div>
 <p><strong>Features:</strong></p>
 <ul>
 <li>Terminal runs independently</li>
-<li>No supervisor attached initially</li>
+<li>No client attached initially</li>
 <li>Attach later with <code>sb attach &lt;name&gt;</code></li>
 <li>Perfect for automation and background tasks</li>
 </ul>
-<h3 id="sb-client-management-tool"><code>sb</code> - Client Management Tool<a class="headerlink" href="#sb-client-management-tool" title="Permanent link">&para;</a></h3>
-<p>Pure client tool for managing existing supervisors and terminals:</p>
+<h3 id="sb-management-tool"><code>sb</code> - Management Tool<a class="headerlink" href="#sb-management-tool" title="Permanent link">&para;</a></h3>
+<p>Pure client tool for managing existing clients and terminals:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sb<span class="w"> </span>get<span class="w"> </span>terminals
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>sb<span class="w"> </span>attach<span class="w"> </span>&lt;name&gt;
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>sb<span class="w"> </span>detach
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>sb<span class="w"> </span>get<span class="w"> </span>profiles
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>sb<span class="w"> </span>get<span class="w"> </span>clients
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>sb<span class="w"> </span>attach<span class="w"> </span>&lt;name&gt;
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>sb<span class="w"> </span>detach
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>sb<span class="w"> </span>get<span class="w"> </span>profiles
 </code></pre></div>
 <p><strong>Features:</strong></p>
 <ul>
@@ -1950,11 +1951,14 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># List terminals</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>sb<span class="w"> </span>get<span class="w"> </span>terminals
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># List profiles</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>sb<span class="w"> </span>get<span class="w"> </span>profiles
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># List clients</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>sb<span class="w"> </span>get<span class="w"> </span>clients
 <a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Get terminal details</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>sb<span class="w"> </span>get<span class="w"> </span>terminal<span class="w"> </span>my-terminal
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># List profiles</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>sb<span class="w"> </span>get<span class="w"> </span>profiles
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1"># Get terminal details</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>sb<span class="w"> </span>get<span class="w"> </span>terminal<span class="w"> </span>my-terminal
 </code></pre></div>
 <h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1983,7 +1987,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 22, 2025 19:26:06 UTC">November 22, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 18, 2026 17:15:20 UTC">April 18, 2026</span>
   </span>
 
     
@@ -2064,10 +2068,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.annotate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.annotate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
