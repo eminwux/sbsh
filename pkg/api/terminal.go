@@ -16,6 +16,8 @@
 
 package api
 
+import "time"
+
 type TerminalController interface {
 	Run(spec *TerminalSpec) error
 	WaitReady() error
@@ -41,6 +43,7 @@ type TerminalMetadata struct {
 	Name        string            `json:"name"                  yaml:"name"`
 	Labels      map[string]string `json:"labels,omitempty"      yaml:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
+	CreatedAt   time.Time         `json:"createdAt,omitzero"    yaml:"createdAt,omitempty"`
 }
 
 // TerminalSpec defines how to run a terminal.
@@ -79,6 +82,7 @@ type TerminalStatus struct {
 	LogLevel        string             `json:"logLevel"`
 	CaptureFile     string             `json:"captureFile"`
 	Attachers       []string           `json:"attachers"`
+	LastAttachedAt  time.Time          `json:"lastAttachedAt,omitzero" yaml:"lastAttachedAt,omitempty"`
 }
 
 type TerminalState int

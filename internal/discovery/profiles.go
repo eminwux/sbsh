@@ -31,8 +31,15 @@ import (
 )
 
 // ScanAndPrintProfiles loads all profiles from a YAML file (supports multiple '---' documents)
-// and prints them in a table to w.
-func ScanAndPrintProfiles(ctx context.Context, logger *slog.Logger, path string, w io.Writer) error {
+// and prints them to w.
+// format: "" (compact table), "wide" (full table), "json", "yaml".
+func ScanAndPrintProfiles(
+	ctx context.Context,
+	logger *slog.Logger,
+	path string,
+	w io.Writer,
+	format string,
+) error {
 	logger.DebugContext(ctx, "ScanAndPrintProfiles: loading profiles", "path", path)
 	profiles, err := LoadProfilesFromPath(ctx, logger, path)
 	if err != nil {
@@ -40,7 +47,15 @@ func ScanAndPrintProfiles(ctx context.Context, logger *slog.Logger, path string,
 		return err
 	}
 	logger.InfoContext(ctx, "ScanAndPrintProfiles: loaded profiles", "count", len(profiles))
-	return PrintProfilesTable(w, profiles)
+
+	switch format {
+	case "json", "yaml":
+		return printTerminalMetadata(w, profiles, format)
+	case "", "wide":
+		return PrintProfilesTable(w, profiles, format == "wide")
+	default:
+		return fmt.Errorf("unknown output format: %q (use wide|json|yaml)", format)
+	}
 }
 
 // LoadProfilesFromPath reads a multi-document YAML file into []api.TerminalProfileDoc.
@@ -102,7 +117,7 @@ func LoadProfilesFromReaderWithContext(
 	return out, nil
 }
 
-func PrintProfilesTable(w io.Writer, profiles []api.TerminalProfileDoc) error {
+func PrintProfilesTable(w io.Writer, profiles []api.TerminalProfileDoc, wide bool) error {
 	//nolint:mnd // tabwriter padding
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 
@@ -111,7 +126,11 @@ func PrintProfilesTable(w io.Writer, profiles []api.TerminalProfileDoc) error {
 		return tw.Flush()
 	}
 
-	fmt.Fprintln(tw, "NAME\tTARGET\tENVVARS\tCMD")
+	if wide {
+		fmt.Fprintln(tw, "NAME\tTARGET\tENVVARS\tCMD")
+	} else {
+		fmt.Fprintln(tw, "NAME\tCMD")
+	}
 	for _, p := range profiles {
 		args := strings.Join(p.Spec.Shell.CmdArgs, " ")
 		var cmd string
@@ -120,18 +139,20 @@ func PrintProfilesTable(w io.Writer, profiles []api.TerminalProfileDoc) error {
 		} else {
 			cmd = p.Spec.Shell.Cmd
 		}
-		envCount := 0
-		if p.Spec.Shell.Env != nil {
-			envCount = len(p.Spec.Shell.Env)
+		if wide {
+			envCount := 0
+			if p.Spec.Shell.Env != nil {
+				envCount = len(p.Spec.Shell.Env)
+			}
+			fmt.Fprintf(tw, "%s\t%s\t%d vars\t%s\n",
+				p.Metadata.Name,
+				p.Spec.RunTarget,
+				envCount,
+				cmd,
+			)
+		} else {
+			fmt.Fprintf(tw, "%s\t%s\n", p.Metadata.Name, cmd)
 		}
-		fmt.Fprintf(
-			tw,
-			"%s\t%s\t%d vars\t%s\n",
-			p.Metadata.Name,
-			p.Spec.RunTarget,
-			envCount,
-			cmd,
-		)
 	}
 
 	return tw.Flush()

@@ -117,7 +117,7 @@ func createTestTerminalMetadata(t *testing.T, runPath string, id string, name st
 			RunPath:     runPath,
 		},
 		Status: api.TerminalStatus{
-			Pid:   12345,
+			Pid:   os.Getpid(),
 			Tty:   "/dev/pts/0",
 			State: state,
 		},
@@ -159,7 +159,7 @@ func createTestClientMetadata(
 			ID: api.ID(id),
 		},
 		Status: api.ClientStatus{
-			Pid:   12345,
+			Pid:   os.Getpid(),
 			State: state,
 		},
 	}

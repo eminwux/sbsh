@@ -30,13 +30,15 @@ import (
 )
 
 // ScanAndPrintClients finds all metadata.json under runPath/clients/*,
-// unmarshals them into api.ClientSpec, and prints a table to w.
+// unmarshals them into api.ClientSpec, and prints them to w.
+// format: "" (compact table), "wide" (full table), "json", "yaml".
 func ScanAndPrintClients(
 	ctx context.Context,
 	logger *slog.Logger,
 	runPath string,
 	w io.Writer,
 	printAll bool,
+	format string,
 ) error {
 	logger.DebugContext(ctx, "ScanAndPrintClients: scanning clients", "runPath", runPath)
 	clients, err := ScanClients(ctx, logger, runPath)
@@ -44,8 +46,31 @@ func ScanAndPrintClients(
 		logger.ErrorContext(ctx, "ScanAndPrintClients: failed to scan clients", "error", err)
 		return err
 	}
+	ReconcileClients(ctx, logger, runPath, clients)
 	logger.InfoContext(ctx, "ScanAndPrintClients: scanned clients", "count", len(clients))
-	return printClients(w, clients, printAll)
+
+	switch format {
+	case "json", "yaml":
+		filtered := filterClients(clients, printAll)
+		return printTerminalMetadata(w, filtered, format)
+	case "", "wide":
+		return printClients(w, clients, printAll, format == "wide")
+	default:
+		return fmt.Errorf("unknown output format: %q (use wide|json|yaml)", format)
+	}
+}
+
+func filterClients(clients []api.ClientDoc, printAll bool) []api.ClientDoc {
+	if printAll {
+		return clients
+	}
+	out := make([]api.ClientDoc, 0, len(clients))
+	for _, c := range clients {
+		if c.Status.State != api.ClientExited {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // ScanAndPruneClients finds all metadata.json under runPath/clients/*,
@@ -137,7 +162,7 @@ func clientLabels(s api.ClientDoc) map[string]string {
 	return map[string]string{}
 }
 
-func printClients(w io.Writer, clients []api.ClientDoc, printAll bool) error {
+func printClients(w io.Writer, clients []api.ClientDoc, printAll, wide bool) error {
 	//nolint:mnd // tabwriter padding
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	activeCount := 0
@@ -157,14 +182,26 @@ func printClients(w io.Writer, clients []api.ClientDoc, printAll bool) error {
 		return tw.Flush()
 	}
 
-	fmt.Fprintln(tw, "ID\tNAME\tSTATUS\tLABELS")
+	if wide {
+		fmt.Fprintln(tw, "ID\tNAME\tSTATUS\tLABELS")
+	} else {
+		fmt.Fprintln(tw, "NAME\tSTATUS")
+	}
 	for _, s := range clients {
-		if printAll || s.Status.State != api.ClientExited {
+		if s.Status.State == api.ClientExited && !printAll {
+			continue
+		}
+		if wide {
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
 				clientID(s),
 				clientName(s),
 				s.Status.State.String(),
 				joinLabels(clientLabels(s)),
+			)
+		} else {
+			fmt.Fprintf(tw, "%s\t%s\n",
+				clientName(s),
+				s.Status.State.String(),
 			)
 		}
 	}
@@ -205,6 +242,9 @@ func FindAndPrintClientMetadata(
 	if err != nil {
 		logger.ErrorContext(ctx, "FindAndPrintClientMetadata: failed to scan clients", "error", err)
 		return err
+	}
+	if clients != nil {
+		reconcileClient(ctx, logger, runPath, clients)
 	}
 	return printTerminalMetadata(w, clients, format)
 }
