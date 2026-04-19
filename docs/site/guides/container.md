@@ -12,29 +12,19 @@ sbsh provides official Docker images for running persistent terminals in contain
 
 ## Pulling sbsh Images
 
-sbsh images are available on Docker Hub at `docker.io/eminwux/sbsh`. Images are tagged with version and architecture:
-
-### AMD64 (x86_64)
+sbsh images are published on the GitHub Container Registry at `ghcr.io/eminwux/sbsh`. Images are multi-arch manifests supporting `linux/amd64` and `linux/arm64`, tagged with the release version:
 
 ```bash
-docker pull docker.io/eminwux/sbsh:v0.6.0-linux-amd64
+docker pull ghcr.io/eminwux/sbsh:v0.6.0
 ```
 
-### ARM64
+Or use the `latest` tag to always pull the most recent release:
 
 ```bash
-docker pull docker.io/eminwux/sbsh:v0.6.0-linux-arm64
+docker pull ghcr.io/eminwux/sbsh:latest
 ```
 
-### Using Docker Hub Short Syntax
-
-```bash
-# AMD64
-docker pull eminwux/sbsh:v0.6.0-linux-amd64
-
-# ARM64
-docker pull eminwux/sbsh:v0.6.0-linux-arm64
-```
+Docker automatically selects the correct architecture for your host.
 
 ## Image Architecture
 
@@ -44,7 +34,7 @@ The sbsh Docker image is built using a multi-stage build process:
 
 - **Base**: `golang:1.25-bookworm` (builder stage)
 - **Build Process**: Compiles sbsh binary for the target architecture
-- **Build Args**: `ARCH` (amd64/arm64) and `OS` (linux)
+- **Build Args**: `VERSION` (plus `TARGETOS` / `TARGETARCH` provided by Docker Buildx)
 
 ### Runtime Stage
 
@@ -76,7 +66,7 @@ Runs a **client attached to a terminal**. This is the default behavior when usin
 **Example Dockerfile:**
 
 ```dockerfile
-FROM docker.io/eminwux/sbsh:v0.6.0-linux-amd64
+FROM ghcr.io/eminwux/sbsh:v0.6.0
 CMD ["/bin/sbsh"]
 ```
 
@@ -100,7 +90,7 @@ Runs **just a terminal** without a client. The client is launched externally whe
 **Example Dockerfile:**
 
 ```dockerfile
-FROM docker.io/eminwux/sbsh:v0.6.0-linux-amd64
+FROM ghcr.io/eminwux/sbsh:v0.6.0
 CMD ["/bin/sbsh", "terminal", "--name", "my-terminal"]
 ```
 
@@ -142,7 +132,7 @@ Run sbsh with an attached client and terminal:
 ```bash
 docker run -it --rm \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
+  ghcr.io/eminwux/sbsh:v0.6.0 \
   sbsh
 ```
 
@@ -161,7 +151,7 @@ Launch a terminal that runs independently (no client initially). **Important**: 
 docker run -d \
   --name my-sbsh-terminal \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
+  ghcr.io/eminwux/sbsh:v0.6.0 \
   sbsh terminal --name my-terminal
 ```
 
@@ -210,7 +200,7 @@ docker volume create sbsh-data
 
 docker run -it --rm \
   -v sbsh-data:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
+  ghcr.io/eminwux/sbsh:v0.6.0 \
   sbsh
 ```
 
@@ -221,7 +211,7 @@ For direct access to files from the host:
 ```bash
 docker run -it --rm \
   -v /home/user/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
+  ghcr.io/eminwux/sbsh:v0.6.0 \
   sbsh
 ```
 
@@ -234,7 +224,7 @@ Launch a client with an attached terminal:
 ```bash
 docker run -it --rm \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
+  ghcr.io/eminwux/sbsh:v0.6.0 \
   sbsh -p terraform-prd
 ```
 
@@ -246,7 +236,7 @@ Create a terminal that runs independently:
 docker run -d \
   --name terraform-terminal \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
+  ghcr.io/eminwux/sbsh:v0.6.0 \
   sbsh terminal --name terraform-prd -p terraform-prd
 ```
 
@@ -258,19 +248,19 @@ List terminals, attach, or manage sessions:
 # List terminals
 docker run --rm \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
+  ghcr.io/eminwux/sbsh:v0.6.0 \
   sb get terminals
 
 # Attach to a terminal
 docker run -it --rm \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
+  ghcr.io/eminwux/sbsh:v0.6.0 \
   sb attach my-terminal
 
 # List profiles
 docker run --rm \
   -v ~/.sbsh:/root/.sbsh \
-  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
+  ghcr.io/eminwux/sbsh:v0.6.0 \
   sb get profiles
 ```
 
@@ -283,7 +273,7 @@ You can use the sbsh image as a base for custom Dockerfiles:
 Use `CMD ["/bin/sbsh"]` for interactive development where you want the client attached:
 
 ```dockerfile
-FROM docker.io/eminwux/sbsh:v0.6.0-linux-amd64
+FROM ghcr.io/eminwux/sbsh:v0.6.0
 
 # Install additional tools
 RUN apt-get update && apt-get install -y \
@@ -319,7 +309,7 @@ This runs an interactive terminal with an attached client. Press `Ctrl-]` twice 
 Use `CMD ["/bin/sbsh", "terminal"]` for background terminals that run independently. **Important**: Always specify `--name` to identify the terminal for later attachment:
 
 ```dockerfile
-FROM docker.io/eminwux/sbsh:v0.6.0-linux-amd64
+FROM ghcr.io/eminwux/sbsh:v0.6.0
 
 # Install additional tools
 RUN apt-get update && apt-get install -y \
@@ -364,7 +354,7 @@ version: "3.8"
 
 services:
   sbsh:
-    image: docker.io/eminwux/sbsh:v0.6.0-linux-amd64
+    image: ghcr.io/eminwux/sbsh:v0.6.0
     container_name: sbsh
     volumes:
       - ~/.sbsh:/root/.sbsh
@@ -384,28 +374,25 @@ docker-compose up
 
 ## Multi-Architecture Support
 
-sbsh images are available for multiple architectures:
+sbsh images are published as multi-arch manifests supporting:
 
 - **linux/amd64**: x86_64 processors (Intel, AMD)
 - **linux/arm64**: ARM64 processors (Apple Silicon, AWS Graviton, etc.)
 
-### Platform-Specific Pulls
-
-Docker automatically selects the correct image for your platform:
+Docker automatically selects the correct architecture when pulling from the manifest:
 
 ```bash
-docker pull eminwux/sbsh:v0.6.0-linux-amd64
-docker pull eminwux/sbsh:v0.6.0-linux-arm64
+docker pull ghcr.io/eminwux/sbsh:v0.6.0
 ```
 
-### Using Docker Buildx
+### Building Multi-Architecture Images Locally
 
-For multi-architecture builds, use Docker Buildx:
+To build the sbsh image yourself for multiple architectures, use Docker Buildx:
 
 ```bash
 docker buildx create --use
 docker buildx build --platform linux/amd64,linux/arm64 \
-  -t eminwux/sbsh:v0.6.0 \
+  -t ghcr.io/eminwux/sbsh:v0.6.0 \
   --push .
 ```
 
@@ -419,7 +406,7 @@ If you need to run Docker commands inside sbsh containers, you can use Docker-in
 docker run -it --rm \
   -v ~/.sbsh:/root/.sbsh \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
+  ghcr.io/eminwux/sbsh:v0.6.0 \
   sbsh
 ```
 
@@ -431,7 +418,7 @@ Then install Docker client inside the container or use a profile that includes i
 docker run -it --rm \
   -v ~/.sbsh:/root/.sbsh \
   --privileged \
-  docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
+  ghcr.io/eminwux/sbsh:v0.6.0 \
   sbsh
 ```
 
@@ -458,7 +445,7 @@ spec:
     spec:
       containers:
         - name: sbsh
-          image: docker.io/eminwux/sbsh:v0.6.0-linux-amd64
+          image: ghcr.io/eminwux/sbsh:v0.6.0
           command: ["/bin/sbsh", "terminal", "--name", "k8s-terminal"]
           volumeMounts:
             - name: sbsh-data
@@ -501,7 +488,7 @@ spec:
   docker run -it --rm \
     --user $(id -u):$(id -g) \
     -v ~/.sbsh:/home/user/.sbsh \
-    docker.io/eminwux/sbsh:v0.6.0-linux-amd64 \
+    ghcr.io/eminwux/sbsh:v0.6.0 \
     sbsh
   ```
 
@@ -544,10 +531,8 @@ spec:
 
 **Solutions**:
 
-- Pull the correct architecture image:
-  - AMD64: `docker.io/eminwux/sbsh:v0.6.0-linux-amd64`
-  - ARM64: `docker.io/eminwux/sbsh:v0.6.0-linux-arm64`
-- Use `docker manifest inspect` to check available architectures
+- Pull the multi-arch image — Docker selects the correct architecture automatically: `ghcr.io/eminwux/sbsh:v0.6.0`
+- Use `docker manifest inspect ghcr.io/eminwux/sbsh:v0.6.0` to verify the available architectures
 - Verify host architecture: `uname -m`
 
 ### Container Exits Immediately
@@ -564,7 +549,7 @@ spec:
 ## Best Practices
 
 1. **Use Named Volumes**: For production, use named volumes instead of bind mounts for better portability
-2. **Version Pinning**: Always pin to specific version tags (e.g., `v0.6.0-linux-amd64`) instead of `latest`
+2. **Version Pinning**: Always pin to specific version tags (e.g., `v0.6.0`) instead of `latest`
 3. **Profile Management**: Store profiles in version control and mount them as volumes
 4. **Resource Limits**: Set appropriate CPU and memory limits for containers
 5. **Security**: Avoid using `--privileged` unless absolutely necessary

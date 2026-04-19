@@ -163,7 +163,7 @@ fi
 version: "3.8"
 services:
   sbsh:
-    image: docker.io/eminwux/sbsh:v0.6.0-linux-amd64
+    image: ghcr.io/eminwux/sbsh:v0.6.0
     volumes:
       - ~/.sbsh:/root/.sbsh
     command: sbsh terminal --name automated-task -p my-profile
@@ -181,7 +181,7 @@ spec:
     spec:
       containers:
         - name: sbsh
-          image: docker.io/eminwux/sbsh:v0.6.0-linux-amd64
+          image: ghcr.io/eminwux/sbsh:v0.6.0
           command:
             ["/bin/sbsh", "terminal", "--name", "k8s-task", "-p", "my-profile"]
 ```
