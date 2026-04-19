@@ -29,6 +29,7 @@ type TerminalController interface {
 	Attach(id *ID, reply *ResponseWithFD) error
 	Metadata() (*TerminalDoc, error)
 	State() (*TerminalStatusMode, error)
+	Stop(args *StopArgs) error
 }
 
 type TerminalDoc struct {
@@ -149,6 +150,7 @@ const (
 	TerminalMethodDetach   = TerminalService + ".Detach"
 	TerminalMethodMetadata = TerminalService + ".Metadata"
 	TerminalMethodState    = TerminalService + ".State"
+	TerminalMethodStop     = TerminalService + ".Stop"
 )
 
 type PingMessage struct {
@@ -158,6 +160,10 @@ type PingMessage struct {
 type ResizeArgs struct {
 	Cols int
 	Rows int
+}
+
+type StopArgs struct {
+	Reason string
 }
 
 // ResponseWithFD carries a normal JSON result plus OOB file descriptors.

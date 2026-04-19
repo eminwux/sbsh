@@ -77,4 +77,7 @@ var (
 	ErrNoClientsFound         = errors.New("no clients found")
 	ErrTerminalNotFound       = errors.New("terminal not found")
 	ErrClientNotFound         = errors.New("client not found")
+	ErrStopTerminal           = errors.New("could not stop terminal")
+	ErrStopTimeout            = errors.New("terminal did not exit within timeout")
+	ErrSignalProcess          = errors.New("failed to signal terminal process")
 )
