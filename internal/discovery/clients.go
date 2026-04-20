@@ -90,8 +90,8 @@ func ScanAndPruneClients(ctx context.Context, logger *slog.Logger, runPath strin
 		"client",
 		func(s api.ClientDoc) bool { return s.Status.State == api.ClientExited },
 		PruneClient,
-		clientID,
-		clientName,
+		pkgdiscovery.ClientID,
+		pkgdiscovery.ClientName,
 	)
 	return err
 }
@@ -122,15 +122,6 @@ func PruneClient(logger *slog.Logger, metadata *api.ClientDoc) error {
 		logger.InfoContext(context.Background(), "PruneClient: client folder removed", "path", metadata.Status.ClientRunPath)
 	}
 	return err
-}
-
-func clientID(s api.ClientDoc) string {
-	// If your type uses Id instead of ID, change to: return s.Id
-	return string(s.Spec.ID)
-}
-
-func clientName(s api.ClientDoc) string {
-	return s.Metadata.Name
 }
 
 func clientLabels(s api.ClientDoc) map[string]string {
@@ -171,14 +162,14 @@ func printClients(w io.Writer, clients []api.ClientDoc, printAll, wide bool) err
 		}
 		if wide {
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
-				clientID(s),
-				clientName(s),
+				pkgdiscovery.ClientID(s),
+				pkgdiscovery.ClientName(s),
 				s.Status.State.String(),
 				joinLabels(clientLabels(s)),
 			)
 		} else {
 			fmt.Fprintf(tw, "%s\t%s\n",
-				clientName(s),
+				pkgdiscovery.ClientName(s),
 				s.Status.State.String(),
 			)
 		}
@@ -203,11 +194,11 @@ func FindAndPrintClientMetadata(
 	logger *slog.Logger,
 	runPath string,
 	w io.Writer,
-	terminalName string,
+	clientName string,
 	format string,
 ) error {
 	logger.DebugContext(ctx, "FindAndPrintClientMetadata: scanning clients", "runPath", runPath)
-	clients, err := FindClientByName(ctx, logger, runPath, terminalName)
+	clients, err := FindClientByName(ctx, logger, runPath, clientName)
 	if err != nil {
 		logger.ErrorContext(ctx, "FindAndPrintClientMetadata: failed to scan clients", "error", err)
 		return err

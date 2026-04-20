@@ -95,8 +95,8 @@ func ScanAndPruneTerminals(ctx context.Context, logger *slog.Logger, runPath str
 		"terminal",
 		func(t api.TerminalDoc) bool { return t.Status.State == api.Exited },
 		PruneTerminal,
-		terminalID,
-		terminalName,
+		pkgdiscovery.TerminalID,
+		pkgdiscovery.TerminalName,
 	)
 	return err
 }
@@ -162,8 +162,8 @@ func printTerminals(w io.Writer, terminals []api.TerminalDoc, printAll, wide boo
 		}
 		if wide {
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-				terminalID(s),
-				terminalName(s),
+				pkgdiscovery.TerminalID(s),
+				pkgdiscovery.TerminalName(s),
 				terminalProfile(s),
 				terminalCmd(s),
 				terminalPty(s),
@@ -175,7 +175,7 @@ func printTerminals(w io.Writer, terminals []api.TerminalDoc, printAll, wide boo
 			)
 		} else {
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
-				terminalName(s),
+				pkgdiscovery.TerminalName(s),
 				terminalProfile(s),
 				terminalPty(s),
 				formatAge(s.Metadata.CreatedAt),
@@ -212,15 +212,6 @@ func terminalAttachers(s api.TerminalDoc) string {
 		attachers = strings.Join(s.Status.Attachers, ",")
 	}
 	return attachers
-}
-
-func terminalID(s api.TerminalDoc) string {
-	// If your type uses Id instead of ID, change to: return s.Id
-	return string(s.Spec.ID)
-}
-
-func terminalName(s api.TerminalDoc) string {
-	return s.Spec.Name
 }
 
 func terminalCmd(s api.TerminalDoc) string {
