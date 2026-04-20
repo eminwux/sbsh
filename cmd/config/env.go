@@ -118,6 +118,16 @@ var (
 	SB_DETACH_ID = DefineKV("SB_DETACH_ID", "sb/detach/id")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_DETACH_SOCKET = DefineKV("SB_DETACH_SOCKET", "sb/detach/socket")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_STOP_ALL = DefineKV("SB_STOP_ALL", "sb/stop/all")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_STOP_FORCE = DefineKV("SB_STOP_FORCE", "sb/stop/force")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_STOP_TIMEOUT = DefineKV("SB_STOP_TIMEOUT", "sb/stop/timeout")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_STOP_KILL_AFTER = DefineKV("SB_STOP_KILL_AFTER", "sb/stop/killAfter")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_STOP_IGNORE_NOT_FOUND = DefineKV("SB_STOP_IGNORE_NOT_FOUND", "sb/stop/ignoreNotFound")
 
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_ROOT_CONFIG_FILE = DefineKV("SBSH_CONFIG_FILE", "sbsh/configFile")

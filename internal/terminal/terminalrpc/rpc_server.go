@@ -61,3 +61,7 @@ func (s *TerminalControllerRPC) State(_ api.Empty, state *api.TerminalStatusMode
 	*state = *st
 	return nil
 }
+
+func (s *TerminalControllerRPC) Stop(args *api.StopArgs, _ *api.Empty) error {
+	return s.Core.Stop(args)
+}

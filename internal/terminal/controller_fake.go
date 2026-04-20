@@ -36,6 +36,7 @@ type ControllerTest struct {
 	DetachFunc    func(id *api.ID) error
 	MetadataFunc  func() (*api.TerminalDoc, error)
 	StateFunc     func() (*api.TerminalStatusMode, error)
+	StopFunc      func(args *api.StopArgs) error
 }
 
 func (f *ControllerTest) Run(spec *api.TerminalSpec) error {
@@ -106,4 +107,11 @@ func (f *ControllerTest) State() (*api.TerminalStatusMode, error) {
 		return f.StateFunc()
 	}
 	return nil, errdefs.ErrFuncNotSet
+}
+
+func (f *ControllerTest) Stop(args *api.StopArgs) error {
+	if f.StopFunc != nil {
+		return f.StopFunc(args)
+	}
+	return errdefs.ErrFuncNotSet
 }

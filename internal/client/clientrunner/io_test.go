@@ -69,6 +69,10 @@ func (m *mockTerminalClient) State(ctx context.Context, state *api.TerminalStatu
 	return errors.New("stateFunc not set")
 }
 
+func (m *mockTerminalClient) Stop(_ context.Context, _ *api.StopArgs) error {
+	return nil
+}
+
 func Test_WaitReady_WithMultipleStates(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	ctx, cancel := context.WithCancel(context.Background())

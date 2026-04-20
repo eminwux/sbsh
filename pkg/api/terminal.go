@@ -29,6 +29,7 @@ type TerminalController interface {
 	Attach(id *ID, reply *ResponseWithFD) error
 	Metadata() (*TerminalDoc, error)
 	State() (*TerminalStatusMode, error)
+	Stop(args *StopArgs) error
 }
 
 type TerminalDoc struct {
@@ -72,7 +73,12 @@ type TerminalSpec struct {
 }
 
 type TerminalStatus struct {
-	Pid             int                `json:"pid"`
+	Pid int `json:"pid"`
+	// PidStart is an opaque per-process identifier captured at metadata
+	// write time so callers that later signal Pid can reject a recycled
+	// PID. Zero means "no token recorded" and consumers should treat the
+	// PID as unverifiable. See internal/pidutil.
+	PidStart        uint64             `json:"pidStart,omitempty"`
 	Tty             string             `json:"tty"`
 	State           TerminalStatusMode `json:"state"`
 	SocketFile      string             `json:"socketCtrl"`
@@ -149,6 +155,7 @@ const (
 	TerminalMethodDetach   = TerminalService + ".Detach"
 	TerminalMethodMetadata = TerminalService + ".Metadata"
 	TerminalMethodState    = TerminalService + ".State"
+	TerminalMethodStop     = TerminalService + ".Stop"
 )
 
 type PingMessage struct {
@@ -158,6 +165,10 @@ type PingMessage struct {
 type ResizeArgs struct {
 	Cols int
 	Rows int
+}
+
+type StopArgs struct {
+	Reason string
 }
 
 // ResponseWithFD carries a normal JSON result plus OOB file descriptors.

@@ -14,22 +14,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package terminal
+//go:build !linux
+// +build !linux
 
-import (
-	"context"
-	"net"
+package pidutil
 
-	"github.com/eminwux/sbsh/pkg/api"
-)
-
-type Client interface {
-	Ping(ctx context.Context, ping *api.PingMessage, pong *api.PingMessage) error
-	Resize(ctx context.Context, args *api.ResizeArgs) error
-	Detach(ctx context.Context, id *api.ID) error
-	Attach(ctx context.Context, clientID *api.ID, response any) (net.Conn, error)
-	Close() error
-	Metadata(ctx context.Context, metadata *api.TerminalDoc) error
-	State(ctx context.Context, state *api.TerminalStatusMode) error
-	Stop(ctx context.Context, args *api.StopArgs) error
+// readStartTime is a no-op on platforms without a per-process start-time
+// counter we can read cheaply. Callers see (0, nil), interpreted as "no
+// token available" by Match.
+func readStartTime(_ int) (uint64, error) {
+	return 0, nil
 }
