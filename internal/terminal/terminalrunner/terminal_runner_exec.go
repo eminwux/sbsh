@@ -62,6 +62,9 @@ type Exec struct {
 	clientsMu sync.RWMutex
 	clients   map[api.ID]*ioClient
 
+	subsMu      sync.Mutex
+	subscribers map[*subscriberWriter]struct{}
+
 	closeReqCh chan error
 	closedCh   chan struct{}
 
@@ -110,7 +113,8 @@ func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.T
 		ptmx:  nil,
 		state: api.TerminalBash, // default logical state before start
 
-		clients: make(map[api.ID]*ioClient),
+		clients:     make(map[api.ID]*ioClient),
+		subscribers: make(map[*subscriberWriter]struct{}),
 
 		gates: struct {
 			StdinOpen bool

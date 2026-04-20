@@ -128,6 +128,10 @@ var (
 	SB_STOP_KILL_AFTER = DefineKV("SB_STOP_KILL_AFTER", "sb/stop/killAfter")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_STOP_IGNORE_NOT_FOUND = DefineKV("SB_STOP_IGNORE_NOT_FOUND", "sb/stop/ignoreNotFound")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_WRITE_RAW = DefineKV("SB_WRITE_RAW", "sb/write/raw")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_READ_FOLLOW = DefineKV("SB_READ_FOLLOW", "sb/read/follow")
 
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_ROOT_CONFIG_FILE = DefineKV("SBSH_CONFIG_FILE", "sbsh/configFile")
