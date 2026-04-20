@@ -18,16 +18,14 @@ package discovery
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/eminwux/sbsh/pkg/api"
-	"gopkg.in/yaml.v3"
+	pkgdiscovery "github.com/eminwux/sbsh/pkg/discovery"
 )
 
 // ScanAndPrintProfiles loads all profiles from a YAML file (supports multiple '---' documents)
@@ -58,63 +56,23 @@ func ScanAndPrintProfiles(
 	}
 }
 
-// LoadProfilesFromPath reads a multi-document YAML file into []api.TerminalProfileDoc.
+// LoadProfilesFromPath is a thin wrapper around [pkgdiscovery.LoadProfilesFromPath].
 func LoadProfilesFromPath(
 	ctx context.Context,
 	logger *slog.Logger,
 	profilesFile string,
 ) ([]api.TerminalProfileDoc, error) {
-	logger.DebugContext(ctx, "LoadProfilesFromPath: opening file", "path", profilesFile)
-	f, err := os.Open(profilesFile)
-	if err != nil {
-		logger.ErrorContext(ctx, "LoadProfilesFromPath: failed to open file", "path", profilesFile, "error", err)
-		return nil, fmt.Errorf("open profiles file %q: %w", profilesFile, err)
-	}
-	defer f.Close()
-	logger.InfoContext(ctx, "LoadProfilesFromPath: file opened", "path", profilesFile)
-	return LoadProfilesFromReaderWithContext(ctx, logger, f)
+	return pkgdiscovery.LoadProfilesFromPath(ctx, logger, profilesFile)
 }
 
-// LoadProfilesFromReaderWithContext decodes one or more YAML documents from r.
+// LoadProfilesFromReaderWithContext is a thin wrapper around
+// [pkgdiscovery.LoadProfilesFromReaderWithContext].
 func LoadProfilesFromReaderWithContext(
 	ctx context.Context,
 	logger *slog.Logger,
 	r io.Reader,
 ) ([]api.TerminalProfileDoc, error) {
-	logger.DebugContext(ctx, "LoadProfilesFromReader: decoding YAML documents")
-	dec := yaml.NewDecoder(r)
-
-	var out []api.TerminalProfileDoc
-	docCount := 0
-	for {
-		var p api.TerminalProfileDoc
-		if err := dec.Decode(&p); err != nil {
-			if errors.Is(err, io.EOF) {
-				logger.InfoContext(ctx, "LoadProfilesFromReader: reached EOF", "count", docCount)
-				break
-			}
-			logger.ErrorContext(ctx, "LoadProfilesFromReader: decode error", "error", err)
-			return nil, fmt.Errorf("decode profile: %w", err)
-		}
-		docCount++
-
-		// Basic sanity checks; skip empty docs.
-		if p.Metadata.Name == "" || string(p.APIVersion) == "" || string(p.Kind) == "" {
-			logger.WarnContext(ctx,
-				"LoadProfilesFromReader: skipping empty/invalid profile document",
-				"doc",
-				docCount,
-				"name",
-				p.Metadata.Name,
-			)
-			continue
-		}
-		logger.DebugContext(ctx, "LoadProfilesFromReader: loaded profile", "name", p.Metadata.Name)
-		out = append(out, p)
-	}
-
-	logger.InfoContext(ctx, "LoadProfilesFromReader: finished loading profiles", "count", len(out))
-	return out, nil
+	return pkgdiscovery.LoadProfilesFromReaderWithContext(ctx, logger, r)
 }
 
 func PrintProfilesTable(w io.Writer, profiles []api.TerminalProfileDoc, wide bool) error {
@@ -158,25 +116,9 @@ func PrintProfilesTable(w io.Writer, profiles []api.TerminalProfileDoc, wide boo
 	return tw.Flush()
 }
 
-// FindProfileByName scans the YAML file at path and returns the profile whose metadata.name matches.
-// The match is case-sensitive; use strings.EqualFold if you prefer case-insensitive lookup.
+// FindProfileByName is a thin wrapper around [pkgdiscovery.FindProfileByName].
 func FindProfileByName(ctx context.Context, logger *slog.Logger, path, name string) (*api.TerminalProfileDoc, error) {
-	logger.DebugContext(ctx, "FindProfileByName: searching for profile", "name", name, "path", path)
-	profiles, err := LoadProfilesFromPath(ctx, logger, path)
-	if err != nil {
-		logger.ErrorContext(ctx, "FindProfileByName: failed to load profiles", "error", err)
-		return nil, err
-	}
-
-	for _, p := range profiles {
-		if p.Metadata.Name == name {
-			logger.InfoContext(ctx, "FindProfileByName: found profile", "name", name)
-			return &p, nil
-		}
-	}
-
-	logger.WarnContext(ctx, "FindProfileByName: profile not found", "name", name, "path", path)
-	return nil, fmt.Errorf("profile %q not found in %s", name, path)
+	return pkgdiscovery.FindProfileByName(ctx, logger, path, name)
 }
 
 // FindAndPrintProfileMetadata finds all metadata.json under profiles file,

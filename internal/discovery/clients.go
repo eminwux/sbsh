@@ -22,11 +22,10 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"sort"
 	"text/tabwriter"
 
-	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/pkg/api"
+	pkgdiscovery "github.com/eminwux/sbsh/pkg/discovery"
 )
 
 // ScanAndPrintClients finds all metadata.json under runPath/clients/*,
@@ -97,30 +96,9 @@ func ScanAndPruneClients(ctx context.Context, logger *slog.Logger, runPath strin
 	return err
 }
 
+// ScanClients is a thin wrapper around [pkgdiscovery.ScanClients].
 func ScanClients(ctx context.Context, logger *slog.Logger, runPath string) ([]api.ClientDoc, error) {
-	out, err := scanMetadataFiles(
-		ctx,
-		logger,
-		runPath,
-		defaults.ClientsRunPath,
-		"ScanClients",
-		clientID,
-		clientName,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// Optional: stable order by ID (fallback to Name if ID empty)
-	sort.Slice(out, func(i, j int) bool {
-		idi, idj := clientID(out[i]), clientID(out[j])
-		if idi != idj {
-			return idi < idj
-		}
-		return clientName(out[i]) < clientName(out[j])
-	})
-
-	return out, nil
+	return pkgdiscovery.ScanClients(ctx, logger, runPath)
 }
 
 func PruneClient(logger *slog.Logger, metadata *api.ClientDoc) error {
@@ -208,23 +186,14 @@ func printClients(w io.Writer, clients []api.ClientDoc, printAll, wide bool) err
 	return tw.Flush()
 }
 
-// FindClientByName scans runPath/clients/*/metadata.json and returns
-// the client whose Metadata.Name matches the given name. If not found, returns nil.
+// FindClientByName is a thin wrapper around [pkgdiscovery.FindClientByName].
 func FindClientByName(
 	ctx context.Context,
 	logger *slog.Logger,
 	runPath string,
 	name string,
 ) (*api.ClientDoc, error) {
-	clients, err := ScanClients(ctx, logger, runPath)
-	if err != nil {
-		return nil, err
-	}
-	return findMetadataBy(
-		clients,
-		func(s api.ClientDoc) bool { return clientName(s) == name },
-		fmt.Sprintf("client with name %q not found", name),
-	)
+	return pkgdiscovery.FindClientByName(ctx, logger, runPath, name)
 }
 
 // FindAndPrintClientMetadata finds all metadata.json under runPath/clients/*,

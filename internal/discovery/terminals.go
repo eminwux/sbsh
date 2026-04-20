@@ -28,8 +28,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/pkg/api"
+	pkgdiscovery "github.com/eminwux/sbsh/pkg/discovery"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -124,30 +124,11 @@ func PruneTerminal(logger *slog.Logger, metadata *api.TerminalDoc) error {
 	return err
 }
 
+// ScanTerminals is a thin wrapper around [pkgdiscovery.ScanTerminals].
+// Kept here so in-tree internal callers do not need to import pkg/discovery
+// directly; new external consumers should use pkg/discovery.
 func ScanTerminals(ctx context.Context, logger *slog.Logger, runPath string) ([]api.TerminalDoc, error) {
-	out, err := scanMetadataFiles(
-		ctx,
-		logger,
-		runPath,
-		defaults.TerminalsRunPath,
-		"ScanTerminals",
-		terminalID,
-		terminalName,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// Optional: stable order by ID (fallback to Name if ID empty)
-	sort.Slice(out, func(i, j int) bool {
-		idi, idj := terminalID(out[i]), terminalID(out[j])
-		if idi != idj {
-			return idi < idj
-		}
-		return terminalName(out[i]) < terminalName(out[j])
-	})
-
-	return out, nil
+	return pkgdiscovery.ScanTerminals(ctx, logger, runPath)
 }
 
 func printTerminals(w io.Writer, terminals []api.TerminalDoc, printAll, wide bool) error {
@@ -282,42 +263,24 @@ func joinLabels(m map[string]string) string {
 	return strings.Join(parts, ",")
 }
 
-// FindTerminalByID scans runPath/terminals/*/metadata.json and returns
-// the terminal whose Spec.ID matches the given id. If not found, returns nil.
+// FindTerminalByID is a thin wrapper around [pkgdiscovery.FindTerminalByID].
 func FindTerminalByID(
 	ctx context.Context,
 	logger *slog.Logger,
 	runPath string,
 	id string,
 ) (*api.TerminalDoc, error) {
-	terminals, err := ScanTerminals(ctx, logger, runPath)
-	if err != nil {
-		return nil, err
-	}
-	return findMetadataBy(
-		terminals,
-		func(t api.TerminalDoc) bool { return string(t.Spec.ID) == id },
-		fmt.Sprintf("terminal %q not found", id),
-	)
+	return pkgdiscovery.FindTerminalByID(ctx, logger, runPath, id)
 }
 
-// FindTerminalByName scans runPath/terminals/*/metadata.json and returns
-// the terminal whose Spec.Name matches the given name. If not found, returns nil.
+// FindTerminalByName is a thin wrapper around [pkgdiscovery.FindTerminalByName].
 func FindTerminalByName(
 	ctx context.Context,
 	logger *slog.Logger,
 	runPath string,
 	name string,
 ) (*api.TerminalDoc, error) {
-	terminals, err := ScanTerminals(ctx, logger, runPath)
-	if err != nil {
-		return nil, err
-	}
-	return findMetadataBy(
-		terminals,
-		func(t api.TerminalDoc) bool { return terminalName(t) == name },
-		fmt.Sprintf("terminal with name %q not found", name),
-	)
+	return pkgdiscovery.FindTerminalByName(ctx, logger, runPath, name)
 }
 
 func PrintTerminalSpec(s *api.TerminalSpec, logger *slog.Logger) error {
