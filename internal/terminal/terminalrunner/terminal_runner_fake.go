@@ -40,6 +40,8 @@ type Test struct {
 	OnInitShellFunc     func() error
 	MetadataFunc        func() (*api.TerminalDoc, error)
 	PostAttachShellFunc func() error
+	WritePTYFunc        func(data []byte) error
+	SubscribeFunc       func(req *api.SubscribeRequest, response *api.ResponseWithFD) error
 }
 
 func NewTerminalRunnerTest(_ context.Context) TerminalRunner {
@@ -139,6 +141,20 @@ func (sr *Test) Metadata() (*api.TerminalDoc, error) {
 func (sr *Test) PostAttachShell() error {
 	if sr.PostAttachShellFunc != nil {
 		return sr.PostAttachShellFunc()
+	}
+	return errdefs.ErrFuncNotSet
+}
+
+func (sr *Test) WritePTY(data []byte) error {
+	if sr.WritePTYFunc != nil {
+		return sr.WritePTYFunc(data)
+	}
+	return errdefs.ErrFuncNotSet
+}
+
+func (sr *Test) Subscribe(req *api.SubscribeRequest, response *api.ResponseWithFD) error {
+	if sr.SubscribeFunc != nil {
+		return sr.SubscribeFunc(req, response)
 	}
 	return errdefs.ErrFuncNotSet
 }

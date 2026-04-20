@@ -31,8 +31,10 @@ import (
 	"github.com/eminwux/sbsh/cmd/sb/detach"
 	"github.com/eminwux/sbsh/cmd/sb/get"
 	"github.com/eminwux/sbsh/cmd/sb/prune"
+	"github.com/eminwux/sbsh/cmd/sb/read"
 	"github.com/eminwux/sbsh/cmd/sb/stop"
 	"github.com/eminwux/sbsh/cmd/sb/version"
+	"github.com/eminwux/sbsh/cmd/sb/write"
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/logging"
@@ -122,6 +124,8 @@ func setupRootCmd(rootCmd *cobra.Command) error {
 	rootCmd.AddCommand(detach.NewDetachCmd())
 	rootCmd.AddCommand(attach.NewAttachCmd())
 	rootCmd.AddCommand(get.NewGetCmd())
+	rootCmd.AddCommand(write.NewWriteCmd())
+	rootCmd.AddCommand(read.NewReadCmd())
 
 	rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.sbsh/config.yaml)")
 	if err := viper.BindPFlag(config.SB_ROOT_CONFIG.ViperKey, rootCmd.PersistentFlags().Lookup("config")); err != nil {

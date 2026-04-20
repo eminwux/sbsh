@@ -73,6 +73,14 @@ func (m *mockTerminalClient) Stop(_ context.Context, _ *api.StopArgs) error {
 	return nil
 }
 
+func (m *mockTerminalClient) Write(_ context.Context, _ *api.WriteRequest) error {
+	return nil
+}
+
+func (m *mockTerminalClient) Subscribe(_ context.Context, _ *api.SubscribeRequest, _ any) (net.Conn, error) {
+	return nil, errors.New("not implemented in mock")
+}
+
 func Test_WaitReady_WithMultipleStates(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	ctx, cancel := context.WithCancel(context.Background())

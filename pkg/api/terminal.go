@@ -30,6 +30,8 @@ type TerminalController interface {
 	Metadata() (*TerminalDoc, error)
 	State() (*TerminalStatusMode, error)
 	Stop(args *StopArgs) error
+	Write(req *WriteRequest) error
+	Subscribe(req *SubscribeRequest, reply *ResponseWithFD) error
 }
 
 type TerminalDoc struct {
@@ -149,13 +151,15 @@ func (s TerminalStatusMode) String() string {
 const TerminalService = "TerminalController"
 
 const (
-	TerminalMethodResize   = TerminalService + ".Resize"
-	TerminalMethodPing     = TerminalService + ".Ping"
-	TerminalMethodAttach   = TerminalService + ".Attach"
-	TerminalMethodDetach   = TerminalService + ".Detach"
-	TerminalMethodMetadata = TerminalService + ".Metadata"
-	TerminalMethodState    = TerminalService + ".State"
-	TerminalMethodStop     = TerminalService + ".Stop"
+	TerminalMethodResize    = TerminalService + ".Resize"
+	TerminalMethodPing      = TerminalService + ".Ping"
+	TerminalMethodAttach    = TerminalService + ".Attach"
+	TerminalMethodDetach    = TerminalService + ".Detach"
+	TerminalMethodMetadata  = TerminalService + ".Metadata"
+	TerminalMethodState     = TerminalService + ".State"
+	TerminalMethodStop      = TerminalService + ".Stop"
+	TerminalMethodWrite     = TerminalService + ".Write"
+	TerminalMethodSubscribe = TerminalService + ".Subscribe"
 )
 
 type PingMessage struct {
@@ -169,6 +173,20 @@ type ResizeArgs struct {
 
 type StopArgs struct {
 	Reason string
+}
+
+// WriteRequest carries bytes to push into a terminal's PTY input.
+// Bytes are sent verbatim — the CLI layer is responsible for any
+// caret notation or hex-escape interpretation.
+type WriteRequest struct {
+	Data []byte
+}
+
+// SubscribeRequest identifies the caller of a Subscribe RPC. ClientID
+// is used only for server-side logging and attacher accounting; it does
+// not appear in TerminalStatus.Attachers.
+type SubscribeRequest struct {
+	ClientID ID
 }
 
 // ResponseWithFD carries a normal JSON result plus OOB file descriptors.
