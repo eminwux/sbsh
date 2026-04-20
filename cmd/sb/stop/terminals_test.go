@@ -19,6 +19,7 @@ package stop
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/eminwux/sbsh/cmd/config"
@@ -92,8 +93,8 @@ func Test_ResolveStopOpts(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			viper.Reset()
 			c.setup()
-			cmd := NewStopTerminalsCmd()
-			_, err := resolveStopOpts(cmd, c.args)
+			_ = NewStopTerminalsCmd() // build flag bindings into viper
+			_, err := resolveStopOpts(c.args)
 			if c.wantErr == nil {
 				if err != nil {
 					t.Fatalf("expected no error, got %v", err)
@@ -113,5 +114,25 @@ func Test_ProcessAlive_InvalidPid(t *testing.T) {
 	}
 	if processAlive(-1) {
 		t.Fatal("expected pid -1 to be reported dead")
+	}
+}
+
+func Test_ProcessIsOurs_DifferentToken(t *testing.T) {
+	pid := os.Getpid()
+	// any non-zero token that won't match self's actual start time forces
+	// pidutil.Match to return false, proving processIsOurs rejects mismatches
+	// even when the pid is alive.
+	if processIsOurs(pid, 1) {
+		t.Fatal("expected processIsOurs to reject a live pid with a mismatching pidStart token")
+	}
+}
+
+func Test_ProcessIsOurs_ZeroTokenFallsBack(t *testing.T) {
+	// Zero pidStart means metadata predates the token; fall back to liveness.
+	if !processIsOurs(os.Getpid(), 0) {
+		t.Fatal("expected processIsOurs(self, 0) to be true (liveness fallback)")
+	}
+	if processIsOurs(0, 0) {
+		t.Fatal("expected processIsOurs(0, 0) to be false")
 	}
 }

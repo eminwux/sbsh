@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/eminwux/sbsh/internal/defaults"
+	"github.com/eminwux/sbsh/internal/pidutil"
 	"github.com/eminwux/sbsh/internal/shared"
 	"github.com/eminwux/sbsh/pkg/api"
 )
@@ -39,8 +40,15 @@ func (sr *Exec) CreateMetadata() error {
 		return fmt.Errorf("mkdir terminal dir: %w", err)
 	}
 
+	pid := os.Getpid()
+	pidStart, startErr := pidutil.StartTime(pid)
+	if startErr != nil {
+		sr.logger.Warn("CreateMetadata: failed to capture pid start-time token", "pid", pid, "error", startErr)
+	}
+
 	sr.metadataMu.Lock()
-	sr.metadata.Status.Pid = os.Getpid()
+	sr.metadata.Status.Pid = pid
+	sr.metadata.Status.PidStart = pidStart
 	sr.metadata.Status.BaseRunPath = runPath
 	sr.metadata.Status.TerminalRunPath = dir
 	sr.metadata.Status.LogFile = sr.metadata.Spec.LogFile
