@@ -263,3 +263,64 @@ func (c *client) State(ctx context.Context, state *api.TerminalStatusMode) error
 func (c *client) Stop(ctx context.Context, args *api.StopArgs) error {
 	return c.call(ctx, c.logger, api.TerminalMethodStop, args, &api.Empty{})
 }
+
+func (c *client) Write(ctx context.Context, req *api.WriteRequest) error {
+	if req == nil {
+		req = &api.WriteRequest{}
+	}
+	return c.call(ctx, c.logger, api.TerminalMethodWrite, req, &api.Empty{})
+}
+
+// Subscribe (uses FD-aware codec) returns a read-only net.Conn built from the
+// FD sent via SCM_RIGHTS. Bytes on the conn are live PTY output from the
+// moment the server registers the subscriber. It mirrors the Attach call
+// pattern but is output-only: the server closes the read half on its side.
+func (c *client) Subscribe(ctx context.Context, req *api.SubscribeRequest, out any) (net.Conn, error) {
+	if req == nil {
+		req = &api.SubscribeRequest{}
+	}
+	var gotFDs []int
+
+	c.logger.InfoContext(ctx, "Subscribe RPC call starting")
+
+	err := c.callWithCodec(
+		ctx,
+		api.TerminalMethodSubscribe,
+		req,
+		out,
+		func(conn net.Conn) (rpc.ClientCodec, func(), error) {
+			uconn, ok := conn.(*net.UnixConn)
+			if !ok {
+				_ = conn.Close()
+				return nil, nil, errors.New("subscribe: not a *net.UnixConn")
+			}
+			codec := newUnixJSONClientCodec(uconn, c.logger)
+
+			cleanup := func() {
+				gotFDs = codec.takeLastFDs()
+				_ = conn.Close()
+			}
+
+			return codec, cleanup, nil
+		},
+	)
+
+	if err != nil {
+		c.logger.ErrorContext(ctx, "Subscribe failed", "error", err)
+		return nil, err
+	}
+
+	if len(gotFDs) == 0 {
+		c.logger.ErrorContext(ctx, "subscribe: server did not send IO fd")
+		return nil, errors.New("subscribe: server did not send IO fd")
+	}
+
+	f := os.NewFile(uintptr(gotFDs[0]), "subscribe")
+	defer f.Close()
+	ioConn, err := net.FileConn(f)
+	if err != nil {
+		return nil, fmt.Errorf("subscribe: FileConn: %w", err)
+	}
+	c.logger.InfoContext(ctx, "Subscribe succeeded, returning net.Conn")
+	return ioConn, nil
+}

@@ -101,6 +101,9 @@ func (sr *Exec) Close(reason error) error {
 	sr.clients = nil
 	sr.clientsMu.Unlock()
 
+	// close all output subscribers
+	sr.closeAllSubscribers()
+
 	// kill PTY child and close PTY master as needed
 	if sr.cmd != nil && sr.cmd.Process != nil {
 		if err := sr.cmd.Process.Kill(); err != nil {

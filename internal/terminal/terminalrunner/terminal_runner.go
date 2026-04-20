@@ -37,4 +37,6 @@ type TerminalRunner interface {
 	OnInitShell() error
 	PostAttachShell() error
 	Metadata() (*api.TerminalDoc, error)
+	WritePTY(data []byte) error
+	Subscribe(req *api.SubscribeRequest, response *api.ResponseWithFD) error
 }

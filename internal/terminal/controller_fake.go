@@ -37,6 +37,8 @@ type ControllerTest struct {
 	MetadataFunc  func() (*api.TerminalDoc, error)
 	StateFunc     func() (*api.TerminalStatusMode, error)
 	StopFunc      func(args *api.StopArgs) error
+	WriteFunc     func(req *api.WriteRequest) error
+	SubscribeFunc func(req *api.SubscribeRequest, response *api.ResponseWithFD) error
 }
 
 func (f *ControllerTest) Run(spec *api.TerminalSpec) error {
@@ -112,6 +114,20 @@ func (f *ControllerTest) State() (*api.TerminalStatusMode, error) {
 func (f *ControllerTest) Stop(args *api.StopArgs) error {
 	if f.StopFunc != nil {
 		return f.StopFunc(args)
+	}
+	return errdefs.ErrFuncNotSet
+}
+
+func (f *ControllerTest) Write(req *api.WriteRequest) error {
+	if f.WriteFunc != nil {
+		return f.WriteFunc(req)
+	}
+	return errdefs.ErrFuncNotSet
+}
+
+func (f *ControllerTest) Subscribe(req *api.SubscribeRequest, response *api.ResponseWithFD) error {
+	if f.SubscribeFunc != nil {
+		return f.SubscribeFunc(req, response)
 	}
 	return errdefs.ErrFuncNotSet
 }

@@ -342,6 +342,29 @@ func (c *Controller) Stop(args *api.StopArgs) error {
 	return nil
 }
 
+func (c *Controller) Write(req *api.WriteRequest) error {
+	c.srMu.RLock()
+	sr := c.sr
+	c.srMu.RUnlock()
+	if sr == nil {
+		return errors.New("terminal runner not initialized")
+	}
+	if req == nil || len(req.Data) == 0 {
+		return nil
+	}
+	return sr.WritePTY(req.Data)
+}
+
+func (c *Controller) Subscribe(req *api.SubscribeRequest, response *api.ResponseWithFD) error {
+	c.srMu.RLock()
+	sr := c.sr
+	c.srMu.RUnlock()
+	if sr == nil {
+		return errors.New("terminal runner not initialized")
+	}
+	return sr.Subscribe(req, response)
+}
+
 func (c *Controller) State() (*api.TerminalStatusMode, error) {
 	c.srMu.RLock()
 	sr := c.sr
