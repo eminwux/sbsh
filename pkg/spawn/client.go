@@ -14,6 +14,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build unix
+
 package spawn
 
 import (
@@ -67,7 +69,8 @@ type ClientOptions struct {
 	ReadyPollInterval time.Duration
 
 	// StopGracePeriod caps each step of the Close escalation
-	// (Detach RPC, SIGTERM, SIGKILL). 0 uses the default.
+	// (Detach RPC, SIGTERM, SIGKILL). 0 uses defaultGracePeriod (2s)
+	// per step, giving ~6s wall-clock before SIGKILL lands.
 	StopGracePeriod time.Duration
 }
 
@@ -153,9 +156,17 @@ func validateClientInputs(doc *api.ClientDoc, opts ClientOptions) error {
 }
 
 // buildClientAttachArgs translates a ClientDoc into the CLI argv for
-// `sb [--run-path X] attach [--socket S] [--id I | <name>] [--disable-detach]`.
-// It is exported-for-test via exportedForTestBuildClientAttachArgs to
-// keep the API surface small.
+// `sb [--run-path X] attach --socket S [--id I | <name>] [--disable-detach]`.
+//
+// The `--socket` flag is documented on `sb attach` as "for the
+// terminal" but at runtime it sets the *client's* control socket
+// (see cmd/sb/attach/attach.go:161,210). We rely on that actual
+// behavior so the parent process can predict ClientHandle.SocketPath();
+// the TerminalSpec.SocketFile in the child's doc is overridden from
+// metadata.json during discovery in internal/client.createAttachTerminal,
+// so the flag's conflated double-use does not break attach.
+// If --id and --name are both set the CLI rejects the combination,
+// so spawn deterministically prefers ID (matches CLI precedence).
 func buildClientAttachArgs(doc *api.ClientDoc, opts ClientOptions) []string {
 	const maxAttachArgs = 8 // --run-path X attach --socket S --id I --disable-detach
 	args := make([]string, 0, maxAttachArgs+len(opts.ExtraArgs))
@@ -164,11 +175,8 @@ func buildClientAttachArgs(doc *api.ClientDoc, opts ClientOptions) []string {
 		args = append(args, "--run-path", doc.Spec.RunPath)
 	}
 	args = append(args, opts.ExtraArgs...)
-	args = append(args, "attach")
+	args = append(args, "attach", "--socket", doc.Spec.SockerCtrl)
 
-	if doc.Spec.SockerCtrl != "" {
-		args = append(args, "--socket", doc.Spec.SockerCtrl)
-	}
 	if !doc.Spec.DetachKeystroke {
 		args = append(args, "--disable-detach")
 	}
@@ -195,12 +203,16 @@ func (h *ClientHandle) SocketPath() string { return h.socketPath }
 func (h *ClientHandle) Doc() *api.ClientDoc { return h.doc }
 
 // WaitReady blocks until the client's control socket file is visible
-// on disk. Until PR-E adds a Ping RPC on ClientController, socket
+// on disk. Until PR-E grows ClientController with a Ping RPC, socket
 // presence is the best readiness signal spawn can offer without
-// peeking at internal state.
+// peeking at internal state. Caveat: the file appears the instant the
+// Unix listener binds, which is slightly before the client has fully
+// wired up its attach to the terminal. Callers that race into a
+// Detach() RPC immediately after WaitReady may observe a transient
+// connection refused; retry or use a small back-off until PR-E.
 func (h *ClientHandle) WaitReady(ctx context.Context) error {
 	if h.proc.exited() {
-		return fmt.Errorf("%w: %w", ErrProcessExited, h.proc.takeExitErr())
+		return wrapProcessExited(h.proc.takeExitErr())
 	}
 
 	readyCtx, cancel := h.readyContext(ctx)
@@ -213,7 +225,7 @@ func (h *ClientHandle) WaitReady(ctx context.Context) error {
 
 	for {
 		if h.proc.exited() {
-			return fmt.Errorf("%w: %w", ErrProcessExited, h.proc.takeExitErr())
+			return wrapProcessExited(h.proc.takeExitErr())
 		}
 		if _, err := os.Stat(h.socketPath); err == nil {
 			return nil
@@ -226,7 +238,7 @@ func (h *ClientHandle) WaitReady(ctx context.Context) error {
 			}
 			return ctx.Err()
 		case <-h.proc.exitCh:
-			return fmt.Errorf("%w: %w", ErrProcessExited, h.proc.takeExitErr())
+			return wrapProcessExited(h.proc.takeExitErr())
 		case <-time.After(poll):
 		}
 	}
