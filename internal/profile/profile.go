@@ -24,9 +24,9 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/discovery"
+	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/pkg/api"
 )
@@ -131,12 +131,20 @@ type BuildTerminalSpecParams struct {
 // the profiles file and merges the profile into the spec.
 // The returned TerminalSpec is ready to be used to spawn a terminal.
 //
+// RunPath is required. Callers (CLI or library consumers) must resolve their own
+// state-root default before invoking this function; an empty RunPath returns
+// errdefs.ErrRunPathRequired.
+//
 //nolint:funlen // For understandability, this function is long but straightforward.
 func BuildTerminalSpec(
 	ctx context.Context,
 	logger *slog.Logger,
 	input *BuildTerminalSpecParams,
 ) (*api.TerminalSpec, error) {
+	if input.RunPath == "" {
+		return nil, errdefs.ErrRunPathRequired
+	}
+
 	if input.TerminalID == "" {
 		// Default terminal ID to a random one
 		input.TerminalID = naming.RandomID()
@@ -149,11 +157,6 @@ func BuildTerminalSpec(
 	if input.ProfilesFile == "" {
 		// Default profilesFilename to $RUN_PATH/profiles.yaml
 		input.ProfilesFile = filepath.Join(input.RunPath, ".sbsh", "profiles.yaml")
-	}
-
-	if input.RunPath == "" {
-		// Default runPath to $HOME/.sbsh
-		input.RunPath = config.DefaultRunPath()
 	}
 
 	if input.TerminalCmd == "" {

@@ -69,6 +69,7 @@ var (
 	ErrConflictingFlags       = errors.New("conflicting flags provided; only one flag option can be used")
 	ErrBuildSocketPath        = errors.New("cannot build socket path")
 	ErrDetermineRunPath       = errors.New("cannot determine run path")
+	ErrRunPathRequired        = errors.New("run path is required")
 	ErrNoClientIdentification = errors.New("no client identification method provided, cannot detach")
 	ErrPositionalWithFlags    = errors.New("positional argument cannot be used with flags")
 	ErrInvalidOutputFormat    = errors.New("invalid output format")
