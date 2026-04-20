@@ -31,6 +31,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/errdefs"
+	"github.com/eminwux/sbsh/internal/pidutil"
 	"github.com/eminwux/sbsh/pkg/api"
 	rpcterminal "github.com/eminwux/sbsh/pkg/rpcclient/terminal"
 	"github.com/spf13/cobra"
@@ -43,6 +44,8 @@ const (
 	stopPollInterval = 100 * time.Millisecond
 	//nolint:mnd // short RPC dial deadline (network is a Unix socket)
 	stopRPCDialTimeout = 3 * time.Second
+	//nolint:mnd // short fixed grace after SIGKILL; the kernel reaps almost immediately
+	sigkillGrace = 2 * time.Second
 )
 
 type stopOpts struct {
@@ -57,7 +60,7 @@ type stopOpts struct {
 
 func NewStopTerminalsCmd() *cobra.Command {
 	stopTerminalsCmd := &cobra.Command{
-		Use:     "terminal [name]",
+		Use:     "terminal [name|--all]",
 		Aliases: []string{"terminals", "terms", "term", "t"},
 		Short:   "Stop a running terminal",
 		Long: `Stop a running terminal by name.
@@ -77,7 +80,7 @@ Metadata is left in place so 'sb prune terminals' can clean it up.`,
 				return errdefs.ErrLoggerNotFound
 			}
 
-			opts, err := resolveStopOpts(cmd, args)
+			opts, err := resolveStopOpts(args)
 			if err != nil {
 				return err
 			}
@@ -111,7 +114,7 @@ func setupStopTerminalsCmd(c *cobra.Command) {
 	_ = viper.BindPFlag(config.SB_STOP_IGNORE_NOT_FOUND.ViperKey, c.Flags().Lookup("ignore-not-found"))
 }
 
-func resolveStopOpts(cmd *cobra.Command, args []string) (stopOpts, error) {
+func resolveStopOpts(args []string) (stopOpts, error) {
 	opts := stopOpts{
 		runPath:        viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 		all:            viper.GetBool(config.SB_STOP_ALL.ViperKey),
@@ -138,9 +141,6 @@ func resolveStopOpts(cmd *cobra.Command, args []string) (stopOpts, error) {
 		return opts, fmt.Errorf("%w: --timeout must be greater than zero", errdefs.ErrInvalidFlag)
 	}
 
-	// cmd is only needed to keep a parallel signature with other commands
-	// that read flags directly; viper already has everything we need.
-	_ = cmd
 	return opts, nil
 }
 
@@ -246,20 +246,22 @@ func stopOneTerminal(
 	}
 
 	// Refresh liveness: ReconcileTerminals mutates state, but when called
-	// through FindTerminalByName we only see the on-disk snapshot. Check PID
-	// directly.
-	if doc.Status.State == api.Exited || !processAlive(doc.Status.Pid) {
+	// through FindTerminalByName we only see the on-disk snapshot. Verify
+	// the PID still belongs to the same process we recorded — a recycled
+	// PID looks "alive" but is some unrelated stranger.
+	if doc.Status.State == api.Exited || !processIsOurs(doc.Status.Pid, doc.Status.PidStart) {
 		fmt.Fprintf(stdout, "terminal %q already exited\n", name)
 		return resultAlreadyExited
 	}
 
 	if opts.force {
-		if err := sendSignal(doc.Status.Pid, syscall.SIGKILL); err != nil {
+		if err := sendSignal(doc.Status.Pid, doc.Status.PidStart, syscall.SIGKILL); err != nil {
 			fmt.Fprintf(stderr, "failed to SIGKILL terminal %q: %v\n", name, err)
 			return resultFailed
 		}
-		if !waitForExit(ctx, doc.Status.Pid, opts.timeout) {
-			fmt.Fprintf(stderr, "terminal %q did not exit after SIGKILL within %s\n", name, opts.timeout)
+		if !waitForExit(ctx, doc.Status.Pid, doc.Status.PidStart, sigkillGrace) {
+			fmt.Fprintf(stderr, "terminal %q did not exit after SIGKILL within %s: %v\n",
+				name, sigkillGrace, errdefs.ErrStopTimeout)
 			return resultFailed
 		}
 		fmt.Fprintf(stdout, "terminal %q stopped (SIGKILL)\n", name)
@@ -270,30 +272,31 @@ func stopOneTerminal(
 	if err := stopViaRPC(ctx, logger, doc); err != nil {
 		logger.DebugContext(ctx, "Stop RPC failed, falling back to SIGTERM",
 			"name", name, "error", err)
-		if errSig := sendSignal(doc.Status.Pid, syscall.SIGTERM); errSig != nil {
+		if errSig := sendSignal(doc.Status.Pid, doc.Status.PidStart, syscall.SIGTERM); errSig != nil {
 			fmt.Fprintf(stderr, "failed to signal terminal %q: %v\n", name, errSig)
 			return resultFailed
 		}
 	}
 
-	if waitForExit(ctx, doc.Status.Pid, opts.timeout) {
+	if waitForExit(ctx, doc.Status.Pid, doc.Status.PidStart, opts.timeout) {
 		fmt.Fprintf(stdout, "terminal %q stopped\n", name)
 		return resultStopped
 	}
 
 	if !opts.killAfter {
-		fmt.Fprintf(stderr, "terminal %q did not exit within %s (use --kill-after to escalate)\n",
-			name, opts.timeout)
+		fmt.Fprintf(stderr, "terminal %q did not exit within %s (use --kill-after to escalate): %v\n",
+			name, opts.timeout, errdefs.ErrStopTimeout)
 		return resultFailed
 	}
 
 	fmt.Fprintf(stdout, "terminal %q did not exit within %s; escalating to SIGKILL\n", name, opts.timeout)
-	if err := sendSignal(doc.Status.Pid, syscall.SIGKILL); err != nil {
+	if err := sendSignal(doc.Status.Pid, doc.Status.PidStart, syscall.SIGKILL); err != nil {
 		fmt.Fprintf(stderr, "failed to SIGKILL terminal %q: %v\n", name, err)
 		return resultFailed
 	}
-	if !waitForExit(ctx, doc.Status.Pid, opts.timeout) {
-		fmt.Fprintf(stderr, "terminal %q did not exit after SIGKILL within %s\n", name, opts.timeout)
+	if !waitForExit(ctx, doc.Status.Pid, doc.Status.PidStart, sigkillGrace) {
+		fmt.Fprintf(stderr, "terminal %q did not exit after SIGKILL within %s: %v\n",
+			name, sigkillGrace, errdefs.ErrStopTimeout)
 		return resultFailed
 	}
 	fmt.Fprintf(stdout, "terminal %q stopped (SIGKILL)\n", name)
@@ -310,19 +313,33 @@ func stopViaRPC(
 		return errors.New("terminal metadata has no control socket recorded")
 	}
 
-	dialCtx, cancel := context.WithTimeout(ctx, stopRPCDialTimeout)
-	defer cancel()
-
 	rc := rpcterminal.NewUnix(socket, logger, rpcterminal.WithDialTimeout(stopRPCDialTimeout))
 	defer func() { _ = rc.Close() }()
 
-	return rc.Stop(dialCtx, &api.StopArgs{Reason: "sb stop"})
+	return rc.Stop(ctx, &api.StopArgs{Reason: "sb stop"})
 }
 
-func sendSignal(pid int, sig syscall.Signal) error {
+// sendSignal delivers sig to pid, but only after confirming pid still maps
+// to the recorded process instance (pidStart). Without that check a SIGKILL
+// after PID reuse would target an unrelated process.
+func sendSignal(pid int, pidStart uint64, sig syscall.Signal) error {
 	if pid <= 0 {
 		return fmt.Errorf("%w: invalid pid %d", errdefs.ErrSignalProcess, pid)
 	}
+
+	ok, err := pidutil.Match(pid, pidStart)
+	if err != nil {
+		// /proc entry vanished while we were looking — process is gone.
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("%w: %w", errdefs.ErrSignalProcess, err)
+	}
+	if !ok {
+		// PID has been recycled by an unrelated process; refuse to signal.
+		return nil
+	}
+
 	proc, err := os.FindProcess(pid)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errdefs.ErrSignalProcess, err)
@@ -335,6 +352,22 @@ func sendSignal(pid int, sig syscall.Signal) error {
 		return fmt.Errorf("%w: %w", errdefs.ErrSignalProcess, err)
 	}
 	return nil
+}
+
+// processIsOurs reports whether pid is alive AND matches the recorded
+// pidStart token. A live but mismatched PID counts as "not ours" so callers
+// treat the original process as gone.
+func processIsOurs(pid int, pidStart uint64) bool {
+	if pid <= 0 {
+		return false
+	}
+	if pidStart != 0 {
+		ok, err := pidutil.Match(pid, pidStart)
+		if err != nil || !ok {
+			return false
+		}
+	}
+	return processAlive(pid)
 }
 
 func processAlive(pid int) bool {
@@ -356,13 +389,13 @@ func processAlive(pid int) bool {
 	return errors.Is(err, syscall.EPERM)
 }
 
-func waitForExit(ctx context.Context, pid int, timeout time.Duration) bool {
+func waitForExit(ctx context.Context, pid int, pidStart uint64, timeout time.Duration) bool {
 	if pid <= 0 {
 		return true
 	}
 	deadline := time.Now().Add(timeout)
 	for {
-		if !processAlive(pid) {
+		if !processIsOurs(pid, pidStart) {
 			return true
 		}
 		if time.Now().After(deadline) {
@@ -370,7 +403,7 @@ func waitForExit(ctx context.Context, pid int, timeout time.Duration) bool {
 		}
 		select {
 		case <-ctx.Done():
-			return !processAlive(pid)
+			return !processIsOurs(pid, pidStart)
 		case <-time.After(stopPollInterval):
 		}
 	}
