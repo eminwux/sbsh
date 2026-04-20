@@ -26,6 +26,15 @@ import (
 	"time"
 )
 
+// shortenWriteTimeout lowers the drain-goroutine write deadline for the
+// duration of a test so a hung-peer scenario detaches quickly instead of
+// waiting the production 5s. Returns a restore func.
+func shortenWriteTimeout(d time.Duration) func() {
+	prev := subscriberWriteTimeout
+	subscriberWriteTimeout = d
+	return func() { subscriberWriteTimeout = prev }
+}
+
 // newPipeConnPair returns a (clientSide, serverSide) net.Pipe pair. The
 // subscriberWriter forwards bytes into serverSide; the test reads from
 // clientSide to verify output.
@@ -35,7 +44,7 @@ func newPipeConnPair() (net.Conn, net.Conn) {
 }
 
 func TestSubscriber_DeliversBytesInOrder(t *testing.T) {
-	t.Parallel()
+	// Not t.Parallel: tests in this file mutate subscriberWriteTimeout.
 	clientSide, serverSide := newPipeConnPair()
 	defer clientSide.Close()
 
@@ -68,10 +77,14 @@ func TestSubscriber_DeliversBytesInOrder(t *testing.T) {
 }
 
 func TestSubscriber_LaggedReaderIsDropped(t *testing.T) {
-	t.Parallel()
-	// The client never reads, so serverSide writes will block once the
-	// net.Pipe buffer fills. Any overflow beyond maxBytes must close
-	// the subscriber rather than stall the fan-out.
+	// Cannot t.Parallel alongside shortenWriteTimeout — it mutates a
+	// package-level var read by the drain goroutine.
+	// The client never reads, so serverSide writes will block. With the
+	// production timeout of 5s the detach would lag this test; drop it
+	// so the hung-peer path bails quickly.
+	restore := shortenWriteTimeout(100 * time.Millisecond)
+	defer restore()
+
 	clientSide, serverSide := newPipeConnPair()
 	defer clientSide.Close()
 
@@ -112,5 +125,61 @@ func TestSubscriber_LaggedReaderIsDropped(t *testing.T) {
 	}
 	if !detached.Load() {
 		t.Fatal("detach callback not invoked after overflow")
+	}
+}
+
+// TestSubscriber_LaggedNoticeReachesClient covers the bug flagged in the
+// PR #119 review: on overflow, the sentinel must actually arrive on the
+// client side so the reader can surface ErrSubscriberLagged instead of a
+// clean EOF. Before the fix, Write closed the conn before Run could
+// drain, so the sentinel was silently dropped.
+func TestSubscriber_LaggedNoticeReachesClient(t *testing.T) {
+	// Not t.Parallel for the same reason as above.
+	clientSide, serverSide := newPipeConnPair()
+
+	const maxBytes = 128
+	var detached atomic.Bool
+	sub := newSubscriberWriter(serverSide, maxBytes, func() { detached.Store(true) }, slog.Default())
+	go sub.Run()
+
+	// Reader drains the client side so drain goroutine can make progress
+	// until the overflow fires and the sentinel is written.
+	type readResult struct {
+		data []byte
+		err  error
+	}
+	readCh := make(chan readResult, 1)
+	go func() {
+		got, err := io.ReadAll(clientSide)
+		readCh <- readResult{data: got, err: err}
+	}()
+
+	// Force an overflow immediately: one chunk bigger than maxBytes makes
+	// the first Write hit the lagged branch. The subsequent Close is a
+	// no-op because Write already marked closed.
+	big := bytes.Repeat([]byte("A"), maxBytes*2)
+	if n, err := sub.Write(big); err != nil || n != len(big) {
+		t.Fatalf("Write: n=%d err=%v", n, err)
+	}
+
+	select {
+	case res := <-readCh:
+		if res.err != nil && res.err != io.EOF {
+			t.Fatalf("read: %v", res.err)
+		}
+		if !bytes.Contains(res.data, laggedNotice) {
+			t.Fatalf("laggedNotice not present in stream; got %q", res.data)
+		}
+	case <-time.After(2 * time.Second):
+		_ = clientSide.Close()
+		t.Fatal("timed out waiting for lagged sentinel on client side")
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for !detached.Load() && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !detached.Load() {
+		t.Fatal("detach callback not invoked after sentinel delivery")
 	}
 }

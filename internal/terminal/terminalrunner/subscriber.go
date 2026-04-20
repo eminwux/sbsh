@@ -21,7 +21,15 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"time"
 )
+
+// subscriberWriteTimeout bounds how long the drain goroutine will block
+// in a single conn.Write on a hung peer. Without this, a peer that stops
+// reading but never closes would pin the drain goroutine indefinitely
+// and prevent the lagged sentinel from ever being delivered or detach
+// from firing. var (not const) so tests can shorten it.
+var subscriberWriteTimeout = 5 * time.Second
 
 // defaultSubscriberBufferBytes bounds how far a Subscribe stream can fall
 // behind the PTY reader before the subscriber is disconnected. A slow or
@@ -29,7 +37,10 @@ import (
 const defaultSubscriberBufferBytes = 1 << 20 // 1 MiB
 
 // laggedNotice is appended to a subscriber stream when the ring overflows
-// so a caller can distinguish disconnection from a clean EOF.
+// so a caller can distinguish disconnection from a clean EOF. The \r\n
+// framing is intentional: it renders cleanly in terminal mode and the
+// client-side needle (cmd/sb/read) matches only the bracketed message so
+// framing can evolve without breaking detection.
 var laggedNotice = []byte("\r\n[sbsh: subscriber lagged, disconnecting]\r\n")
 
 // subscriberWriter absorbs PTY output from the multiwriter into a bounded
@@ -65,9 +76,10 @@ func newSubscriberWriter(conn net.Conn, maxBytes int, onDetach func(), logger *s
 // Write is called by DynamicMultiWriter on the PTY reader goroutine. It
 // enqueues bytes into the bounded ring and returns immediately. When the
 // ring would exceed maxBytes the subscriber is marked lagged+closed and
-// the underlying conn is closed so the drain goroutine unblocks and
-// detaches. Write always reports success to the fan-out so one bad
-// subscriber cannot abort output to other attachers or the capture file.
+// the drain goroutine is signalled; Run owns the conn lifecycle and will
+// flush any buffered bytes, emit laggedNotice, and close the conn. Write
+// always reports success to the fan-out so one bad subscriber cannot
+// abort output to other attachers or the capture file.
 func (s *subscriberWriter) Write(p []byte) (int, error) {
 	s.mu.Lock()
 	if s.closed {
@@ -79,7 +91,6 @@ func (s *subscriberWriter) Write(p []byte) (int, error) {
 		s.closed = true
 		s.cond.Broadcast()
 		s.mu.Unlock()
-		_ = s.conn.Close()
 		return len(p), nil
 	}
 	_, _ = s.buf.Write(p)
@@ -104,12 +115,15 @@ func (s *subscriberWriter) Close() error {
 // Run drains the ring to the conn on a dedicated goroutine. It exits
 // when the conn is closed, the peer goes away, or Close is called.
 // Always invokes onDetach on exit so the subscriber is removed from
-// the fan-out exactly once.
+// the fan-out exactly once. A per-write deadline bounds how long a hung
+// peer can stall drain — essential when Write(lagged) no longer closes
+// the conn itself.
 func (s *subscriberWriter) Run() {
 	defer func() {
 		if s.onDetach != nil {
 			s.onDetach()
 		}
+		_ = s.conn.Close()
 	}()
 	for {
 		s.mu.Lock()
@@ -120,21 +134,23 @@ func (s *subscriberWriter) Run() {
 			lagged := s.lagged
 			s.mu.Unlock()
 			if lagged {
-				_, _ = s.conn.Write(laggedNotice)
+				_ = s.conn.SetWriteDeadline(time.Now().Add(subscriberWriteTimeout))
+				if _, err := s.conn.Write(laggedNotice); err != nil {
+					s.logger.Debug("subscriber lagged-notice write failed", "err", err)
+				}
 			}
-			_ = s.conn.Close()
 			return
 		}
 		chunk := make([]byte, s.buf.Len())
 		_, _ = s.buf.Read(chunk)
 		s.mu.Unlock()
 
+		_ = s.conn.SetWriteDeadline(time.Now().Add(subscriberWriteTimeout))
 		if _, err := s.conn.Write(chunk); err != nil {
 			s.logger.Debug("subscriber conn write failed; closing", "err", err)
 			s.mu.Lock()
 			s.closed = true
 			s.mu.Unlock()
-			_ = s.conn.Close()
 			return
 		}
 	}

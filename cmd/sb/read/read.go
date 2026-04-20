@@ -126,7 +126,7 @@ func runRead(
 
 	// Subscribe BEFORE reading the capture file so bytes written during the
 	// replay are captured in the live stream rather than lost at the cutover.
-	conn, err := rc.Subscribe(ctx, &api.SubscribeRequest{ClientID: api.ID(naming.RandomID())}, nil)
+	conn, err := rc.Subscribe(ctx, &api.SubscribeRequest{ClientID: api.ID(naming.RandomID())}, &api.Empty{})
 	if err != nil {
 		return fmt.Errorf("subscribe: %w", err)
 	}
@@ -162,19 +162,39 @@ func dumpCapture(path string, stdout io.Writer) error {
 	return nil
 }
 
-// laggedNotice mirrors the sentinel the server writes before disconnecting
-// a slow subscriber. Detecting it lets us surface a clear error code.
+// laggedNotice mirrors the bracketed core of the server sentinel (see
+// internal/terminal/terminalrunner/subscriber.go). The server wraps this
+// in \r\n framing; the needle here is the bare bracketed form so framing
+// can evolve on the server without breaking client detection.
 var laggedNotice = []byte("[sbsh: subscriber lagged, disconnecting]")
 
 func streamLive(conn net.Conn, stdout, stderr io.Writer) error {
 	buf := make([]byte, 4096)
+	// A single server-side Write delivers the sentinel atomically, but
+	// TCP/socket reads can still split it across chunk boundaries. Keep
+	// a rolling tail of (len(laggedNotice)-1) bytes from the previous
+	// chunk and scan tail+chunk so a split sentinel is still detected.
+	tailCap := len(laggedNotice) - 1
+	var tail []byte
 	laggedSeen := false
 	for {
 		n, err := conn.Read(buf)
 		if n > 0 {
 			chunk := buf[:n]
-			if !laggedSeen && bytes.Contains(chunk, laggedNotice) {
-				laggedSeen = true
+			if !laggedSeen {
+				scan := chunk
+				if len(tail) > 0 {
+					scan = append(append(make([]byte, 0, len(tail)+n), tail...), chunk...)
+				}
+				if bytes.Contains(scan, laggedNotice) {
+					laggedSeen = true
+				} else if tailCap > 0 {
+					if len(scan) > tailCap {
+						tail = append(tail[:0], scan[len(scan)-tailCap:]...)
+					} else {
+						tail = append(tail[:0], scan...)
+					}
+				}
 			}
 			if _, werr := stdout.Write(chunk); werr != nil {
 				return fmt.Errorf("write stdout: %w", werr)
