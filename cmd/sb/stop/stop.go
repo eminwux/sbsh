@@ -14,22 +14,29 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package terminal
+package stop
 
 import (
-	"context"
-	"net"
-
-	"github.com/eminwux/sbsh/pkg/api"
+	"github.com/spf13/cobra"
 )
 
-type Client interface {
-	Ping(ctx context.Context, ping *api.PingMessage, pong *api.PingMessage) error
-	Resize(ctx context.Context, args *api.ResizeArgs) error
-	Detach(ctx context.Context, id *api.ID) error
-	Attach(ctx context.Context, clientID *api.ID, response any) (net.Conn, error)
-	Close() error
-	Metadata(ctx context.Context, metadata *api.TerminalDoc) error
-	State(ctx context.Context, state *api.TerminalStatusMode) error
-	Stop(ctx context.Context, args *api.StopArgs) error
+func NewStopCmd() *cobra.Command {
+	stopCmd := &cobra.Command{
+		Use:   "stop",
+		Short: "Stop running terminals",
+		Long: `Stop running terminals.
+
+Signals a live terminal to shut down via the terminal's control RPC, with a
+SIGTERM fallback if the RPC is unreachable. Stale or already-exited terminals
+are reported idempotently. Metadata is left behind for 'sb prune terminals'.`,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
+	}
+	setupStopCmd(stopCmd)
+	return stopCmd
+}
+
+func setupStopCmd(stopCmd *cobra.Command) {
+	stopCmd.AddCommand(NewStopTerminalsCmd())
 }

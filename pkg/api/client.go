@@ -42,7 +42,10 @@ type ClientSpec struct {
 }
 
 type ClientStatus struct {
-	Pid           int              `json:"pid"`
+	Pid int `json:"pid"`
+	// PidStart mirrors TerminalStatus.PidStart: an opaque per-process
+	// identifier so signal-based teardown can detect PID reuse.
+	PidStart      uint64           `json:"pidStart,omitempty"`
 	BaseRunPath   string           `json:"baseRunPath"`
 	ClientRunPath string           `json:"clientRunPath"`
 	State         ClientStatusMode `json:"state"`

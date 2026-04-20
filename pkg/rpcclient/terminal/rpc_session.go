@@ -259,3 +259,7 @@ func (c *client) State(ctx context.Context, state *api.TerminalStatusMode) error
 	}
 	return nil
 }
+
+func (c *client) Stop(ctx context.Context, args *api.StopArgs) error {
+	return c.call(ctx, c.logger, api.TerminalMethodStop, args, &api.Empty{})
+}

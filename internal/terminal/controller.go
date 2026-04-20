@@ -328,6 +328,20 @@ func (c *Controller) Metadata() (*api.TerminalDoc, error) {
 	return sr.Metadata()
 }
 
+func (c *Controller) Stop(args *api.StopArgs) error {
+	reason := "stop requested"
+	if args != nil && args.Reason != "" {
+		reason = args.Reason
+	}
+	c.logger.InfoContext(c.ctx, "Stop RPC invoked", "reason", reason)
+	// Close asynchronously so the RPC reply can be written before the
+	// server socket is torn down.
+	go func() {
+		_ = c.Close(fmt.Errorf("stop: %s", reason))
+	}()
+	return nil
+}
+
 func (c *Controller) State() (*api.TerminalStatusMode, error) {
 	c.srMu.RLock()
 	sr := c.sr
