@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"sort"
+	"slices"
 
 	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -36,19 +36,18 @@ func ScanTerminals(ctx context.Context, logger *slog.Logger, runPath string) ([]
 		runPath,
 		defaults.TerminalsRunPath,
 		"ScanTerminals",
-		terminalID,
-		terminalName,
+		TerminalID,
+		TerminalName,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	sort.Slice(out, func(i, j int) bool {
-		idi, idj := terminalID(out[i]), terminalID(out[j])
-		if idi != idj {
-			return idi < idj
+	slices.SortStableFunc(out, func(a, b api.TerminalDoc) int {
+		if c := cmpString(TerminalID(a), TerminalID(b)); c != 0 {
+			return c
 		}
-		return terminalName(out[i]) < terminalName(out[j])
+		return cmpString(TerminalName(a), TerminalName(b))
 	})
 
 	return out, nil
@@ -69,7 +68,7 @@ func FindTerminalByID(
 	}
 	return findMetadataBy(
 		terminals,
-		func(t api.TerminalDoc) bool { return string(t.Spec.ID) == id },
+		func(t api.TerminalDoc) bool { return TerminalID(t) == id },
 		fmt.Sprintf("terminal %q not found", id),
 	)
 }
@@ -89,15 +88,17 @@ func FindTerminalByName(
 	}
 	return findMetadataBy(
 		terminals,
-		func(t api.TerminalDoc) bool { return terminalName(t) == name },
+		func(t api.TerminalDoc) bool { return TerminalName(t) == name },
 		fmt.Sprintf("terminal with name %q not found", name),
 	)
 }
 
-func terminalID(s api.TerminalDoc) string {
+// TerminalID returns the canonical ID (Spec.ID) of a terminal document.
+func TerminalID(s api.TerminalDoc) string {
 	return string(s.Spec.ID)
 }
 
-func terminalName(s api.TerminalDoc) string {
+// TerminalName returns the canonical name (Spec.Name) of a terminal document.
+func TerminalName(s api.TerminalDoc) string {
 	return s.Spec.Name
 }

@@ -93,6 +93,19 @@ func scanMetadataFiles[T any](
 	return out, nil
 }
 
+// cmpString returns -1 if a < b, 1 if a > b, 0 if equal. Used as a
+// comparator for slices.SortStableFunc.
+func cmpString(a, b string) int {
+	switch {
+	case a < b:
+		return -1
+	case a > b:
+		return 1
+	default:
+		return 0
+	}
+}
+
 // findMetadataBy searches through a slice of metadata items and returns the first one that matches the predicate.
 // It returns a copy of the item to avoid referencing the loop variable.
 func findMetadataBy[T any](

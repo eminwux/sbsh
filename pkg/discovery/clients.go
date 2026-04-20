@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"sort"
+	"slices"
 
 	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -36,19 +36,18 @@ func ScanClients(ctx context.Context, logger *slog.Logger, runPath string) ([]ap
 		runPath,
 		defaults.ClientsRunPath,
 		"ScanClients",
-		clientID,
-		clientName,
+		ClientID,
+		ClientName,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	sort.Slice(out, func(i, j int) bool {
-		idi, idj := clientID(out[i]), clientID(out[j])
-		if idi != idj {
-			return idi < idj
+	slices.SortStableFunc(out, func(a, b api.ClientDoc) int {
+		if c := cmpString(ClientID(a), ClientID(b)); c != 0 {
+			return c
 		}
-		return clientName(out[i]) < clientName(out[j])
+		return cmpString(ClientName(a), ClientName(b))
 	})
 
 	return out, nil
@@ -69,15 +68,17 @@ func FindClientByName(
 	}
 	return findMetadataBy(
 		clients,
-		func(s api.ClientDoc) bool { return clientName(s) == name },
+		func(s api.ClientDoc) bool { return ClientName(s) == name },
 		fmt.Sprintf("client with name %q not found", name),
 	)
 }
 
-func clientID(s api.ClientDoc) string {
+// ClientID returns the canonical ID (Spec.ID) of a client document.
+func ClientID(s api.ClientDoc) string {
 	return string(s.Spec.ID)
 }
 
-func clientName(s api.ClientDoc) string {
+// ClientName returns the canonical name (Metadata.Name) of a client document.
+func ClientName(s api.ClientDoc) string {
 	return s.Metadata.Name
 }
