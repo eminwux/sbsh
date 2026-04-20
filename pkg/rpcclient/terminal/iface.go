@@ -32,4 +32,6 @@ type Client interface {
 	Metadata(ctx context.Context, metadata *api.TerminalDoc) error
 	State(ctx context.Context, state *api.TerminalStatusMode) error
 	Stop(ctx context.Context, args *api.StopArgs) error
+	Write(ctx context.Context, req *api.WriteRequest) error
+	Subscribe(ctx context.Context, req *api.SubscribeRequest, response any) (net.Conn, error)
 }

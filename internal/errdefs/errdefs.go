@@ -80,4 +80,6 @@ var (
 	ErrStopTerminal           = errors.New("could not stop terminal")
 	ErrStopTimeout            = errors.New("terminal did not exit within timeout")
 	ErrSignalProcess          = errors.New("failed to signal terminal process")
+	ErrTerminalStdinClosed    = errors.New("terminal stdin is closed")
+	ErrSubscriberLagged       = errors.New("subscriber fell behind and was disconnected")
 )
