@@ -18,91 +18,10 @@ package discovery
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
-	"path/filepath"
 )
-
-// scanMetadataFiles reads all metadata.json files matching the pattern and unmarshals them.
-// It returns a slice of unmarshaled metadata structs of type T.
-func scanMetadataFiles[T any](
-	ctx context.Context,
-	logger *slog.Logger,
-	runPath string,
-	subDir string,
-	logPrefix string,
-	idGetter func(T) string,
-	nameGetter func(T) string,
-) ([]T, error) {
-	pattern := filepath.Join(runPath, subDir, "*", "metadata.json")
-	logger.DebugContext(ctx, fmt.Sprintf("%s: globbing for metadata", logPrefix), "pattern", pattern)
-	paths, err := filepath.Glob(pattern)
-	if err != nil {
-		logger.ErrorContext(ctx, fmt.Sprintf("%s: glob failed", logPrefix), "error", err)
-		return nil, fmt.Errorf("glob %q: %w", pattern, err)
-	}
-
-	out := make([]T, 0, len(paths))
-	for _, p := range paths {
-		select {
-		case <-ctx.Done():
-			logger.WarnContext(ctx, fmt.Sprintf("%s: context done while reading", logPrefix))
-			return nil, ctx.Err()
-		default:
-		}
-		b, errRead := os.ReadFile(p)
-		if errRead != nil {
-			logger.ErrorContext(ctx, fmt.Sprintf("%s: failed to read file", logPrefix), "file", p, "error", errRead)
-			return nil, fmt.Errorf("read %s: %w", p, errRead)
-		}
-		var s T
-		if errUnmarshal := json.Unmarshal(b, &s); errUnmarshal != nil {
-			logger.ErrorContext(
-				ctx,
-				fmt.Sprintf("%s: failed to decode file", logPrefix),
-				"file",
-				p,
-				"error",
-				errUnmarshal,
-			)
-			return nil, fmt.Errorf("decode %s: %w", p, errUnmarshal)
-		}
-		logger.DebugContext(
-			ctx,
-			fmt.Sprintf("%s: loaded metadata", logPrefix),
-			"id",
-			idGetter(s),
-			"name",
-			nameGetter(s),
-		)
-		out = append(out, s)
-	}
-
-	logger.InfoContext(ctx, fmt.Sprintf("%s: finished scanning", logPrefix), "count", len(out))
-	return out, nil
-}
-
-// findMetadataBy searches through a slice of metadata items and returns the first one that matches the predicate.
-// It returns a copy of the item to avoid referencing the loop variable.
-func findMetadataBy[T any](
-	items []T,
-	predicate func(T) bool,
-	notFoundErrMsg string,
-) (*T, error) {
-	for _, item := range items {
-		if predicate(item) {
-			// return a copy to avoid referencing the loop variable
-			result := item
-			return &result, nil
-		}
-	}
-	//nolint:goerr113 // error message is constructed from parameter
-	return nil, errors.New(notFoundErrMsg)
-}
 
 // scanAndPruneMetadata scans metadata items and prunes those that match the isExited predicate.
 // It returns the number of items pruned and any error encountered.
