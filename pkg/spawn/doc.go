@@ -14,6 +14,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build unix
+
 // Package spawn exposes library-level helpers for launching sbsh Terminal
 // and Client subprocesses and driving their lifecycle from external Go
 // callers. It wraps the existing "sbsh terminal -" and "sb attach" CLI

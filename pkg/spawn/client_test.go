@@ -14,6 +14,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build unix
+
 package spawn
 
 import (
@@ -152,6 +154,48 @@ func TestBuildClientAttachArgs_ByName_DisableDetach(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("buildClientAttachArgs = %q; want %q", got, want)
+	}
+}
+
+// TestBuildClientAttachArgs_IDWinsOverName locks down the tie-break
+// rule: when a TerminalSpec carries both ID and Name, spawn emits
+// --id only (no positional name arg). This matches `sb attach`, which
+// rejects the ID+name combination in `cmd/sb/attach/attach.go:72-83`
+// — spawn never hands it the ambiguous input in the first place.
+func TestBuildClientAttachArgs_IDWinsOverName(t *testing.T) {
+	t.Parallel()
+	doc := &api.ClientDoc{
+		Spec: api.ClientSpec{
+			RunPath:         "/run/sbsh",
+			SockerCtrl:      "/run/sbsh/clients/c-3/socket",
+			ClientMode:      api.AttachToTerminal,
+			DetachKeystroke: true,
+			TerminalSpec:    &api.TerminalSpec{ID: "t-3", Name: "both-set"},
+		},
+	}
+	got := buildClientAttachArgs(doc, ClientOptions{})
+	want := []string{
+		"--run-path", "/run/sbsh",
+		"attach",
+		"--socket", "/run/sbsh/clients/c-3/socket",
+		"--id", "t-3",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("buildClientAttachArgs = %q; want %q", got, want)
+	}
+}
+
+// TestWrapProcessExited_NilExitError covers the formatting edge case
+// where the child cleanly exited (cmd.Wait returned nil) before the
+// control socket came up. The wrapped error must be a bare
+// ErrProcessExited — not an "ErrProcessExited: %!w(<nil>)" string.
+func TestWrapProcessExited_NilExitError(t *testing.T) {
+	t.Parallel()
+	if got := wrapProcessExited(nil); got.Error() != ErrProcessExited.Error() {
+		t.Fatalf("wrapProcessExited(nil).Error() = %q; want %q", got.Error(), ErrProcessExited.Error())
+	}
+	if got := wrapProcessExited(errors.New("boom")); !errors.Is(got, ErrProcessExited) {
+		t.Fatalf("wrapProcessExited(err) does not unwrap to ErrProcessExited: %v", got)
 	}
 }
 

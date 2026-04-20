@@ -14,6 +14,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build unix
+
 package spawn
 
 import (
@@ -71,7 +73,9 @@ type TerminalOptions struct {
 	ReadyPollInterval time.Duration
 
 	// StopGracePeriod caps each step of the Close escalation
-	// (Stop RPC, SIGTERM, SIGKILL). 0 uses the default.
+	// (Stop RPC, SIGTERM, SIGKILL). 0 uses defaultGracePeriod (2s)
+	// per step, giving ~6s wall-clock before SIGKILL lands. Raise
+	// this for heavy terminals (many subscribers, slow shutdown).
 	StopGracePeriod time.Duration
 }
 
@@ -172,7 +176,7 @@ func (h *TerminalHandle) Spec() *api.TerminalSpec { return h.spec }
 // internal cap elapses, or ctx.Err() on cancellation.
 func (h *TerminalHandle) WaitReady(ctx context.Context) error {
 	if h.proc.exited() {
-		return fmt.Errorf("%w: %w", ErrProcessExited, h.proc.takeExitErr())
+		return wrapProcessExited(h.proc.takeExitErr())
 	}
 
 	readyCtx, cancel := h.readyContext(ctx)
@@ -187,7 +191,7 @@ func (h *TerminalHandle) WaitReady(ctx context.Context) error {
 
 	for {
 		if h.proc.exited() {
-			return fmt.Errorf("%w: %w", ErrProcessExited, h.proc.takeExitErr())
+			return wrapProcessExited(h.proc.takeExitErr())
 		}
 
 		if _, err := os.Stat(h.socketPath); err == nil {
@@ -210,10 +214,21 @@ func (h *TerminalHandle) WaitReady(ctx context.Context) error {
 			}
 			return ctx.Err()
 		case <-h.proc.exitCh:
-			return fmt.Errorf("%w: %w", ErrProcessExited, h.proc.takeExitErr())
+			return wrapProcessExited(h.proc.takeExitErr())
 		case <-time.After(poll):
 		}
 	}
+}
+
+// wrapProcessExited returns ErrProcessExited alone when the child's
+// cmd.Wait() returned nil (clean exit before ready), or a wrapped
+// pair when there is a non-nil underlying exit error. This avoids
+// the ugly "%!w(<nil>)" rendering from fmt.Errorf("%w: %w", ..., nil).
+func wrapProcessExited(exitErr error) error {
+	if exitErr == nil {
+		return ErrProcessExited
+	}
+	return fmt.Errorf("%w: %w", ErrProcessExited, exitErr)
 }
 
 func (h *TerminalHandle) readyContext(ctx context.Context) (context.Context, context.CancelFunc) {
