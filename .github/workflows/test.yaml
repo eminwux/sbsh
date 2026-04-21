@@ -39,7 +39,7 @@ jobs:
         run: go vet ./...
 
       - name: Unit tests
-        run: go test $(go list ./... | grep -v '/e2e$')
+        run: go test -timeout=5m $(go list ./... | grep -v '/e2e$')
 
       - name: Integration tests
         run: go test -tags=integration ./cmd/sb/get/...
