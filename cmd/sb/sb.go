@@ -33,6 +33,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/sb/prune"
 	"github.com/eminwux/sbsh/cmd/sb/read"
 	"github.com/eminwux/sbsh/cmd/sb/stop"
+	"github.com/eminwux/sbsh/cmd/sb/validate"
 	"github.com/eminwux/sbsh/cmd/sb/version"
 	"github.com/eminwux/sbsh/cmd/sb/write"
 	"github.com/eminwux/sbsh/cmd/types"
@@ -121,6 +122,7 @@ func setupRootCmd(rootCmd *cobra.Command) error {
 	rootCmd.AddCommand(autocomplete.NewAutoCompleteCmd(rootCmd))
 	rootCmd.AddCommand(prune.NewPruneCmd())
 	rootCmd.AddCommand(stop.NewStopCmd())
+	rootCmd.AddCommand(validate.NewValidateCmd())
 	rootCmd.AddCommand(detach.NewDetachCmd())
 	rootCmd.AddCommand(attach.NewAttachCmd())
 	rootCmd.AddCommand(get.NewGetCmd())
