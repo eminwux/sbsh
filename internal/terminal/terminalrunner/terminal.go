@@ -104,9 +104,12 @@ func (sr *Exec) prepareTerminalCommand() error {
 	return nil
 }
 
-// expandCwd resolves a leading "~" or "~/" against the user's home directory.
-// Other shell expansions (env vars, globs) are not performed.
+// expandCwd resolves environment variables (e.g. "$HOME", "${HOME}") and a
+// leading "~" or "~/" against the user's home directory. Glob patterns are
+// not expanded. Env var lookup uses the parent process environment, so vars
+// defined only in the profile's shell.env are not visible here.
 func expandCwd(p string) (string, error) {
+	p = os.ExpandEnv(p)
 	if p == "~" || strings.HasPrefix(p, "~/") {
 		home, err := os.UserHomeDir()
 		if err != nil {
