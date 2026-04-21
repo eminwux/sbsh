@@ -83,4 +83,5 @@ var (
 	ErrSignalProcess          = errors.New("failed to signal terminal process")
 	ErrTerminalStdinClosed    = errors.New("terminal stdin is closed")
 	ErrSubscriberLagged       = errors.New("subscriber fell behind and was disconnected")
+	ErrInvalidProfiles        = errors.New("one or more profiles failed validation")
 )
