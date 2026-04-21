@@ -3,6 +3,7 @@
 ![status: active](https://img.shields.io/badge/status-active-blue)
 ![state: beta](https://img.shields.io/badge/state-beta-orange)
 ![license: apache2](https://img.shields.io/badge/license-Apache%202.0-green)
+[![Test](https://github.com/eminwux/sbsh/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/eminwux/sbsh/actions/workflows/test.yaml)
 
 sbsh brings _Terminal-as-Code_ to your workflow: define terminal environments declaratively with YAML manifests that can be version-controlled, shared, and reused across your team. Each profile specifies environment variables, lifecycle hooks, startup commands, and visual prompts, ensuring consistent setups across local machines, jump hosts, and CI/CD pipelines. Terminals survive network drops, client restarts, and accidental disconnects, remaining discoverable and shareable for collaboration.
 

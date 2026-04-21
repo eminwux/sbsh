@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binary
+        run: make sbsh-sb
+
+      - name: Verify binary
+        run: file ./sbsh | grep -q 'ELF 64-bit LSB executable'
+
+      - name: Compile all packages
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Unit tests
+        run: go test -timeout=5m $(go list ./... | grep -v '/e2e$')
+
+      - name: Integration tests
+        run: go test -tags=integration ./cmd/sb/get/...
