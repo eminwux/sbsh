@@ -100,6 +100,11 @@ func ValidateProfilesFromReader(
 // validateOneDocument runs the strict-decode pass (to surface unknown fields)
 // alongside a tolerant decode (to exercise enum + PATH checks even when strict
 // decoding fails). Both error sets are aggregated on the returned result.
+//
+// When the tolerant decode itself fails (e.g. a type mismatch), the strict
+// pass and field-level checks are skipped: the strict pass would just
+// re-report the same structural error, and field checks on a zero-valued
+// struct produce cascading "required" noise for one underlying issue.
 func validateOneDocument(ctx context.Context, logger *slog.Logger, docIndex int, node *yaml.Node) ProfileValidationResult {
 	res := ProfileValidationResult{DocIndex: docIndex}
 
@@ -107,6 +112,7 @@ func validateOneDocument(ctx context.Context, logger *slog.Logger, docIndex int,
 	if err := node.Decode(&tolerant); err != nil {
 		logger.DebugContext(ctx, "ValidateProfilesFromReader: tolerant decode failed", "doc", docIndex, "error", err)
 		res.Errors = append(res.Errors, err)
+		return res
 	}
 	res.ProfileName = tolerant.Metadata.Name
 

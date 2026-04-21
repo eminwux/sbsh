@@ -192,6 +192,34 @@ spec:
 	}
 }
 
+func TestValidateProfilesFromReader_TypeMismatchNoCascade(t *testing.T) {
+	const doc = `apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: typeoops
+spec:
+  runTarget: local
+  shell:
+    cmd: [not, a, string]
+`
+	results, err := ValidateProfilesFromReader(context.Background(), discardLogger(), strings.NewReader(doc))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("want 1 result, got %d", len(results))
+	}
+	if results[0].OK() {
+		t.Fatalf("expected failure for type mismatch")
+	}
+	if got := len(results[0].Errors); got != 1 {
+		t.Fatalf("want single error for type mismatch, got %d: %v", got, results[0].Errors)
+	}
+	if joined := joinErrors(results[0].Errors); !strings.Contains(joined, "cannot unmarshal") {
+		t.Fatalf("expected unmarshal error, got: %s", joined)
+	}
+}
+
 func TestValidateProfilesFromPath_FileNotFound(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "does-not-exist.yaml")
 	_, err := ValidateProfilesFromPath(context.Background(), discardLogger(), missing)

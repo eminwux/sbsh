@@ -17,7 +17,6 @@
 package validate
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -68,7 +67,7 @@ func runValidateProfiles(cmd *cobra.Command, args []string, stdout, stderr io.Wr
 		return err
 	}
 
-	return reportResults(cmd.Context(), stdout, stderr, path, results, err)
+	return reportResults(stdout, stderr, path, results, err)
 }
 
 func resolveProfilesPath(args []string) string {
@@ -79,7 +78,6 @@ func resolveProfilesPath(args []string) string {
 }
 
 func reportResults(
-	_ context.Context,
 	stdout, stderr io.Writer,
 	path string,
 	results []profile.ProfileValidationResult,
