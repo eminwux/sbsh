@@ -102,6 +102,7 @@ func (sr *Exec) StartTerminalCmd(terminal *api.AttachedTerminal) error {
 	// IMPORTANT: reap it in the background so it never zombifies
 	go func() {
 		errWait := cmd.Wait()
+		var eventErr error
 		if errWait != nil {
 			sr.logger.Warn(
 				"StartTerminalCmd: process exited with error",
@@ -110,10 +111,10 @@ func (sr *Exec) StartTerminalCmd(terminal *api.AttachedTerminal) error {
 				"error",
 				errWait,
 			)
+			eventErr = fmt.Errorf("terminal %s process exited: %w", terminal.Spec.ID, errWait)
 		} else {
 			sr.logger.Info("StartTerminalCmd: process exited", "terminal_id", terminal.Spec.ID)
 		}
-		eventErr := fmt.Errorf("terminal %s process has exited", terminal.Spec.ID)
 		trySendEvent(
 			sr.logger,
 			sr.events,

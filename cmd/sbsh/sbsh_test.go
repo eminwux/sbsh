@@ -292,10 +292,14 @@ func TestRunTerminal_ErrChildExit(t *testing.T) {
 	// Wait for Run() to complete and error to be handled
 	select {
 	case err := <-done:
-		// runClient returns nil when errCh receives error (line 412)
-		// The error is logged but not returned to avoid polluting terminal
-		if err != nil {
-			t.Fatalf("expected nil (error logged but not returned); got: '%v'", err)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !errors.Is(err, errdefs.ErrChildExit) {
+			t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrChildExit, err)
+		}
+		if !errors.Is(err, runErr) {
+			t.Fatalf("expected wrapped error '%v'; got: '%v'", runErr, err)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for runClient to return")
@@ -356,10 +360,20 @@ func TestRunTerminal_ErrChildExitWithWaitCloseError(t *testing.T) {
 	// Wait for Run() to complete and error to be handled
 	select {
 	case err := <-done:
-		// runClient returns nil when errCh receives error (line 412)
-		// The error is logged but not returned to avoid polluting terminal
-		if err != nil {
-			t.Fatalf("expected nil (error logged but not returned); got: '%v'", err)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !errors.Is(err, errdefs.ErrChildExit) {
+			t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrChildExit, err)
+		}
+		if !errors.Is(err, runErr) {
+			t.Fatalf("expected wrapped error '%v'; got: '%v'", runErr, err)
+		}
+		if !errors.Is(err, errdefs.ErrWaitOnClose) {
+			t.Fatalf("expected wrapped '%v'; got: '%v'", errdefs.ErrWaitOnClose, err)
+		}
+		if !errors.Is(err, waitCloseErr) {
+			t.Fatalf("expected wrapped error '%v'; got: '%v'", waitCloseErr, err)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for runClient to return")
