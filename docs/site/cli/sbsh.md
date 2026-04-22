@@ -49,7 +49,7 @@ sbsh terminal --name my-terminal -p profile-name
 These flags apply to all `sbsh` commands:
 
 - `--run-path <path>`: Optional run path for the client
-- `--config <file>`: Config file (default: `$HOME/.sbsh/config.yaml`)
+- `--config <file>`: Config file (default: `$HOME/.sbsh/config.yaml`). See the [Configuration guide](../guides/configuration.md) for the `Configuration` document schema.
 - `--profiles <file>`: Profiles manifests file (default: `$HOME/.sbsh/profiles.yaml`)
 
 ### Client Flags

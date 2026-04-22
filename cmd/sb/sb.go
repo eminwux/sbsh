@@ -18,12 +18,10 @@ package sb
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
 
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sb/attach"
@@ -153,43 +151,44 @@ func setupRootCmd(rootCmd *cobra.Command) error {
 }
 
 func LoadConfig() error {
-	var configFile string
-	if viper.GetString(config.SBSH_ROOT_CONFIG_FILE.ViperKey) == "" {
+	configFile := viper.GetString(config.SBSH_ROOT_CONFIG_FILE.ViperKey)
+	if configFile == "" {
 		configFile = config.DefaultConfigFile()
-		viper.SetConfigName("config")
-		viper.SetConfigType("yaml")
-		// Add the directory containing the config file
-		viper.AddConfigPath(filepath.Dir(configFile))
 	}
 	_ = config.SBSH_ROOT_CONFIG_FILE.BindEnv()
 	if err := config.SBSH_ROOT_CONFIG_FILE.Set(configFile); err != nil {
 		return fmt.Errorf("%w: failed to set config file: %w", errdefs.ErrConfig, err)
 	}
 
-	var runPath string
-	if viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey) == "" {
-		runPath = config.DefaultRunPath()
+	cfgDoc, err := config.LoadConfigurationDoc(configFile)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errdefs.ErrConfig, err)
 	}
+	// Promote ConfigurationDoc values to env vars so subcommand helpers that
+	// read os.Getenv directly (e.g. GetRunPathFromEnvAndFlags) also see them.
+	// User-set env vars take precedence and are left untouched.
+	config.ApplyConfigurationDocEnv(cfgDoc)
+
 	_ = config.SB_ROOT_RUN_PATH.BindEnv()
+	runPath := config.DefaultRunPath()
+	if cfgDoc != nil && cfgDoc.Spec.RunPath != "" {
+		runPath = cfgDoc.Spec.RunPath
+	}
 	config.SB_ROOT_RUN_PATH.SetDefault(runPath)
 
-	var profilesFile string
-	if viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey) == "" {
-		profilesFile = config.DefaultProfilesFile()
-	}
 	_ = config.SB_GET_PROFILES_FILE.BindEnv()
+	profilesFile := config.DefaultProfilesFile()
+	if cfgDoc != nil && cfgDoc.Spec.ProfilesFile != "" {
+		profilesFile = cfgDoc.Spec.ProfilesFile
+	}
 	config.SB_GET_PROFILES_FILE.SetDefault(profilesFile)
 
 	_ = config.SBSH_ROOT_LOG_LEVEL.BindEnv()
-	config.SBSH_ROOT_LOG_LEVEL.SetDefault("info")
-
-	if err := viper.ReadInConfig(); err != nil {
-		// File not found is OK if ENV is set
-		var configFileNotFoundError viper.ConfigFileNotFoundError
-		if !errors.As(err, &configFileNotFoundError) {
-			return fmt.Errorf("%w: %w", errdefs.ErrConfig, err)
-		}
+	logLevel := "info"
+	if cfgDoc != nil && cfgDoc.Spec.LogLevel != "" {
+		logLevel = cfgDoc.Spec.LogLevel
 	}
+	config.SBSH_ROOT_LOG_LEVEL.SetDefault(logLevel)
 
 	return nil
 }

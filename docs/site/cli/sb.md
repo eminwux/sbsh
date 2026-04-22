@@ -96,7 +96,7 @@ sb autocomplete zsh
 
 These flags apply to all `sb` commands:
 
-- `--config <file>`: Config file (default: `$HOME/.sbsh/config.yaml`)
+- `--config <file>`: Config file (default: `$HOME/.sbsh/config.yaml`). See the [Configuration guide](../guides/configuration.md) for the `Configuration` document schema.
 - `-v, --verbose`: Enable verbose logging
 - `--log-level <level>`: Log level (debug, info, warn, error)
 - `--run-path <path>`: Run path directory
