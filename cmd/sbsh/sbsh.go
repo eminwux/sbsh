@@ -422,11 +422,7 @@ func runClient(
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrWaitOnClose, errC)
 			}
 			logger.ErrorContext(ctx, "client controller exited with error", "error", err)
-			logger.DebugContext(ctx, "controller exited after error")
-
-			// return err
-			// return nothing to avoid polluting the terminal with errors
-			return nil
+			return err
 		}
 	}
 	return nil

@@ -263,6 +263,9 @@ func (s *Controller) Run(doc *api.ClientDoc) error {
 
 		case errClose := <-s.closeReqCh:
 			s.logger.Warn("close request received", "error", errClose)
+			if errClose == nil {
+				return nil
+			}
 			return fmt.Errorf("%w: %w", errdefs.ErrCloseReq, errClose)
 		}
 	}
