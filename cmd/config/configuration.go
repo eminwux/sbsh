@@ -83,6 +83,13 @@ func LoadConfigurationDoc(path string) (*api.ConfigurationDoc, error) {
 			continue
 		}
 
+		if doc.APIVersion != api.APIVersionV1Beta1 {
+			return nil, fmt.Errorf(
+				"config file %q: unsupported apiVersion %q (expected %q)",
+				path, doc.APIVersion, api.APIVersionV1Beta1,
+			)
+		}
+
 		if doc.Kind != api.KindConfiguration {
 			return nil, fmt.Errorf(
 				"config file %q: unsupported kind %q (expected %q)",

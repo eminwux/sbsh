@@ -22,7 +22,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
 
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sb/attach"
@@ -155,10 +154,6 @@ func LoadConfig() error {
 	configFile := viper.GetString(config.SBSH_ROOT_CONFIG_FILE.ViperKey)
 	if configFile == "" {
 		configFile = config.DefaultConfigFile()
-		viper.SetConfigName("config")
-		viper.SetConfigType("yaml")
-		// Add the directory containing the config file
-		viper.AddConfigPath(filepath.Dir(configFile))
 	}
 	_ = config.SBSH_ROOT_CONFIG_FILE.BindEnv()
 	if err := config.SBSH_ROOT_CONFIG_FILE.Set(configFile); err != nil {

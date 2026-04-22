@@ -85,6 +85,22 @@ spec:
 	}
 }
 
+func Test_LoadConfigurationDoc_UnsupportedAPIVersion(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	content := `apiVersion: sbsh/v9999
+kind: Configuration
+spec:
+  runPath: /var/run/sbsh
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	if _, err := LoadConfigurationDoc(path); err == nil {
+		t.Fatal("expected error for unsupported apiVersion, got nil")
+	}
+}
+
 func Test_LoadConfigurationDoc_UnsupportedKind(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	content := `apiVersion: sbsh/v1beta1
