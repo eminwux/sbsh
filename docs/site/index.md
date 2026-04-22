@@ -81,7 +81,7 @@ sbsh applies the same principles of Infrastructure-as-Code to interactive enviro
 
 - **[Getting Started](getting-started.md)** - Install and configure sbsh
 - **[Concepts](concepts/terminals.md)** - Understand terminals, profiles, and clients
-- **[Guides](guides/profiles.md)** - Comprehensive guides for profiles, CI/CD, and containers
+- **[Guides](guides/profiles.md)** - Comprehensive guides for profiles, configuration, CI/CD, and containers
 - **[CLI Reference](cli/commands.md)** - Complete command documentation
 - **[Tutorials](tutorials/create-your-first-profile.md)** - Step-by-step tutorials
 

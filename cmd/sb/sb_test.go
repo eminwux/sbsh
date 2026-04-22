@@ -17,6 +17,8 @@
 package sb
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/eminwux/sbsh/cmd/config"
@@ -91,7 +93,11 @@ func Test_LoadConfig_HappyPath(t *testing.T) {
 		viper.Reset()
 	})
 
-	t.Setenv(config.SBSH_ROOT_CONFIG_FILE.EnvVar(), "")
+	// Point at a tmp dir without a config.yaml so the loader reaches the
+	// built-in defaults regardless of what's at $HOME/.sbsh/config.yaml.
+	missingCfg := filepath.Join(t.TempDir(), "config.yaml")
+	t.Setenv(config.SBSH_ROOT_CONFIG_FILE.EnvVar(), missingCfg)
+	_ = config.SBSH_ROOT_CONFIG_FILE.BindEnv()
 	t.Setenv(config.SB_ROOT_RUN_PATH.EnvVar(), "")
 	t.Setenv(config.SB_GET_PROFILES_FILE.EnvVar(), "")
 	t.Setenv(config.SBSH_ROOT_LOG_LEVEL.EnvVar(), "")
@@ -110,5 +116,48 @@ func Test_LoadConfig_HappyPath(t *testing.T) {
 
 	if got := viper.GetString(config.SBSH_ROOT_LOG_LEVEL.ViperKey); got != "info" {
 		t.Fatalf("expected log level info, got %s", got)
+	}
+}
+
+func Test_LoadConfig_ConfigurationDoc(t *testing.T) {
+	t.Cleanup(func() {
+		viper.Reset()
+	})
+	viper.Reset()
+
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+	content := `apiVersion: sbsh/v1beta1
+kind: Configuration
+metadata:
+  name: default
+spec:
+  runPath: /tmp/sbsh-test-run
+  profilesFile: /tmp/sbsh-test-profiles.yaml
+  logLevel: debug
+`
+	if err := os.WriteFile(cfgPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	t.Setenv(config.SBSH_ROOT_CONFIG_FILE.EnvVar(), cfgPath)
+	t.Setenv(config.SB_ROOT_RUN_PATH.EnvVar(), "")
+	t.Setenv(config.SB_GET_PROFILES_FILE.EnvVar(), "")
+	t.Setenv(config.SBSH_ROOT_LOG_LEVEL.EnvVar(), "")
+
+	_ = config.SBSH_ROOT_CONFIG_FILE.BindEnv()
+
+	if err := LoadConfig(); err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+
+	if got, want := viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey), "/tmp/sbsh-test-run"; got != want {
+		t.Errorf("run path = %q, want %q", got, want)
+	}
+	if got, want := viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey), "/tmp/sbsh-test-profiles.yaml"; got != want {
+		t.Errorf("profiles file = %q, want %q", got, want)
+	}
+	if got, want := viper.GetString(config.SBSH_ROOT_LOG_LEVEL.ViperKey), "debug"; got != want {
+		t.Errorf("log level = %q, want %q", got, want)
 	}
 }

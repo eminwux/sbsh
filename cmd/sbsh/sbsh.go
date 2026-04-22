@@ -434,8 +434,8 @@ func runClient(
 
 // LoadConfig loads config.yaml from the given path or HOME/.sbsh.
 func LoadConfig() error {
-	var configFile string
-	if viper.GetString(config.SBSH_ROOT_CONFIG_FILE.ViperKey) == "" {
+	configFile := viper.GetString(config.SBSH_ROOT_CONFIG_FILE.ViperKey)
+	if configFile == "" {
 		configFile = config.DefaultConfigFile()
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
@@ -445,32 +445,60 @@ func LoadConfig() error {
 	_ = config.SBSH_ROOT_CONFIG_FILE.BindEnv()
 	_ = config.SBSH_ROOT_CONFIG_FILE.Set(configFile)
 
-	var runPath string
-	if viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey) == "" {
-		runPath = config.DefaultRunPath()
+	cfgDoc, err := config.LoadConfigurationDoc(configFile)
+	if err != nil {
+		return err
 	}
+	// Promote ConfigurationDoc values to env vars so subcommand helpers that
+	// read os.Getenv directly also see them. User-set env vars are untouched.
+	applyDocEnv(cfgDoc)
+
 	_ = config.SBSH_ROOT_RUN_PATH.BindEnv()
+	runPath := config.DefaultRunPath()
+	if cfgDoc != nil && cfgDoc.Spec.RunPath != "" {
+		runPath = cfgDoc.Spec.RunPath
+	}
 	config.SBSH_ROOT_RUN_PATH.SetDefault(runPath)
 
-	var profilesFile string
-	if viper.GetString(config.SBSH_ROOT_PROFILES_FILE.ViperKey) == "" {
-		profilesFile = config.DefaultProfilesFile()
-	}
 	_ = config.SBSH_ROOT_PROFILES_FILE.BindEnv()
+	profilesFile := config.DefaultProfilesFile()
+	if cfgDoc != nil && cfgDoc.Spec.ProfilesFile != "" {
+		profilesFile = cfgDoc.Spec.ProfilesFile
+	}
 	config.SBSH_ROOT_PROFILES_FILE.SetDefault(profilesFile)
 
 	_ = config.SBSH_ROOT_LOG_LEVEL.BindEnv()
-	config.SBSH_ROOT_LOG_LEVEL.SetDefault("info")
-
-	if err := viper.ReadInConfig(); err != nil {
-		// File not found is OK if ENV is set
-		var configFileNotFoundError viper.ConfigFileNotFoundError
-		if !errors.As(err, &configFileNotFoundError) {
-			return err // Config file was found but another error was produced
-		}
+	logLevel := "info"
+	if cfgDoc != nil && cfgDoc.Spec.LogLevel != "" {
+		logLevel = cfgDoc.Spec.LogLevel
 	}
+	config.SBSH_ROOT_LOG_LEVEL.SetDefault(logLevel)
 
 	return nil
+}
+
+// applyDocEnv copies ConfigurationDoc.Spec values to the env vars consumed by
+// sb and sbsh subcommands, but only when the user hasn't already set them.
+// This preserves the precedence flag > env > doc > default.
+func applyDocEnv(cfgDoc *api.ConfigurationDoc) {
+	if cfgDoc == nil {
+		return
+	}
+	setIfUnset := func(envVar, value string) {
+		if value == "" {
+			return
+		}
+		if _, present := os.LookupEnv(envVar); present {
+			return
+		}
+		_ = os.Setenv(envVar, value)
+	}
+	setIfUnset(config.SBSH_ROOT_RUN_PATH.EnvVar(), cfgDoc.Spec.RunPath)
+	setIfUnset(config.SB_ROOT_RUN_PATH.EnvVar(), cfgDoc.Spec.RunPath)
+	setIfUnset(config.SBSH_ROOT_PROFILES_FILE.EnvVar(), cfgDoc.Spec.ProfilesFile)
+	setIfUnset(config.SB_GET_PROFILES_FILE.EnvVar(), cfgDoc.Spec.ProfilesFile)
+	setIfUnset(config.SBSH_ROOT_LOG_LEVEL.EnvVar(), cfgDoc.Spec.LogLevel)
+	setIfUnset(config.SB_ROOT_LOG_LEVEL.EnvVar(), cfgDoc.Spec.LogLevel)
 }
 
 func detachSelf() {
