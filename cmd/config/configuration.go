@@ -26,6 +26,30 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// ApplyConfigurationDocEnv copies ConfigurationDoc.Spec values to the env vars
+// consumed by sb and sbsh subcommands, but only when the user hasn't already
+// set them. This preserves the precedence flag > env > doc > default.
+func ApplyConfigurationDocEnv(cfgDoc *api.ConfigurationDoc) {
+	if cfgDoc == nil {
+		return
+	}
+	setIfUnset := func(envVar, value string) {
+		if value == "" {
+			return
+		}
+		if _, present := os.LookupEnv(envVar); present {
+			return
+		}
+		_ = os.Setenv(envVar, value)
+	}
+	setIfUnset(SB_ROOT_RUN_PATH.EnvVar(), cfgDoc.Spec.RunPath)
+	setIfUnset(SBSH_ROOT_RUN_PATH.EnvVar(), cfgDoc.Spec.RunPath)
+	setIfUnset(SB_GET_PROFILES_FILE.EnvVar(), cfgDoc.Spec.ProfilesFile)
+	setIfUnset(SBSH_ROOT_PROFILES_FILE.EnvVar(), cfgDoc.Spec.ProfilesFile)
+	setIfUnset(SB_ROOT_LOG_LEVEL.EnvVar(), cfgDoc.Spec.LogLevel)
+	setIfUnset(SBSH_ROOT_LOG_LEVEL.EnvVar(), cfgDoc.Spec.LogLevel)
+}
+
 // LoadConfigurationDoc reads a YAML file and returns the first Configuration
 // document it contains. Returns (nil, nil) when the file does not exist or
 // when the file exists but contains no Configuration document, so callers can

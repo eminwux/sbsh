@@ -38,7 +38,6 @@ import (
 	"github.com/eminwux/sbsh/cmd/types"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/logging"
-	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -173,7 +172,7 @@ func LoadConfig() error {
 	// Promote ConfigurationDoc values to env vars so subcommand helpers that
 	// read os.Getenv directly (e.g. GetRunPathFromEnvAndFlags) also see them.
 	// User-set env vars take precedence and are left untouched.
-	applyDocEnv(cfgDoc)
+	config.ApplyConfigurationDocEnv(cfgDoc)
 
 	_ = config.SB_ROOT_RUN_PATH.BindEnv()
 	runPath := config.DefaultRunPath()
@@ -197,28 +196,4 @@ func LoadConfig() error {
 	config.SBSH_ROOT_LOG_LEVEL.SetDefault(logLevel)
 
 	return nil
-}
-
-// applyDocEnv copies ConfigurationDoc.Spec values to the env vars consumed by
-// sb and sbsh subcommands, but only when the user hasn't already set them.
-// This preserves the precedence flag > env > doc > default.
-func applyDocEnv(cfgDoc *api.ConfigurationDoc) {
-	if cfgDoc == nil {
-		return
-	}
-	setIfUnset := func(envVar, value string) {
-		if value == "" {
-			return
-		}
-		if _, present := os.LookupEnv(envVar); present {
-			return
-		}
-		_ = os.Setenv(envVar, value)
-	}
-	setIfUnset(config.SB_ROOT_RUN_PATH.EnvVar(), cfgDoc.Spec.RunPath)
-	setIfUnset(config.SBSH_ROOT_RUN_PATH.EnvVar(), cfgDoc.Spec.RunPath)
-	setIfUnset(config.SB_GET_PROFILES_FILE.EnvVar(), cfgDoc.Spec.ProfilesFile)
-	setIfUnset(config.SBSH_ROOT_PROFILES_FILE.EnvVar(), cfgDoc.Spec.ProfilesFile)
-	setIfUnset(config.SB_ROOT_LOG_LEVEL.EnvVar(), cfgDoc.Spec.LogLevel)
-	setIfUnset(config.SBSH_ROOT_LOG_LEVEL.EnvVar(), cfgDoc.Spec.LogLevel)
 }
