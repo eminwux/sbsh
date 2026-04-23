@@ -54,6 +54,8 @@ type Test struct {
 	CreateMetadataFunc   func() error
 	DetachFunc           func() error
 	StartTerminalCmdFunc func(terminal *api.AttachedTerminal) error
+	MetadataFunc         func() (*api.ClientDoc, error)
+	StateFunc            func() (*api.ClientStatusMode, error)
 }
 
 // NewClientRunnerTest returns a new ClientRunnerTest instance.
@@ -131,4 +133,18 @@ func (t *Test) StartTerminalCmd(terminal *api.AttachedTerminal) error {
 		return t.StartTerminalCmdFunc(terminal)
 	}
 	return errdefs.ErrFuncNotSet
+}
+
+func (t *Test) Metadata() (*api.ClientDoc, error) {
+	if t.MetadataFunc != nil {
+		return t.MetadataFunc()
+	}
+	return nil, errdefs.ErrFuncNotSet
+}
+
+func (t *Test) State() (*api.ClientStatusMode, error) {
+	if t.StateFunc != nil {
+		return t.StateFunc()
+	}
+	return nil, errdefs.ErrFuncNotSet
 }

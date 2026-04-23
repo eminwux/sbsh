@@ -18,9 +18,15 @@ package client
 
 import (
 	"context"
+
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
 type Client interface {
 	Detach(ctx context.Context) error
+	Ping(ctx context.Context, ping *api.PingMessage, pong *api.PingMessage) error
+	Metadata(ctx context.Context, doc *api.ClientDoc) error
+	State(ctx context.Context, state *api.ClientStatusMode) error
+	Stop(ctx context.Context, args *api.StopArgs) error
 	Close() error
 }

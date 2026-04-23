@@ -64,3 +64,35 @@ func (c *client) call(ctx context.Context, method string, in, out any) error {
 func (c *client) Detach(ctx context.Context) error {
 	return c.call(ctx, api.ClientMethodDetach, &api.Empty{}, &api.Empty{})
 }
+
+func (c *client) Ping(ctx context.Context, ping *api.PingMessage, pong *api.PingMessage) error {
+	if ping == nil {
+		ping = &api.PingMessage{}
+	}
+	if pong == nil {
+		return c.call(ctx, api.ClientMethodPing, ping, &api.PingMessage{})
+	}
+	return c.call(ctx, api.ClientMethodPing, ping, pong)
+}
+
+func (c *client) Metadata(ctx context.Context, doc *api.ClientDoc) error {
+	if doc == nil {
+		return c.call(ctx, api.ClientMethodMetadata, &api.Empty{}, &api.ClientDoc{})
+	}
+	return c.call(ctx, api.ClientMethodMetadata, &api.Empty{}, doc)
+}
+
+func (c *client) State(ctx context.Context, state *api.ClientStatusMode) error {
+	if state == nil {
+		var dummy api.ClientStatusMode
+		return c.call(ctx, api.ClientMethodState, &api.Empty{}, &dummy)
+	}
+	return c.call(ctx, api.ClientMethodState, &api.Empty{}, state)
+}
+
+func (c *client) Stop(ctx context.Context, args *api.StopArgs) error {
+	if args == nil {
+		args = &api.StopArgs{}
+	}
+	return c.call(ctx, api.ClientMethodStop, args, &api.Empty{})
+}

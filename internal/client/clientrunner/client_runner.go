@@ -33,6 +33,8 @@ type ClientRunner interface {
 	CreateMetadata() error
 	Detach() error
 	StartTerminalCmd(terminal *api.AttachedTerminal) error
+	Metadata() (*api.ClientDoc, error)
+	State() (*api.ClientStatusMode, error)
 }
 
 func (sr *Exec) ID() api.ID {

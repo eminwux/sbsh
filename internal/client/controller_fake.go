@@ -37,6 +37,10 @@ type ControllerTest struct {
 	CloseFunc     func(reason error) error
 	WaitCloseFunc func() error
 	DetachFunc    func() error
+	PingFunc      func(in *api.PingMessage) (*api.PingMessage, error)
+	MetadataFunc  func() (*api.ClientDoc, error)
+	StateFunc     func() (*api.ClientStatusMode, error)
+	StopFunc      func(args *api.StopArgs) error
 }
 
 func NewClientControllerTest() *ControllerTest {
@@ -94,6 +98,34 @@ func (t *ControllerTest) WaitClose() error {
 func (t *ControllerTest) Detach() error {
 	if t.DetachFunc != nil {
 		return t.DetachFunc()
+	}
+	return errdefs.ErrFuncNotSet
+}
+
+func (t *ControllerTest) Ping(in *api.PingMessage) (*api.PingMessage, error) {
+	if t.PingFunc != nil {
+		return t.PingFunc(in)
+	}
+	return nil, errdefs.ErrFuncNotSet
+}
+
+func (t *ControllerTest) Metadata() (*api.ClientDoc, error) {
+	if t.MetadataFunc != nil {
+		return t.MetadataFunc()
+	}
+	return nil, errdefs.ErrFuncNotSet
+}
+
+func (t *ControllerTest) State() (*api.ClientStatusMode, error) {
+	if t.StateFunc != nil {
+		return t.StateFunc()
+	}
+	return nil, errdefs.ErrFuncNotSet
+}
+
+func (t *ControllerTest) Stop(args *api.StopArgs) error {
+	if t.StopFunc != nil {
+		return t.StopFunc(args)
 	}
 	return errdefs.ErrFuncNotSet
 }

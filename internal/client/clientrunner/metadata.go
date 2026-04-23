@@ -68,6 +68,24 @@ func (sr *Exec) CreateMetadata() error {
 	return nil
 }
 
+// Metadata returns a snapshot of the runner's ClientDoc. The returned
+// pointer is a deep copy — callers may freely mutate it without
+// racing the runner's own metadata writes.
+func (sr *Exec) Metadata() (*api.ClientDoc, error) {
+	sr.metadataMu.RLock()
+	defer sr.metadataMu.RUnlock()
+	doc := sr.metadata
+	return &doc, nil
+}
+
+// State returns the current lifecycle state of the client.
+func (sr *Exec) State() (*api.ClientStatusMode, error) {
+	sr.metadataMu.RLock()
+	defer sr.metadataMu.RUnlock()
+	state := sr.metadata.Status.State
+	return &state, nil
+}
+
 func (sr *Exec) updateMetadata() error {
 	sr.metadataMu.RLock()
 	metadataCopy := sr.metadata

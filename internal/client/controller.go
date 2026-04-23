@@ -393,3 +393,42 @@ func (s *Controller) Detach() error {
 	}
 	return nil
 }
+
+func (s *Controller) Ping(in *api.PingMessage) (*api.PingMessage, error) {
+	if in != nil && in.Message == "PING" {
+		return &api.PingMessage{Message: "PONG"}, nil
+	}
+	msg := ""
+	if in != nil {
+		msg = in.Message
+	}
+	return &api.PingMessage{}, fmt.Errorf("unexpected ping message: %s", msg)
+}
+
+func (s *Controller) Metadata() (*api.ClientDoc, error) {
+	if s.sr == nil {
+		return nil, errors.New("client runner not initialized")
+	}
+	return s.sr.Metadata()
+}
+
+func (s *Controller) State() (*api.ClientStatusMode, error) {
+	if s.sr == nil {
+		return nil, errors.New("client runner not initialized")
+	}
+	return s.sr.State()
+}
+
+func (s *Controller) Stop(args *api.StopArgs) error {
+	reason := "stop requested"
+	if args != nil && args.Reason != "" {
+		reason = args.Reason
+	}
+	s.logger.InfoContext(s.ctx, "Stop RPC invoked", "reason", reason)
+	// Close asynchronously so the RPC reply can be written before the
+	// server socket is torn down.
+	go func() {
+		_ = s.Close(fmt.Errorf("stop: %s", reason))
+	}()
+	return nil
+}
