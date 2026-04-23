@@ -86,7 +86,7 @@ func buildTerminalSpecFromFlags(cmd *cobra.Command, logger *slog.Logger) (*api.T
 			TerminalCmd:      viper.GetString(config.SBSH_TERM_COMMAND.ViperKey),
 			CaptureFile:      viper.GetString(config.SBSH_TERM_CAPTURE_FILE.ViperKey),
 			RunPath:          viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
-			ProfilesFile:     viper.GetString(config.SBSH_ROOT_PROFILES_FILE.ViperKey),
+			ProfilesDir:      viper.GetString(config.SBSH_ROOT_PROFILES_DIR.ViperKey),
 			ProfileName:      viper.GetString(config.SBSH_TERM_PROFILE.ViperKey),
 			LogFile:          viper.GetString(config.SBSH_TERM_LOG_FILE.ViperKey),
 			LogLevel:         viper.GetString(config.SBSH_TERM_LOG_LEVEL.ViperKey),

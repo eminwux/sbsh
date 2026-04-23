@@ -94,7 +94,7 @@ var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_ROOT_RUN_PATH = DefineKV("SB_RUN_PATH", "sb/runPath")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SB_GET_PROFILES_FILE = DefineKV("SB_PROFILES_FILE", "sb/get/profilesFile")
+	SB_GET_PROFILES_DIR = DefineKV("SB_PROFILES_DIR", "sb/get/profilesDir")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_GET_PROFILES_OUTPUT = DefineKV("SB_PROFILES_OUTPUT", "sb/get/profiles/output")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
@@ -136,7 +136,7 @@ var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_ROOT_CONFIG_FILE = DefineKV("SBSH_CONFIG_FILE", "sbsh/configFile")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SBSH_ROOT_PROFILES_FILE = DefineKV("SBSH_PROFILES_FILE", "sbsh/profilesFile")
+	SBSH_ROOT_PROFILES_DIR = DefineKV("SBSH_PROFILES_DIR", "sbsh/profilesDir")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_ROOT_LOG_LEVEL = DefineKV("SBSH_LOG_LEVEL", "sbsh/logLevel", "info")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable

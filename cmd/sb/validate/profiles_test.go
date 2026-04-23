@@ -107,3 +107,51 @@ func TestValidateProfilesCmd_MissingFile(t *testing.T) {
 		t.Fatal("expected error for missing file")
 	}
 }
+
+func TestValidateProfilesCmd_DirWithDuplicatesAndMalformed(t *testing.T) {
+	dir := t.TempDir()
+	writeFile := func(name, body string) {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+
+	writeFile("a-good.yaml", `apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: dup
+spec:
+  runTarget: local
+  shell:
+    cmd: /bin/sh
+`)
+	writeFile("b-dup.yaml", `apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: dup
+spec:
+  runTarget: local
+  shell:
+    cmd: /bin/sh
+`)
+	writeFile("c-bad.yaml", "apiVersion: sbsh/v1beta1\nkind: TerminalProfile\n  bad: indent\n  broken:\n")
+
+	stdout, stderr, err := runCmd(t, []string{dir})
+	if !errors.Is(err, errdefs.ErrInvalidProfiles) {
+		t.Fatalf("expected ErrInvalidProfiles, got %v (stderr: %s)", err, stderr)
+	}
+	if !strings.Contains(stdout, "Loader warnings:") {
+		t.Fatalf("expected loader warnings section in stdout, got: %s", stdout)
+	}
+	if !strings.Contains(stdout, "duplicate profile name") {
+		t.Fatalf("expected duplicate warning, got: %s", stdout)
+	}
+	if !strings.Contains(stdout, "malformed YAML") {
+		t.Fatalf("expected malformed YAML warning, got: %s", stdout)
+	}
+	if !strings.Contains(stdout, "a-good.yaml") {
+		t.Fatalf("expected per-file report for a-good.yaml, got: %s", stdout)
+	}
+}

@@ -28,22 +28,29 @@ import (
 	pkgdiscovery "github.com/eminwux/sbsh/pkg/discovery"
 )
 
-// ScanAndPrintProfiles loads all profiles from a YAML file (supports multiple '---' documents)
-// and prints them to w.
-// format: "" (compact table), "wide" (full table), "json", "yaml".
+// ProfileWarning re-exports [pkgdiscovery.ProfileWarning] for callers that
+// only import the internal discovery package.
+type ProfileWarning = pkgdiscovery.ProfileWarning
+
+// ScanAndPrintProfiles loads every TerminalProfile under profilesDir and
+// prints them to w. Any warnings produced by the loader are written to warnOut
+// (typically os.Stderr) so the user can see why a file or document was
+// skipped. format selects the table / json / yaml rendering.
 func ScanAndPrintProfiles(
 	ctx context.Context,
 	logger *slog.Logger,
-	path string,
+	profilesDir string,
 	w io.Writer,
+	warnOut io.Writer,
 	format string,
 ) error {
-	logger.DebugContext(ctx, "ScanAndPrintProfiles: loading profiles", "path", path)
-	profiles, err := LoadProfilesFromPath(ctx, logger, path)
+	logger.DebugContext(ctx, "ScanAndPrintProfiles: loading profiles", "dir", profilesDir)
+	profiles, warnings, err := LoadProfilesFromDir(ctx, logger, profilesDir)
 	if err != nil {
-		logger.ErrorContext(ctx, "ScanAndPrintProfiles: failed to load profiles", "path", path, "error", err)
+		logger.ErrorContext(ctx, "ScanAndPrintProfiles: failed to load profiles", "dir", profilesDir, "error", err)
 		return err
 	}
+	PrintProfileWarnings(warnOut, warnings)
 	logger.InfoContext(ctx, "ScanAndPrintProfiles: loaded profiles", "count", len(profiles))
 
 	switch format {
@@ -56,13 +63,14 @@ func ScanAndPrintProfiles(
 	}
 }
 
-// LoadProfilesFromPath is a thin wrapper around [pkgdiscovery.LoadProfilesFromPath].
-func LoadProfilesFromPath(
+// LoadProfilesFromDir is a thin wrapper around
+// [pkgdiscovery.LoadProfilesFromDir].
+func LoadProfilesFromDir(
 	ctx context.Context,
 	logger *slog.Logger,
-	profilesFile string,
-) ([]api.TerminalProfileDoc, error) {
-	return pkgdiscovery.LoadProfilesFromPath(ctx, logger, profilesFile)
+	profilesDir string,
+) ([]api.TerminalProfileDoc, []ProfileWarning, error) {
+	return pkgdiscovery.LoadProfilesFromDir(ctx, logger, profilesDir)
 }
 
 // LoadProfilesFromReaderWithContext is a thin wrapper around
@@ -73,6 +81,18 @@ func LoadProfilesFromReaderWithContext(
 	r io.Reader,
 ) ([]api.TerminalProfileDoc, error) {
 	return pkgdiscovery.LoadProfilesFromReaderWithContext(ctx, logger, r)
+}
+
+// PrintProfileWarnings writes one human-readable line per warning to w.
+// Each line is prefixed with "sbsh: warning:" so the diagnostic is easy to
+// grep or filter out. A nil writer turns the call into a no-op.
+func PrintProfileWarnings(w io.Writer, warnings []ProfileWarning) {
+	if w == nil {
+		return
+	}
+	for _, warn := range warnings {
+		fmt.Fprintf(w, "sbsh: warning: %s\n", warn)
+	}
 }
 
 func PrintProfilesTable(w io.Writer, profiles []api.TerminalProfileDoc, wide bool) error {
@@ -116,26 +136,34 @@ func PrintProfilesTable(w io.Writer, profiles []api.TerminalProfileDoc, wide boo
 	return tw.Flush()
 }
 
-// FindProfileByName is a thin wrapper around [pkgdiscovery.FindProfileByName].
-func FindProfileByName(ctx context.Context, logger *slog.Logger, path, name string) (*api.TerminalProfileDoc, error) {
-	return pkgdiscovery.FindProfileByName(ctx, logger, path, name)
+// FindProfileByNameInDir is a thin wrapper around
+// [pkgdiscovery.FindProfileByNameInDir].
+func FindProfileByNameInDir(
+	ctx context.Context,
+	logger *slog.Logger,
+	profilesDir, name string,
+) (*api.TerminalProfileDoc, []ProfileWarning, error) {
+	return pkgdiscovery.FindProfileByNameInDir(ctx, logger, profilesDir, name)
 }
 
-// FindAndPrintProfileMetadata finds all metadata.json under profiles file,
-// unmarshals them into api.ProfileSpec, and prints a table to w.
+// FindAndPrintProfileMetadata looks up a profile by name under profilesDir
+// and prints its metadata to w in the requested format. Loader warnings are
+// printed to warnOut.
 func FindAndPrintProfileMetadata(
 	ctx context.Context,
 	logger *slog.Logger,
-	profilesFile string,
+	profilesDir string,
 	w io.Writer,
+	warnOut io.Writer,
 	terminalName string,
 	format string,
 ) error {
-	logger.DebugContext(ctx, "FindAndPrintProfileMetadata: scanning profiles", "profilesFile", profilesFile)
-	profiles, err := FindProfileByName(ctx, logger, profilesFile, terminalName)
+	logger.DebugContext(ctx, "FindAndPrintProfileMetadata: scanning profiles", "profilesDir", profilesDir)
+	doc, warnings, err := FindProfileByNameInDir(ctx, logger, profilesDir, terminalName)
+	PrintProfileWarnings(warnOut, warnings)
 	if err != nil {
-		logger.ErrorContext(ctx, "FindAndPrintProfileMetadata: failed to scan profiles", "error", err)
+		logger.ErrorContext(ctx, "FindAndPrintProfileMetadata: failed to find profile", "error", err)
 		return err
 	}
-	return printTerminalMetadata(w, profiles, format)
+	return printTerminalMetadata(w, doc, format)
 }

@@ -486,4 +486,4 @@ Use profiles with the `-p` flag:
 $ sbsh -p my-profile
 ```
 
-Profiles are loaded from `~/.sbsh/profiles.yaml` by default, or you can specify a custom location with `--profiles-file` or `SBSH_PROFILES_FILE` environment variable.
+Profiles are loaded from `~/.sbsh/profiles.d/` by default. The directory is scanned recursively for `*.yaml` and `*.yml` files — split profiles across as many files as you like. Override the location with `--profiles-dir` or the `SBSH_PROFILES_DIR` environment variable.

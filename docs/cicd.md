@@ -18,7 +18,7 @@ Use profiles for pre-commit hooks, local testing, and development workflows:
 ### Pre-commit Hook Example
 
 ```yaml
-# ~/.sbsh/profiles.yaml
+# ~/.sbsh/profiles.d/ci.yaml
 apiVersion: sbsh/v1beta1
 kind: TerminalProfile
 metadata:
@@ -78,7 +78,7 @@ jobs:
       - name: Create test profile
         run: |
           mkdir -p ~/.sbsh
-          cat > ~/.sbsh/profiles.yaml <<EOF
+          mkdir -p ~/.sbsh/profiles.d && cat > ~/.sbsh/profiles.d/ci.yaml <<EOF
           apiVersion: sbsh/v1beta1
           kind: TerminalProfile
           metadata:
@@ -123,9 +123,9 @@ Instead of creating profiles inline, you can use profiles checked into your repo
 - name: Copy profiles from repository
   run: |
     mkdir -p ~/.sbsh
-    cp .github/profiles/ci-test.yaml ~/.sbsh/profiles.yaml
+    mkdir -p ~/.sbsh/profiles.d && cp .github/profiles/ci-test.yaml ~/.sbsh/profiles.d/
     # Or combine multiple profiles
-    cat .github/profiles/*.yaml > ~/.sbsh/profiles.yaml
+    mkdir -p ~/.sbsh/profiles.d && cp .github/profiles/*.yaml ~/.sbsh/profiles.d/
 ```
 
 ## GitLab CI/CD
@@ -159,7 +159,7 @@ test:
   script:
     - |
       mkdir -p ~/.sbsh
-      cat > ~/.sbsh/profiles.yaml <<EOF
+      mkdir -p ~/.sbsh/profiles.d && cat > ~/.sbsh/profiles.d/ci.yaml <<EOF
       apiVersion: sbsh/v1beta1
       kind: TerminalProfile
       metadata:
@@ -197,7 +197,7 @@ test:
 test:
   script:
     - mkdir -p ~/.sbsh
-    - cp .gitlab/profiles/ci-test.yaml ~/.sbsh/profiles.yaml
+    - mkdir -p ~/.sbsh/profiles.d && cp .gitlab/profiles/ci-test.yaml ~/.sbsh/profiles.d/
     - sbsh -p ci-test --name "gitlab-$CI_JOB_ID"
 ```
 
@@ -241,7 +241,7 @@ pipeline {
             steps {
                 sh '''
                     mkdir -p ~/.sbsh
-                    cat > ~/.sbsh/profiles.yaml <<EOF
+                    mkdir -p ~/.sbsh/profiles.d && cat > ~/.sbsh/profiles.d/ci.yaml <<EOF
                     apiVersion: sbsh/v1beta1
                     kind: TerminalProfile
                     metadata:
@@ -297,7 +297,7 @@ node {
     stage('Create Profile') {
         sh """
             mkdir -p ~/.sbsh
-            cat > ~/.sbsh/profiles.yaml <<EOF
+            mkdir -p ~/.sbsh/profiles.d && cat > ~/.sbsh/profiles.d/ci.yaml <<EOF
             apiVersion: sbsh/v1beta1
             kind: TerminalProfile
             metadata:
@@ -341,7 +341,7 @@ stage('Copy Profiles') {
     steps {
         sh '''
             mkdir -p ~/.sbsh
-            cp jenkins/profiles/ci-test.yaml ~/.sbsh/profiles.yaml
+            mkdir -p ~/.sbsh/profiles.d && cp jenkins/profiles/ci-test.yaml ~/.sbsh/profiles.d/
         '''
     }
 }
@@ -419,7 +419,7 @@ jobs:
 
 **Solutions**:
 
-- Verify profile file path: `~/.sbsh/profiles.yaml` by default
+- Verify profile file path: `~/.sbsh/profiles.d/` by default
 - Check profile name matches exactly (case-sensitive)
 - Ensure profile is created before running `sbsh -p`
 - Use `sb get profiles` to list available profiles

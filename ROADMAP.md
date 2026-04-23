@@ -18,7 +18,7 @@
 - [ ] **A** API - Add SupervisorMetadata to SupervisorDoc
 - [ ] **A** API - Add TerminalMetadata to TerminalDoc
 - [ ] **A** Configuration - Introduce ConfigurationDoc config.yaml
-    (fields: runPath, profilesFile, logLevel)
+    (fields: runPath, profilesDir, logLevel)
 - [ ] **A** Configuration - Introduce profilesDirectory in ConfigurationDoc with conflict resolution
 - [ ] **A** Configuration - Introduce default TerminalProfileDoc in ConfigurationDoc
 - [ ] **A** Supervisor - Introduce SupervisorDoc and SupervisorProfileDoc

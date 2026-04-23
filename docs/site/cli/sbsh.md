@@ -50,7 +50,7 @@ These flags apply to all `sbsh` commands:
 
 - `--run-path <path>`: Optional run path for the client
 - `--config <file>`: Config file (default: `$HOME/.sbsh/config.yaml`). See the [Configuration guide](../guides/configuration.md) for the `Configuration` document schema.
-- `--profiles <file>`: Profiles manifests file (default: `$HOME/.sbsh/profiles.yaml`)
+- `--profiles-dir <path>`: Directory scanned recursively for `TerminalProfile` YAML documents (default: `$HOME/.sbsh/profiles.d/`)
 
 ### Client Flags
 
@@ -134,7 +134,7 @@ sbsh autocomplete zsh
 
 ## Environment Variables
 
-- `SBSH_PROFILES_FILE`: Path to profiles file (overrides `--profiles`)
+- `SBSH_PROFILES_DIR`: Path to profiles directory (overrides `--profiles-dir`; default `$HOME/.sbsh/profiles.d/`)
 - `SBSH_ROOT_CLIENT_SOCKET`: Default client socket path
 - `SBSH_CLIENT_ID`, `SBSH_CLIENT_NAME`, `SBSH_CLIENT_SOCKET`: Client identity overrides
 - `SBSH_CLIENT_LOG_FILE`, `SBSH_CLIENT_LOG_LEVEL`: Client logging overrides
