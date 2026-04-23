@@ -179,6 +179,7 @@ func BuildTerminalSpec(
 		TerminalName:     cfg.name,
 		TerminalCmd:      cfg.command,
 		TerminalCmdArgs:  cfg.commandArgs,
+		Cwd:              cfg.cwd,
 		CaptureFile:      cfg.captureFile,
 		RunPath:          runPath,
 		ProfilesFile:     cfg.profileFile,

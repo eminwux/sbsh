@@ -107,6 +107,10 @@ func WithClientTerminalSpec(spec *api.TerminalSpec) ClientOption {
 //
 // runPath is required; an empty runPath returns
 // errdefs.ErrRunPathRequired.
+//
+// ctx and logger are accepted but unused today; they are reserved
+// for future profile/discovery plumbing so the signature matches
+// BuildTerminalSpec and will not have to change when that lands.
 func BuildClientDoc(
 	_ context.Context,
 	_ *slog.Logger,

@@ -260,6 +260,72 @@ func TestBuildTerminalSpec_NilOptionSafe(t *testing.T) {
 	}
 }
 
+// WithCwd flows through to the resulting spec. With no profile cwd,
+// the inline value is what ends up on the spec.
+func TestBuildTerminalSpec_WithCwd(t *testing.T) {
+	runPath := t.TempDir()
+	spec, err := builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithCwd("/tmp/custom-cwd"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.Cwd != "/tmp/custom-cwd" {
+		t.Fatalf("cwd: want /tmp/custom-cwd, got %q", spec.Cwd)
+	}
+}
+
+// WithCwd overrides a profile-provided Shell.Cwd when non-empty, and
+// an empty WithCwd leaves the profile value intact.
+func TestBuildTerminalSpec_WithCwdOverridesProfile(t *testing.T) {
+	const profilesYAML = `apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: cwd-profile
+spec:
+  runTarget: local
+  shell:
+    cmd: /bin/bash
+    cwd: /from/profile
+`
+	runPath := t.TempDir()
+	profiles := writeProfiles(t, profilesYAML)
+
+	// No WithCwd: profile value sticks.
+	spec, err := builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithProfileFile(profiles),
+		builder.WithProfile("cwd-profile"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.Cwd != "/from/profile" {
+		t.Fatalf("cwd (profile only): want /from/profile, got %q", spec.Cwd)
+	}
+
+	// With WithCwd: inline wins.
+	spec, err = builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithProfileFile(profiles),
+		builder.WithProfile("cwd-profile"),
+		builder.WithCwd("/from/option"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.Cwd != "/from/option" {
+		t.Fatalf("cwd (override): want /from/option, got %q", spec.Cwd)
+	}
+}
+
 // WithCommand with empty argv (or empty argv[0]) is a no-op.
 func TestBuildTerminalSpec_WithCommandEmpty(t *testing.T) {
 	runPath := t.TempDir()
