@@ -115,6 +115,7 @@ type BuildTerminalSpecParams struct {
 	TerminalName     string
 	TerminalCmd      string
 	TerminalCmdArgs  []string
+	Cwd              string
 	CaptureFile      string
 	RunPath          string
 	ProfilesFile     string
@@ -250,6 +251,7 @@ func BuildTerminalSpec(
 
 // addInputValuesToTerminal mutates terminalSpec by overriding its fields with non-empty values from input.
 // It sets ID, Name, RunPath, CaptureFile, LogFile, LogLevel, SocketFile, and appends EnvVars, avoiding duplicates.
+// Cwd overrides the profile's Shell.Cwd only when non-empty so profile values stay sticky by default.
 func addInputValuesToTerminal(terminalSpec *api.TerminalSpec, input *BuildTerminalSpecParams) {
 	terminalSpec.ID = api.ID(input.TerminalID)
 	terminalSpec.Name = input.TerminalName
@@ -258,6 +260,9 @@ func addInputValuesToTerminal(terminalSpec *api.TerminalSpec, input *BuildTermin
 	terminalSpec.LogFile = input.LogFile
 	terminalSpec.LogLevel = input.LogLevel
 	terminalSpec.SocketFile = input.SocketFile
+	if input.Cwd != "" {
+		terminalSpec.Cwd = input.Cwd
+	}
 	terminalSpec.Env = append(terminalSpec.Env, input.EnvVars...)
 	// Inverted logic: when DisableSetPrompt is true, SetPrompt is false
 	terminalSpec.SetPrompt = !input.DisableSetPrompt
