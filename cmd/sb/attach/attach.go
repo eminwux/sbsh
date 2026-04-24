@@ -64,25 +64,8 @@ to quickly create a Cobra application.`,
 				return errdefs.ErrLoggerNotFound
 			}
 
-			switch {
-			case len(args) == 0:
-				return errdefs.ErrNoTerminalIdentifier
-			case len(args) == 1:
-				// If user passed -n when listing, reject it
-				if cmd.Flags().Changed("id") {
-					return fmt.Errorf(
-						"%w: the --id flag is not valid when using positional terminal name",
-						errdefs.ErrInvalidFlag,
-					)
-				}
-				if cmd.Flags().Changed("name") {
-					return fmt.Errorf(
-						"%w: the --name flag is not valid when using positional terminal name",
-						errdefs.ErrInvalidFlag,
-					)
-				}
-			case len(args) > 1:
-				return errdefs.ErrTooManyArguments
+			if err := validateAttachArgs(cmd, args); err != nil {
+				return err
 			}
 
 			logger.DebugContext(cmd.Context(), "attach command invoked",
@@ -106,6 +89,36 @@ to quickly create a Cobra application.`,
 
 	setupAttachCmdFlags(attachCmd)
 	return attachCmd
+}
+
+// validateAttachArgs enforces the positional/flag contract for
+// `sb attach`: zero or one positional terminal identifier, optionally
+// replaced by --id or --name; the flags are mutually exclusive with a
+// positional arg but are themselves a valid way to identify the target
+// (so library callers like pkg/spawn can use --id alone).
+func validateAttachArgs(cmd *cobra.Command, args []string) error {
+	switch {
+	case len(args) == 0:
+		if !cmd.Flags().Changed("id") && !cmd.Flags().Changed("name") {
+			return errdefs.ErrNoTerminalIdentifier
+		}
+	case len(args) == 1:
+		if cmd.Flags().Changed("id") {
+			return fmt.Errorf(
+				"%w: the --id flag is not valid when using positional terminal name",
+				errdefs.ErrInvalidFlag,
+			)
+		}
+		if cmd.Flags().Changed("name") {
+			return fmt.Errorf(
+				"%w: the --name flag is not valid when using positional terminal name",
+				errdefs.ErrInvalidFlag,
+			)
+		}
+	case len(args) > 1:
+		return errdefs.ErrTooManyArguments
+	}
+	return nil
 }
 
 func setupAttachCmdFlags(attachCmd *cobra.Command) {
