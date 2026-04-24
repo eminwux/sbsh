@@ -92,6 +92,7 @@ func buildTerminalSpecFromFlags(cmd *cobra.Command, logger *slog.Logger) (*api.T
 			LogLevel:         viper.GetString(config.SBSH_TERM_LOG_LEVEL.ViperKey),
 			SocketFile:       viper.GetString(config.SBSH_TERM_SOCKET.ViperKey),
 			DisableSetPrompt: viper.GetBool(config.SBSH_TERM_DISABLE_SET_PROMPT.ViperKey),
+			ShutdownGrace:    viper.GetDuration(config.SBSH_TERM_SHUTDOWN_GRACE.ViperKey),
 		},
 	)
 
@@ -363,6 +364,13 @@ func setupTerminalCmdFlags(terminalCmd *cobra.Command) {
 
 	terminalCmd.Flags().Bool("disable-set-prompt", false, "Disable setting the prompt")
 	_ = viper.BindPFlag(config.SBSH_TERM_DISABLE_SET_PROMPT.ViperKey, terminalCmd.Flags().Lookup("disable-set-prompt"))
+
+	terminalCmd.Flags().Duration(
+		"shutdown-grace",
+		profile.DefaultShutdownGrace,
+		"How long to wait after SIGTERM before escalating to SIGKILL on the child",
+	)
+	_ = viper.BindPFlag(config.SBSH_TERM_SHUTDOWN_GRACE.ViperKey, terminalCmd.Flags().Lookup("shutdown-grace"))
 }
 
 func runTerminal(

@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/eminwux/sbsh/internal/initmode"
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
@@ -68,10 +69,29 @@ type Exec struct {
 	closeReqCh chan error
 	closedCh   chan struct{}
 
+	// childDoneCh is closed once by the child-watching goroutine (either
+	// os/exec.Wait or the PID-1 reaper) once the tracked child has exited.
+	// Close() uses it as the "is the child dead yet" signal during graceful
+	// shutdown so it can decide when to escalate SIGTERM -> SIGKILL.
+	childDoneCh   chan struct{}
+	childDoneOnce *sync.Once
+
 	ptyPipes   *ptyPipes
 	ptyPipesMu sync.RWMutex // protects ptyPipes field (reads after initialization)
 
 	closePTY *sync.Once
+
+	// initMode is captured at construction time so tests can toggle
+	// initmode.Enable before/after NewTerminalRunnerExec without surprising
+	// the already-running goroutines.
+	initMode bool
+
+	// reaper is the PID-1 zombie reaper, non-nil only when initMode is true.
+	reaper *reaper
+
+	// stopSignalForwarder tears down the PID-1 signal forwarder. nil when
+	// initMode is false.
+	stopSignalForwarder func()
 }
 
 type ptyPipes struct {
@@ -89,6 +109,13 @@ type ioClient struct {
 
 func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.TerminalSpec) TerminalRunner {
 	newCtx, cancel := context.WithCancel(ctx)
+
+	inInit := initmode.IsInit()
+	var rp *reaper
+	if inInit {
+		rp = newReaper(logger)
+		rp.Start()
+	}
 
 	return &Exec{
 		id: spec.ID,
@@ -131,10 +158,37 @@ func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.T
 		// signaling (set in Start)
 		evCh: nil, // assigned in Start(...)
 
-		closeReqCh: make(chan error),
-		closedCh:   make(chan struct{}),
-		ptyPipes:   &ptyPipes{},
-		closePTY:   &sync.Once{},
+		closeReqCh:    make(chan error),
+		closedCh:      make(chan struct{}),
+		childDoneCh:   make(chan struct{}),
+		childDoneOnce: &sync.Once{},
+		ptyPipes:      &ptyPipes{},
+		closePTY:      &sync.Once{},
+
+		initMode: inInit,
+		reaper:   rp,
+	}
+}
+
+// markChildDone records that the child has exited. Safe to call from any
+// goroutine; subsequent calls are no-ops. Returning the bool lets the caller
+// know whether this call was the first.
+func (sr *Exec) markChildDone() bool {
+	fired := false
+	sr.childDoneOnce.Do(func() {
+		close(sr.childDoneCh)
+		fired = true
+	})
+	return fired
+}
+
+// childDone returns true if the child has exited (non-blocking).
+func (sr *Exec) childDone() bool {
+	select {
+	case <-sr.childDoneCh:
+		return true
+	default:
+		return false
 	}
 }
 

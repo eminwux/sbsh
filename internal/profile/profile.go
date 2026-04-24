@@ -23,6 +23,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/discovery"
@@ -125,6 +126,7 @@ type BuildTerminalSpecParams struct {
 	SocketFile       string
 	EnvVars          []string
 	DisableSetPrompt bool
+	ShutdownGrace    time.Duration
 }
 
 // BuildTerminalSpec builds a TerminalSpec from command-line inputs and/or a profile.
@@ -269,7 +271,14 @@ func addInputValuesToTerminal(terminalSpec *api.TerminalSpec, input *BuildTermin
 	terminalSpec.Env = append(terminalSpec.Env, input.EnvVars...)
 	// Inverted logic: when DisableSetPrompt is true, SetPrompt is false
 	terminalSpec.SetPrompt = !input.DisableSetPrompt
+	if input.ShutdownGrace > 0 {
+		terminalSpec.ShutdownGrace = input.ShutdownGrace
+	}
 }
+
+// DefaultShutdownGrace matches Kubernetes terminationGracePeriodSeconds so
+// kukeon-injected PID-1 sbsh exits predictably under `kuke stop cell`.
+const DefaultShutdownGrace = 30 * time.Second
 
 // GetDefaultHardcodedProfile constructs a default TerminalProfileDoc using command-line or terminal defaults.
 // Used when no profile is found; logs the fallback and builds the profile from BuildTerminalSpecParams.
