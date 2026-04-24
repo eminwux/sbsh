@@ -53,7 +53,7 @@ metadata:
   name: default
 spec:
   runPath: /var/run/sbsh
-  profilesFile: /etc/sbsh/profiles.yaml
+  profilesDir: /etc/sbsh/profiles.d
   logLevel: debug
 `
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
@@ -77,8 +77,8 @@ spec:
 	if got, want := doc.Spec.RunPath, "/var/run/sbsh"; got != want {
 		t.Errorf("Spec.RunPath = %q, want %q", got, want)
 	}
-	if got, want := doc.Spec.ProfilesFile, "/etc/sbsh/profiles.yaml"; got != want {
-		t.Errorf("Spec.ProfilesFile = %q, want %q", got, want)
+	if got, want := doc.Spec.ProfilesDir, "/etc/sbsh/profiles.d"; got != want {
+		t.Errorf("Spec.ProfilesDir = %q, want %q", got, want)
 	}
 	if got, want := doc.Spec.LogLevel, "debug"; got != want {
 		t.Errorf("Spec.LogLevel = %q, want %q", got, want)

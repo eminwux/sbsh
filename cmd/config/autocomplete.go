@@ -26,20 +26,23 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-func AutoCompleteListProfileNames(ctx context.Context, logger *slog.Logger, profilesFile string) ([]string, error) {
+// AutoCompleteListProfileNames returns every profile name successfully loaded
+// from profilesDir. Warnings (malformed files, duplicate names, schema-invalid
+// documents) are swallowed so completion never fails or returns an empty list
+// just because one file is broken — users can diagnose those with
+// `sb validate profiles`.
+func AutoCompleteListProfileNames(ctx context.Context, logger *slog.Logger, profilesDir string) ([]string, error) {
 	// logger is not set on autocomplete calls
 	if logger == nil {
 		logger = logging.NewNoopLogger()
 	}
 
-	profiles, err := discovery.LoadProfilesFromPath(ctx, logger, profilesFile)
+	profiles, _, err := discovery.LoadProfilesFromDir(ctx, logger, profilesDir)
 	if err != nil {
-		if logger != nil {
-			logger.ErrorContext(ctx, "ListProfiles: failed to load profiles", "path", profilesFile, "error", err)
-		}
+		logger.ErrorContext(ctx, "ListProfiles: failed to load profiles", "dir", profilesDir, "error", err)
 		return nil, err
 	}
-	if profiles == nil {
+	if len(profiles) == 0 {
 		return nil, errors.New("no profiles found")
 	}
 

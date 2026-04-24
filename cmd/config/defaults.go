@@ -45,27 +45,31 @@ func GetRunPathFromEnvAndFlags(cmd *cobra.Command, viperKey string) (string, err
 	return runPath, nil
 }
 
-func GetProfilesFileFromEnvAndFlags(cmd *cobra.Command, viperKey string) (string, error) {
-	profilesFile, _ := cmd.Flags().GetString("profiles-file")
-	if profilesFile == "" {
-		if env := os.Getenv(viperKey); env != "" {
-			profilesFile = env
+// GetProfilesDirFromEnvAndFlags resolves the profiles directory using the
+// precedence flag > env > default. envVar is the environment variable to
+// consult when the flag is unset.
+func GetProfilesDirFromEnvAndFlags(cmd *cobra.Command, envVar string) (string, error) {
+	profilesDir, _ := cmd.Flags().GetString("profiles-dir")
+	if profilesDir == "" {
+		if env := os.Getenv(envVar); env != "" {
+			profilesDir = env
 		} else {
-			// final fallback: same default you use at runtime
-			profilesFile = DefaultProfilesFile()
+			profilesDir = DefaultProfilesDir()
 		}
 	}
-	return profilesFile, nil
+	return profilesDir, nil
 }
 
-func DefaultProfilesFile() string {
+// DefaultProfilesDir returns the default profiles directory
+// ($HOME/.sbsh/profiles.d/).
+func DefaultProfilesDir() string {
 	base, err := os.UserHomeDir()
 	if err != nil {
 		// fallback to tmp if home dir cannot be determined
 		base = "tmp"
 	}
 
-	return filepath.Join(base, ".sbsh", "profiles.yaml")
+	return filepath.Join(base, ".sbsh", "profiles.d")
 }
 
 func DefaultConfigFile() string {

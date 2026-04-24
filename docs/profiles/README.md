@@ -6,32 +6,32 @@ Profiles define how sbsh starts and manages terminals. They let you customize th
 
 ### Where to put your profiles
 
-sbsh looks for profiles in `$HOME/.sbsh/profiles.yaml` by default. You can also specify a different file using:
+sbsh scans `$HOME/.sbsh/profiles.d/` recursively by default, loading every `*.yaml` / `*.yml` file it finds. Split profiles across as many files and subdirectories as you like — one profile per file, one file per project, or one multi-document file that groups related profiles. You can also specify a different directory using:
 
-- Environment variable: `SBSH_PROFILES_FILE=/path/to/profiles.yaml`
-- Command flag: `sbsh --profiles-file /path/to/profiles.yaml`
+- Environment variable: `SBSH_PROFILES_DIR=/path/to/profiles.d`
+- Command flag: `sbsh --profiles-dir /path/to/profiles.d`
+
+> **Breaking change**: earlier releases loaded a single `$HOME/.sbsh/profiles.yaml` file. That path is no longer read. Move your profiles into `$HOME/.sbsh/profiles.d/` — split as individual files or keep one combined multi-document YAML, whichever you prefer.
 
 ### Create your first profile
 
 1. Create the profiles directory (if it doesn't exist):
 
    ```bash
-   mkdir -p ~/.sbsh
+   mkdir -p ~/.sbsh/profiles.d
    ```
 
-2. Copy example profiles to get started:
+2. Copy example profiles to get started. Any combination below works because the loader scans the whole directory:
 
    ```bash
-   # Copy the combined profiles file
-   cp docs/profiles/profiles.yaml ~/.sbsh/profiles.yaml
+   # Drop one pre-combined file
+   cp docs/profiles/profiles.yaml ~/.sbsh/profiles.d/examples.yaml
 
-   # Or combine individual example files (provided for reference)
-   cat docs/profiles/*.yaml > ~/.sbsh/profiles.yaml
+   # Or drop individual example files
+   cp docs/profiles/default.yaml docs/profiles/python-venv.yaml ~/.sbsh/profiles.d/
    ```
 
-   **Note**: sbsh only supports a single `profiles.yaml` file. The individual `.yaml` files in `docs/profiles/` are provided as reference examples, but you must combine them into one file for use.
-
-3. Edit `~/.sbsh/profiles.yaml` and add your own profiles.
+3. Add your own profiles as new `*.yaml` files under `~/.sbsh/profiles.d/`.
 
 ### Minimal example
 
@@ -192,7 +192,7 @@ Lifecycle hooks that run at specific points in the terminal lifecycle.
 
 ## Example Profiles
 
-This directory contains example profiles. The individual `.yaml` files are provided for reference, but sbsh only supports a single `profiles.yaml` file. All profiles must be combined into one file with `---` separators between documents.
+This directory contains example profiles. Each individual `.yaml` file is a complete, standalone `TerminalProfile` document — drop any subset of them into `~/.sbsh/profiles.d/` and sbsh will load them. The combined [`profiles.yaml`](./profiles.yaml) is also a valid multi-document file you can drop in as-is.
 
 ### Profile Examples Index
 
@@ -219,16 +219,16 @@ This directory contains example profiles. The individual `.yaml` files are provi
 | `mysql`             | MySQL database shell for database operations and debugging      | [`mysql.yaml`](./mysql.yaml)                         | [Section 19](#19-mysql---mysql-database-shell)                    |
 | `mongo`             | MongoDB database shell for database operations and debugging    | [`mongo.yaml`](./mongo.yaml)                         | [Section 20](#20-mongo---mongodb-database-shell)                  |
 
-All profiles are also available in [`profiles.yaml`](./profiles.yaml) as a combined file ready to use.
+All profiles are also available in [`profiles.yaml`](./profiles.yaml) as a combined multi-document file ready to use.
 
 **To use these profiles:**
 
 ```bash
-# Copy the combined file
-cp docs/profiles/profiles.yaml ~/.sbsh/profiles.yaml
+# Drop the combined multi-document file
+cp docs/profiles/profiles.yaml ~/.sbsh/profiles.d/examples.yaml
 
-# Or copy specific example files and combine them
-cat docs/profiles/default.yaml docs/profiles/python-venv.yaml > ~/.sbsh/profiles.yaml
+# Or drop individual example files — each is already a valid standalone profile
+cp docs/profiles/default.yaml docs/profiles/python-venv.yaml ~/.sbsh/profiles.d/
 ```
 
 ## Example Profiles Explained
@@ -673,9 +673,10 @@ Connects to a MongoDB database using the `mongosh` CLI (MongoDB Shell). Perfect 
 **Solutions:**
 
 - Check the profile name matches exactly (case-sensitive)
-- Verify `~/.sbsh/profiles.yaml` exists
+- Verify `~/.sbsh/profiles.d/` exists and contains at least one `*.yaml` / `*.yml` file
 - Run `sb get profiles` to see available profiles
-- Check if you're using a custom profiles file path
+- If completion or `sb get profiles` looks empty or short, run `sb validate profiles` — it lists every malformed file, schema-invalid document, and duplicate profile name the loader skipped
+- Check if you're using a custom profiles directory path (`--profiles-dir` or `SBSH_PROFILES_DIR`)
 
 ### Environment variables not working
 
@@ -731,7 +732,7 @@ Connects to a MongoDB database using the `mongosh` CLI (MongoDB Shell). Perfect 
 
 ## Viewing Available Profiles
 
-List all profiles in your profiles file:
+List all profiles discovered under your profiles directory:
 
 ```bash
 sb get profiles
@@ -744,45 +745,61 @@ This shows:
 - Number of environment variables
 - Command that will be executed
 
-## Custom Profile File Location
+If shell completion for `sbsh -p` looks empty or short, run `sb validate profiles` — it scans the same directory and lists every malformed file, schema-invalid document, and duplicate profile name the loader skipped.
 
-By default, sbsh uses `~/.sbsh/profiles.yaml`. To use a different location:
+## Custom Profile Directory Location
+
+By default, sbsh scans `~/.sbsh/profiles.d/`. To use a different directory:
 
 **Using environment variable:**
 
 ```bash
-export SBSH_PROFILES_FILE=/path/to/custom/profiles.yaml
+export SBSH_PROFILES_DIR=/path/to/custom/profiles.d
 sbsh -p my-profile
 ```
 
 **Using command flag:**
 
 ```bash
-sbsh --profiles-file /path/to/custom/profiles.yaml -p my-profile
+sbsh --profiles-dir /path/to/custom/profiles.d -p my-profile
 ```
+
+The flag overrides the environment variable, which overrides the built-in default.
 
 ## Profile File Organization
 
-sbsh loads all profiles from a single `profiles.yaml` file. Multiple profiles are defined in the same file, separated by `---` (YAML document separator).
+sbsh scans the profiles directory recursively and loads every `*.yaml` / `*.yml` file. Each file may contain a single profile or several documents separated by `---`. There is no required layout — group profiles by project, by environment, or leave them all flat — whatever fits your workflow.
 
-Example profiles are provided as individual files in this directory for reference and documentation purposes. To use them, you must combine them into a single `profiles.yaml` file:
+Resilience guarantees:
+
+- A malformed YAML file never prevents other files from loading; the offending file is named in a loader warning.
+- A schema-invalid document (missing `apiVersion` / `kind` / `metadata.name`) never prevents other documents from loading.
+- Duplicate profile names are resolved first-wins (lexicographic load order); each duplicate is reported as a warning naming both the skipped file and the file that won.
+
+Warnings are printed to stderr by interactive commands and listed in full by `sb validate profiles`.
+
+Example layouts that all work:
 
 ```bash
-# Copy the pre-combined file (recommended)
-cp docs/profiles/profiles.yaml ~/.sbsh/profiles.yaml
+# Flat, one file per profile
+~/.sbsh/profiles.d/default.yaml
+~/.sbsh/profiles.d/k8s.yaml
 
-# Or combine specific example files
-cat docs/profiles/default.yaml docs/profiles/python-venv.yaml > ~/.sbsh/profiles.yaml
+# Grouped per tool
+~/.sbsh/profiles.d/k8s/staging.yaml
+~/.sbsh/profiles.d/k8s/production.yaml
+~/.sbsh/profiles.d/aws/admin.yaml
+
+# A single combined multi-document file
+~/.sbsh/profiles.d/all.yaml
 ```
-
-**Important**: sbsh only reads from a single `profiles.yaml` file. The individual `.yaml` files in `docs/profiles/` are examples for reference only.
 
 ## Contributing Examples
 
 Found a useful profile pattern? We'd love to see it! Consider opening a pull request with:
 
-- Your profile as a new file in `docs/profiles/` (e.g., `my-profile.yaml`) - provided as a reference example
-- Add the profile to `docs/profiles/profiles.yaml` (the combined file) with `---` separator
+- Your profile as a new file in `docs/profiles/` (e.g., `my-profile.yaml`)
+- Add the profile to `docs/profiles/profiles.yaml` (the combined file) with a `---` separator
 - Update this README to document the new profile
 - A brief description of the use case
 - Any special requirements or setup instructions

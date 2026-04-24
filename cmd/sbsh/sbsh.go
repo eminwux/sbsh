@@ -120,7 +120,7 @@ You can also use sbsh with parameters. For example:
 				"runPath", viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
 				"configFile", viper.GetString(config.SBSH_ROOT_CONFIG_FILE.ViperKey),
 				"logLevel", viper.GetString(config.SBSH_ROOT_LOG_LEVEL.ViperKey),
-				"profilesFile", viper.GetString(config.SBSH_ROOT_PROFILES_FILE.ViperKey),
+				"profilesDir", viper.GetString(config.SBSH_ROOT_PROFILES_DIR.ViperKey),
 				"terminalID", viper.GetString(config.SBSH_ROOT_TERM_ID.ViperKey),
 				"terminalCommand", viper.GetString(config.SBSH_ROOT_TERM_COMMAND.ViperKey),
 				"terminalName", viper.GetString(config.SBSH_ROOT_TERM_NAME.ViperKey),
@@ -160,7 +160,7 @@ You can also use sbsh with parameters. For example:
 					TerminalCmd:      viper.GetString(config.SBSH_ROOT_TERM_COMMAND.ViperKey),
 					CaptureFile:      viper.GetString(config.SBSH_ROOT_TERM_CAPTURE_FILE.ViperKey),
 					RunPath:          viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-					ProfilesFile:     viper.GetString(config.SBSH_ROOT_PROFILES_FILE.ViperKey),
+					ProfilesDir:      viper.GetString(config.SBSH_ROOT_PROFILES_DIR.ViperKey),
 					ProfileName:      viper.GetString(config.SBSH_ROOT_TERM_PROFILE.ViperKey),
 					LogFile:          viper.GetString(config.SBSH_ROOT_TERM_LOG_FILE.ViperKey),
 					LogLevel:         viper.GetString(config.SBSH_ROOT_TERM_LOG_LEVEL.ViperKey),
@@ -244,8 +244,14 @@ func setPersistentLoggingFlags(rootCmd *cobra.Command) error {
 		return err
 	}
 
-	rootCmd.PersistentFlags().String("profiles", "", "profiles manifests file")
-	if err := viper.BindPFlag(config.SBSH_ROOT_PROFILES_FILE.ViperKey, rootCmd.PersistentFlags().Lookup("profiles")); err != nil {
+	rootCmd.PersistentFlags().String(
+		"profiles-dir", "",
+		"Directory scanned for TerminalProfile YAML documents (default: $HOME/.sbsh/profiles.d/)",
+	)
+	if err := viper.BindPFlag(
+		config.SBSH_ROOT_PROFILES_DIR.ViperKey,
+		rootCmd.PersistentFlags().Lookup("profiles-dir"),
+	); err != nil {
 		return err
 	}
 
@@ -452,12 +458,12 @@ func LoadConfig() error {
 	}
 	config.SBSH_ROOT_RUN_PATH.SetDefault(runPath)
 
-	_ = config.SBSH_ROOT_PROFILES_FILE.BindEnv()
-	profilesFile := config.DefaultProfilesFile()
-	if cfgDoc != nil && cfgDoc.Spec.ProfilesFile != "" {
-		profilesFile = cfgDoc.Spec.ProfilesFile
+	_ = config.SBSH_ROOT_PROFILES_DIR.BindEnv()
+	profilesDir := config.DefaultProfilesDir()
+	if cfgDoc != nil && cfgDoc.Spec.ProfilesDir != "" {
+		profilesDir = cfgDoc.Spec.ProfilesDir
 	}
-	config.SBSH_ROOT_PROFILES_FILE.SetDefault(profilesFile)
+	config.SBSH_ROOT_PROFILES_DIR.SetDefault(profilesDir)
 
 	_ = config.SBSH_ROOT_LOG_LEVEL.BindEnv()
 	logLevel := "info"
@@ -515,12 +521,12 @@ func setAutoCompleteProfile(rootCmd *cobra.Command) error {
 			//nolint:mnd // 150ms is a good compromise between snappy completion and enough time to read files
 			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 			defer cancel()
-			profilesFile, err := config.GetProfilesFileFromEnvAndFlags(c, config.SBSH_ROOT_PROFILES_FILE.EnvVar())
+			profilesDir, err := config.GetProfilesDirFromEnvAndFlags(c, config.SBSH_ROOT_PROFILES_DIR.EnvVar())
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
-			profs, err := config.AutoCompleteListProfileNames(ctx, nil, profilesFile)
+			profs, err := config.AutoCompleteListProfileNames(ctx, nil, profilesDir)
 			if err != nil {
 				// fail silent to keep completion snappy
 				return nil, cobra.ShellCompDirectiveNoFileComp

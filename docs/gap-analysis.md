@@ -98,18 +98,17 @@ Implemented via a new `sb stop terminal <name>` command.
 - **Complexity:** Medium. Requires always-on capture (small buffer or
   on-disk ring).
 
-### 6. Profiles must live in one file  (P2)
+### 6. Profiles must live in one file  (P2) — RESOLVED
 
-- **Observed:** `~/.sbsh/profiles.yaml` holds all profiles separated by
-  `---`. Editing one profile touches the shared file; concurrent edits by
-  agents/tools risk corruption.
-- **Impact:** Hard to manage when profile count grows (user already has
-  `aleph`, `bernard`, `sbsh-dev`, `kukeon-dev`, and planned
-  `*-dev0/1/2`, `*-reviewer0/1`).
-- **Fix:** Support a `~/.sbsh/profiles.d/*.yaml` overlay directory (in
-  addition to the single file for backward compat). Load, validate, and
-  merge by `metadata.name`.
-- **Complexity:** Low–medium.
+- **Observed (historical):** `~/.sbsh/profiles.yaml` held all profiles separated
+  by `---`. Editing one profile touched the shared file; concurrent edits by
+  agents/tools risked corruption.
+- **Resolution:** Profiles are now loaded from
+  `~/.sbsh/profiles.d/` (recursive scan of `*.yaml` / `*.yml`).
+  Loader returns warnings instead of aborting on per-file errors, and
+  `sb validate profiles` surfaces them for users whose completion looks
+  empty. The single-file layout is no longer read — breaking change,
+  users migrate by dropping their profiles into `profiles.d/`.
 
 ### 7. `onInit` semantics undocumented  (P2)
 
@@ -188,5 +187,5 @@ Implemented via a new `sb stop terminal <name>` command.
   already introduced wide output — follow the same pattern).
 - Lifecycle code (`OnInit`, `PostAttach`, `Close`) is in
   `internal/terminal/terminalrunner/lifecycle.go`.
-- Do not delete `~/.sbsh/profiles.yaml` parsing when adding
-  `profiles.d/` — merge both sources.
+- `profiles.d/` replaces `~/.sbsh/profiles.yaml` (breaking change).
+  The single-file path is no longer read.

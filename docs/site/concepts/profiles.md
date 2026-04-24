@@ -44,7 +44,7 @@ spec:
 
 ## Profile Storage
 
-Profiles are stored in `~/.sbsh/profiles.yaml` by default. Multiple profiles are defined in the same file, separated by `---` (YAML document separator).
+Profiles live under `~/.sbsh/profiles.d/` by default. sbsh scans the directory recursively and loads every `*.yaml` / `*.yml` file, so you can keep one profile per file, group related profiles into subdirectories, or combine several into a single multi-document YAML (documents separated by `---`). Point sbsh at a different directory with `--profiles-dir` or `SBSH_PROFILES_DIR`.
 
 ## Profile Discovery
 

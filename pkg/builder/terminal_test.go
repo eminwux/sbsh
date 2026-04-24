@@ -113,7 +113,7 @@ func TestBuildTerminalSpec_InlineOnly(t *testing.T) {
 	}
 }
 
-// ProfileByName: when WithProfile + WithProfileFile resolve, the
+// ProfileByName: when WithProfile + WithProfilesDir resolve, the
 // profile's shell cmd/args flow into the spec.
 func TestBuildTerminalSpec_ProfileByName(t *testing.T) {
 	runPath := t.TempDir()
@@ -123,7 +123,7 @@ func TestBuildTerminalSpec_ProfileByName(t *testing.T) {
 		context.Background(),
 		testLogger(),
 		runPath,
-		builder.WithProfileFile(profiles),
+		builder.WithProfilesDir(filepath.Dir(profiles)),
 		builder.WithProfile("alpha"),
 		builder.WithID("id-a"),
 	)
@@ -157,7 +157,7 @@ func TestBuildTerminalSpec_UnknownProfile(t *testing.T) {
 		context.Background(),
 		testLogger(),
 		runPath,
-		builder.WithProfileFile(profiles),
+		builder.WithProfilesDir(filepath.Dir(profiles)),
 		builder.WithProfile("ghost"),
 	)
 	if err == nil {
@@ -226,21 +226,25 @@ func TestBuildTerminalSpec_WithEnvComposition(t *testing.T) {
 	}
 }
 
-// Missing profile file with a non-default profile name produces an
-// open/not-found error rather than silently falling back.
-func TestBuildTerminalSpec_MissingProfileFile(t *testing.T) {
+// A non-default profile name that resolves to no profile at all
+// (missing directory or simply absent) surfaces a profile-not-found
+// error rather than silently falling back to the hardcoded default.
+func TestBuildTerminalSpec_MissingProfilesDir(t *testing.T) {
 	runPath := t.TempDir()
-	missing := filepath.Join(runPath, "does-not-exist.yaml")
+	missing := filepath.Join(runPath, "no-such-profiles-dir")
 
 	_, err := builder.BuildTerminalSpec(
 		context.Background(),
 		testLogger(),
 		runPath,
-		builder.WithProfileFile(missing),
+		builder.WithProfilesDir(missing),
 		builder.WithProfile("alpha"),
 	)
 	if err == nil {
-		t.Fatal("expected error for missing profile file, got nil")
+		t.Fatal("expected error for missing profile, got nil")
+	}
+	if !strings.Contains(err.Error(), "alpha") {
+		t.Fatalf("expected error to mention profile name, got: %v", err)
 	}
 }
 
@@ -299,7 +303,7 @@ spec:
 		context.Background(),
 		testLogger(),
 		runPath,
-		builder.WithProfileFile(profiles),
+		builder.WithProfilesDir(filepath.Dir(profiles)),
 		builder.WithProfile("cwd-profile"),
 	)
 	if err != nil {
@@ -314,7 +318,7 @@ spec:
 		context.Background(),
 		testLogger(),
 		runPath,
-		builder.WithProfileFile(profiles),
+		builder.WithProfilesDir(filepath.Dir(profiles)),
 		builder.WithProfile("cwd-profile"),
 		builder.WithCwd("/from/option"),
 	)

@@ -118,7 +118,7 @@ type BuildTerminalSpecParams struct {
 	Cwd              string
 	CaptureFile      string
 	RunPath          string
-	ProfilesFile     string
+	ProfilesDir      string
 	ProfileName      string
 	LogFile          string
 	LogLevel         string
@@ -155,9 +155,11 @@ func BuildTerminalSpec(
 		input.TerminalName = naming.RandomName()
 	}
 
-	if input.ProfilesFile == "" {
-		// Default profilesFilename to $RUN_PATH/profiles.yaml
-		input.ProfilesFile = filepath.Join(input.RunPath, ".sbsh", "profiles.yaml")
+	if input.ProfilesDir == "" {
+		// Fallback: sit next to run state under $RUN_PATH so profile lookup
+		// still has a well-defined path when the caller has not resolved the
+		// $HOME-based default (which normally happens in LoadConfig).
+		input.ProfilesDir = filepath.Join(input.RunPath, ".sbsh", "profiles.d")
 	}
 
 	if input.TerminalCmd == "" {
@@ -204,15 +206,16 @@ func BuildTerminalSpec(
 		"Profile specified, loading and applying profile",
 		"profile",
 		input.ProfileName,
-		"profilesFile",
-		input.ProfilesFile,
+		"profilesDir",
+		input.ProfilesDir,
 	)
 
 	var terminalSpec *api.TerminalSpec
-	var profileSpec *api.TerminalProfileDoc
-	var errFind error
 
-	profileSpec, errFind = discovery.FindProfileByName(ctx, logger, input.ProfilesFile, input.ProfileName)
+	profileSpec, warnings, errFind := discovery.FindProfileByNameInDir(ctx, logger, input.ProfilesDir, input.ProfileName)
+	for _, w := range warnings {
+		logger.WarnContext(ctx, "profile loader warning", "file", w.File, "doc", w.DocIndex, "reason", w.Reason)
+	}
 	if errFind != nil {
 		logger.InfoContext(
 			ctx,

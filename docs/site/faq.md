@@ -48,11 +48,11 @@ Terminals are independent processes and continue running even if the client exit
 
 ### Where are profiles stored?
 
-Profiles are stored in `~/.sbsh/profiles.yaml` by default. You can specify a different location using the `SBSH_PROFILES_FILE` environment variable or `--profiles-file` flag.
+Profiles are loaded from `~/.sbsh/profiles.d/` by default. The directory is scanned recursively and every `*.yaml` / `*.yml` file is read, so you can organise profiles however you like — one profile per file, grouped into subdirectories, or combined into a single multi-document YAML. You can point sbsh at a different directory with the `SBSH_PROFILES_DIR` environment variable or `--profiles-dir` flag.
 
 ### Can I use multiple profile files?
 
-Currently, sbsh supports a single `profiles.yaml` file. Multiple profiles are defined in the same file, separated by `---` (YAML document separator). See the [Profiles Guide](guides/profiles.md) for details.
+Yes — sbsh scans `~/.sbsh/profiles.d/` recursively and loads every `*.yaml` / `*.yml` file it finds, so you can split profiles across as many files (and subdirectories) as you like. Each file may hold a single profile or multiple documents separated by `---`. See the [Profiles Guide](guides/profiles.md) for details.
 
 ### How do I create a profile?
 
@@ -63,9 +63,10 @@ See the [Create Your First Profile](tutorials/create-your-first-profile.md) tuto
 ### Profile not found
 
 - Check the profile name matches exactly (case-sensitive)
-- Verify `~/.sbsh/profiles.yaml` exists
+- Verify `~/.sbsh/profiles.d/` exists and contains at least one `*.yaml` / `*.yml` file
 - Run `sb get profiles` to see available profiles
-- Check if you're using a custom profiles file path
+- If completion or `sb get profiles` looks empty or short, run `sb validate profiles` — it lists every malformed file, schema-invalid document, and duplicate profile name the loader skipped
+- Check if you're using a custom profiles directory path (`--profiles-dir` or `SBSH_PROFILES_DIR`)
 
 ### Terminal not starting
 

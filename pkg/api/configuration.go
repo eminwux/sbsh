@@ -22,8 +22,9 @@ package api
 const KindConfiguration Kind = "Configuration"
 
 // ConfigurationDoc models one YAML document containing user-level defaults
-// for sbsh. It is the declarative equivalent of the --run-path, --profiles,
-// and --log-level flags and their corresponding environment variables.
+// for sbsh. It is the declarative equivalent of the --run-path,
+// --profiles-dir, and --log-level flags and their corresponding environment
+// variables.
 type ConfigurationDoc struct {
 	APIVersion Version               `json:"apiVersion" yaml:"apiVersion"`
 	Kind       Kind                  `json:"kind"       yaml:"kind"`
@@ -40,7 +41,7 @@ type ConfigurationMetadata struct {
 // ConfigurationSpec holds the user-level defaults loaded from config.yaml.
 // Fields are optional; empty values fall back to built-in defaults.
 type ConfigurationSpec struct {
-	RunPath      string `json:"runPath,omitempty"      yaml:"runPath,omitempty"`
-	ProfilesFile string `json:"profilesFile,omitempty" yaml:"profilesFile,omitempty"`
-	LogLevel     string `json:"logLevel,omitempty"     yaml:"logLevel,omitempty"`
+	RunPath     string `json:"runPath,omitempty"     yaml:"runPath,omitempty"`
+	ProfilesDir string `json:"profilesDir,omitempty" yaml:"profilesDir,omitempty"`
+	LogLevel    string `json:"logLevel,omitempty"    yaml:"logLevel,omitempty"`
 }

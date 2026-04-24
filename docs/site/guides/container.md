@@ -189,7 +189,7 @@ The `~/.sbsh` directory contains:
 
 - **`~/.sbsh/run/terminals/`**: Terminal metadata and socket files
 - **`~/.sbsh/run/clients/`**: Client metadata
-- **`~/.sbsh/profiles.yaml`**: Profile definitions (optional)
+- **`~/.sbsh/profiles.d/`**: Profile definitions (optional)
 
 ### Using Named Volumes
 
@@ -283,7 +283,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy custom profiles
-COPY profiles.yaml /root/.sbsh/profiles.yaml
+COPY profiles.d/ /root/.sbsh/profiles.d/
 
 # Set working directory
 WORKDIR /workspace
@@ -318,7 +318,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy custom profiles
-COPY profiles.yaml /root/.sbsh/profiles.yaml
+COPY profiles.d/ /root/.sbsh/profiles.d/
 
 # Set working directory
 WORKDIR /workspace
@@ -520,9 +520,9 @@ spec:
 
 **Solutions**:
 
-- Mount profile file: `-v ~/.sbsh/profiles.yaml:/root/.sbsh/profiles.yaml`
+- Mount profiles directory: `-v ~/.sbsh/profiles.d:/root/.sbsh/profiles.d:ro`
 - Copy profile during image build (if using as base image)
-- Verify profile path in container: `/root/.sbsh/profiles.yaml`
+- Verify profiles directory in container: `/root/.sbsh/profiles.d/`
 - Use `sb get profiles` to list available profiles
 
 ### Architecture Mismatch

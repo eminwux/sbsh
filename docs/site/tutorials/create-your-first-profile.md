@@ -12,12 +12,12 @@ This tutorial walks you through creating your first sbsh profile step by step.
 Create the profiles directory if it doesn't exist:
 
 ```bash
-mkdir -p ~/.sbsh
+mkdir -p ~/.sbsh/profiles.d
 ```
 
 ## Step 2: Create a Minimal Profile
 
-Create your first profile in `~/.sbsh/profiles.yaml`:
+Create your first profile as a new file under `~/.sbsh/profiles.d/`, for example `~/.sbsh/profiles.d/my-first-profile.yaml`:
 
 ```yaml
 apiVersion: sbsh/v1beta1

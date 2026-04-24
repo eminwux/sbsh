@@ -46,7 +46,7 @@ type terminalConfig struct {
 	logLevel         string
 	socketFile       string
 	profileName      string
-	profileFile      string
+	profilesDir      string
 	disableSetPrompt bool
 }
 
@@ -61,19 +61,20 @@ func WithName(name string) TerminalOption {
 	return func(c *terminalConfig) { c.name = name }
 }
 
-// WithProfile selects a profile by Metadata.Name from the profile
-// file resolved via WithProfileFile (or the default location if no
+// WithProfile selects a profile by Metadata.Name from the directory
+// resolved via WithProfilesDir (or the default location if no
 // explicit path is set). Empty resolves to the hardcoded "default"
 // profile.
 func WithProfile(name string) TerminalOption {
 	return func(c *terminalConfig) { c.profileName = name }
 }
 
-// WithProfileFile points the builder at a specific multi-document
-// YAML file containing TerminalProfile documents. Empty means "use
-// the default profiles file under runPath".
-func WithProfileFile(path string) TerminalOption {
-	return func(c *terminalConfig) { c.profileFile = path }
+// WithProfilesDir points the builder at a directory that is scanned
+// recursively for *.yaml / *.yml files containing TerminalProfile
+// documents. Empty means "use the default profiles directory
+// ($HOME/.sbsh/profiles.d/)".
+func WithProfilesDir(path string) TerminalOption {
+	return func(c *terminalConfig) { c.profilesDir = path }
 }
 
 // WithCommand sets the terminal's command and its argv. argv[0] is
@@ -182,7 +183,7 @@ func BuildTerminalSpec(
 		Cwd:              cfg.cwd,
 		CaptureFile:      cfg.captureFile,
 		RunPath:          runPath,
-		ProfilesFile:     cfg.profileFile,
+		ProfilesDir:      cfg.profilesDir,
 		ProfileName:      cfg.profileName,
 		LogFile:          cfg.logFile,
 		LogLevel:         cfg.logLevel,

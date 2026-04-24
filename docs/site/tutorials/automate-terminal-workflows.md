@@ -53,8 +53,8 @@ jobs:
 
       - name: Create test profile
         run: |
-          mkdir -p ~/.sbsh
-          cat > ~/.sbsh/profiles.yaml <<PROFILE
+          mkdir -p ~/.sbsh/profiles.d
+          cat > ~/.sbsh/profiles.d/ci-test.yaml <<PROFILE
           apiVersion: sbsh/v1beta1
           kind: TerminalProfile
           metadata:

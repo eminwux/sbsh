@@ -176,12 +176,12 @@ func LoadConfig() error {
 	}
 	config.SB_ROOT_RUN_PATH.SetDefault(runPath)
 
-	_ = config.SB_GET_PROFILES_FILE.BindEnv()
-	profilesFile := config.DefaultProfilesFile()
-	if cfgDoc != nil && cfgDoc.Spec.ProfilesFile != "" {
-		profilesFile = cfgDoc.Spec.ProfilesFile
+	_ = config.SB_GET_PROFILES_DIR.BindEnv()
+	profilesDir := config.DefaultProfilesDir()
+	if cfgDoc != nil && cfgDoc.Spec.ProfilesDir != "" {
+		profilesDir = cfgDoc.Spec.ProfilesDir
 	}
-	config.SB_GET_PROFILES_FILE.SetDefault(profilesFile)
+	config.SB_GET_PROFILES_DIR.SetDefault(profilesDir)
 
 	_ = config.SBSH_ROOT_LOG_LEVEL.BindEnv()
 	logLevel := "info"

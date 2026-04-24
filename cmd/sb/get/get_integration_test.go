@@ -206,9 +206,9 @@ spec:
   shell:
     cmd: /bin/bash
 `
-		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
+		_ = createTestProfileFile(t, tmpDir, profilesYAML)
 
-		names, err := fetchProfileNames(ctx, profilesFile, "")
+		names, err := fetchProfileNames(ctx, tmpDir, "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -256,9 +256,9 @@ spec:
   shell:
     cmd: /bin/bash
 `
-		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
+		_ = createTestProfileFile(t, tmpDir, profilesYAML)
 
-		names, err := fetchProfileNames(ctx, profilesFile, "k8s")
+		names, err := fetchProfileNames(ctx, tmpDir, "k8s")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -296,9 +296,9 @@ spec:
   shell:
     cmd: /bin/bash
 `
-		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
+		_ = createTestProfileFile(t, tmpDir, profilesYAML)
 
-		names, err := fetchProfileNames(ctx, profilesFile, "")
+		names, err := fetchProfileNames(ctx, tmpDir, "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -369,11 +369,11 @@ spec:
   shell:
     cmd: /bin/bash
 `
-		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
+		_ = createTestProfileFile(t, tmpDir, profilesYAML)
 
-		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, profilesFile)
+		viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, tmpDir)
 		defer func() {
-			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -394,11 +394,11 @@ spec:
 	t.Run("success with empty profiles file", func(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 		tmpDir := t.TempDir()
-		profilesFile := createTestProfileFile(t, tmpDir, "")
+		_ = createTestProfileFile(t, tmpDir, "")
 
-		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, profilesFile)
+		viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, tmpDir)
 		defer func() {
-			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, "")
 		}()
 
 		output, err := captureStdout(func() {
@@ -413,17 +413,22 @@ spec:
 		}
 	})
 
-	t.Run("error when profiles file path is invalid", func(t *testing.T) {
+	t.Run("missing profiles dir is not an error", func(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 
-		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "/nonexistent/path/profiles.yaml")
+		viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, "/nonexistent/path/profiles.d")
 		defer func() {
-			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, "")
 		}()
 
-		err := listProfiles(cmd, []string{})
-		if err == nil {
-			t.Fatal("expected error but got nil")
+		output, err := captureStdout(func() {
+			_ = listProfiles(cmd, []string{})
+		})
+		if err != nil {
+			t.Fatalf("capture stdout: %v", err)
+		}
+		if !strings.Contains(output, "no profiles found") {
+			t.Errorf("expected 'no profiles found' for missing dir, got: %s", output)
 		}
 	})
 }
@@ -442,12 +447,12 @@ spec:
   shell:
     cmd: /bin/bash
 `
-		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
+		_ = createTestProfileFile(t, tmpDir, profilesYAML)
 
-		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, profilesFile)
+		viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, tmpDir)
 		viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "")
 		defer func() {
-			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, "")
 			viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "")
 		}()
 
@@ -474,12 +479,12 @@ spec:
   shell:
     cmd: /bin/bash
 `
-		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
+		_ = createTestProfileFile(t, tmpDir, profilesYAML)
 
-		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, profilesFile)
+		viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, tmpDir)
 		viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "json")
 		defer func() {
-			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, "")
 			viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "")
 		}()
 
@@ -510,12 +515,12 @@ spec:
   shell:
     cmd: /bin/bash
 `
-		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
+		_ = createTestProfileFile(t, tmpDir, profilesYAML)
 
-		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, profilesFile)
+		viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, tmpDir)
 		viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "yaml")
 		defer func() {
-			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, "")
 			viper.Set(config.SB_GET_PROFILES_OUTPUT.ViperKey, "")
 		}()
 
@@ -546,11 +551,11 @@ spec:
   shell:
     cmd: /bin/bash
 `
-		profilesFile := createTestProfileFile(t, tmpDir, profilesYAML)
+		_ = createTestProfileFile(t, tmpDir, profilesYAML)
 
-		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, profilesFile)
+		viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, tmpDir)
 		defer func() {
-			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, "")
 		}()
 
 		err := getProfile(cmd, []string{"nonexistent"})
@@ -562,9 +567,9 @@ spec:
 	t.Run("error when profiles file doesn't exist", func(t *testing.T) {
 		cmd, _ := setupTestCmd(t, logger)
 
-		viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "/nonexistent/path/profiles.yaml")
+		viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, "/nonexistent/path/profiles.yaml")
 		defer func() {
-			viper.Set(config.SB_GET_PROFILES_FILE.ViperKey, "")
+			viper.Set(config.SB_GET_PROFILES_DIR.ViperKey, "")
 		}()
 
 		err := getProfile(cmd, []string{"default"})

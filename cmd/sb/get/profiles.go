@@ -80,7 +80,7 @@ func listProfiles(cmd *cobra.Command, _ []string) error {
 	}
 
 	logger.Debug("profiles list command invoked",
-		"profiles_file", viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey),
+		"profiles_dir", viper.GetString(config.SB_GET_PROFILES_DIR.ViperKey),
 		"run_path", viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 		"output_format", format,
 		"args", cmd.Flags().Args(),
@@ -89,8 +89,9 @@ func listProfiles(cmd *cobra.Command, _ []string) error {
 	err := discovery.ScanAndPrintProfiles(
 		cmd.Context(),
 		logger,
-		viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey),
+		viper.GetString(config.SB_GET_PROFILES_DIR.ViperKey),
 		os.Stdout,
+		os.Stderr,
 		format,
 	)
 	if err != nil {
@@ -107,7 +108,7 @@ func completeProfiles(cmd *cobra.Command, args []string, toComplete string) ([]s
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	names, err := fetchProfileNames(cmd.Context(), viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey), toComplete)
+	names, err := fetchProfileNames(cmd.Context(), viper.GetString(config.SB_GET_PROFILES_DIR.ViperKey), toComplete)
 	if err != nil {
 		// Optionally show an error message in completion
 		return []string{"__error: cannot list profiles"}, cobra.ShellCompDirectiveNoFileComp
@@ -155,8 +156,9 @@ func getProfile(cmd *cobra.Command, args []string) error {
 	return discovery.FindAndPrintProfileMetadata(
 		cmd.Context(),
 		logger,
-		viper.GetString(config.SB_GET_PROFILES_FILE.ViperKey),
+		viper.GetString(config.SB_GET_PROFILES_DIR.ViperKey),
 		os.Stdout,
+		os.Stderr,
 		profileName,
 		format,
 	)

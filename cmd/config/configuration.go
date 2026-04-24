@@ -44,8 +44,8 @@ func ApplyConfigurationDocEnv(cfgDoc *api.ConfigurationDoc) {
 	}
 	setIfUnset(SB_ROOT_RUN_PATH.EnvVar(), cfgDoc.Spec.RunPath)
 	setIfUnset(SBSH_ROOT_RUN_PATH.EnvVar(), cfgDoc.Spec.RunPath)
-	setIfUnset(SB_GET_PROFILES_FILE.EnvVar(), cfgDoc.Spec.ProfilesFile)
-	setIfUnset(SBSH_ROOT_PROFILES_FILE.EnvVar(), cfgDoc.Spec.ProfilesFile)
+	setIfUnset(SB_GET_PROFILES_DIR.EnvVar(), cfgDoc.Spec.ProfilesDir)
+	setIfUnset(SBSH_ROOT_PROFILES_DIR.EnvVar(), cfgDoc.Spec.ProfilesDir)
 	setIfUnset(SB_ROOT_LOG_LEVEL.EnvVar(), cfgDoc.Spec.LogLevel)
 	setIfUnset(SBSH_ROOT_LOG_LEVEL.EnvVar(), cfgDoc.Spec.LogLevel)
 }
