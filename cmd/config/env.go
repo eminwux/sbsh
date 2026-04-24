@@ -204,4 +204,6 @@ var (
 	SBSH_TERM_SPEC = DefineKV("SBSH_TERM_SPEC", "sbsh.terminal.spec")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_TERM_DISABLE_SET_PROMPT = DefineKV("SBSH_TERM_DISABLE_SET_PROMPT", "sbsh.terminal.disableSetPrompt")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_TERM_SHUTDOWN_GRACE = DefineKV("SBSH_TERM_SHUTDOWN_GRACE", "sbsh.terminal.shutdownGrace")
 )

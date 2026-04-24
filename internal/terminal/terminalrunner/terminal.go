@@ -81,11 +81,18 @@ func (sr *Exec) prepareTerminalCommand() error {
 		config.KV(config.SBSH_TERM_PROFILE, sr.metadata.Spec.ProfileName),
 		config.KV(config.SB_ROOT_RUN_PATH, sr.metadata.Spec.RunPath),
 	)
-	// Start the process in its own process group
+	// Start the process in its own process group and session so the PID-1
+	// signal forwarder can target the child's pgroup with syscall.Kill(-pid).
+	// Setsid implies a new process group led by the child (pgid == pid), so
+	// no explicit Setpgid is needed.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setctty: true, // make the child the controlling TTY
-		Setsid:  true, // new session
+		Setsid:  true, // new session + new pgroup led by the child
 	}
+
+	// Disable the default exec.CommandContext cancellation (which sends
+	// SIGKILL on ctx cancel). Graceful shutdown is orchestrated by Close().
+	cmd.Cancel = func() error { return nil }
 
 	// Make sure TERM is reasonable if not set (helps colors)
 	hasTERM := false
@@ -164,12 +171,12 @@ func (sr *Exec) startPty() error {
 	sr.metadata.Status.Tty = sr.pts.Name()
 	sr.metadataMu.Unlock()
 
-	go func() {
-		sr.logger.Debug("waiting on child process", "parent_pid", os.Getpid(), "child_pid", sr.cmd.Process.Pid)
-		_ = sr.cmd.Wait() // blocks until process exits
-		sr.logger.Info("child process has exited", "parent_pid", os.Getpid(), "child_pid", sr.cmd.Process.Pid)
-		sr.closeReqCh <- errors.New("the shell process has exited")
-	}()
+	if sr.initMode && sr.reaper != nil {
+		sr.reaper.RegisterChild(sr.cmd.Process.Pid)
+		sr.stopSignalForwarder = startSignalForwarder(sr.logger, sr.cmd.Process.Pid)
+	}
+
+	go sr.watchChildExit()
 
 	sr.metadataMu.RLock()
 	captureFile := sr.metadata.Spec.CaptureFile

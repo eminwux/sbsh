@@ -17,13 +17,16 @@
 package terminalrunner
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/eminwux/sbsh/internal/profile"
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
@@ -72,6 +75,89 @@ func (sr *Exec) waitOnTerminal() {
 	trySendEvent(sr.logger, sr.evCh, Event{ID: sr.id, Type: EvCmdExited, Err: err, When: time.Now()})
 }
 
+// watchChildExit waits for the tracked child to exit and publishes the
+// "process exited" close request. When PID-1 init mode is on, the reaper has
+// already consumed the SIGCHLD, so os/exec.Cmd.Wait would race and may see
+// ECHILD instead of the real status. The reaper's TrackedExitCh is the
+// authoritative signal in that case; outside init mode, cmd.Wait() is.
+func (sr *Exec) watchChildExit() {
+	pid := 0
+	if sr.cmd != nil && sr.cmd.Process != nil {
+		pid = sr.cmd.Process.Pid
+	}
+	sr.logger.Debug("watching child process", "parent_pid", os.Getpid(), "child_pid", pid)
+
+	var exitErr error
+	if sr.initMode && sr.reaper != nil {
+		code, ok := <-sr.reaper.TrackedExitCh()
+		if ok {
+			exitErr = fmt.Errorf("shell process exited: code=%d", code)
+		} else {
+			exitErr = errors.New("shell process exited")
+		}
+		// Release the os.Process handle so Go doesn't hold on to the
+		// kernel reference now that the reaper has already reaped the
+		// PID. A subsequent cmd.Wait() would return ECHILD — we skip it.
+		if sr.cmd != nil && sr.cmd.Process != nil {
+			_ = sr.cmd.Process.Release()
+		}
+	} else {
+		_ = sr.cmd.Wait()
+		exitErr = errors.New("the shell process has exited")
+	}
+
+	sr.logger.Info("child process has exited", "parent_pid", os.Getpid(), "child_pid", pid)
+	sr.markChildDone()
+	// waitOnTerminal reads from closeReqCh; send is allowed to block
+	// briefly if Close is racing.
+	select {
+	case sr.closeReqCh <- exitErr:
+	case <-sr.ctx.Done():
+	}
+}
+
+// shutdownChild runs the graceful shutdown sequence for the tracked child:
+//
+//  1. If the child has already exited, return immediately.
+//  2. Send SIGTERM to the child's process group.
+//  3. Wait up to grace for child exit.
+//  4. If still alive, send SIGKILL to the process group.
+//
+// Grace <= 0 falls back to the package default. Must only be called after
+// startPty has run (cmd and cmd.Process are set).
+func (sr *Exec) shutdownChild(grace time.Duration) {
+	if sr.cmd == nil || sr.cmd.Process == nil {
+		return
+	}
+	if sr.childDone() {
+		return
+	}
+	if grace <= 0 {
+		grace = profile.DefaultShutdownGrace
+	}
+
+	pid := sr.cmd.Process.Pid
+	// Setsid: true ensures pgid == pid for the child.
+	if err := syscall.Kill(-pid, syscall.SIGTERM); err != nil && !errors.Is(err, syscall.ESRCH) {
+		sr.logger.Warn("could not SIGTERM child process group", "id", sr.id, "pid", pid, "err", err)
+	}
+
+	timer := time.NewTimer(grace)
+	defer timer.Stop()
+	select {
+	case <-sr.childDoneCh:
+		sr.logger.Debug("child exited within grace period", "id", sr.id, "grace", grace)
+		return
+	case <-timer.C:
+		sr.logger.Warn("child did not exit within grace, escalating to SIGKILL",
+			"id", sr.id, "pid", pid, "grace", grace)
+	}
+
+	if err := syscall.Kill(-pid, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+		sr.logger.Warn("could not SIGKILL child process group", "id", sr.id, "pid", pid, "err", err)
+	}
+}
+
 func (sr *Exec) Close(reason error) error {
 	sr.logger.Info("closing terminal", "id", sr.id, "reason", reason)
 
@@ -79,9 +165,24 @@ func (sr *Exec) Close(reason error) error {
 		sr.logger.Error("failed to update terminal state", "id", sr.id, "err", err)
 	}
 
+	// Graceful shutdown of the child before tearing anything else down:
+	// SIGTERM -> wait up to ShutdownGrace -> SIGKILL. This runs regardless
+	// of PID-1 status; removing the always-hard-kill default is correct in
+	// every mode.
+	sr.shutdownChild(sr.metadata.Spec.ShutdownGrace)
+
 	sr.ctxCancel()
 
 	sr.logger.Debug("terminal closed", "id", sr.id)
+
+	// Tear down PID-1 helpers (no-ops outside init mode).
+	if sr.stopSignalForwarder != nil {
+		sr.stopSignalForwarder()
+		sr.stopSignalForwarder = nil
+	}
+	if sr.reaper != nil {
+		sr.reaper.Stop()
+	}
 
 	// stop accepting
 	if sr.lnCtrl != nil {
@@ -104,12 +205,6 @@ func (sr *Exec) Close(reason error) error {
 	// close all output subscribers
 	sr.closeAllSubscribers()
 
-	// kill PTY child and close PTY master as needed
-	if sr.cmd != nil && sr.cmd.Process != nil {
-		if err := sr.cmd.Process.Kill(); err != nil {
-			sr.logger.Warn("could not kill cmd process", "id", sr.id, "err", err)
-		}
-	}
 	if sr.ptmx != nil {
 		var err error
 		sr.closePTY.Do(func() {

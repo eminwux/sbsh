@@ -72,6 +72,11 @@ type TerminalSpec struct {
 
 	ProfileName string     `json:"profileName"`
 	Stages      StagesSpec `json:"stages"`
+
+	// ShutdownGrace bounds how long the terminal waits for the child to
+	// exit after SIGTERM before escalating to SIGKILL. Zero means "use the
+	// runner's default" (30s, matching Kubernetes terminationGracePeriodSeconds).
+	ShutdownGrace time.Duration `json:"shutdownGrace,omitempty"`
 }
 
 type TerminalStatus struct {
