@@ -1722,10 +1722,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#custom-profile-file-location" class="md-nav__link">
+  <a href="#custom-profile-directory-location" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Custom Profile File Location
+        Custom Profile Directory Location
       
     </span>
   </a>
@@ -2746,10 +2746,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#custom-profile-file-location" class="md-nav__link">
+  <a href="#custom-profile-directory-location" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Custom Profile File Location
+        Custom Profile Directory Location
       
     </span>
   </a>
@@ -2802,30 +2802,31 @@
 <p>Profiles define how sbsh starts and manages terminals. They let you customize the command, environment, working directory, and lifecycle hooks for your terminals.</p>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
 <h3 id="where-to-put-your-profiles">Where to put your profiles<a class="headerlink" href="#where-to-put-your-profiles" title="Permanent link">&para;</a></h3>
-<p>sbsh looks for profiles in <code>$HOME/.sbsh/profiles.yaml</code> by default. You can also specify a different file using:</p>
+<p>sbsh scans <code>$HOME/.sbsh/profiles.d/</code> recursively by default, loading every <code>*.yaml</code> / <code>*.yml</code> file it finds. Split profiles across as many files and subdirectories as you like — one profile per file, one file per project, or one multi-document file that groups related profiles. You can also specify a different directory using:</p>
 <ul>
-<li>Environment variable: <code>SBSH_PROFILES_FILE=/path/to/profiles.yaml</code></li>
-<li>Command flag: <code>sbsh --profiles-file /path/to/profiles.yaml</code></li>
+<li>Environment variable: <code>SBSH_PROFILES_DIR=/path/to/profiles.d</code></li>
+<li>Command flag: <code>sbsh --profiles-dir /path/to/profiles.d</code></li>
 </ul>
+<blockquote>
+<p><strong>Breaking change</strong>: earlier releases loaded a single <code>$HOME/.sbsh/profiles.yaml</code> file. That path is no longer read. Move your profiles into <code>$HOME/.sbsh/profiles.d/</code> — split as individual files or keep one combined multi-document YAML, whichever you prefer.</p>
+</blockquote>
 <h3 id="create-your-first-profile">Create your first profile<a class="headerlink" href="#create-your-first-profile" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Create the profiles directory (if it doesn't exist):</li>
 </ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mkdir<span class="w"> </span>-p<span class="w"> </span>~/.sbsh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mkdir<span class="w"> </span>-p<span class="w"> </span>~/.sbsh/profiles.d
 </code></pre></div>
 <ol>
-<li>Copy example profiles to get started:</li>
+<li>Copy example profiles to get started. Any combination below works because the loader scans the whole directory:</li>
 </ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Copy the combined profiles file</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># Copy example profiles from the repository</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>cp<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/profiles.yaml<span class="w"> </span>~/.sbsh/profiles.yaml
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Or combine individual example files (provided for reference)</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>cat<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/*.yaml<span class="w"> </span>&gt;<span class="w"> </span>~/.sbsh/profiles.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Drop one pre-combined file</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>cp<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/profiles.yaml<span class="w"> </span>~/.sbsh/profiles.d/examples.yaml
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Or drop individual example files — each is already a valid standalone profile</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>cp<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/default.yaml<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/python-venv.yaml<span class="w"> </span>~/.sbsh/profiles.d/
 </code></pre></div>
-<p><strong>Note</strong>: sbsh only supports a single <code>profiles.yaml</code> file. The individual <code>.yaml</code> files in the repository's <code>docs/profiles/</code> directory are provided as reference examples, but you must combine them into one file for use.</p>
 <ol>
-<li>Edit <code>~/.sbsh/profiles.yaml</code> and add your own profiles.</li>
+<li>Add your own profiles as new <code>*.yaml</code> files under <code>~/.sbsh/profiles.d/</code>.</li>
 </ol>
 <h3 id="minimal-example">Minimal example<a class="headerlink" href="#minimal-example" title="Permanent link">&para;</a></h3>
 <p>Here's the simplest profile you can create:</p>
@@ -2962,7 +2963,7 @@
 </code></pre></div></li>
 </ul>
 <h2 id="example-profiles">Example Profiles<a class="headerlink" href="#example-profiles" title="Permanent link">&para;</a></h2>
-<p>This directory contains example profiles. The individual <code>.yaml</code> files are provided for reference, but sbsh only supports a single <code>profiles.yaml</code> file. All profiles must be combined into one file with <code>---</code> separators between documents.</p>
+<p>This directory contains example profiles. Each individual <code>.yaml</code> file is a complete, standalone <code>TerminalProfile</code> document — drop any subset of them into <code>~/.sbsh/profiles.d/</code> and sbsh will load them. The combined <a href="profiles.yaml"><code>profiles.yaml</code></a> is also a valid multi-document file you can drop in as-is.</p>
 <h3 id="profile-examples-index">Profile Examples Index<a class="headerlink" href="#profile-examples-index" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -3096,13 +3097,13 @@
 </tr>
 </tbody>
 </table>
-<p>All profiles are also available in <a href="profiles.yaml"><code>profiles.yaml</code></a> as a combined file ready to use.</p>
+<p>All profiles are also available in <a href="profiles.yaml"><code>profiles.yaml</code></a> as a combined multi-document file ready to use.</p>
 <p><strong>To use these profiles:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Copy the combined file</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cp<span class="w"> </span>docs/profiles/profiles.yaml<span class="w"> </span>~/.sbsh/profiles.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Drop the combined multi-document file</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cp<span class="w"> </span>docs/profiles/profiles.yaml<span class="w"> </span>~/.sbsh/profiles.d/examples.yaml
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Or copy specific example files and combine them</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cat<span class="w"> </span>docs/profiles/default.yaml<span class="w"> </span>docs/profiles/python-venv.yaml<span class="w"> </span>&gt;<span class="w"> </span>~/.sbsh/profiles.yaml
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Or drop individual example files — each is already a valid standalone profile</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cp<span class="w"> </span>docs/profiles/default.yaml<span class="w"> </span>docs/profiles/python-venv.yaml<span class="w"> </span>~/.sbsh/profiles.d/
 </code></pre></div>
 <h2 id="example-profiles-explained">Example Profiles Explained<a class="headerlink" href="#example-profiles-explained" title="Permanent link">&para;</a></h2>
 <h3 id="1-default-minimal-bash-terminal">1. <code>default</code> - Minimal bash terminal<a class="headerlink" href="#1-default-minimal-bash-terminal" title="Permanent link">&para;</a></h3>
@@ -3477,9 +3478,10 @@
 <p><strong>Solutions:</strong></p>
 <ul>
 <li>Check the profile name matches exactly (case-sensitive)</li>
-<li>Verify <code>~/.sbsh/profiles.yaml</code> exists</li>
+<li>Verify <code>~/.sbsh/profiles.d/</code> exists and contains at least one <code>*.yaml</code> / <code>*.yml</code> file</li>
 <li>Run <code>sb get profiles</code> to see available profiles</li>
-<li>Check if you're using a custom profiles file path</li>
+<li>If completion or <code>sb get profiles</code> looks empty or short, run <code>sb validate profiles</code> — it lists every malformed file, schema-invalid document, and duplicate profile name the loader skipped</li>
+<li>Check if you're using a custom profiles directory path (<code>--profiles-dir</code> or <code>SBSH_PROFILES_DIR</code>)</li>
 </ul>
 <h3 id="environment-variables-not-working">Environment variables not working<a class="headerlink" href="#environment-variables-not-working" title="Permanent link">&para;</a></h3>
 <p><strong>Problem</strong>: Environment variables aren't available in the terminal</p>
@@ -3526,7 +3528,7 @@
 <li><strong>Test restart policy</strong>: Exit the terminal and see if it restarts as expected</li>
 </ol>
 <h2 id="viewing-available-profiles">Viewing Available Profiles<a class="headerlink" href="#viewing-available-profiles" title="Permanent link">&para;</a></h2>
-<p>List all profiles in your profiles file:</p>
+<p>List all profiles discovered under your profiles directory:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>sb<span class="w"> </span>get<span class="w"> </span>profiles
 </code></pre></div>
 <p>This shows:</p>
@@ -3536,31 +3538,44 @@
 <li>Number of environment variables</li>
 <li>Command that will be executed</li>
 </ul>
-<h2 id="custom-profile-file-location">Custom Profile File Location<a class="headerlink" href="#custom-profile-file-location" title="Permanent link">&para;</a></h2>
-<p>By default, sbsh uses <code>~/.sbsh/profiles.yaml</code>. To use a different location:</p>
+<p>If shell completion for <code>sbsh -p</code> looks empty or short, run <code>sb validate profiles</code> — it scans the same directory and lists every malformed file, schema-invalid document, and duplicate profile name the loader skipped.</p>
+<h2 id="custom-profile-directory-location">Custom Profile Directory Location<a class="headerlink" href="#custom-profile-directory-location" title="Permanent link">&para;</a></h2>
+<p>By default, sbsh scans <code>~/.sbsh/profiles.d/</code>. To use a different directory:</p>
 <p><strong>Using environment variable:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SBSH_PROFILES_FILE</span><span class="o">=</span>/path/to/custom/profiles.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SBSH_PROFILES_DIR</span><span class="o">=</span>/path/to/custom/profiles.d
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>sbsh<span class="w"> </span>-p<span class="w"> </span>my-profile
 </code></pre></div>
 <p><strong>Using command flag:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>sbsh<span class="w"> </span>--profiles-file<span class="w"> </span>/path/to/custom/profiles.yaml<span class="w"> </span>-p<span class="w"> </span>my-profile
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>sbsh<span class="w"> </span>--profiles-dir<span class="w"> </span>/path/to/custom/profiles.d<span class="w"> </span>-p<span class="w"> </span>my-profile
 </code></pre></div>
+<p>The flag overrides the environment variable, which overrides the built-in default.</p>
 <h2 id="profile-file-organization">Profile File Organization<a class="headerlink" href="#profile-file-organization" title="Permanent link">&para;</a></h2>
-<p>sbsh loads all profiles from a single <code>profiles.yaml</code> file. Multiple profiles are defined in the same file, separated by <code>---</code> (YAML document separator).</p>
-<p>Example profiles are provided as individual files in this directory for reference and documentation purposes. To use them, you must combine them into a single <code>profiles.yaml</code> file:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Copy the pre-combined file (recommended)</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="c1"># Copy from repository</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>cp<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/profiles.yaml<span class="w"> </span>~/.sbsh/profiles.yaml
+<p>sbsh scans the profiles directory recursively and loads every <code>*.yaml</code> / <code>*.yml</code> file. Each file may contain a single profile or several documents separated by <code>---</code>. There is no required layout — group profiles by project, by environment, or leave them all flat — whatever fits your workflow.</p>
+<p>Resilience guarantees:</p>
+<ul>
+<li>A malformed YAML file never prevents other files from loading; the offending file is named in a loader warning.</li>
+<li>A schema-invalid document (missing <code>apiVersion</code> / <code>kind</code> / <code>metadata.name</code>) never prevents other documents from loading.</li>
+<li>Duplicate profile names are resolved first-wins (lexicographic load order); each duplicate is reported as a warning naming both the skipped file and the file that won.</li>
+</ul>
+<p>Warnings are printed to stderr by interactive commands and listed in full by <code>sb validate profiles</code>.</p>
+<p>Example layouts that all work:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Flat, one file per profile</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>~/.sbsh/profiles.d/default.yaml
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>~/.sbsh/profiles.d/k8s.yaml
 <a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="c1"># Or combine specific example files</span>
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>cat<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/default.yaml<span class="w"> </span>&lt;repository-root&gt;/docs/profiles/python-venv.yaml<span class="w"> </span>&gt;<span class="w"> </span>~/.sbsh/profiles.yaml
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="c1"># Grouped per tool</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>~/.sbsh/profiles.d/k8s/staging.yaml
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>~/.sbsh/profiles.d/k8s/production.yaml
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>~/.sbsh/profiles.d/aws/admin.yaml
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="c1"># A single combined multi-document file</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>~/.sbsh/profiles.d/all.yaml
 </code></pre></div>
-<p><strong>Important</strong>: sbsh only reads from a single <code>profiles.yaml</code> file. The individual <code>.yaml</code> files in the repository's <code>docs/profiles/</code> directory are examples for reference only.</p>
 <h2 id="contributing-examples">Contributing Examples<a class="headerlink" href="#contributing-examples" title="Permanent link">&para;</a></h2>
 <p>Found a useful profile pattern? We'd love to see it! Consider opening a pull request with:</p>
 <ul>
-<li>Your profile as a new file in the repository's <code>docs/profiles/</code> directory (e.g., <code>my-profile.yaml</code>) - provided as a reference example</li>
-<li>Add the profile to <code>docs/profiles/profiles.yaml</code> (the combined file) with <code>---</code> separator</li>
+<li>Your profile as a new file in the repository's <code>docs/profiles/</code> directory (e.g., <code>my-profile.yaml</code>)</li>
+<li>Add the profile to <code>docs/profiles/profiles.yaml</code> (the combined file) with a <code>---</code> separator</li>
 <li>Update this README to document the new profile</li>
 <li>A brief description of the use case</li>
 <li>Any special requirements or setup instructions</li>
@@ -3589,7 +3604,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 22, 2025 19:26:06 UTC">November 22, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 24, 2026 12:14:48 UTC">April 24, 2026</span>
   </span>
 
     

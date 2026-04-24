@@ -2178,18 +2178,19 @@
 <p>Terminals are independent processes and continue running even if the client exits. You can reattach with <code>sb attach &lt;name&gt;</code>.</p>
 <h2 id="profiles">Profiles<a class="headerlink" href="#profiles" title="Permanent link">&para;</a></h2>
 <h3 id="where-are-profiles-stored">Where are profiles stored?<a class="headerlink" href="#where-are-profiles-stored" title="Permanent link">&para;</a></h3>
-<p>Profiles are stored in <code>~/.sbsh/profiles.yaml</code> by default. You can specify a different location using the <code>SBSH_PROFILES_FILE</code> environment variable or <code>--profiles-file</code> flag.</p>
+<p>Profiles are loaded from <code>~/.sbsh/profiles.d/</code> by default. The directory is scanned recursively and every <code>*.yaml</code> / <code>*.yml</code> file is read, so you can organise profiles however you like — one profile per file, grouped into subdirectories, or combined into a single multi-document YAML. You can point sbsh at a different directory with the <code>SBSH_PROFILES_DIR</code> environment variable or <code>--profiles-dir</code> flag.</p>
 <h3 id="can-i-use-multiple-profile-files">Can I use multiple profile files?<a class="headerlink" href="#can-i-use-multiple-profile-files" title="Permanent link">&para;</a></h3>
-<p>Currently, sbsh supports a single <code>profiles.yaml</code> file. Multiple profiles are defined in the same file, separated by <code>---</code> (YAML document separator). See the <a href="../guides/profiles/">Profiles Guide</a> for details.</p>
+<p>Yes — sbsh scans <code>~/.sbsh/profiles.d/</code> recursively and loads every <code>*.yaml</code> / <code>*.yml</code> file it finds, so you can split profiles across as many files (and subdirectories) as you like. Each file may hold a single profile or multiple documents separated by <code>---</code>. See the <a href="../guides/profiles/">Profiles Guide</a> for details.</p>
 <h3 id="how-do-i-create-a-profile">How do I create a profile?<a class="headerlink" href="#how-do-i-create-a-profile" title="Permanent link">&para;</a></h3>
 <p>See the <a href="../tutorials/create-your-first-profile/">Create Your First Profile</a> tutorial for step-by-step instructions.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="profile-not-found">Profile not found<a class="headerlink" href="#profile-not-found" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Check the profile name matches exactly (case-sensitive)</li>
-<li>Verify <code>~/.sbsh/profiles.yaml</code> exists</li>
+<li>Verify <code>~/.sbsh/profiles.d/</code> exists and contains at least one <code>*.yaml</code> / <code>*.yml</code> file</li>
 <li>Run <code>sb get profiles</code> to see available profiles</li>
-<li>Check if you're using a custom profiles file path</li>
+<li>If completion or <code>sb get profiles</code> looks empty or short, run <code>sb validate profiles</code> — it lists every malformed file, schema-invalid document, and duplicate profile name the loader skipped</li>
+<li>Check if you're using a custom profiles directory path (<code>--profiles-dir</code> or <code>SBSH_PROFILES_DIR</code>)</li>
 </ul>
 <h3 id="terminal-not-starting">Terminal not starting<a class="headerlink" href="#terminal-not-starting" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2234,7 +2235,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 18, 2026 17:15:20 UTC">April 18, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 24, 2026 12:14:48 UTC">April 24, 2026</span>
   </span>
 
     
