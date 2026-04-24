@@ -182,13 +182,27 @@ func (c *Controller) Run(spec *api.TerminalSpec) error {
 	c.logger.InfoContext(c.ctx, "controller ready")
 	close(c.ctrlReadyCh)
 
-	go func() {
-		err := <-c.closingCh
-		c.shuttingDown.Store(true)
-		c.logger.WarnContext(c.ctx, "controller closing", "reason", err)
-	}()
+	// shuttingDown is now flipped atomically at the top of Close via
+	// CompareAndSwap, so we no longer need a background goroutine to
+	// observe closingCh and set the flag. Leaving a watcher here opened
+	// a race where Close could be re-entered between the closingCh send
+	// and the Store — deadlocking on the one-shot closeReqCh buffer
+	// (issue #138).
 
 	for {
+		// closeReqCh takes precedence over ctx.Done so an internal
+		// shutdown (handleEvent -> onClosed -> Close) returns
+		// ErrCloseReq rather than racing with the ctx cancellation that
+		// Close itself just performed. Without this the random
+		// select-winner could surface ErrContextDone for a close we
+		// initiated ourselves (issue #138).
+		select {
+		case err := <-c.closeReqCh:
+			c.logger.WarnContext(c.ctx, "close request received", "err", err)
+			return fmt.Errorf("%w: %w", errdefs.ErrCloseReq, err)
+		default:
+		}
+
 		select {
 		case <-c.ctx.Done():
 			var err error
@@ -243,31 +257,42 @@ func (c *Controller) handleEvent(ev terminalrunner.Event) {
 }
 
 func (c *Controller) Close(reason error) error {
-	if !c.shuttingDown.Load() {
-		c.logger.InfoContext(c.ctx, "initiating shutdown sequence", "reason", reason)
-
-		// cancel the controller context so WaitReady unblocks
-		c.cancel(reason)
-
-		// Set closing reason
-		c.closingCh <- reason
-
-		// Notify terminal runner to close all terminals
-		c.srMu.RLock()
-		sr := c.sr
-		c.srMu.RUnlock()
-		if sr != nil {
-			_ = sr.Close(reason)
-		}
-
-		// Notify Run to exit
-		c.closeReqCh <- reason
-
-		// Mark controller as closed
-		close(c.closedCh)
-	} else {
+	// CompareAndSwap guarantees only the first caller enters the
+	// shutdown body. Previously Close guarded on shuttingDown.Load()
+	// and relied on a background watcher goroutine to flip the flag
+	// asynchronously; re-entry through Run's <-c.ctx.Done() branch
+	// (which also calls Close) could arrive before the watcher had
+	// been scheduled, causing two concurrent sends on the one-shot
+	// closeReqCh buffer and a deterministic deadlock (issue #138).
+	if !c.shuttingDown.CompareAndSwap(false, true) {
 		c.logger.WarnContext(c.ctx, "shutdown sequence already in progress, ignoring duplicate request", "reason", reason)
+		return nil
 	}
+
+	c.logger.InfoContext(c.ctx, "initiating shutdown sequence", "reason", reason)
+
+	// cancel the controller context so WaitReady unblocks
+	c.cancel(reason)
+
+	// Set closing reason for observers (WaitClose). The buffer is 1 and
+	// Close only runs once, so a non-blocking send is still safe but we
+	// keep the blocking form because the buffer is guaranteed empty on
+	// first entry.
+	c.closingCh <- reason
+
+	// Notify terminal runner to close all terminals
+	c.srMu.RLock()
+	sr := c.sr
+	c.srMu.RUnlock()
+	if sr != nil {
+		_ = sr.Close(reason)
+	}
+
+	// Notify Run to exit
+	c.closeReqCh <- reason
+
+	// Mark controller as closed
+	close(c.closedCh)
 	return nil
 }
 
