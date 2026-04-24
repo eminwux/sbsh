@@ -12,13 +12,13 @@
         <meta name="author" content="Emiliano Spinella (eminwux)">
       
       
-        <link rel="canonical" href="https://sbsh.io/concepts/profiles/">
+        <link rel="canonical" href="https://sbsh.io/reference/library/">
       
       
-        <link rel="prev" href="../terminals/">
+        <link rel="prev" href="../../cli/sb/">
       
       
-        <link rel="next" href="../client/">
+        <link rel="next" href="../../tutorials/create-your-first-profile/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Profiles - sbsh</title>
+        <title>Go library reference - sbsh</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#profiles" class="md-skip">
+        <a href="#go-library-reference" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Profiles
+              Go library reference
             
           </span>
         </div>
@@ -287,13 +287,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../terminals/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../concepts/terminals/" class="md-tabs__link">
           
   
   
@@ -369,11 +367,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../reference/library/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -700,31 +700,28 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
             
   
   
@@ -742,7 +739,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -760,7 +757,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../terminals/" class="md-nav__link">
+      <a href="../../concepts/terminals/" class="md-nav__link">
         
   
   
@@ -785,37 +782,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Profiles
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../concepts/profiles/" class="md-nav__link">
         
   
   
@@ -831,131 +801,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#profile-structure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Profile Structure
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#profile-components" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Profile Components
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Profile Components">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#metadata" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Metadata
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#spec" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Spec
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#profile-storage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Profile Storage
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#profile-discovery" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Profile Discovery
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#using-profiles" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using Profiles
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#profile-examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Profile Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related-concepts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related Concepts
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -968,7 +813,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../client/" class="md-nav__link">
+      <a href="../../concepts/client/" class="md-nav__link">
         
   
   
@@ -996,7 +841,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../terminal-state/" class="md-nav__link">
+      <a href="../../concepts/terminal-state/" class="md-nav__link">
         
   
   
@@ -1024,7 +869,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../multi-attach/" class="md-nav__link">
+      <a href="../../concepts/multi-attach/" class="md-nav__link">
         
   
   
@@ -1052,7 +897,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../event-log/" class="md-nav__link">
+      <a href="../../concepts/event-log/" class="md-nav__link">
         
   
   
@@ -1080,7 +925,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../environment-isolation/" class="md-nav__link">
+      <a href="../../concepts/environment-isolation/" class="md-nav__link">
         
   
   
@@ -1547,28 +1392,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
-        
-          
-          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
             
   
   
@@ -1586,7 +1434,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1601,10 +1449,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../reference/library/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Go library reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1620,6 +1495,164 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#supported-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported packages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stateroot-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StateRoot contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binary-path-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binary-path contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pre-v1-stability-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pre-v1 stability policy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#walkthrough" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Walkthrough
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Walkthrough">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-build-a-terminalspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Build a TerminalSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-spawn-the-terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Spawn the terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-spawn-a-client-that-attaches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Spawn a client that attaches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-drive-the-terminal-rpc-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Drive the Terminal RPC surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-drive-the-client-rpc-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Drive the Client RPC surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-close-the-handles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Close the handles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1831,10 +1864,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#profile-structure" class="md-nav__link">
+  <a href="#supported-packages" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Profile Structure
+        Supported packages
       
     </span>
   </a>
@@ -1842,22 +1875,55 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#profile-components" class="md-nav__link">
+  <a href="#stateroot-contract" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Profile Components
+        StateRoot contract
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Profile Components">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binary-path-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binary-path contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pre-v1-stability-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pre-v1 stability policy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#walkthrough" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Walkthrough
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Walkthrough">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#metadata" class="md-nav__link">
+  <a href="#1-build-a-terminalspec" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Metadata
+        1. Build a TerminalSpec
       
     </span>
   </a>
@@ -1865,10 +1931,54 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#spec" class="md-nav__link">
+  <a href="#2-spawn-the-terminal" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Spec
+        2. Spawn the terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-spawn-a-client-that-attaches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Spawn a client that attaches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-drive-the-terminal-rpc-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Drive the Terminal RPC surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-drive-the-client-rpc-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Drive the Client RPC surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-close-the-handles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Close the handles
       
     </span>
   </a>
@@ -1881,54 +1991,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#profile-storage" class="md-nav__link">
+  <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Profile Storage
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#profile-discovery" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Profile Discovery
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#using-profiles" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using Profiles
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#profile-examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Profile Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related-concepts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related Concepts
+        See also
       
     </span>
   </a>
@@ -1955,60 +2021,212 @@
   
 
 
-<h1 id="profiles">Profiles<a class="headerlink" href="#profiles" title="Permanent link">&para;</a></h1>
-<p>Profiles are declarative YAML manifests that define terminal environments. They specify environment variables, lifecycle hooks, startup commands, and visual prompts.</p>
-<h2 id="profile-structure">Profile Structure<a class="headerlink" href="#profile-structure" title="Permanent link">&para;</a></h2>
-<p>Each profile is a YAML document with the following structure:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sbsh/v1beta1</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TerminalProfile</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">profile-name</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">runTarget</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">local</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nt">restartPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">exit</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="nt">shell</span><span class="p">:</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="nt">cwd</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;~&quot;</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="nt">cmd</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/bin/bash</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="nt">cmdArgs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="nt">inheritEnv</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="nt">env</span><span class="p">:</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">      </span><span class="nt">KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">value</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="nt">prompt</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;custom</span><span class="nv"> </span><span class="s">prompt&quot;</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">  </span><span class="nt">stages</span><span class="p">:</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">    </span><span class="nt">onInit</span><span class="p">:</span>
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">script</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">echo &quot;Starting...&quot;</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="nt">postAttach</span><span class="p">:</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">script</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">echo &quot;Attached!&quot;</span>
-</code></pre></div>
-<h2 id="profile-components">Profile Components<a class="headerlink" href="#profile-components" title="Permanent link">&para;</a></h2>
-<h3 id="metadata">Metadata<a class="headerlink" href="#metadata" title="Permanent link">&para;</a></h3>
+<h1 id="go-library-reference">Go library reference<a class="headerlink" href="#go-library-reference" title="Permanent link">&para;</a></h1>
+<p>sbsh ships a small public Go library so external programs can spawn,
+drive, and tear down <code>Terminal</code> and <code>Client</code> processes without shelling
+out to <code>sb</code> / <code>sbsh</code> or importing <code>internal/</code> packages. This page
+documents the supported surface and its stability promise.</p>
+<p>A complete, build-tested example lives at
+<a href="https://github.com/eminwux/sbsh/tree/main/docs/examples/library-consumer"><code>docs/examples/library-consumer/</code></a>.</p>
+<h2 id="supported-packages">Supported packages<a class="headerlink" href="#supported-packages" title="Permanent link">&para;</a></h2>
+<p>The public library lives under <a href="https://pkg.go.dev/github.com/eminwux/sbsh/pkg"><code>github.com/eminwux/sbsh/pkg</code></a>:</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pkg/api</code></td>
+<td>Declarative document types (<code>TerminalDoc</code>, <code>TerminalSpec</code>, <code>ClientDoc</code>, <code>TerminalProfileDoc</code>, …) and RPC payload types (<code>PingMessage</code>, <code>WriteRequest</code>, <code>SubscribeRequest</code>, <code>StopArgs</code>, …). Counterpart of the YAML/JSON manifests.</td>
+</tr>
+<tr>
+<td><code>pkg/builder</code></td>
+<td>Construct a <code>TerminalSpec</code> or <code>ClientDoc</code> from a profile name plus inline overrides (<code>WithProfile</code>, <code>WithProfilesDir</code>, <code>WithCommand</code>, <code>WithEnv</code>, <code>WithClientMode</code>, …). No YAML round-trip.</td>
+</tr>
+<tr>
+<td><code>pkg/spawn</code></td>
+<td>Launch detached <code>Terminal</code> and <code>Client</code> subprocesses (<code>NewTerminal</code>, <code>NewClient</code>). Returns <code>TerminalHandle</code> / <code>ClientHandle</code> with <code>PID</code>, <code>SocketPath</code>, <code>WaitReady</code>, <code>WaitClose</code>, <code>Close</code>.</td>
+</tr>
+<tr>
+<td><code>pkg/discovery</code></td>
+<td>Enumerate live terminals/clients or look them up by ID/Name under a run path (<code>ScanTerminals</code>, <code>FindTerminalByID</code>, <code>FindTerminalByName</code>, <code>ScanClients</code>, <code>FindClientByName</code>). Load profiles from disk (<code>LoadProfilesFromDir</code>, <code>FindProfileByNameInDir</code>).</td>
+</tr>
+<tr>
+<td><code>pkg/rpcclient/terminal</code></td>
+<td>JSON-RPC client for the <code>TerminalController</code> socket (<code>Ping</code>, <code>Resize</code>, <code>Attach</code>, <code>Detach</code>, <code>Metadata</code>, <code>State</code>, <code>Stop</code>, <code>Write</code>, <code>Subscribe</code>).</td>
+</tr>
+<tr>
+<td><code>pkg/rpcclient/client</code></td>
+<td>JSON-RPC client for the <code>ClientController</code> socket (<code>Ping</code>, <code>Metadata</code>, <code>State</code>, <code>Stop</code>, <code>Detach</code>).</td>
+</tr>
+<tr>
+<td><code>pkg/errors</code></td>
+<td>Curated error sentinels re-exported from <code>internal/errdefs</code>. Use <code>errors.Is</code> to branch on well-known failure modes without importing internal packages.</td>
+</tr>
+</tbody>
+</table>
+<p>Nothing under <code>internal/</code> is part of the supported surface and
+Go's visibility rules prevent external modules from importing it.</p>
+<h2 id="stateroot-contract">StateRoot contract<a class="headerlink" href="#stateroot-contract" title="Permanent link">&para;</a></h2>
+<p>Every operation that touches disk derives its paths from a single
+<strong>run path</strong> (also called StateRoot in kukeon, <code>--run-path</code> on the
+CLI). External callers <strong>must</strong> supply this path explicitly — an
+empty run path returns <code>errors.ErrRunPathRequired</code>. There is no
+silent fallback to <code>$HOME/.sbsh</code>; the point of the parameter is to
+let callers run several isolated sbsh stacks on one host.</p>
+<p>Given a run path <code>R</code>, the stack writes:</p>
 <ul>
-<li><strong><code>name</code></strong>: Unique identifier for the profile (required)</li>
+<li><code>R/terminals/&lt;id&gt;/{metadata.json,socket,capture,log}</code> — one
+  directory per spawned terminal.</li>
+<li><code>R/clients/&lt;id&gt;/{metadata.json,socket,log}</code> — one directory
+  per spawned client.</li>
+<li><code>R/.sbsh/profiles.d/</code> — the default profile-lookup directory
+  when <code>WithProfilesDir</code> is not set. Override with
+  <code>WithProfilesDir(myPath)</code> to point anywhere else.</li>
 </ul>
-<h3 id="spec">Spec<a class="headerlink" href="#spec" title="Permanent link">&para;</a></h3>
+<p>Library consumers are expected to pass the same run path to every
+pkg call in a given operation, and to pass the child processes a
+matching <code>--run-path</code> flag. <code>pkg/spawn</code> does this for you via
+<code>TerminalOptions.ExtraArgs</code> / <code>ClientOptions.ExtraArgs</code>.</p>
+<h2 id="binary-path-contract">Binary-path contract<a class="headerlink" href="#binary-path-contract" title="Permanent link">&para;</a></h2>
+<p><code>pkg/spawn</code> deliberately does <strong>not</strong> consult <code>$PATH</code>. Callers
+must set <code>TerminalOptions.BinaryPath</code> / <code>ClientOptions.BinaryPath</code>
+to an absolute path of an <code>sbsh</code> or <code>sb</code> binary that supports the
+relevant subcommands. This keeps state-root-style isolation from
+being silently broken by whatever happens to be first on the
+system path.</p>
+<p>Both binaries are produced by the canonical <code>make sbsh-sb</code> target:
+<code>sbsh</code> is the real ELF and <code>sb</code> is a hard link to it; argv[0]
+selects the subtree. Pass the <code>sbsh</code> path to <code>NewTerminal</code> and the
+<code>sb</code> path to <code>NewClient</code>.</p>
+<h2 id="pre-v1-stability-policy">Pre-v1 stability policy<a class="headerlink" href="#pre-v1-stability-policy" title="Permanent link">&para;</a></h2>
+<p>sbsh is pre-v1. The intent of this policy is to give library
+consumers — notably the kukeon integration that drives umbrella
+issue <a href="https://github.com/eminwux/sbsh/issues/118">#118</a> — enough
+stability to ship without freezing the surface before v1 has been
+validated in anger.</p>
+<p><strong>What will not change between minor releases (0.x → 0.x+1):</strong></p>
 <ul>
-<li><strong><code>runTarget</code></strong>: Where the terminal runs (currently only <code>local</code>)</li>
-<li><strong><code>restartPolicy</code></strong>: Behavior on exit (<code>exit</code>, <code>restart-on-error</code>, <code>restart-unlimited</code>)</li>
-<li><strong><code>shell</code></strong>: Command and environment configuration</li>
-<li><strong><code>stages</code></strong>: Lifecycle hooks (<code>onInit</code>, <code>postAttach</code>)</li>
+<li>Wire schema of documents whose <code>apiVersion</code> is <code>sbsh/v1beta1</code>
+  (<code>TerminalProfileDoc</code>, <code>TerminalDoc</code>, <code>ClientDoc</code>, <code>ConfigurationDoc</code>).
+  Existing fields will not be removed, renamed, or re-typed within
+  the v1beta1 apiVersion; new fields may be added.</li>
+<li>The identity of error sentinels re-exported from <code>pkg/errors</code>.
+  <code>errors.Is</code> against those names will continue to match errors
+  produced anywhere in sbsh.</li>
+<li>The shape of exported interfaces in <code>pkg/api</code>
+  (<code>TerminalController</code>, <code>ClientController</code>): method removals and
+  signature-breaking changes will not happen within a minor
+  release.</li>
 </ul>
-<h2 id="profile-storage">Profile Storage<a class="headerlink" href="#profile-storage" title="Permanent link">&para;</a></h2>
-<p>Profiles live under <code>~/.sbsh/profiles.d/</code> by default. sbsh scans the directory recursively and loads every <code>*.yaml</code> / <code>*.yml</code> file, so you can keep one profile per file, group related profiles into subdirectories, or combine several into a single multi-document YAML (documents separated by <code>---</code>). Point sbsh at a different directory with <code>--profiles-dir</code> or <code>SBSH_PROFILES_DIR</code>.</p>
-<h2 id="profile-discovery">Profile Discovery<a class="headerlink" href="#profile-discovery" title="Permanent link">&para;</a></h2>
-<p>List available profiles:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>sb<span class="w"> </span>get<span class="w"> </span>profiles
-</code></pre></div>
-<h2 id="using-profiles">Using Profiles<a class="headerlink" href="#using-profiles" title="Permanent link">&para;</a></h2>
-<p>Start a terminal with a profile:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sbsh<span class="w"> </span>-p<span class="w"> </span>profile-name
-</code></pre></div>
-<h2 id="profile-examples">Profile Examples<a class="headerlink" href="#profile-examples" title="Permanent link">&para;</a></h2>
-<p>See the <a href="../../guides/profiles/">Profiles Guide</a> for comprehensive examples and reference documentation.</p>
-<h2 id="related-concepts">Related Concepts<a class="headerlink" href="#related-concepts" title="Permanent link">&para;</a></h2>
+<p><strong>What may change between minor releases:</strong></p>
 <ul>
-<li><a href="../terminals/">Terminals</a> - Terminal lifecycle</li>
-<li><a href="../environment-isolation/">Environment Isolation</a> - Environment configuration</li>
-<li><a href="../../guides/profiles/">Profiles Guide</a> - Complete profile reference</li>
+<li>Option / <code>With*</code> function names and defaults in <code>pkg/builder</code> and
+  <code>pkg/spawn</code>. Callers should expect churn as the library ergonomics
+  settle.</li>
+<li>Additions to the curated sentinel set in <code>pkg/errors</code>.</li>
+<li>Additions to exported interfaces in <code>pkg/api</code> (new methods) and
+  additions of new request/response payload types.</li>
+</ul>
+<p><strong>What will not change without a deprecation cycle:</strong></p>
+<ul>
+<li>Removal of any symbol currently documented in <code>pkg/api</code>,
+  <code>pkg/errors</code>, or any subpackage listed above. Removals will be
+  staged by marking the symbol deprecated in a minor release and
+  removing it no earlier than the next minor release.</li>
+</ul>
+<p>v1 will be cut when umbrella issue
+<a href="https://github.com/eminwux/sbsh/issues/118">#118</a> closes and the
+library surface has shipped at least one downstream integration.
+At v1 the apiVersion advances out of <code>v1beta1</code> and the above "may
+change" list collapses into "will not change without a deprecation
+cycle". See the godoc for
+<a href="https://pkg.go.dev/github.com/eminwux/sbsh/pkg/api"><code>pkg/api</code></a>
+for the authoritative copy of this policy.</p>
+<h2 id="walkthrough">Walkthrough<a class="headerlink" href="#walkthrough" title="Permanent link">&para;</a></h2>
+<p>The steps below mirror
+<a href="https://github.com/eminwux/sbsh/tree/main/docs/examples/library-consumer"><code>docs/examples/library-consumer/main.go</code></a>.</p>
+<h3 id="1-build-a-terminalspec">1. Build a <code>TerminalSpec</code><a class="headerlink" href="#1-build-a-terminalspec" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nx">spec</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">builder</span><span class="p">.</span><span class="nx">BuildTerminalSpec</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">logger</span><span class="p">,</span><span class="w"> </span><span class="nx">stateRoot</span><span class="p">,</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="nx">builder</span><span class="p">.</span><span class="nx">WithName</span><span class="p">(</span><span class="s">&quot;library-consumer-example&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nx">builder</span><span class="p">.</span><span class="nx">WithCommand</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;/bin/bash&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;--norc&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;--noprofile&quot;</span><span class="p">}),</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nx">builder</span><span class="p">.</span><span class="nx">WithEnv</span><span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;PS1&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;example&gt; &quot;</span><span class="p">}),</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nx">builder</span><span class="p">.</span><span class="nx">WithDisableSetPrompt</span><span class="p">(</span><span class="kc">true</span><span class="p">),</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span>
+</code></pre></div>
+<p><code>runPath</code> is required; everything else has a sane default. Set
+<code>WithProfile(name)</code> + <code>WithProfilesDir(dir)</code> to load from a profiles
+directory. Inline <code>With*</code> values override profile values.</p>
+<h3 id="2-spawn-the-terminal">2. Spawn the terminal<a class="headerlink" href="#2-spawn-the-terminal" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nx">term</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">spawn</span><span class="p">.</span><span class="nx">NewTerminal</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">spec</span><span class="p">,</span><span class="w"> </span><span class="nx">spawn</span><span class="p">.</span><span class="nx">TerminalOptions</span><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="nx">BinaryPath</span><span class="p">:</span><span class="w">   </span><span class="nx">sbshPath</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nx">ExtraArgs</span><span class="p">:</span><span class="w">    </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;--run-path&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">stateRoot</span><span class="p">},</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nx">Logger</span><span class="p">:</span><span class="w">       </span><span class="nx">logger</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nx">ReadyTimeout</span><span class="p">:</span><span class="w"> </span><span class="mi">15</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">})</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">term</span><span class="p">.</span><span class="nx">WaitReady</span><span class="p">(</span><span class="nx">ctx</span><span class="p">);</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* handle */</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p><code>WaitReady</code> blocks until the terminal's control socket accepts a
+Ping. It returns <code>ErrProcessExited</code> if the child dies before
+ready, <code>ErrReadyTimeout</code> on the internal cap, or <code>ctx.Err()</code> on
+cancellation.</p>
+<h3 id="3-spawn-a-client-that-attaches">3. Spawn a client that attaches<a class="headerlink" href="#3-spawn-a-client-that-attaches" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nx">doc</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">builder</span><span class="p">.</span><span class="nx">BuildClientDoc</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">logger</span><span class="p">,</span><span class="w"> </span><span class="nx">stateRoot</span><span class="p">,</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="nx">builder</span><span class="p">.</span><span class="nx">WithClientName</span><span class="p">(</span><span class="s">&quot;library-consumer-client&quot;</span><span class="p">),</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nx">builder</span><span class="p">.</span><span class="nx">WithClientMode</span><span class="p">(</span><span class="nx">api</span><span class="p">.</span><span class="nx">AttachToTerminal</span><span class="p">),</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nx">builder</span><span class="p">.</span><span class="nx">WithClientTerminalSpec</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">api</span><span class="p">.</span><span class="nx">TerminalSpec</span><span class="p">{</span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="nx">spec</span><span class="p">.</span><span class="nx">Name</span><span class="p">}),</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="nx">builder</span><span class="p">.</span><span class="nx">WithClientDetachKeystroke</span><span class="p">(</span><span class="kc">false</span><span class="p">),</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="p">)</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="nx">cli</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">spawn</span><span class="p">.</span><span class="nx">NewClient</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">doc</span><span class="p">,</span><span class="w"> </span><span class="nx">spawn</span><span class="p">.</span><span class="nx">ClientOptions</span><span class="p">{</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="nx">BinaryPath</span><span class="p">:</span><span class="w">   </span><span class="nx">sbPath</span><span class="p">,</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="nx">ExtraArgs</span><span class="p">:</span><span class="w">    </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;--run-path&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">stateRoot</span><span class="p">},</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="nx">Logger</span><span class="p">:</span><span class="w">       </span><span class="nx">logger</span><span class="p">,</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span><span class="nx">ReadyTimeout</span><span class="p">:</span><span class="w"> </span><span class="mi">15</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">,</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="p">})</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">cli</span><span class="p">.</span><span class="nx">WaitReady</span><span class="p">(</span><span class="nx">ctx</span><span class="p">);</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* handle */</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<h3 id="4-drive-the-terminal-rpc-surface">4. Drive the Terminal RPC surface<a class="headerlink" href="#4-drive-the-terminal-rpc-surface" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nx">trpc</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">terminalrpc</span><span class="p">.</span><span class="nx">NewUnix</span><span class="p">(</span><span class="nx">term</span><span class="p">.</span><span class="nx">SocketPath</span><span class="p">(),</span><span class="w"> </span><span class="nx">logger</span><span class="p">)</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1">// Subscribe BEFORE writing so no output is missed.</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nx">stream</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">trpc</span><span class="p">.</span><span class="nx">Subscribe</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="o">&amp;</span><span class="nx">api</span><span class="p">.</span><span class="nx">SubscribeRequest</span><span class="p">{</span><span class="nx">ClientID</span><span class="p">:</span><span class="w"> </span><span class="nx">api</span><span class="p">.</span><span class="nx">ID</span><span class="p">(</span><span class="s">&quot;library-consumer&quot;</span><span class="p">)},</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="o">&amp;</span><span class="nx">api</span><span class="p">.</span><span class="nx">Empty</span><span class="p">{})</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="k">defer</span><span class="w"> </span><span class="nx">stream</span><span class="p">.</span><span class="nx">Close</span><span class="p">()</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="nx">err</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">trpc</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">api</span><span class="p">.</span><span class="nx">WriteRequest</span><span class="p">{</span><span class="nx">Data</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&quot;echo hello\n&quot;</span><span class="p">)})</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="c1">// Read bytes off stream.Read(...) with a deadline.</span>
+</code></pre></div>
+<p><code>Subscribe</code> returns a live <code>net.Conn</code> that streams PTY output as raw
+bytes — no ANSI stripping, no line framing. Callers typically set
+a read deadline and scan for a known marker.</p>
+<h3 id="5-drive-the-client-rpc-surface">5. Drive the Client RPC surface<a class="headerlink" href="#5-drive-the-client-rpc-surface" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nx">crpc</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">clientrpc</span><span class="p">.</span><span class="nx">NewUnix</span><span class="p">(</span><span class="nx">cli</span><span class="p">.</span><span class="nx">SocketPath</span><span class="p">())</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kd">var</span><span class="w"> </span><span class="nx">state</span><span class="w"> </span><span class="nx">api</span><span class="p">.</span><span class="nx">ClientStatusMode</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nx">_</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">crpc</span><span class="p">.</span><span class="nx">State</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">state</span><span class="p">)</span><span class="w">            </span><span class="c1">// observe lifecycle</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nx">_</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">crpc</span><span class="p">.</span><span class="nx">Stop</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">api</span><span class="p">.</span><span class="nx">StopArgs</span><span class="p">{</span><span class="nx">Reason</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;done&quot;</span><span class="p">})</span><span class="w"> </span><span class="c1">// tear down client</span>
+</code></pre></div>
+<h3 id="6-close-the-handles">6. Close the handles<a class="headerlink" href="#6-close-the-handles" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">defer</span><span class="w"> </span><span class="nx">term</span><span class="p">.</span><span class="nx">Close</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">defer</span><span class="w"> </span><span class="nx">cli</span><span class="p">.</span><span class="nx">Close</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span>
+</code></pre></div>
+<p><code>Close</code> is idempotent: it sends a Stop RPC, escalates to SIGTERM
+and then SIGKILL if needed, and returns the process exit error
+(nil on clean exit). When <code>Stop</code> has already triggered shutdown
+the deferred <code>Close</code> becomes a safety net — expect a non-zero
+exit status to surface here because the child exited in response
+to the Stop signal.</p>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../../architecture/process-model/">Architecture: process model</a> — how
+  Terminal and Client processes relate on the wire.</li>
+<li><a href="../../concepts/client/">Concepts: client</a> — what a Client is and
+  what <code>AttachToTerminal</code> vs <code>RunNewTerminal</code> mean.</li>
+<li><a href="https://pkg.go.dev/github.com/eminwux/sbsh/pkg/api"><code>pkg/api</code> godoc</a> — authoritative type documentation.</li>
 </ul>
 
 
@@ -2032,7 +2250,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 24, 2026 12:14:48 UTC">April 24, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 24, 2026 15:29:21 UTC">April 24, 2026</span>
   </span>
 
     
@@ -2042,7 +2260,7 @@
     <span class="md-icon" title="Created">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 22, 2025 19:26:06 UTC">November 22, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 24, 2026 15:29:21 UTC">April 24, 2026</span>
   </span>
 
     
