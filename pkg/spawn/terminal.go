@@ -196,7 +196,7 @@ func (h *TerminalHandle) WaitReady(ctx context.Context) error {
 
 		if _, err := os.Stat(h.socketPath); err == nil {
 			pingCtx, pingCancel := context.WithTimeout(readyCtx, poll)
-			pingErr := rpc.Ping(pingCtx, &api.PingMessage{Message: "spawn.WaitReady"}, &api.PingMessage{})
+			pingErr := rpc.Ping(pingCtx, &api.PingMessage{Message: "PING"}, &api.PingMessage{})
 			pingCancel()
 			if pingErr == nil {
 				return nil

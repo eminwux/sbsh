@@ -86,6 +86,8 @@ nav:
       - cli/commands.md
       - cli/sbsh.md
       - cli/sb.md
+  - Library Reference:
+      - reference/library.md
   - Tutorials:
       - tutorials/create-your-first-profile.md
       - tutorials/share-a-terminal.md
