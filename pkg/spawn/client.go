@@ -76,9 +76,8 @@ type ClientOptions struct {
 
 // ClientHandle is a library-side handle on a spawned Client
 // subprocess. Consumers can observe lifecycle via WaitReady/WaitClose,
-// request shutdown via Close, and connect to SocketPath() for the
-// subset of ClientController RPCs currently exposed (Detach today;
-// Ping/State/Stop land in PR-E).
+// request shutdown via Close, and connect to SocketPath() to drive
+// the full ClientController RPC surface (Ping/Metadata/State/Stop/Detach).
 type ClientHandle struct {
 	doc        *api.ClientDoc
 	socketPath string
@@ -202,14 +201,10 @@ func (h *ClientHandle) SocketPath() string { return h.socketPath }
 // pointer is shared — callers must not mutate it.
 func (h *ClientHandle) Doc() *api.ClientDoc { return h.doc }
 
-// WaitReady blocks until the client's control socket file is visible
-// on disk. Until PR-E grows ClientController with a Ping RPC, socket
-// presence is the best readiness signal spawn can offer without
-// peeking at internal state. Caveat: the file appears the instant the
-// Unix listener binds, which is slightly before the client has fully
-// wired up its attach to the terminal. Callers that race into a
-// Detach() RPC immediately after WaitReady may observe a transient
-// connection refused; retry or use a small back-off until PR-E.
+// WaitReady blocks until the client's RPC server accepts a Ping on
+// its control socket. It returns early with ErrProcessExited if the
+// child dies before reaching Ready, ErrReadyTimeout if the internal
+// cap elapses, or ctx.Err() on cancellation.
 func (h *ClientHandle) WaitReady(ctx context.Context) error {
 	if h.proc.exited() {
 		return wrapProcessExited(h.proc.takeExitErr())
@@ -223,12 +218,24 @@ func (h *ClientHandle) WaitReady(ctx context.Context) error {
 		poll = defaultReadyPollInterval
 	}
 
+	rpc := clientrpc.NewUnix(h.socketPath)
+
 	for {
 		if h.proc.exited() {
 			return wrapProcessExited(h.proc.takeExitErr())
 		}
+
 		if _, err := os.Stat(h.socketPath); err == nil {
-			return nil
+			pingCtx, pingCancel := context.WithTimeout(readyCtx, poll)
+			pingErr := rpc.Ping(pingCtx, &api.PingMessage{Message: "PING"}, &api.PingMessage{})
+			pingCancel()
+			if pingErr == nil {
+				return nil
+			}
+			if h.opts.Logger != nil {
+				h.opts.Logger.DebugContext(readyCtx, "client not ready yet",
+					"socket", h.socketPath, "error", pingErr)
+			}
 		}
 
 		select {
@@ -251,25 +258,22 @@ func (h *ClientHandle) readyContext(ctx context.Context) (context.Context, conte
 	return context.WithTimeout(ctx, h.opts.ReadyTimeout)
 }
 
-// Close requests graceful shutdown: it first sends a Detach RPC over
-// the client's control socket (which causes the client to disconnect
-// from its terminal and exit), then escalates to SIGTERM and SIGKILL
-// if the child is still alive. Returns the process exit error (nil on
-// clean exit) or ctx.Err() if the caller's context is canceled
-// mid-shutdown.
-//
-// Once PR-E grows ClientController with an explicit Stop RPC, this
-// method will switch to it for a cleaner shutdown signal.
+// Close requests graceful shutdown: it first sends a Stop RPC over
+// the client's control socket (which causes the client to tear down
+// its terminal attachment and exit), then escalates to SIGTERM and
+// SIGKILL if the child is still alive. Returns the process exit
+// error (nil on clean exit) or ctx.Err() if the caller's context is
+// canceled mid-shutdown.
 func (h *ClientHandle) Close(ctx context.Context) error {
-	return h.proc.gracefulShutdown(ctx, h.opts.StopGracePeriod, h.sendDetachRPC)
+	return h.proc.gracefulShutdown(ctx, h.opts.StopGracePeriod, h.sendStopRPC)
 }
 
-func (h *ClientHandle) sendDetachRPC(ctx context.Context) error {
+func (h *ClientHandle) sendStopRPC(ctx context.Context) error {
 	if _, err := os.Stat(h.socketPath); err != nil {
 		return err
 	}
 	rpc := clientrpc.NewUnix(h.socketPath)
-	return rpc.Detach(ctx)
+	return rpc.Stop(ctx, &api.StopArgs{Reason: "spawn.Close"})
 }
 
 // WaitClose blocks until the client subprocess has fully exited or

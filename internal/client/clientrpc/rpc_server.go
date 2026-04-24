@@ -30,3 +30,34 @@ func (s *ClientControllerRPC) WaitReady(_ *api.Empty, _ *api.Empty) error {
 func (s *ClientControllerRPC) Detach(_ *api.Empty, _ *api.Empty) error {
 	return s.Core.Detach()
 }
+
+func (s *ClientControllerRPC) Ping(in *api.PingMessage, out *api.PingMessage) error {
+	pong, err := s.Core.Ping(in)
+	if err != nil {
+		return err
+	}
+	*out = *pong
+	return nil
+}
+
+func (s *ClientControllerRPC) Metadata(_ api.Empty, doc *api.ClientDoc) error {
+	md, err := s.Core.Metadata()
+	if err != nil {
+		return err
+	}
+	*doc = *md
+	return nil
+}
+
+func (s *ClientControllerRPC) State(_ api.Empty, state *api.ClientStatusMode) error {
+	st, err := s.Core.State()
+	if err != nil {
+		return err
+	}
+	*state = *st
+	return nil
+}
+
+func (s *ClientControllerRPC) Stop(args *api.StopArgs, _ *api.Empty) error {
+	return s.Core.Stop(args)
+}

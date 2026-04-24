@@ -22,6 +22,10 @@ type ClientController interface {
 	Close(reason error) error
 	WaitClose() error
 	Detach() error
+	Ping(ping *PingMessage) (*PingMessage, error)
+	Metadata() (*ClientDoc, error)
+	State() (*ClientStatusMode, error)
+	Stop(args *StopArgs) error
 }
 
 type ClientSpec struct {
@@ -108,5 +112,9 @@ type AttachedTerminal struct {
 const ClientService = "ClientController"
 
 const (
-	ClientMethodDetach = ClientService + ".Detach"
+	ClientMethodDetach   = ClientService + ".Detach"
+	ClientMethodPing     = ClientService + ".Ping"
+	ClientMethodMetadata = ClientService + ".Metadata"
+	ClientMethodState    = ClientService + ".State"
+	ClientMethodStop     = ClientService + ".Stop"
 )
