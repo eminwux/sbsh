@@ -98,6 +98,26 @@ func Test_ErrInvalidFlag_Name(t *testing.T) {
 	}
 }
 
+func Test_ValidateAttachArgs_IDFlagOnly(t *testing.T) {
+	cmd := NewAttachCmd()
+	if err := cmd.Flags().Set("id", "some-id"); err != nil {
+		t.Fatalf("failed to set --id: %v", err)
+	}
+	if err := validateAttachArgs(cmd, []string{}); err != nil {
+		t.Fatalf("expected nil error when --id is set with no positional arg; got: %v", err)
+	}
+}
+
+func Test_ValidateAttachArgs_NameFlagOnly(t *testing.T) {
+	cmd := NewAttachCmd()
+	if err := cmd.Flags().Set("name", "some-name"); err != nil {
+		t.Fatalf("failed to set --name: %v", err)
+	}
+	if err := validateAttachArgs(cmd, []string{}); err != nil {
+		t.Fatalf("expected nil error when --name is set with no positional arg; got: %v", err)
+	}
+}
+
 func Test_ErrTooManyArguments(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	cmd := NewAttachCmd()
