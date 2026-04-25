@@ -21,10 +21,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -309,6 +312,144 @@ func Test_ErrLoggerNotFound_RunE(t *testing.T) {
 	}
 	if !errors.Is(err, errdefs.ErrLoggerNotFound) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrLoggerNotFound, err)
+	}
+}
+
+func Test_splitWorkload(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		dash         int
+		wantPreDash  []string
+		wantWorkload []string
+	}{
+		{
+			name:         "no dash separator",
+			args:         []string{"-"},
+			dash:         -1,
+			wantPreDash:  []string{"-"},
+			wantWorkload: nil,
+		},
+		{
+			name:         "no positional args at all",
+			args:         []string{},
+			dash:         -1,
+			wantPreDash:  []string{},
+			wantWorkload: nil,
+		},
+		{
+			name:         "workload with no pre-dash args",
+			args:         []string{"/bin/bash"},
+			dash:         0,
+			wantPreDash:  []string{},
+			wantWorkload: []string{"/bin/bash"},
+		},
+		{
+			name:         "workload with whitespace and quoting in args",
+			args:         []string{"printf", "%s\n", "a b", "c'd"},
+			dash:         0,
+			wantPreDash:  []string{},
+			wantWorkload: []string{"printf", "%s\n", "a b", "c'd"},
+		},
+		{
+			name:         "workload with multiple pre-dash args",
+			args:         []string{"-", "extra", "/bin/echo", "hi"},
+			dash:         2,
+			wantPreDash:  []string{"-", "extra"},
+			wantWorkload: []string{"/bin/echo", "hi"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gotPreDash, gotWorkload := splitWorkload(tc.args, tc.dash)
+			if !reflect.DeepEqual(gotPreDash, tc.wantPreDash) {
+				t.Fatalf("preDash: expected %#v; got %#v", tc.wantPreDash, gotPreDash)
+			}
+			if !reflect.DeepEqual(gotWorkload, tc.wantWorkload) {
+				t.Fatalf("workload: expected %#v; got %#v", tc.wantWorkload, gotWorkload)
+			}
+		})
+	}
+}
+
+func Test_TerminalCmd_RejectsCommandFlag(t *testing.T) {
+	cmd := NewTerminalCmd()
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"--command", "/bin/bash"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error: --command flag should be removed and rejected by cobra")
+	}
+	if !strings.Contains(err.Error(), "unknown flag") {
+		t.Fatalf("expected unknown flag error; got: %v", err)
+	}
+}
+
+func Test_TerminalCmd_PositionalArgvAfterDash(t *testing.T) {
+	// Verify that cobra parses positional argv after `--` and exposes it
+	// verbatim (no shell re-tokenization) via ArgsLenAtDash + args[dash:].
+	cmd := NewTerminalCmd()
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+
+	want := []string{"printf", "%s\n", "a b"}
+
+	var (
+		gotWorkload []string
+		captured    bool
+	)
+	cmd.PreRunE = func(c *cobra.Command, args []string) error {
+		_, gotWorkload = splitWorkload(args, c.ArgsLenAtDash())
+		captured = true
+		return errors.New("stop after capture")
+	}
+	cmd.RunE = func(_ *cobra.Command, _ []string) error { return nil }
+
+	cmdArgs := append([]string{"--"}, want...)
+	cmd.SetArgs(cmdArgs)
+	_ = cmd.Execute()
+
+	if !captured {
+		t.Fatal("PreRunE was not invoked")
+	}
+	if !reflect.DeepEqual(gotWorkload, want) {
+		t.Fatalf("workload: expected %#v; got %#v", want, gotWorkload)
+	}
+}
+
+func Test_TerminalCmd_DefaultFallback_NoWorkload(t *testing.T) {
+	// When no positional argv is given after `--`, ArgsLenAtDash returns -1
+	// and the workload is empty so the profile default (/bin/bash) applies.
+	cmd := NewTerminalCmd()
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+
+	var (
+		gotDash     int
+		gotWorkload []string
+		captured    bool
+	)
+	cmd.PreRunE = func(c *cobra.Command, args []string) error {
+		gotDash = c.ArgsLenAtDash()
+		_, gotWorkload = splitWorkload(args, gotDash)
+		captured = true
+		return errors.New("stop after capture")
+	}
+	cmd.RunE = func(_ *cobra.Command, _ []string) error { return nil }
+
+	cmd.SetArgs([]string{})
+	_ = cmd.Execute()
+
+	if !captured {
+		t.Fatal("PreRunE was not invoked")
+	}
+	if gotDash != -1 {
+		t.Fatalf("ArgsLenAtDash: expected -1 (no `--`); got %d", gotDash)
+	}
+	if len(gotWorkload) != 0 {
+		t.Fatalf("workload: expected empty; got %#v", gotWorkload)
 	}
 }
 

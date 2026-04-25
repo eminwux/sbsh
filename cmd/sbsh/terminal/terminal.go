@@ -54,9 +54,22 @@ func checkFlag(cmd *cobra.Command, flag string, err string) error {
 	return nil
 }
 
+// splitWorkload partitions positional args around a "--" separator. dash is
+// the index of the first arg after "--" (i.e. cobra.Command.ArgsLenAtDash);
+// pass -1 when no "--" was given. Pre-dash args keep their existing meaning
+// (e.g. "-" for stdin); post-dash args are the workload's argv (argv[0] is
+// the binary, the rest are its args), preserved verbatim with no shell
+// re-tokenization.
+func splitWorkload(args []string, dash int) (preDash, workload []string) {
+	if dash < 0 {
+		return args, nil
+	}
+	return args[:dash], args[dash:]
+}
+
 func checkStdInUsage(cmd *cobra.Command, _ []string) error {
 	errorMessage := "positional argument '-'"
-	flagsToCheck := []string{"id", "name", "command", "profile", "log-file", "log-level", "socket", "file"}
+	flagsToCheck := []string{"id", "name", "profile", "log-file", "log-level", "socket", "file"}
 	for _, flag := range flagsToCheck {
 		if err := checkFlag(cmd, flag, errorMessage); err != nil {
 			return err
@@ -67,7 +80,7 @@ func checkStdInUsage(cmd *cobra.Command, _ []string) error {
 
 func checkFileUsage(cmd *cobra.Command, _ []string) error {
 	errorMessage := "the --file flag"
-	flagsToCheck := []string{"id", "name", "command", "profile", "log-file", "log-level", "socket"}
+	flagsToCheck := []string{"id", "name", "profile", "log-file", "log-level", "socket"}
 	for _, flag := range flagsToCheck {
 		if err := checkFlag(cmd, flag, errorMessage); err != nil {
 			return err
@@ -76,14 +89,28 @@ func checkFileUsage(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func buildTerminalSpecFromFlags(cmd *cobra.Command, logger *slog.Logger) (*api.TerminalSpec, error) {
+func buildTerminalSpecFromFlags(
+	cmd *cobra.Command,
+	logger *slog.Logger,
+	workload []string,
+) (*api.TerminalSpec, error) {
+	var (
+		terminalCmd     string
+		terminalCmdArgs []string
+	)
+	if len(workload) > 0 {
+		terminalCmd = workload[0]
+		terminalCmdArgs = workload[1:]
+	}
+
 	spec, buildErr := profile.BuildTerminalSpec(
 		cmd.Context(),
 		logger,
 		&profile.BuildTerminalSpecParams{
 			TerminalID:       viper.GetString(config.SBSH_TERM_ID.ViperKey),
 			TerminalName:     viper.GetString(config.SBSH_TERM_NAME.ViperKey),
-			TerminalCmd:      viper.GetString(config.SBSH_TERM_COMMAND.ViperKey),
+			TerminalCmd:      terminalCmd,
+			TerminalCmdArgs:  terminalCmdArgs,
 			CaptureFile:      viper.GetString(config.SBSH_TERM_CAPTURE_FILE.ViperKey),
 			RunPath:          viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
 			ProfilesDir:      viper.GetString(config.SBSH_ROOT_PROFILES_DIR.ViperKey),
@@ -185,7 +212,7 @@ func setLoggingVarsFromFlags() {
 	}
 }
 
-func processSpec(cmd *cobra.Command, spec **api.TerminalSpec) error {
+func processSpec(cmd *cobra.Command, spec **api.TerminalSpec, workload []string) error {
 	// Check if spec is already provided
 	if *spec != nil {
 		// Spec provided via stdin
@@ -221,7 +248,7 @@ func processSpec(cmd *cobra.Command, spec **api.TerminalSpec) error {
 	}
 
 	// Build spec from flags
-	specBuilt, err := buildTerminalSpecFromFlags(cmd, logger)
+	specBuilt, err := buildTerminalSpecFromFlags(cmd, logger, workload)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errdefs.ErrBuildTerminalSpec, err)
 	}
@@ -240,22 +267,29 @@ func processSpec(cmd *cobra.Command, spec **api.TerminalSpec) error {
 func NewTerminalCmd() *cobra.Command {
 	// terminalCmd represents the terminal command.
 	terminalCmd := &cobra.Command{
-		Use:     Command,
+		Use:     Command + " [flags] [-- command [args...]]",
 		Aliases: []string{CommandAlias},
 		Short:   "Run a new sbsh terminal",
 		Long: `Run a new sbsh terminal.
 The terminal can be customized via command-line options or by specifying a profile.
 If no profile is specified, a default profile is used with the provided command or /bin/bash.
 
+The workload command and its arguments are passed positionally after a "--"
+separator and executed via execve semantics (no shell re-tokenization), the
+way docker run, kubectl exec, runc exec, ctr run, sudo, env, and nsenter all
+take their argv.
+
 Examples:
-  sbsh terminal --name myterminal --command "/bin/zsh"
+  sbsh terminal --name myterminal -- /bin/zsh
   sbsh terminal --profile devprofile
-  sbsh terminal --profile devprofile --name customname --command "/usr/bin/fish"
+  sbsh terminal --profile devprofile --name customname -- /usr/bin/fish
+  sbsh terminal -- /bin/sleep 3600
 
 If no terminal name is provided, a random name will be generated.
 If no command is provided, /bin/bash will be used by default.
 If no log filename is provided, a default path under the run directory will be used.
 `,
+		Args:         cobra.ArbitraryArgs,
 		SilenceUsage: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			var runPath string
@@ -265,17 +299,19 @@ If no log filename is provided, a default path under the run directory will be u
 			_ = config.SB_ROOT_RUN_PATH.BindEnv()
 			config.SB_ROOT_RUN_PATH.SetDefault(runPath)
 
+			preDashArgs, workload := splitWorkload(args, cmd.ArgsLenAtDash())
+
 			// Check if first argument indicates stdin usage
 			var spec *api.TerminalSpec
 
 			// Process stdin input if '-' is provided
-			spec, errProcess := processInput(cmd, args)
+			spec, errProcess := processInput(cmd, preDashArgs)
 			if errProcess != nil && !errors.Is(errProcess, errdefs.ErrNoSpecDefined) {
 				return errProcess
 			}
 
 			// Process spec (from stdin or flags)
-			errProcessSpec := processSpec(cmd, &spec)
+			errProcessSpec := processSpec(cmd, &spec, workload)
 			if errProcessSpec != nil {
 				return errProcessSpec
 			}
@@ -336,9 +372,6 @@ If no log filename is provided, a default path under the run directory will be u
 func setupTerminalCmdFlags(terminalCmd *cobra.Command) {
 	terminalCmd.Flags().String("id", "", "Optional terminal ID (random if omitted)")
 	_ = viper.BindPFlag(config.SBSH_TERM_ID.ViperKey, terminalCmd.Flags().Lookup("id"))
-
-	terminalCmd.Flags().String("command", "", "Optional command (default: /bin/bash)")
-	_ = viper.BindPFlag(config.SBSH_TERM_COMMAND.ViperKey, terminalCmd.Flags().Lookup("command"))
 
 	terminalCmd.Flags().String("name", "", "Optional name for the terminal (random if omitted)")
 	_ = viper.BindPFlag(config.SBSH_TERM_NAME.ViperKey, terminalCmd.Flags().Lookup("name"))
