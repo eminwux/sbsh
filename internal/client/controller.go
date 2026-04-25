@@ -222,13 +222,19 @@ func (s *Controller) Run(doc *api.ClientDoc) error {
 	s.logger.Info("controller ready, entering main event loop")
 	close(s.ctrlReadyCh)
 
-	go func() {
-		errC := <-s.closingCh
-		s.shuttingDown.Store(true)
-		s.logger.Warn("controller closing", "reason", errC)
-	}()
-
 	for {
+		// On the internal close path (handleEvent → onClosed → Close → return),
+		// prefer ErrCloseReq over ErrContextDone.
+		select {
+		case errClose := <-s.closeReqCh:
+			s.logger.Warn("close request received", "error", errClose)
+			if errClose == nil {
+				return nil
+			}
+			return fmt.Errorf("%w: %w", errdefs.ErrCloseReq, errClose)
+		default:
+		}
+
 		select {
 		case <-s.ctx.Done():
 			var errDone error
@@ -359,22 +365,25 @@ func (s *Controller) onClosed(_ api.ID, err error) {
 }
 
 func (s *Controller) Close(reason error) error {
-	if !s.shuttingDown.Load() {
-		s.logger.Info("initiating shutdown sequence", "reason", reason)
-		// Set closing reason
-		s.closingCh <- reason
-
-		// Notify terminal runner to close all terminals
-		_ = s.sr.Close(reason)
-
-		// Notify Run to exit
-		s.closeReqCh <- reason
-
-		// Mark controller as closed
-		close(s.closedCh)
-	} else {
+	// CAS ensures a single shutdown entrant; see #138.
+	if !s.shuttingDown.CompareAndSwap(false, true) {
 		s.logger.Info("shutdown sequence already in progress, ignoring duplicate request", "reason", reason)
+		return nil
 	}
+
+	s.logger.Info("initiating shutdown sequence", "reason", reason)
+
+	// Set closing reason
+	s.closingCh <- reason
+
+	// Notify terminal runner to close all terminals
+	_ = s.sr.Close(reason)
+
+	// Notify Run to exit
+	s.closeReqCh <- reason
+
+	// Mark controller as closed
+	close(s.closedCh)
 	return nil
 }
 

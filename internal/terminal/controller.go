@@ -182,13 +182,16 @@ func (c *Controller) Run(spec *api.TerminalSpec) error {
 	c.logger.InfoContext(c.ctx, "controller ready")
 	close(c.ctrlReadyCh)
 
-	go func() {
-		err := <-c.closingCh
-		c.shuttingDown.Store(true)
-		c.logger.WarnContext(c.ctx, "controller closing", "reason", err)
-	}()
-
 	for {
+		// On the internal close path (handleEvent → onClosed → Close → return),
+		// prefer ErrCloseReq over ErrContextDone since Close also cancelled ctx.
+		select {
+		case err := <-c.closeReqCh:
+			c.logger.WarnContext(c.ctx, "close request received", "err", err)
+			return fmt.Errorf("%w: %w", errdefs.ErrCloseReq, err)
+		default:
+		}
+
 		select {
 		case <-c.ctx.Done():
 			var err error
@@ -243,31 +246,33 @@ func (c *Controller) handleEvent(ev terminalrunner.Event) {
 }
 
 func (c *Controller) Close(reason error) error {
-	if !c.shuttingDown.Load() {
-		c.logger.InfoContext(c.ctx, "initiating shutdown sequence", "reason", reason)
-
-		// cancel the controller context so WaitReady unblocks
-		c.cancel(reason)
-
-		// Set closing reason
-		c.closingCh <- reason
-
-		// Notify terminal runner to close all terminals
-		c.srMu.RLock()
-		sr := c.sr
-		c.srMu.RUnlock()
-		if sr != nil {
-			_ = sr.Close(reason)
-		}
-
-		// Notify Run to exit
-		c.closeReqCh <- reason
-
-		// Mark controller as closed
-		close(c.closedCh)
-	} else {
+	// CAS ensures a single shutdown entrant; see #138.
+	if !c.shuttingDown.CompareAndSwap(false, true) {
 		c.logger.WarnContext(c.ctx, "shutdown sequence already in progress, ignoring duplicate request", "reason", reason)
+		return nil
 	}
+
+	c.logger.InfoContext(c.ctx, "initiating shutdown sequence", "reason", reason)
+
+	// cancel the controller context so WaitReady unblocks
+	c.cancel(reason)
+
+	// Set closing reason
+	c.closingCh <- reason
+
+	// Notify terminal runner to close all terminals
+	c.srMu.RLock()
+	sr := c.sr
+	c.srMu.RUnlock()
+	if sr != nil {
+		_ = sr.Close(reason)
+	}
+
+	// Notify Run to exit
+	c.closeReqCh <- reason
+
+	// Mark controller as closed
+	close(c.closedCh)
 	return nil
 }
 
