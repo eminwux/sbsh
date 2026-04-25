@@ -308,23 +308,23 @@ func setTerminalFlags(rootCmd *cobra.Command) error {
 		return err
 	}
 
-	rootCmd.Flags().String("capture-file", "", "Optional filename for the terminal log")
-	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_CAPTURE_FILE.ViperKey, rootCmd.Flags().Lookup("capture-file")); err != nil {
+	rootCmd.Flags().String("terminal-capture-file", "", "Optional filename for the terminal capture")
+	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_CAPTURE_FILE.ViperKey, rootCmd.Flags().Lookup("terminal-capture-file")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().String("terminal-logfile", "", "Optional filename for the terminal log")
-	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_LOG_FILE.ViperKey, rootCmd.Flags().Lookup("terminal-logfile")); err != nil {
+	rootCmd.Flags().String("terminal-log-file", "", "Optional filename for the terminal log")
+	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_LOG_FILE.ViperKey, rootCmd.Flags().Lookup("terminal-log-file")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().String("terminal-loglevel", "", "Optional log level for the terminal")
-	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_LOG_LEVEL.ViperKey, rootCmd.Flags().Lookup("terminal-loglevel")); err != nil {
+	rootCmd.Flags().String("terminal-log-level", "", "Optional log level for the terminal")
+	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_LOG_LEVEL.ViperKey, rootCmd.Flags().Lookup("terminal-log-level")); err != nil {
 		return err
 	}
 
-	rootCmd.Flags().StringP("profile", "p", "", "Optional profile for the terminal")
-	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_PROFILE.ViperKey, rootCmd.Flags().Lookup("profile")); err != nil {
+	rootCmd.Flags().StringP("terminal-profile", "p", "", "Optional profile for the terminal")
+	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_PROFILE.ViperKey, rootCmd.Flags().Lookup("terminal-profile")); err != nil {
 		return err
 	}
 	if err := viper.BindEnv(config.SBSH_ROOT_TERM_PROFILE.ViperKey, config.SBSH_ROOT_TERM_PROFILE.EnvVar()); err != nil {
@@ -516,7 +516,7 @@ func detachSelf() {
 
 func setAutoCompleteProfile(rootCmd *cobra.Command) error {
 	return rootCmd.RegisterFlagCompletionFunc(
-		"profile",
+		"terminal-profile",
 		func(c *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 			//nolint:mnd // 150ms is a good compromise between snappy completion and enough time to read files
 			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)

@@ -376,11 +376,11 @@ func setupTerminalCmdFlags(terminalCmd *cobra.Command) {
 	terminalCmd.Flags().String("name", "", "Optional name for the terminal (random if omitted)")
 	_ = viper.BindPFlag(config.SBSH_TERM_NAME.ViperKey, terminalCmd.Flags().Lookup("name"))
 
-	terminalCmd.Flags().String("terminal-log", "", "Optional filename for the terminal log")
-	_ = viper.BindPFlag(config.SBSH_TERM_TERMINAL_LOG.ViperKey, terminalCmd.Flags().Lookup("terminal-log"))
-
 	terminalCmd.Flags().String("log-file", "", "Optional filename for the terminal log")
 	_ = viper.BindPFlag(config.SBSH_TERM_LOG_FILE.ViperKey, terminalCmd.Flags().Lookup("log-file"))
+
+	terminalCmd.Flags().String("capture-file", "", "Optional filename for the PTY transcript capture")
+	_ = viper.BindPFlag(config.SBSH_TERM_CAPTURE_FILE.ViperKey, terminalCmd.Flags().Lookup("capture-file"))
 
 	terminalCmd.Flags().String("log-level", "", "Optional log level for the terminal logger")
 	_ = viper.BindPFlag(config.SBSH_TERM_LOG_LEVEL.ViperKey, terminalCmd.Flags().Lookup("log-level"))
