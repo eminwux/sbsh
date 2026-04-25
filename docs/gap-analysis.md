@@ -11,7 +11,7 @@ complexity. Items are ordered by priority.
 2. **P0** — Profile validation / lint command (`sb validate profiles`).
 3. ~~**P1** — `sb delete terminal <name>` / `sb stop <name>` for live terminals~~ **(DONE)**.
 4. **P1** — Expose terminal PID and cwd in `sb get terminals`.
-5. **P1** — `sb logs <name>` with ANSI-stripping option, instead of relying on `--capture-file`.
+5. **P1** — `sb logs <name>` with ANSI-stripping option, instead of relying on `--terminal-capture-file`.
 6. **P2** — Directory-based profile discovery (`~/.sbsh/profiles.d/*.yaml`).
 7. **P2** — Document `onInit` semantics (typed into PTY, not exec'd).
 8. **P2** — JSON/YAML output mode for `sb get` (`-o yaml`, `-o json`).
@@ -83,14 +83,14 @@ Implemented via a new `sb stop terminal <name>` command.
   already do this for `sb get`, per commit `e09b45e`).
 - **Complexity:** Low.
 
-### 5. No `sb logs` command; relying on `--capture-file`  (P1)
+### 5. No `sb logs` command; relying on `--terminal-capture-file`  (P1)
 
 - **Observed:** To observe a detached terminal I had to pass
-  `--capture-file /tmp/foo.log` at launch. The file contains raw ANSI
+  `--terminal-capture-file /tmp/foo.log` at launch. The file contains raw ANSI
   escapes, control sequences, and bracketed-paste markers, which are hard
   to read.
 - **Impact:** Post-hoc debugging of a terminal you didn't start with
-  `--capture-file` is impossible. ANSI noise makes even captured logs
+  `--terminal-capture-file` is impossible. ANSI noise makes even captured logs
   unreadable without external tooling.
 - **Fix:** `sb logs <name> [--follow] [--strip-ansi] [--since <dur>]`.
   Always capture to a per-terminal buffer/file under `run-path`; expose

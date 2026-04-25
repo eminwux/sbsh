@@ -65,13 +65,15 @@ These flags apply to all `sbsh` commands:
 
 - `--terminal-id <id>`: Optional terminal ID (random if omitted)
 - `--terminal-name <name>`: Optional name for the terminal
-- `-p, --profile <name>`: Profile for the terminal
+- `-p, --terminal-profile <name>`: Profile for the terminal
 - `--terminal-command <cmd>`: Command to run (default: `/bin/bash`)
 - `--terminal-socket <file>`: Optional socket file for the terminal
-- `--capture-file <file>`: Optional filename for the terminal log
-- `--terminal-logfile <file>`: Optional filename for the terminal log
-- `--terminal-loglevel <level>`: Optional log level for the terminal
+- `--terminal-capture-file <file>`: Optional filename for the PTY transcript capture
+- `--terminal-log-file <file>`: Optional filename for the terminal log
+- `--terminal-log-level <level>`: Optional log level for the terminal
 - `--terminal-disable-set-prompt`: Disable setting the prompt
+
+All flags above are terminal-scoped — they configure the embedded terminal that `sbsh` launches. Client-scoped flags (without the `--terminal-` prefix) configure the client process itself.
 
 ## Examples
 

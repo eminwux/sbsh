@@ -197,8 +197,6 @@ var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_TERM_LOG_LEVEL = DefineKV("SBSH_TERM_LOG_LEVEL", "sbsh.terminal.logLevel")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
-	SBSH_TERM_TERMINAL_LOG = DefineKV("SBSH_TERM_TERMINAL_LOG", "sbsh.terminal.terminalLog")
-	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_TERM_SPEC = DefineKV("SBSH_TERM_SPEC", "sbsh.terminal.spec")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_TERM_DISABLE_SET_PROMPT = DefineKV("SBSH_TERM_DISABLE_SET_PROMPT", "sbsh.terminal.disableSetPrompt")
