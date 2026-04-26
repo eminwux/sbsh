@@ -85,8 +85,12 @@ func NewClientControllerWithIO(
 		closedCh:    make(chan struct{}),
 		closingCh:   make(chan error, 1),
 		ctrlReadyCh: make(chan struct{}),
-		rpcReadyCh:  make(chan error),
-		rpcDoneCh:   make(chan error),
+		// rpcReadyCh is buffered (cap 1) so StartServer can deposit its
+		// one-shot ready signal without blocking on a receiver. Run watches
+		// both this channel and ctx.Done below; without the buffer, a Run
+		// that bailed on ctx.Done would pin StartServer forever on its send.
+		rpcReadyCh: make(chan error, 1),
+		rpcDoneCh:  make(chan error),
 		closeReqCh:  make(chan error, 1),
 		//nolint:mnd // event channel buffer size
 		eventsCh: make(chan clientrunner.Event, 32),
@@ -142,15 +146,29 @@ func (s *Controller) Run(doc *api.ClientDoc) error {
 	rpc := &clientrpc.ClientControllerRPC{Core: s}
 
 	go s.sr.StartServer(s.ctx, rpc, s.rpcReadyCh, s.rpcDoneCh)
-	// Wait for startup result
-	if errRPC := <-s.rpcReadyCh; errRPC != nil {
-		if errC := s.Close(errRPC); errC != nil {
-			s.logger.Error("error during Close after RPC server start failure", "error", errC)
-			errRPC = fmt.Errorf("%w: %w: %w", errRPC, errdefs.ErrOnClose, errC)
+	// Wait for startup result. Watch ctx.Done so a StartServer that never
+	// signals readiness — whether because it crashed before its send or
+	// because its caller cancelled before scheduling — can't pin Run forever.
+	select {
+	case errRPC := <-s.rpcReadyCh:
+		if errRPC != nil {
+			if errC := s.Close(errRPC); errC != nil {
+				s.logger.Error("error during Close after RPC server start failure", "error", errC)
+				errRPC = fmt.Errorf("%w: %w: %w", errRPC, errdefs.ErrOnClose, errC)
+			}
+			close(s.ctrlReadyCh)
+			s.logger.Error("failed to start client RPC server", "error", errRPC)
+			return fmt.Errorf("%w: %w", errdefs.ErrStartRPCServer, errRPC)
+		}
+	case <-s.ctx.Done():
+		var errDone error
+		s.logger.Warn("parent context canceled while waiting for RPC server start")
+		if errC := s.Close(s.ctx.Err()); errC != nil {
+			s.logger.Error("error during Close after context done", "error", errC)
+			errDone = fmt.Errorf("%w: %w", errdefs.ErrOnClose, errC)
 		}
 		close(s.ctrlReadyCh)
-		s.logger.Error("failed to start client RPC server", "error", errRPC)
-		return fmt.Errorf("%w: %w", errdefs.ErrStartRPCServer, errRPC)
+		return fmt.Errorf("%w: %w", errdefs.ErrContextDone, errDone)
 	}
 
 	var terminal *api.AttachedTerminal

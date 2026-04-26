@@ -375,6 +375,71 @@ func Test_ErrContextDone(t *testing.T) {
 	}
 }
 
+// Regression for #149: if StartServer never signals on rpcReadyCh — e.g.
+// a hang or crash before its send — Run must still unblock when its parent
+// context is canceled, instead of pinning forever on the receive.
+func Test_ErrContextDone_RPCNeverReady(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sc := NewClientController(ctx, logger).(*Controller)
+	sc.NewClientRunner = func(ctx context.Context, logger *slog.Logger, _ *api.ClientDoc, _ chan<- clientrunner.Event) clientrunner.ClientRunner {
+		return &clientrunner.Test{
+			Ctx:    ctx,
+			Logger: logger,
+			OpenSocketCtrlFunc: func() error {
+				return nil
+			},
+			StartServerFunc: func(ctx context.Context, _ *clientrpc.ClientControllerRPC, _ chan error, _ chan error) {
+				// Never signal readiness — sit on ctx until cancel.
+				<-ctx.Done()
+			},
+			CloseFunc: func(_ error) error {
+				return nil
+			},
+			CreateMetadataFunc: func() error {
+				return nil
+			},
+		}
+	}
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{}
+	}
+
+	clientID := naming.RandomID()
+	doc := &api.ClientDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
+			Name:        "default",
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.ClientSpec{
+			ID:           api.ID(clientID),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString("global.runPath"),
+			TerminalSpec: &api.TerminalSpec{ID: "test-terminal"},
+		},
+	}
+
+	exitCh := make(chan error, 1)
+	go func() {
+		exitCh <- sc.Run(doc)
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-exitCh:
+		if !errors.Is(err, errdefs.ErrContextDone) {
+			t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrContextDone, err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after ctx cancel; rpcReadyCh wait is missing ctx.Done case")
+	}
+}
+
 func Test_ErrRPCServerExited(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewClientController(context.Background(), logger).(*Controller)
