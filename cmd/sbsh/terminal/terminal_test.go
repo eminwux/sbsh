@@ -491,3 +491,23 @@ func Test_ValidJSONSpec(t *testing.T) {
 		t.Fatalf("expected Name %s; got: %s", validSpec.Name, spec.Name)
 	}
 }
+
+func Test_processSpec_RejectsWorkloadWithSpec(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+
+	spec := &api.TerminalSpec{
+		ID:      api.ID("test-id"),
+		Kind:    api.TerminalLocal,
+		Name:    "test-name",
+		Command: "/bin/bash",
+	}
+
+	err := processSpec(cmd, &spec, []string{"/bin/zsh"})
+	if err == nil {
+		t.Fatal("expected error when workload supplied alongside a stdin/file spec")
+	}
+	if !errors.Is(err, errdefs.ErrInvalidArgument) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInvalidArgument, err)
+	}
+}
