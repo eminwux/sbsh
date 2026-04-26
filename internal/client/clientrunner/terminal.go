@@ -27,12 +27,12 @@ import (
 // toBashUIMode: set terminal to RAW, update flags.
 func (sr *Exec) toBashUIMode() error {
 	sr.logger.Debug("toBashUIMode: switching to raw mode")
-	lastTermState, err := toRawMode(sr.logger)
+	lastTermState, err := toRawMode(sr.logger, sr.stdin)
 	if err != nil {
 		sr.logger.Error("toBashUIMode: failed to set raw mode", "error", err)
 		return err
 	}
-	// defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
+	// defer func() { _ = term.Restore(int(sr.stdin.Fd()), oldState) }()
 
 	sr.uiMode = UIBash
 	sr.lastTermState = lastTermState
@@ -44,7 +44,7 @@ func (sr *Exec) toBashUIMode() error {
 func (sr *Exec) toExitShell() error {
 	sr.logger.Debug("toExitShell: switching to cooked mode")
 	if sr.lastTermState != nil {
-		err := term.Restore(int(os.Stdin.Fd()), sr.lastTermState)
+		err := term.Restore(int(sr.stdin.Fd()), sr.lastTermState)
 		if err != nil {
 			sr.logger.Error("toExitShell: failed to restore terminal state", "error", err)
 			return err
@@ -88,8 +88,8 @@ func (sr *Exec) writeTerminal(input string) error {
 	return nil
 }
 
-func toRawMode(logger *slog.Logger) (*term.State, error) {
-	state, err := term.MakeRaw(int(os.Stdin.Fd()))
+func toRawMode(logger *slog.Logger, stdin *os.File) (*term.State, error) {
+	state, err := term.MakeRaw(int(stdin.Fd()))
 	if err != nil {
 		logger.Error("toRawMode: failed to set raw mode", "error", err)
 		return nil, err

@@ -62,8 +62,8 @@ func (sr *Exec) StartTerminalCmd(terminal *api.AttachedTerminal) error {
 	//nolint:gosec,noctx // User has to specify the command and its args; we explicitly don't want to use context here to avoid killing the process on parent exit
 	cmd := exec.Command(terminal.Command, terminal.CommandArgs...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // detach from your pg/ctty
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = sr.stdout
+	cmd.Stderr = sr.stderr
 
 	b, err := json.Marshal(terminal.Spec)
 	if err != nil {
@@ -216,7 +216,7 @@ func (sr *Exec) Detach() error {
 	}
 
 	sr.logger.Info("Client detached", "client_id", sr.id)
-	if _, err := os.Stdout.WriteString("\x1b[93m\r\nDetached\x1b[0m\r\n"); err != nil {
+	if _, err := sr.stdout.WriteString("\x1b[93m\r\nDetached\x1b[0m\r\n"); err != nil {
 		sr.logger.Warn("Failed to write detach message to stdout", "error", err)
 		return err
 	}
