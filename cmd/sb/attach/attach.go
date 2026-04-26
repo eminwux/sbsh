@@ -23,18 +23,15 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sb/get"
 	"github.com/eminwux/sbsh/cmd/types"
-	"github.com/eminwux/sbsh/internal/client"
 	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/errdefs"
-	"github.com/eminwux/sbsh/internal/naming"
-	"github.com/eminwux/sbsh/pkg/api"
+	"github.com/eminwux/sbsh/pkg/attach"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -186,168 +183,88 @@ func run(
 		return errdefs.ErrLoggerNotFound
 	}
 
-	// Top-level context also reacts to SIGINT/SIGTERM (nice UX)
+	// Top-level context also reacts to SIGINT/SIGTERM (nice UX). pkg/attach
+	// deliberately does not trap signals itself; the CLI owns that policy.
 	ctx, cancel := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	clientID := naming.RandomID()
-	socketFileFlag := viper.GetString(config.SB_ATTACH_SOCKET.ViperKey)
-	runPath := viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey)
-
-	var terminalNamePositional string
-	if len(args) > 0 {
-		terminalNamePositional = args[0]
+	socketPath, err := resolveTerminalSocket(cmd, logger, args)
+	if err != nil {
+		return err
 	}
-
-	terminalNameFlag := viper.GetString(config.SB_ATTACH_NAME.ViperKey)
-	terminalIDFlag := viper.GetString(config.SB_ATTACH_ID.ViperKey)
-
-	terminalName := terminalNamePositional
-	if terminalNamePositional == "" {
-		terminalName = terminalNameFlag
-	}
-
-	// Create a new Controller
-	logger.DebugContext(ctx, "creating client controller for attach", "run_path", runPath)
-	supCtrl := client.NewClientController(ctx, logger)
-
-	if socketFileFlag == "" {
-		socketFileFlag = filepath.Join(runPath, defaults.ClientsRunPath, clientID, "socket")
-	}
-
-	if err := os.MkdirAll(filepath.Dir(socketFileFlag), 0o700); err != nil {
-		logger.ErrorContext(ctx, "failed to create client dir", "dir", filepath.Dir(socketFileFlag), "error", err)
-		return fmt.Errorf("%w: %w", errdefs.ErrCreateClientDir, err)
-	}
-
-	supDoc := buildClientDoc(ctx, clientID, runPath, socketFileFlag, logger)
 
 	disableDetach := viper.GetBool(config.SB_ATTACH_DISABLE_DETACH_KEYSTROKE.ViperKey)
-	supDoc.Spec.DetachKeystroke = !disableDetach
 
-	if terminalIDFlag != "" {
-		supDoc.Spec.TerminalSpec.ID = api.ID(terminalIDFlag)
+	logger.DebugContext(ctx, "delegating to pkg/attach.Run", "socket", socketPath, "disable_detach", disableDetach)
+
+	runErr := attach.Run(ctx, attach.Options{
+		SocketPath:             socketPath,
+		Stdin:                  os.Stdin,
+		Stdout:                 os.Stdout,
+		Stderr:                 os.Stderr,
+		DisableDetachKeystroke: disableDetach,
+		Logger:                 logger,
+	})
+	if runErr == nil || errors.Is(runErr, context.Canceled) || errors.Is(runErr, errdefs.ErrContextDone) {
+		return nil
 	}
-	if terminalName != "" {
-		supDoc.Spec.TerminalSpec.Name = terminalName
+	if errors.Is(runErr, errdefs.ErrAttach) {
+		logger.DebugContext(ctx, "attach error", "error", runErr)
+		fmt.Fprintf(os.Stderr, "Could not attach: %v\n", runErr)
+		cancel()
+		//nolint:gocritic // os.Exit is fine here
+		os.Exit(1)
 	}
-
-	var socket string
-	if socketFileFlag != "" {
-		socket = socketFileFlag
-	} else {
-		var terminalID string
-		switch {
-		case terminalIDFlag != "":
-			terminalID = terminalIDFlag
-		case terminalName != "":
-			var errR error
-			terminalID, errR = get.ResolveTerminalNameToID(cmd.Context(), logger, runPath, terminalName)
-			if errR != nil {
-				logger.ErrorContext(
-					cmd.Context(),
-					"cannot resolve terminal name to ID",
-					"terminal_name",
-					terminalName,
-					"error",
-					errR,
-				)
-				return fmt.Errorf("%w: %w", errdefs.ErrResolveTerminalName, errR)
-			}
-		default:
-			logger.DebugContext(
-				cmd.Context(),
-				"no terminal identification method provided, cannot attach",
-			)
-			return errdefs.ErrNoTerminalIdentification
-		}
-
-		socket = fmt.Sprintf("%s/%s/%s/socket", runPath, defaults.TerminalsRunPath, terminalID)
-	}
-
-	supDoc.Spec.TerminalSpec.SocketFile = socket
-
-	logger.DebugContext(ctx, "Built client doc", "clientDoc", fmt.Sprintf("%+v", supDoc))
-
-	logger.DebugContext(ctx, "starting client controller goroutine for attach")
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- supCtrl.Run(supDoc)
-		close(errCh)
-		logger.DebugContext(ctx, "controller goroutine exited (attach)")
-	}()
-
-	logger.DebugContext(ctx, "waiting for client controller to signal ready (attach)")
-	if err := supCtrl.WaitReady(); err != nil {
-		logger.DebugContext(ctx, "controller not ready (attach)", "error", err)
-		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
-	}
-
-	logger.DebugContext(ctx, "controller ready, entering attach event loop")
-	select {
-	case <-ctx.Done():
-		logger.DebugContext(ctx, "context canceled, waiting for controller to exit (attach)")
-		waitErr := supCtrl.WaitClose()
-		if waitErr != nil {
-			logger.DebugContext(ctx, "error waiting for controller to close after context canceled", "error", waitErr)
-			return fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, waitErr)
-		}
-		logger.DebugContext(ctx, "context canceled, controller exited (attach)")
-		return errdefs.ErrContextDone
-
-	case ctrlErr := <-errCh:
-		logger.DebugContext(ctx, "controller stopped (attach)", "error", ctrlErr)
-		if ctrlErr != nil && !errors.Is(ctrlErr, context.Canceled) {
-			waitErr := supCtrl.WaitClose()
-			if waitErr != nil {
-				logger.DebugContext(ctx, "error waiting for controller to close after error", "error", waitErr)
-				return fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, waitErr)
-			}
-			logger.DebugContext(ctx, "controller exited after error (attach)")
-			if errors.Is(ctrlErr, errdefs.ErrAttach) {
-				logger.DebugContext(ctx, "attach error", "error", ctrlErr)
-				fmt.Fprintf(os.Stderr, "Could not attach: %v\n", ctrlErr)
-				cancel()
-				//nolint:gocritic // os.Exit is fine here
-				os.Exit(1)
-			}
-			// return nothing to avoid polluting the terminal with errors
-			return nil
-		}
-	}
+	// Other errors are intentionally swallowed to avoid polluting the
+	// terminal — preserves prior `sb attach` UX.
+	logger.DebugContext(ctx, "attach loop exited with error", "error", runErr)
 	return nil
 }
 
-func buildClientDoc(
-	ctx context.Context,
-	clientID string,
-	runPath string,
-	socketFileInput string,
-	logger *slog.Logger,
-) *api.ClientDoc {
-	clientName := naming.RandomName()
-	doc := &api.ClientDoc{
-		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindClient,
-		Metadata: api.ClientMetadata{
-			Name:        clientName,
-			Labels:      make(map[string]string),
-			Annotations: make(map[string]string),
-		},
-		Spec: api.ClientSpec{
-			ID:           api.ID(clientID),
-			RunPath:      runPath,
-			SockerCtrl:   socketFileInput,
-			TerminalSpec: &api.TerminalSpec{},
-			ClientMode:   api.AttachToTerminal,
-		},
+// resolveTerminalSocket maps the user's positional/--id/--name/--socket
+// arguments into the absolute path of the target terminal's control
+// socket. Centralised here so pkg/attach stays free of CLI / discovery
+// concerns.
+func resolveTerminalSocket(cmd *cobra.Command, logger *slog.Logger, args []string) (string, error) {
+	socketFileFlag := viper.GetString(config.SB_ATTACH_SOCKET.ViperKey)
+	if socketFileFlag != "" {
+		return socketFileFlag, nil
 	}
-	logger.DebugContext(ctx, "attach doc created",
-		"kind", doc.Kind,
-		"id", doc.Spec.ID,
-		"name", doc.Metadata.Name,
-		"run_path", doc.Spec.RunPath,
-	)
 
-	return doc
+	runPath := viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey)
+	terminalIDFlag := viper.GetString(config.SB_ATTACH_ID.ViperKey)
+	terminalNameFlag := viper.GetString(config.SB_ATTACH_NAME.ViperKey)
+
+	terminalName := terminalNameFlag
+	if len(args) > 0 {
+		terminalName = args[0]
+	}
+
+	var terminalID string
+	switch {
+	case terminalIDFlag != "":
+		terminalID = terminalIDFlag
+	case terminalName != "":
+		var errR error
+		terminalID, errR = get.ResolveTerminalNameToID(cmd.Context(), logger, runPath, terminalName)
+		if errR != nil {
+			logger.ErrorContext(
+				cmd.Context(),
+				"cannot resolve terminal name to ID",
+				"terminal_name",
+				terminalName,
+				"error",
+				errR,
+			)
+			return "", fmt.Errorf("%w: %w", errdefs.ErrResolveTerminalName, errR)
+		}
+	default:
+		logger.DebugContext(
+			cmd.Context(),
+			"no terminal identification method provided, cannot attach",
+		)
+		return "", errdefs.ErrNoTerminalIdentification
+	}
+
+	return fmt.Sprintf("%s/%s/%s/socket", runPath, defaults.TerminalsRunPath, terminalID), nil
 }

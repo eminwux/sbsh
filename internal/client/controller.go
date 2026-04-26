@@ -61,6 +61,20 @@ type Controller struct {
 
 // NewClientController wires the manager and the shared event channel from terminals.
 func NewClientController(ctx context.Context, logger *slog.Logger) api.ClientController {
+	return NewClientControllerWithIO(ctx, logger, nil, nil, nil)
+}
+
+// NewClientControllerWithIO is like NewClientController but lets the
+// caller plug custom stdin/stdout/stderr handles into the underlying
+// client runner. A nil handle falls back to the corresponding os.Std*.
+// Embedders that drive an attach session in-process (see pkg/attach)
+// use this constructor to redirect the PTY copy loop away from the
+// process's own tty.
+func NewClientControllerWithIO(
+	ctx context.Context,
+	logger *slog.Logger,
+	stdin, stdout, stderr *os.File,
+) api.ClientController {
 	logger.InfoContext(ctx, "New client controller is being created")
 	newCtx, cancel := context.WithCancelCause(ctx)
 
@@ -75,8 +89,10 @@ func NewClientController(ctx context.Context, logger *slog.Logger) api.ClientCon
 		rpcDoneCh:   make(chan error),
 		closeReqCh:  make(chan error, 1),
 		//nolint:mnd // event channel buffer size
-		eventsCh:         make(chan clientrunner.Event, 32),
-		NewClientRunner:  clientrunner.NewClientRunnerExec,
+		eventsCh: make(chan clientrunner.Event, 32),
+		NewClientRunner: func(ctx context.Context, logger *slog.Logger, doc *api.ClientDoc, evCh chan<- clientrunner.Event) clientrunner.ClientRunner {
+			return clientrunner.NewClientRunnerExecWithIO(ctx, logger, doc, evCh, stdin, stdout, stderr)
+		},
 		NewTerminalStore: terminalstore.NewTerminalStoreExec,
 	}
 	return c
@@ -169,8 +185,9 @@ func (s *Controller) Run(doc *api.ClientDoc) error {
 			return fmt.Errorf("%w: %w", errdefs.ErrStartCmd, errStart)
 		}
 	case api.AttachToTerminal:
-		if doc.Spec.TerminalSpec == nil || (doc.Spec.TerminalSpec.ID == "" && doc.Spec.TerminalSpec.Name == "") {
-			s.logger.Error("no terminal ID or Name provided for attach")
+		if doc.Spec.TerminalSpec == nil ||
+			(doc.Spec.TerminalSpec.ID == "" && doc.Spec.TerminalSpec.Name == "" && doc.Spec.TerminalSpec.SocketFile == "") {
+			s.logger.Error("no terminal ID, Name, or SocketFile provided for attach")
 			errAttachSpec := errdefs.ErrAttachNoTerminalSpec
 			if errC := s.Close(errAttachSpec); errC != nil {
 				s.logger.Error("error during Close after attach spec failure", "error", errC)
@@ -272,6 +289,19 @@ func (s *Controller) Run(doc *api.ClientDoc) error {
 }
 
 func (s *Controller) createAttachTerminal(doc *api.ClientDoc) (*api.AttachedTerminal, error) {
+	// SocketFile takes precedence: callers (notably pkg/attach
+	// embedders) that already know the absolute control-socket path
+	// can skip metadata discovery entirely.
+	if doc.Spec.TerminalSpec.SocketFile != "" {
+		s.logger.Debug("attach by socket path", "socket", doc.Spec.TerminalSpec.SocketFile)
+		spec := *doc.Spec.TerminalSpec
+		terminal := terminalstore.NewSupervisedTerminal(&spec)
+		if err := s.ss.Add(terminal); err != nil {
+			return nil, fmt.Errorf("%w: %w", errdefs.ErrTerminalStore, err)
+		}
+		return terminal, nil
+	}
+
 	var metadata *api.TerminalDoc
 	if doc.Spec.TerminalSpec.ID != "" {
 		s.logger.Debug(

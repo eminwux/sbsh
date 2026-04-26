@@ -95,7 +95,7 @@ func (sr *Exec) startConnectionManager() error {
 
 	// WRITER: stdin -> socket
 	readyWriter := make(chan struct{})
-	go dc.RunCopier(os.Stdin, sr.ioConn, readyWriter, func() {
+	go dc.RunCopier(sr.stdin, sr.ioConn, readyWriter, func() {
 		if uc != nil {
 			sr.logger.DebugContext(sr.ctx, "stdin->socket: closing write side of UnixConn")
 			_ = uc.CloseWrite()
@@ -105,7 +105,7 @@ func (sr *Exec) startConnectionManager() error {
 	// Only show help message if detach keystroke is enabled
 	if detachKeystrokeEnabled {
 		// _, errHelp := os.Stdout.WriteString("To detach, press ^] twice.\r\n")
-		_, errHelp := os.Stdout.WriteString("\x1b[96mTo detach, press ^] twice\x1b[0m\r\n")
+		_, errHelp := sr.stdout.WriteString("\x1b[96mTo detach, press ^] twice\x1b[0m\r\n")
 		if errHelp != nil {
 			sr.logger.WarnContext(sr.ctx, "attachIOSocket: failed to write detach help message", "error", errHelp)
 		}
@@ -113,7 +113,7 @@ func (sr *Exec) startConnectionManager() error {
 
 	// READER: socket  -> stdout
 	readyReader := make(chan struct{})
-	go dc.RunCopier(sr.ioConn, os.Stdout, readyReader, func() {
+	go dc.RunCopier(sr.ioConn, sr.stdout, readyReader, func() {
 		if uc != nil {
 			sr.logger.DebugContext(sr.ctx, "socket->stdout: closing read side of UnixConn")
 			_ = uc.CloseRead()
@@ -166,8 +166,8 @@ func (sr *Exec) attach() error {
 }
 
 func (sr *Exec) forwardResize() error {
-	// Send initial size once (use the client's TTY: os.Stdin)
-	if rows, cols, errSize := pty.Getsize(os.Stdin); errSize == nil {
+	// Send initial size once (use the client's TTY: sr.stdin)
+	if rows, cols, errSize := pty.Getsize(sr.stdin); errSize == nil {
 		const resizeTimeout = 100 * time.Millisecond
 		ctx, cancel := context.WithTimeout(sr.ctx, resizeTimeout)
 		defer cancel()
@@ -193,7 +193,7 @@ func (sr *Exec) forwardResize() error {
 				return
 			case <-ch:
 				// Query current terminal size again on every WINCH
-				rows, cols, err := pty.Getsize(os.Stdin)
+				rows, cols, err := pty.Getsize(sr.stdin)
 				if err != nil {
 					sr.logger.WarnContext(sr.ctx, "forwardResize: Getsize failed", "error", err)
 					continue

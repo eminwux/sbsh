@@ -20,6 +20,7 @@ import (
 	"context"
 	"log/slog"
 	"net"
+	"os"
 	"sync"
 
 	"github.com/eminwux/sbsh/internal/client/terminalstore"
@@ -39,6 +40,14 @@ type Exec struct {
 
 	uiMode        UIMode
 	lastTermState *term.State
+
+	// stdin/stdout/stderr are the user-facing terminal handles. They
+	// default to os.Stdin/Stdout/Stderr but can be overridden by
+	// embedders via NewClientRunnerExecWithIO so the attach loop drives
+	// caller-supplied file handles instead of the process's own tty.
+	stdin  *os.File
+	stdout *os.File
+	stderr *os.File
 
 	events   chan<- Event
 	terminal *api.AttachedTerminal
@@ -64,6 +73,19 @@ func NewClientRunnerExec(
 	doc *api.ClientDoc,
 	evCh chan<- Event,
 ) ClientRunner {
+	return NewClientRunnerExecWithIO(ctx, logger, doc, evCh, nil, nil, nil)
+}
+
+// NewClientRunnerExecWithIO is like NewClientRunnerExec but lets the
+// caller plug in custom stdin/stdout/stderr handles instead of the
+// process's own. A nil handle falls back to the corresponding os.Std*.
+func NewClientRunnerExecWithIO(
+	ctx context.Context,
+	logger *slog.Logger,
+	doc *api.ClientDoc,
+	evCh chan<- Event,
+	stdin, stdout, stderr *os.File,
+) ClientRunner {
 	newCtx, cancel := context.WithCancel(ctx)
 
 	// Ensure the doc has the correct structure
@@ -77,9 +99,23 @@ func NewClientRunnerExec(
 		doc.Metadata.Annotations = make(map[string]string)
 	}
 
+	if stdin == nil {
+		stdin = os.Stdin
+	}
+	if stdout == nil {
+		stdout = os.Stdout
+	}
+	if stderr == nil {
+		stderr = os.Stderr
+	}
+
 	return &Exec{
 		id:       doc.Spec.ID,
 		metadata: *doc,
+
+		stdin:  stdin,
+		stdout: stdout,
+		stderr: stderr,
 
 		events:    evCh,
 		ctx:       newCtx,
