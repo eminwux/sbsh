@@ -191,13 +191,13 @@ func (c *Controller) Run(spec *api.TerminalSpec) error {
 	for {
 		select {
 		case <-c.ctx.Done():
-			var err error
+			ctxErr := c.ctx.Err()
 			c.logger.WarnContext(c.ctx, "parent context channel has been closed")
-			if errC := c.Close(c.ctx.Err()); errC != nil {
+			if errC := c.Close(ctxErr); errC != nil {
 				c.logger.ErrorContext(c.ctx, "error during Close after context done", "err", errC)
-				err = fmt.Errorf("%w: %w", errdefs.ErrOnClose, errC)
+				return fmt.Errorf("%w: %w: %w", errdefs.ErrContextDone, ctxErr, errC)
 			}
-			return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
+			return fmt.Errorf("%w: %w", errdefs.ErrContextDone, ctxErr)
 
 		case ev := <-c.eventsCh:
 			c.logger.DebugContext(c.ctx,

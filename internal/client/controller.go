@@ -161,14 +161,15 @@ func (s *Controller) Run(doc *api.ClientDoc) error {
 			return fmt.Errorf("%w: %w", errdefs.ErrStartRPCServer, errRPC)
 		}
 	case <-s.ctx.Done():
-		var errDone error
+		ctxErr := s.ctx.Err()
+		errReturn := fmt.Errorf("%w: %w", errdefs.ErrContextDone, ctxErr)
 		s.logger.Warn("parent context canceled while waiting for RPC server start")
-		if errC := s.Close(s.ctx.Err()); errC != nil {
+		if errC := s.Close(ctxErr); errC != nil {
 			s.logger.Error("error during Close after context done", "error", errC)
-			errDone = fmt.Errorf("%w: %w", errdefs.ErrOnClose, errC)
+			errReturn = fmt.Errorf("%w: %w: %w", errdefs.ErrContextDone, ctxErr, errC)
 		}
 		close(s.ctrlReadyCh)
-		return fmt.Errorf("%w: %w", errdefs.ErrContextDone, errDone)
+		return errReturn
 	}
 
 	var terminal *api.AttachedTerminal
@@ -266,13 +267,13 @@ func (s *Controller) Run(doc *api.ClientDoc) error {
 	for {
 		select {
 		case <-s.ctx.Done():
-			var errDone error
+			ctxErr := s.ctx.Err()
 			s.logger.Warn("parent context canceled, shutting down controller")
-			if errC := s.Close(s.ctx.Err()); errC != nil {
+			if errC := s.Close(ctxErr); errC != nil {
 				s.logger.Error("error during Close after context done", "error", errC)
-				errDone = fmt.Errorf("%w: %w", errdefs.ErrOnClose, errC)
+				return fmt.Errorf("%w: %w: %w", errdefs.ErrContextDone, ctxErr, errC)
 			}
-			return fmt.Errorf("%w: %w", errdefs.ErrContextDone, errDone)
+			return fmt.Errorf("%w: %w", errdefs.ErrContextDone, ctxErr)
 
 		case ev := <-s.eventsCh:
 			s.logger.Debug(
