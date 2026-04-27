@@ -119,6 +119,9 @@ func TestRun_RequiresSocketPath(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when SocketPath is empty, got nil")
 	}
+	if !errors.Is(err, attach.ErrSocketPathRequired) {
+		t.Fatalf("expected error matching attach.ErrSocketPathRequired, got: %v", err)
+	}
 }
 
 func TestRun_DialFailsOnMissingSocket(t *testing.T) {
