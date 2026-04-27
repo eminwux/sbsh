@@ -6,7 +6,7 @@ The `sbsh` command launches a client attached to a terminal. It's designed for i
 
 ```bash
 sbsh [flags]
-sbsh terminal [flags]
+sbsh terminal [flags] [-- command [args...]]
 ```
 
 ## Commands
@@ -111,10 +111,17 @@ sbsh -d -p my-profile
 
 ### `sbsh terminal`
 
-Launch a terminal without an attached client:
+Launch a terminal without an attached client. The workload command and its
+arguments are passed positionally after a `--` separator and executed via
+`execve` semantics (no shell re-tokenization), the way `docker run`,
+`kubectl exec`, `runc exec`, `ctr run`, `sudo`, `env`, and `nsenter` all take
+their argv. With no positional argv, the profile default (`/bin/bash`) applies.
 
 ```bash
+sbsh terminal [flags] [-- command [args...]]
 sbsh terminal --name my-terminal
+sbsh terminal --name my-terminal -- /bin/zsh
+sbsh terminal -p devprofile -- /bin/sleep 3600
 ```
 
 ### `sbsh version`
