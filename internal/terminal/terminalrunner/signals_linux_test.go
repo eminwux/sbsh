@@ -41,23 +41,49 @@ func TestSignalForwarder_TargetsProcessGroup(t *testing.T) {
 	dir := t.TempDir()
 	leaderMarker := filepath.Join(dir, "leader")
 	siblingMarker := filepath.Join(dir, "sibling")
+	siblingReadyMarker := filepath.Join(dir, "sibling_ready")
 
-	// Subshell uses "sleep & wait" so the shell does not tail-call-exec
-	// sleep (dash optimizes "exec sleep" when sleep is the last command,
-	// which would leave no shell alive to run the SIGHUP trap).
-	// Markers are written to disk so the test does not depend on stdout
-	// flush ordering of the subshell vs. the leader.
+	// Three constraints must hold to deliver a deterministic HUP-via-trap
+	// signal under both the leader AND the subshell:
+	//
+	//  1. The subshell's HUP trap must be installed before the test sends
+	//     SIGHUP. `(...) &` only guarantees the subshell has been forked, not
+	//     that it has executed its first statement. The leader therefore polls
+	//     "$SIBLING_READY", which the subshell touches *after* installing the
+	//     trap, before printing "ready".
+	//  2. The subshell must stay alive until its trap actually runs. A bare
+	//     `sleep 10 & wait` is racy: when SIGHUP reaches the sleep child first,
+	//     dash reaps it via waitpid and exits the subshell before the pending
+	//     SIGHUP for the subshell itself dispatches the trap, so $SIBLING is
+	//     never touched. A `while :; do sleep 1; done` loop keeps the shell
+	//     alive across sleep deaths until the trap's `exit 0` terminates it.
+	//  3. The leader must not print "done" until the subshell's trap has
+	//     actually finished (i.e. the subshell process is dead). `wait $child`
+	//     returns when *the leader's own* HUP trap fires, not when $child
+	//     exits. Re-waiting in a `kill -0`-gated loop pins "done" to subshell
+	//     death, ensuring the marker check in the Go side never races with an
+	//     in-flight `touch "$SIBLING"`.
+	//
+	// Markers are written to disk so the test does not depend on stdout flush
+	// ordering of the subshell vs. the leader.
 	script := `
 trap 'touch "$LEADER"' HUP
-(trap 'touch "$SIBLING"; exit 0' HUP; sleep 10 & wait) &
+(trap 'touch "$SIBLING"; exit 0' HUP; touch "$SIBLING_READY"; while :; do sleep 1; done) &
 child=$!
+while [ ! -f "$SIBLING_READY" ]; do sleep 0.01; done
 echo ready
-wait $child
+while kill -0 $child 2>/dev/null; do
+	wait $child 2>/dev/null
+done
 echo done
 exit 0
 `
 	leader := exec.Command("/bin/sh", "-c", script)
-	leader.Env = append(os.Environ(), "LEADER="+leaderMarker, "SIBLING="+siblingMarker)
+	leader.Env = append(os.Environ(),
+		"LEADER="+leaderMarker,
+		"SIBLING="+siblingMarker,
+		"SIBLING_READY="+siblingReadyMarker,
+	)
 	leader.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	stdout, err := leader.StdoutPipe()
 	if err != nil {
