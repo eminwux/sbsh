@@ -30,7 +30,7 @@ sbsh-sb:
 	-o sbsh \
 	-ldflags="-s -w -X $(MODULE)/cmd/config.Version=$(SBSH_VERSION)" \
 	./cmd/
-	ln sbsh sb
+	ln -f sbsh sb
 
 sbsh:
 	go build -o sbsh ./cmd/sbsh
