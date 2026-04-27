@@ -16,10 +16,17 @@
 
 // library-consumer is a minimal end-to-end demo of driving sbsh as a
 // Go library from an external module. It builds a TerminalSpec, spawns
-// a detached Terminal, spawns a Client that attaches to it, exchanges
-// one Write/Read round-trip over the Terminal RPC surface, drives a
-// State/Stop round-trip on the Client RPC surface, and tears both
-// processes down via spawn.Handle.Close.
+// a detached Terminal, then exercises one of two facades against it:
+//
+//   - mode=rpc (default): spawns a Client that attaches to the
+//     terminal, exchanges one Write/Read round-trip over the Terminal
+//     RPC surface, drives a State/Stop round-trip on the Client RPC
+//     surface, and tears both processes down via spawn.Handle.Close.
+//   - mode=attach: drives the in-process attach façade by calling
+//     pkg/attach.Run against the terminal's control socket with the
+//     caller's TTY-backed stdio. The session ends on the detach
+//     keystroke (^] twice), the remote terminal closing, or
+//     SIGINT/SIGTERM, after which the terminal is torn down.
 //
 // The whole run is rooted at a caller-supplied StateRoot and never
 // writes under $HOME/.sbsh.
@@ -33,21 +40,30 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/eminwux/sbsh/pkg/api"
+	"github.com/eminwux/sbsh/pkg/attach"
 	"github.com/eminwux/sbsh/pkg/builder"
 	clientrpc "github.com/eminwux/sbsh/pkg/rpcclient/client"
 	terminalrpc "github.com/eminwux/sbsh/pkg/rpcclient/terminal"
 	"github.com/eminwux/sbsh/pkg/spawn"
 )
 
+const (
+	modeRPC    = "rpc"
+	modeAttach = "attach"
+)
+
 type flags struct {
 	sbshPath  string
 	sbPath    string
 	stateRoot string
+	mode      string
 	verbose   bool
 }
 
@@ -57,6 +73,8 @@ func parseFlags() flags {
 	flag.StringVar(&f.sbPath, "sb", "", "absolute path to the sb binary (defaults to <dir(sbsh)>/sb)")
 	flag.StringVar(&f.stateRoot, "state-root", "",
 		"run path for sbsh state (defaults to a fresh directory under $TMPDIR)")
+	flag.StringVar(&f.mode, "mode", modeRPC,
+		"demo mode: \"rpc\" (spawn sb client, drive RPC) or \"attach\" (drive pkg/attach.Run with TTY stdio)")
 	flag.BoolVar(&f.verbose, "v", false, "log spawn/RPC internals at debug level")
 	flag.Parse()
 	return f
@@ -72,7 +90,13 @@ func main() {
 func run() error {
 	f := parseFlags()
 
-	sbshPath, sbPath, err := resolveBinaries(f.sbshPath, f.sbPath)
+	switch f.mode {
+	case modeRPC, modeAttach:
+	default:
+		return fmt.Errorf("-mode must be %q or %q (got %q)", modeRPC, modeAttach, f.mode)
+	}
+
+	sbshPath, sbPath, err := resolveBinaries(f.sbshPath, f.sbPath, f.mode)
 	if err != nil {
 		return err
 	}
@@ -85,8 +109,19 @@ func run() error {
 
 	logger := buildLogger(f.verbose)
 	logger.Info("library-consumer starting",
-		"sbsh", sbshPath, "sb", sbPath, "stateRoot", stateRoot)
+		"mode", f.mode, "sbsh", sbshPath, "sb", sbPath, "stateRoot", stateRoot)
 
+	if f.mode == modeAttach {
+		return runAttach(logger, stateRoot, sbshPath)
+	}
+	return runRPC(logger, stateRoot, sbshPath, sbPath)
+}
+
+// runRPC spawns a Terminal and a Client subprocess, then drives the
+// Terminal/Client RPC surfaces end-to-end. The 60s ceiling matches the
+// scripted nature of this path — the whole round-trip should complete
+// promptly.
+func runRPC(logger *slog.Logger, stateRoot, sbshPath, sbPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -114,11 +149,35 @@ func run() error {
 	return nil
 }
 
+// runAttach spawns a Terminal and drives pkg/attach.Run against its
+// control socket using the caller's TTY stdio. No timeout: the
+// session is open-ended and ends on detach keystroke, remote close,
+// or SIGINT/SIGTERM (mirroring cmd/sb/attach's signal policy — see
+// pkg/attach/doc.go on why the package itself does not trap signals).
+func runAttach(logger *slog.Logger, stateRoot, sbshPath string) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	term, err := startTerminal(ctx, logger, stateRoot, sbshPath)
+	if err != nil {
+		return fmt.Errorf("start terminal: %w", err)
+	}
+	defer closeWithLog(ctx, logger, "terminal", term)
+
+	if err := driveAttach(ctx, logger, term); err != nil {
+		return fmt.Errorf("attach loop: %w", err)
+	}
+
+	logger.Info("library-consumer completed successfully")
+	return nil
+}
+
 // resolveBinaries validates the sbsh/sb paths and fills sb from
-// filepath.Dir(sbsh)/sb when the caller omits it. Both paths must exist
-// and be regular files — spawn.NewTerminal/NewClient do not consult
-// $PATH, so we fail fast here rather than on the first exec.
-func resolveBinaries(sbsh, sb string) (string, string, error) {
+// filepath.Dir(sbsh)/sb when the caller omits it. sbsh must always
+// exist (spawn.NewTerminal does not consult $PATH); sb is only
+// required in RPC mode, where spawn.NewClient execs it. Attach mode
+// drives pkg/attach.Run in-process and never touches sb.
+func resolveBinaries(sbsh, sb, mode string) (string, string, error) {
 	if sbsh == "" {
 		return "", "", errors.New("-sbsh is required (absolute path to the sbsh binary)")
 	}
@@ -129,6 +188,10 @@ func resolveBinaries(sbsh, sb string) (string, string, error) {
 	sbsh = abs
 	if err := mustBeRegularFile(sbsh); err != nil {
 		return "", "", fmt.Errorf("sbsh binary: %w", err)
+	}
+
+	if mode == modeAttach {
+		return sbsh, "", nil
 	}
 
 	if sb == "" {
@@ -333,6 +396,66 @@ func driveTerminalRPC(
 		}
 	}
 	return fmt.Errorf("marker %q not observed within deadline; got %q", marker, seen.String())
+}
+
+// driveAttach demonstrates the in-process attach façade: it points
+// pkg/attach.Run at the spawned terminal's control socket using the
+// process's own TTY-backed stdio. The call blocks until the user
+// detaches (^]^]), the remote terminal closes, or ctx is cancelled
+// (e.g. via SIGINT/SIGTERM). pkg/attach already classifies
+// ctx-cancellation as a graceful exit (errdefs.ErrContextDone), so
+// callers wrap that as nil to keep the program's exit code clean.
+//
+// The TTY precheck below is a UX courtesy: pkg/attach.Run requires a
+// TTY-backed *os.File for stdin (it puts the fd in raw mode and
+// reads window size via TIOCGWINSZ — see pkg/attach/doc.go). For
+// headless contexts (CI runners, non-interactive shells), allocate a
+// PTY pair from your test harness and pass the slave end as
+// Options.Stdin/Stdout — the github.com/creack/pty package is the
+// idiomatic choice; this example deliberately avoids that dep to
+// keep the module footprint minimal.
+func driveAttach(
+	ctx context.Context,
+	logger *slog.Logger,
+	term *spawn.TerminalHandle,
+) error {
+	if !isTerminal(os.Stdin) {
+		return errors.New(
+			"-mode=attach requires stdin to be a TTY; run from an interactive shell or " +
+				"see the README's headless-context note for how to wire a PTY pair",
+		)
+	}
+
+	socketPath := term.SocketPath()
+	logger.Info("driving pkg/attach.Run", "socket", socketPath)
+
+	runErr := attach.Run(ctx, attach.Options{
+		SocketPath: socketPath,
+		Stdin:      os.Stdin,
+		Stdout:     os.Stdout,
+		Stderr:     os.Stderr,
+		Logger:     logger,
+	})
+	switch {
+	case runErr == nil:
+		return nil
+	case errors.Is(runErr, context.Canceled):
+		return nil
+	default:
+		return runErr
+	}
+}
+
+// isTerminal reports whether f is a character device, the same gate
+// pkg/attach.Run later applies via x/term.MakeRaw. Using
+// os.ModeCharDevice keeps this example free of an extra dep on
+// golang.org/x/term.
+func isTerminal(f *os.File) bool {
+	info, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeCharDevice != 0
 }
 
 // driveClientRPC exercises ClientController.State and Stop. Calling
