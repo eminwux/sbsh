@@ -73,7 +73,7 @@ child=$!
 while [ ! -f "$SIBLING_READY" ]; do sleep 0.01; done
 echo ready
 while kill -0 $child 2>/dev/null; do
-	wait $child 2>/dev/null
+	wait $child
 done
 echo done
 exit 0
