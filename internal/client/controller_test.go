@@ -2248,3 +2248,80 @@ func Test_ClientAttach_StateTransition(t *testing.T) {
 	_ = sc.Close(errors.New("test complete"))
 	<-exitCh
 }
+
+// Test_CreateAttachTerminal_SocketFileOnly_SynthesizesID verifies that the
+// SocketFile-only short-circuit in createAttachTerminal populates a synthetic
+// ID when the caller (e.g. pkg/attach embedders) supplied only the control
+// socket path. Without the synthetic ID, terminalstore keys, event records,
+// and log fields would all carry the empty string.
+func Test_CreateAttachTerminal_SocketFileOnly_SynthesizesID(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	sc := NewClientController(context.Background(), logger).(*Controller)
+
+	var added *api.AttachedTerminal
+	sc.ss = &terminalstore.Test{
+		AddFunc: func(s *api.AttachedTerminal) error {
+			added = s
+			return nil
+		},
+	}
+
+	doc := &api.ClientDoc{
+		Spec: api.ClientSpec{
+			TerminalSpec: &api.TerminalSpec{
+				SocketFile: "/tmp/sbsh-test/socket",
+			},
+		},
+	}
+
+	terminal, err := sc.createAttachTerminal(doc)
+	if err != nil {
+		t.Fatalf("createAttachTerminal returned error: %v", err)
+	}
+	if terminal == nil {
+		t.Fatal("createAttachTerminal returned nil terminal")
+	}
+	if terminal.Spec.ID == "" {
+		t.Fatal("terminal.Spec.ID is empty; expected synthetic ID for SocketFile-only attach")
+	}
+	if added == nil {
+		t.Fatal("terminalstore.Add was not called")
+	}
+	if added.Spec.ID != terminal.Spec.ID {
+		t.Fatalf("stored terminal ID %q != returned terminal ID %q", added.Spec.ID, terminal.Spec.ID)
+	}
+	// Caller's TerminalSpec must not be mutated — the synthetic ID lives on
+	// the local copy passed to terminalstore.
+	if doc.Spec.TerminalSpec.ID != "" {
+		t.Fatalf("doc.Spec.TerminalSpec.ID was mutated to %q; embedder's spec must stay untouched", doc.Spec.TerminalSpec.ID)
+	}
+}
+
+// Test_CreateAttachTerminal_SocketFileOnly_PreservesProvidedID confirms a
+// caller-supplied ID flows through the SocketFile-only short-circuit
+// unchanged — the synthetic ID only fires when Spec.ID is empty.
+func Test_CreateAttachTerminal_SocketFileOnly_PreservesProvidedID(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	sc := NewClientController(context.Background(), logger).(*Controller)
+
+	sc.ss = &terminalstore.Test{
+		AddFunc: func(_ *api.AttachedTerminal) error { return nil },
+	}
+
+	doc := &api.ClientDoc{
+		Spec: api.ClientSpec{
+			TerminalSpec: &api.TerminalSpec{
+				ID:         api.ID("caller-provided"),
+				SocketFile: "/tmp/sbsh-test/socket",
+			},
+		},
+	}
+
+	terminal, err := sc.createAttachTerminal(doc)
+	if err != nil {
+		t.Fatalf("createAttachTerminal returned error: %v", err)
+	}
+	if terminal.Spec.ID != api.ID("caller-provided") {
+		t.Fatalf("terminal.Spec.ID = %q; want %q", terminal.Spec.ID, "caller-provided")
+	}
+}
