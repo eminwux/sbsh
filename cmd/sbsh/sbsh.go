@@ -308,7 +308,7 @@ func setTerminalFlags(rootCmd *cobra.Command) error {
 		return err
 	}
 
-	rootCmd.Flags().String("terminal-capture-file", "", "Optional filename for the terminal capture")
+	rootCmd.Flags().String("terminal-capture-file", "", "Optional filename for the PTY transcript capture")
 	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_CAPTURE_FILE.ViperKey, rootCmd.Flags().Lookup("terminal-capture-file")); err != nil {
 		return err
 	}
