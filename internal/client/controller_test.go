@@ -1121,7 +1121,7 @@ func Test_ErrAttachNoIDOrName(t *testing.T) {
 			ID:           api.ID(clientID),
 			LogFile:      "/tmp/sbsh-logs/s0",
 			RunPath:      viper.GetString("global.runPath"),
-			TerminalSpec: &api.TerminalSpec{ID: "", Name: ""}, // Both empty should trigger ErrAttachNoTerminalSpec
+			TerminalSpec: &api.TerminalSpec{ID: "", Name: ""}, // All three (ID, Name, SocketFile) empty should trigger ErrAttachNoTerminalSpec
 			ClientMode:   api.AttachToTerminal,
 		},
 	}
