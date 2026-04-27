@@ -223,7 +223,7 @@ func processSpec(cmd *cobra.Command, spec **api.TerminalSpec, workload []string)
 				errdefs.ErrInvalidArgument,
 			)
 		}
-		// Spec provided via stdin
+		// Spec provided via stdin or --file
 		err := logging.SetupFileLogger(cmd, (*spec).LogFile, (*spec).LogLevel)
 		if err != nil {
 			return err
