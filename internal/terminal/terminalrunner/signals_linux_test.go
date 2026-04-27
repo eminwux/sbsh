@@ -66,6 +66,10 @@ func TestSignalForwarder_TargetsProcessGroup(t *testing.T) {
 	//
 	// Markers are written to disk so the test does not depend on stdout flush
 	// ordering of the subshell vs. the leader.
+	// NOTE: the embedded shell script uses `sleep 0.01`, a GNU coreutils
+	// extension. Safe here because the file is gated `//go:build linux`. Do
+	// not cargo-cult this idiom into a cross-platform test — BSD/macOS
+	// `sleep` rejects fractional arguments.
 	script := `
 trap 'touch "$LEADER"' HUP
 (trap 'touch "$SIBLING"; exit 0' HUP; touch "$SIBLING_READY"; while :; do sleep 1; done) &
