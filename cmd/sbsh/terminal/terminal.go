@@ -296,6 +296,11 @@ Examples:
 If no terminal name is provided, a random name will be generated.
 If no command is provided, /bin/bash will be used by default.
 If no log filename is provided, a default path under the run directory will be used.
+
+Terminal names must be unique across active (non-Exited) terminals in the
+same run path; the launch fails fast when the requested name (passed via
+--name, --file, or stdin spec) is already in use. Names from terminals
+that have exited can be reused.
 `,
 		Args:         cobra.ArbitraryArgs,
 		SilenceUsage: true,
@@ -344,6 +349,15 @@ If no log filename is provided, a default path under the run directory will be u
 				return errdefs.ErrTerminalSpecNotFound
 			}
 
+			if errAvail := discovery.VerifyTerminalNameAvailable(
+				cmd.Context(),
+				logger,
+				terminalSpec.RunPath,
+				terminalSpec.Name,
+			); errAvail != nil {
+				return errAvail
+			}
+
 			logger.Debug("Built terminal spec", "terminalSpec", fmt.Sprintf("%+v", terminalSpec))
 
 			if logger.Enabled(context.Background(), slog.LevelDebug) {
@@ -381,7 +395,7 @@ func setupTerminalCmdFlags(terminalCmd *cobra.Command) {
 	terminalCmd.Flags().String("id", "", "Optional terminal ID (random if omitted)")
 	_ = viper.BindPFlag(config.SBSH_TERM_ID.ViperKey, terminalCmd.Flags().Lookup("id"))
 
-	terminalCmd.Flags().String("name", "", "Optional name for the terminal (random if omitted)")
+	terminalCmd.Flags().String("name", "", "Optional name for the terminal (random if omitted; must be unique across active terminals)")
 	_ = viper.BindPFlag(config.SBSH_TERM_NAME.ViperKey, terminalCmd.Flags().Lookup("name"))
 
 	terminalCmd.Flags().String("log-file", "", "Optional filename for the terminal log")

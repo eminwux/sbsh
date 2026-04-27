@@ -28,6 +28,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/pkg/api"
 	pkgdiscovery "github.com/eminwux/sbsh/pkg/discovery"
 	"go.yaml.in/yaml/v3"
@@ -272,6 +273,44 @@ func FindTerminalByName(
 	name string,
 ) (*api.TerminalDoc, error) {
 	return pkgdiscovery.FindTerminalByName(ctx, logger, runPath, name)
+}
+
+// VerifyTerminalNameAvailable returns errdefs.ErrTerminalNameInUse if an
+// active (non-Exited) terminal under runPath already carries name. Stale
+// metadata whose owner process is gone is reconciled to Exited and does not
+// block reuse, so an exited terminal's name can be recycled. An empty name
+// or runPath is treated as unconditionally available — callers fall back to
+// random-name generation in that case and the caller-side spec build owns
+// the unique-id guarantee.
+//
+// Best-effort: a concurrent sbsh launching the same name can pass this check
+// in lockstep with us. Sequential launches (the common case) get fail-fast;
+// downstream tools (sb attach/detach/stop) resolve duplicate names by first
+// match, so the racing loser remains addressable by ID.
+func VerifyTerminalNameAvailable(
+	ctx context.Context,
+	logger *slog.Logger,
+	runPath string,
+	name string,
+) error {
+	if name == "" || runPath == "" {
+		return nil
+	}
+	terminals, err := ScanTerminals(ctx, logger, runPath)
+	if err != nil {
+		return err
+	}
+	ReconcileTerminals(ctx, logger, runPath, terminals)
+	for _, t := range terminals {
+		if t.Status.State == api.Exited {
+			continue
+		}
+		if pkgdiscovery.TerminalName(t) != name {
+			continue
+		}
+		return fmt.Errorf("%w: %q (id %s)", errdefs.ErrTerminalNameInUse, name, pkgdiscovery.TerminalID(t))
+	}
+	return nil
 }
 
 func PrintTerminalSpec(s *api.TerminalSpec, logger *slog.Logger) error {
