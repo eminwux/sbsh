@@ -215,6 +215,14 @@ func setLoggingVarsFromFlags() {
 func processSpec(cmd *cobra.Command, spec **api.TerminalSpec, workload []string) error {
 	// Check if spec is already provided
 	if *spec != nil {
+		// A stdin/file spec already supplies the workload; positional argv
+		// after `--` would be silently dropped, so reject it loudly.
+		if len(workload) > 0 {
+			return fmt.Errorf(
+				"%w: positional argv after '--' is not valid when a terminal spec is supplied via stdin or --file",
+				errdefs.ErrInvalidArgument,
+			)
+		}
 		// Spec provided via stdin
 		err := logging.SetupFileLogger(cmd, (*spec).LogFile, (*spec).LogLevel)
 		if err != nil {
