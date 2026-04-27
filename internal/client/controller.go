@@ -30,6 +30,7 @@ import (
 	"github.com/eminwux/sbsh/internal/client/terminalstore"
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/errdefs"
+	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
@@ -314,6 +315,9 @@ func (s *Controller) createAttachTerminal(doc *api.ClientDoc) (*api.AttachedTerm
 	if doc.Spec.TerminalSpec.SocketFile != "" {
 		s.logger.Debug("attach by socket path", "socket", doc.Spec.TerminalSpec.SocketFile)
 		spec := *doc.Spec.TerminalSpec
+		if spec.ID == "" {
+			spec.ID = api.ID(naming.RandomID())
+		}
 		terminal := terminalstore.NewSupervisedTerminal(&spec)
 		if err := s.ss.Add(terminal); err != nil {
 			return nil, fmt.Errorf("%w: %w", errdefs.ErrTerminalStore, err)
