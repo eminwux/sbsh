@@ -78,7 +78,7 @@ type Options struct {
 // under os.TempDir().
 func Run(ctx context.Context, opts Options) error {
 	if opts.SocketPath == "" {
-		return errors.New("pkg/attach: Options.SocketPath is required")
+		return ErrSocketPathRequired
 	}
 
 	logger := opts.Logger
