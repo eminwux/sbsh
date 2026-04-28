@@ -17,10 +17,17 @@
 package terminalrunner
 
 import (
+	"errors"
 	"io"
 	"log/slog"
 	"sync"
 )
+
+// ErrAllWritersFailed is returned by DynamicMultiWriter.Write when every writer
+// in the snapshot returned an error. Callers may use this to detect the
+// terminal-fatal case (no remaining sinks) versus the routine case of a single
+// stale fan-out endpoint that has just been pruned.
+var ErrAllWritersFailed = errors.New("all writers failed")
 
 type DynamicMultiWriter struct {
 	mu      sync.RWMutex
@@ -35,6 +42,10 @@ func NewDynamicMultiWriter(logger *slog.Logger, writers ...io.Writer) *DynamicMu
 	return &DynamicMultiWriter{writers: writers, logger: logger}
 }
 
+// Write fans p out to every registered writer. A writer that returns an error
+// is dropped from the slice and writing continues to the rest — one stale
+// client must not be able to tear down the producer. Write returns
+// ErrAllWritersFailed only when no writer accepted the payload.
 func (dmw *DynamicMultiWriter) Write(p []byte) (int, error) {
 	dmw.logger.Debug("acquiring read lock for writers")
 	dmw.mu.RLock()
@@ -42,21 +53,37 @@ func (dmw *DynamicMultiWriter) Write(p []byte) (int, error) {
 	dmw.mu.RUnlock()
 	dmw.logger.Debug("read lock released, writers snapshot taken", "writers_count", len(ws), "write_len", len(p))
 
+	var failed []io.Writer
 	for i, w := range ws {
 		dmw.logger.Debug("writing to writer", "index", i, "write_len", len(p))
 		n, err := w.Write(p)
 		if err != nil {
-			dmw.logger.Error("write to writer failed", "index", i, "error", err)
-			return 0, err
+			dmw.logger.Error("write to writer failed; dropping writer", "index", i, "error", err)
+			failed = append(failed, w)
+			continue
 		}
 		if n != len(p) {
 			dmw.logger.Warn("partial write to writer", "index", i, "expected", len(p), "actual", n)
-			// continue to next writer, but still return full len(p) if all succeed
 		} else {
 			dmw.logger.Debug("write to writer succeeded", "index", i, "bytes_written", n)
 		}
 	}
-	dmw.logger.Info("write completed for all writers", "writers_count", len(ws), "bytes", len(p))
+
+	for _, w := range failed {
+		dmw.Remove(w)
+	}
+
+	if len(ws) > 0 && len(failed) == len(ws) {
+		dmw.logger.Error("all writers failed", "writers_count", len(ws), "bytes", len(p))
+		return 0, ErrAllWritersFailed
+	}
+
+	dmw.logger.Info(
+		"write completed for all writers",
+		"writers_count", len(ws),
+		"failed", len(failed),
+		"bytes", len(p),
+	)
 	return len(p), nil
 }
 

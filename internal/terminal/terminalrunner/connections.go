@@ -25,6 +25,19 @@ import (
 
 func (sr *Exec) cleanupClient(client *ioClient) {
 	sr.logger.Info("client connection handler exiting", "client", client.id)
+
+	// Drop this client's pipe from the fan-out *before* closing the conn so
+	// no further PTY output targets a dying writer. Without this, an abrupt
+	// disconnect (socket EOF, attacher kill, network drop) leaves the dead
+	// pipeOutW in multiOutW; a later broken pipe used to cascade into a
+	// fatal terminal event and reap the child process.
+	sr.ptyPipesMu.RLock()
+	multiOutW := sr.ptyPipes.multiOutW
+	sr.ptyPipesMu.RUnlock()
+	if multiOutW != nil && client.pipeOutW != nil {
+		multiOutW.Remove(client.pipeOutW)
+	}
+
 	if cerr := client.conn.Close(); cerr != nil {
 		sr.logger.Warn("error closing client connection", "err", cerr, "client", client.id)
 	}
