@@ -46,6 +46,7 @@ var (
 	ErrAttachNoTerminalSpec     = errors.New("no terminal ID or Name provided for attach")
 	ErrTerminalNotFoundByID     = errors.New("could not find terminal by ID")
 	ErrTerminalNotFoundByName   = errors.New("could not find terminal by Name")
+	ErrTerminalNameInUse        = errors.New("terminal name already in use by an active terminal")
 	ErrTerminalMetadataNotFound = errors.New("no terminal metadata found to attach")
 	ErrNoTerminalSpec           = errors.New("no terminal spec found")
 	ErrConfig                   = errors.New("config error")

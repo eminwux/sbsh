@@ -64,7 +64,7 @@ These flags apply to all `sbsh` commands:
 ### Terminal Flags
 
 - `--terminal-id <id>`: Optional terminal ID (random if omitted)
-- `--terminal-name <name>`: Optional name for the terminal
+- `--terminal-name <name>`: Optional name for the terminal (must be unique across active terminals — see [Name uniqueness](#name-uniqueness))
 - `-p, --terminal-profile <name>`: Profile for the terminal
 - `--terminal-command <cmd>`: Command to run (default: `/bin/bash`)
 - `--terminal-socket <file>`: Optional socket file for the terminal
@@ -123,6 +123,29 @@ sbsh terminal --name my-terminal
 sbsh terminal --name my-terminal -- /bin/zsh
 sbsh terminal -p devprofile -- /bin/sleep 3600
 ```
+
+#### Name uniqueness
+
+Terminal names must be unique across active (non-Exited) terminals sharing
+the same run path. A launch that would collide with an existing active
+terminal fails fast with a clear error rather than silently spawning a
+shadow:
+
+```bash
+$ sbsh terminal --name my-terminal &
+$ sbsh terminal --name my-terminal
+Error: terminal name already in use by an active terminal: "my-terminal" (id 7c4f3a02)
+```
+
+The check applies regardless of how the name reached the spec — flag
+(`--name`, `--terminal-name`), stdin (`sbsh terminal -`), or `--file`
+spec. Names from terminals that have exited (or whose owner process is
+gone, reconciled to `Exited` on scan) can be reused immediately; you do
+not need to `sb get terminals --prune` first. Two simultaneous launches
+with the same name can both pass the check and briefly coexist;
+downstream tools (`sb attach`/`detach`/`stop` `<name>`) resolve the
+collision by returning the first match, so the racing loser remains
+addressable by ID.
 
 ### `sbsh version`
 

@@ -174,6 +174,16 @@ You can also use sbsh with parameters. For example:
 				return buildErr
 			}
 
+			if errAvail := discovery.VerifyTerminalNameAvailable(
+				cmd.Context(),
+				logger,
+				terminalSpec.RunPath,
+				terminalSpec.Name,
+			); errAvail != nil {
+				logger.Error("Terminal name collision", "error", errAvail)
+				return errAvail
+			}
+
 			logger.Debug("Built terminal spec", "terminalSpec", fmt.Sprintf("%+v", terminalSpec))
 
 			// Define a new ClientDoc
@@ -303,7 +313,7 @@ func setTerminalFlags(rootCmd *cobra.Command) error {
 		return err
 	}
 
-	rootCmd.Flags().String("terminal-name", "", "Optional name for the terminal")
+	rootCmd.Flags().String("terminal-name", "", "Optional name for the terminal (must be unique across active terminals)")
 	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_NAME.ViperKey, rootCmd.Flags().Lookup("terminal-name")); err != nil {
 		return err
 	}
