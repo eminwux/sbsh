@@ -259,7 +259,10 @@ func (sr *Exec) terminalManagerReader(multiOutW io.Writer) {
 				sr.logger.Debug("writing to multiOutW")
 				_, errWrite := multiOutW.Write(buf[:n])
 				sr.logger.Debug("writing to multiOutW done")
-				if errWrite != nil {
+				// Only escalate when every fan-out endpoint has gone away —
+				// the log file alone keeps the session usable, and a single
+				// dropped attacher must not kill the PTY.
+				if errors.Is(errWrite, ErrAllWritersFailed) {
 					sr.logger.Error("error writing raw data to client", "err", errWrite)
 					errReturn := fmt.Errorf(
 						"terminalManagerReader multiWriter write error: %w: %w",
