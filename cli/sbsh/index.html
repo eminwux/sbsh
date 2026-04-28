@@ -1587,6 +1587,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="sbsh terminal">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#name-uniqueness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Name uniqueness
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -2162,6 +2179,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="sbsh terminal">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#name-uniqueness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Name uniqueness
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -2283,7 +2317,7 @@
 <h3 id="terminal-flags">Terminal Flags<a class="headerlink" href="#terminal-flags" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>--terminal-id &lt;id&gt;</code>: Optional terminal ID (random if omitted)</li>
-<li><code>--terminal-name &lt;name&gt;</code>: Optional name for the terminal</li>
+<li><code>--terminal-name &lt;name&gt;</code>: Optional name for the terminal (must be unique across active terminals — see <a href="#name-uniqueness">Name uniqueness</a>)</li>
 <li><code>-p, --terminal-profile &lt;name&gt;</code>: Profile for the terminal</li>
 <li><code>--terminal-command &lt;cmd&gt;</code>: Command to run (default: <code>/bin/bash</code>)</li>
 <li><code>--terminal-socket &lt;file&gt;</code>: Optional socket file for the terminal</li>
@@ -2321,14 +2355,32 @@ their argv. With no positional argv, the profile default (<code>/bin/bash</code>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>my-terminal<span class="w"> </span>--<span class="w"> </span>/bin/zsh
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>sbsh<span class="w"> </span>terminal<span class="w"> </span>-p<span class="w"> </span>devprofile<span class="w"> </span>--<span class="w"> </span>/bin/sleep<span class="w"> </span><span class="m">3600</span>
 </code></pre></div>
+<h4 id="name-uniqueness">Name uniqueness<a class="headerlink" href="#name-uniqueness" title="Permanent link">&para;</a></h4>
+<p>Terminal names must be unique across active (non-Exited) terminals sharing
+the same run path. A launch that would collide with an existing active
+terminal fails fast with a clear error rather than silently spawning a
+shadow:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>$<span class="w"> </span>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>my-terminal<span class="w"> </span><span class="p">&amp;</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>$<span class="w"> </span>sbsh<span class="w"> </span>terminal<span class="w"> </span>--name<span class="w"> </span>my-terminal
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>Error:<span class="w"> </span>terminal<span class="w"> </span>name<span class="w"> </span>already<span class="w"> </span><span class="k">in</span><span class="w"> </span>use<span class="w"> </span>by<span class="w"> </span>an<span class="w"> </span>active<span class="w"> </span>terminal:<span class="w"> </span><span class="s2">&quot;my-terminal&quot;</span><span class="w"> </span><span class="o">(</span>id<span class="w"> </span>7c4f3a02<span class="o">)</span>
+</code></pre></div>
+<p>The check applies regardless of how the name reached the spec — flag
+(<code>--name</code>, <code>--terminal-name</code>), stdin (<code>sbsh terminal -</code>), or <code>--file</code>
+spec. Names from terminals that have exited (or whose owner process is
+gone, reconciled to <code>Exited</code> on scan) can be reused immediately; you do
+not need to <code>sb get terminals --prune</code> first. Two simultaneous launches
+with the same name can both pass the check and briefly coexist;
+downstream tools (<code>sb attach</code>/<code>detach</code>/<code>stop</code> <code>&lt;name&gt;</code>) resolve the
+collision by returning the first match, so the racing loser remains
+addressable by ID.</p>
 <h3 id="sbsh-version"><code>sbsh version</code><a class="headerlink" href="#sbsh-version" title="Permanent link">&para;</a></h3>
 <p>Show version information:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>sbsh<span class="w"> </span>version
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>sbsh<span class="w"> </span>version
 </code></pre></div>
 <h3 id="sbsh-autocomplete"><code>sbsh autocomplete</code><a class="headerlink" href="#sbsh-autocomplete" title="Permanent link">&para;</a></h3>
 <p>Generate shell completion:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>sbsh<span class="w"> </span>autocomplete<span class="w"> </span>bash
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>sbsh<span class="w"> </span>autocomplete<span class="w"> </span>zsh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>sbsh<span class="w"> </span>autocomplete<span class="w"> </span>bash
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>sbsh<span class="w"> </span>autocomplete<span class="w"> </span>zsh
 </code></pre></div>
 <h2 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2366,7 +2418,7 @@ their argv. With no positional argv, the profile default (<code>/bin/bash</code>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 27, 2026 01:43:26 UTC">April 27, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 28, 2026 10:42:24 UTC">April 28, 2026</span>
   </span>
 
     
