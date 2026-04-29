@@ -182,15 +182,19 @@ func (c *Controller) Run(spec *api.TerminalSpec) error {
 	c.logger.InfoContext(c.ctx, "controller ready")
 	close(c.ctrlReadyCh)
 
-	go func() {
-		err := <-c.closingCh
-		c.shuttingDown.Store(true)
-		c.logger.WarnContext(c.ctx, "controller closing", "reason", err)
-	}()
-
 	for {
 		select {
 		case <-c.ctx.Done():
+			// Close cancels c.ctx to unblock WaitReady, so ctx.Done can race
+			// closeReqCh after our own Close fires. When the close-request
+			// signal is already queued, prefer it: it carries the original
+			// reason instead of a generic "context canceled".
+			select {
+			case reason := <-c.closeReqCh:
+				c.logger.WarnContext(c.ctx, "close request received", "err", reason)
+				return fmt.Errorf("%w: %w", errdefs.ErrCloseReq, reason)
+			default:
+			}
 			ctxErr := c.ctx.Err()
 			c.logger.WarnContext(c.ctx, "parent context channel has been closed")
 			if errC := c.Close(ctxErr); errC != nil {
@@ -243,31 +247,40 @@ func (c *Controller) handleEvent(ev terminalrunner.Event) {
 }
 
 func (c *Controller) Close(reason error) error {
-	if !c.shuttingDown.Load() {
-		c.logger.InfoContext(c.ctx, "initiating shutdown sequence", "reason", reason)
-
-		// cancel the controller context so WaitReady unblocks
-		c.cancel(reason)
-
-		// Set closing reason
-		c.closingCh <- reason
-
-		// Notify terminal runner to close all terminals
-		c.srMu.RLock()
-		sr := c.sr
-		c.srMu.RUnlock()
-		if sr != nil {
-			_ = sr.Close(reason)
-		}
-
-		// Notify Run to exit
-		c.closeReqCh <- reason
-
-		// Mark controller as closed
-		close(c.closedCh)
-	} else {
-		c.logger.WarnContext(c.ctx, "shutdown sequence already in progress, ignoring duplicate request", "reason", reason)
+	// CompareAndSwap fuses the shutting-down check with the flip so that
+	// concurrent Close callers (e.g., handleEvent path racing the Run loop's
+	// ctx.Done branch) cannot both enter the body and re-send on the
+	// one-shot closeReqCh / closingCh, which previously deadlocked Run.
+	if !c.shuttingDown.CompareAndSwap(false, true) {
+		c.logger.WarnContext(
+			c.ctx,
+			"shutdown sequence already in progress, ignoring duplicate request",
+			"reason",
+			reason,
+		)
+		return nil
 	}
+	c.logger.InfoContext(c.ctx, "initiating shutdown sequence", "reason", reason)
+
+	// cancel the controller context so WaitReady unblocks
+	c.cancel(reason)
+
+	// Set closing reason
+	c.closingCh <- reason
+
+	// Notify terminal runner to close all terminals
+	c.srMu.RLock()
+	sr := c.sr
+	c.srMu.RUnlock()
+	if sr != nil {
+		_ = sr.Close(reason)
+	}
+
+	// Notify Run to exit
+	c.closeReqCh <- reason
+
+	// Mark controller as closed
+	close(c.closedCh)
 	return nil
 }
 
