@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 
 	"github.com/eminwux/sbsh/cmd/config"
@@ -89,6 +90,26 @@ func checkFileUsage(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
+// readSocketGID resolves the socket-gid value: flag (if explicitly set) >
+// env var > nil (unset). Returning *int rather than a sentinel int keeps
+// "unset" distinguishable from "explicit 0 = root", which the runner
+// would otherwise try to chown to and reject under non-root callers.
+// viper.GetInt is unreliable here because BindPFlag only forwards a
+// *changed* pflag to viper.
+func readSocketGID(cmd *cobra.Command) *int {
+	if cmd.Flags().Changed("socket-gid") {
+		if v, err := cmd.Flags().GetInt("socket-gid"); err == nil {
+			return &v
+		}
+	}
+	if envStr, ok := os.LookupEnv(config.SBSH_TERM_SOCKET_GID.EnvVar()); ok && envStr != "" {
+		if v, err := strconv.Atoi(envStr); err == nil {
+			return &v
+		}
+	}
+	return nil
+}
+
 func buildTerminalSpecFromFlags(
 	cmd *cobra.Command,
 	logger *slog.Logger,
@@ -118,6 +139,8 @@ func buildTerminalSpecFromFlags(
 			LogFile:          viper.GetString(config.SBSH_TERM_LOG_FILE.ViperKey),
 			LogLevel:         viper.GetString(config.SBSH_TERM_LOG_LEVEL.ViperKey),
 			SocketFile:       viper.GetString(config.SBSH_TERM_SOCKET.ViperKey),
+			SocketMode:       viper.GetString(config.SBSH_TERM_SOCKET_MODE.ViperKey),
+			SocketGID:        readSocketGID(cmd),
 			DisableSetPrompt: viper.GetBool(config.SBSH_TERM_DISABLE_SET_PROMPT.ViperKey),
 			ShutdownGrace:    viper.GetDuration(config.SBSH_TERM_SHUTDOWN_GRACE.ViperKey),
 		},
@@ -413,6 +436,22 @@ func setupTerminalCmdFlags(terminalCmd *cobra.Command) {
 
 	terminalCmd.Flags().String("socket", "", "Optional socket file for the terminal")
 	_ = viper.BindPFlag(config.SBSH_TERM_SOCKET.ViperKey, terminalCmd.Flags().Lookup("socket"))
+
+	terminalCmd.Flags().String(
+		"socket-mode",
+		"",
+		"Octal mode applied to the control socket after Listen (default 0600)",
+	)
+	_ = viper.BindPFlag(config.SBSH_TERM_SOCKET_MODE.ViperKey, terminalCmd.Flags().Lookup("socket-mode"))
+	_ = viper.BindEnv(config.SBSH_TERM_SOCKET_MODE.ViperKey, config.SBSH_TERM_SOCKET_MODE.EnvVar())
+
+	terminalCmd.Flags().Int(
+		"socket-gid",
+		-1,
+		"Numeric GID applied to the control socket via chown after Listen; -1 leaves group unchanged",
+	)
+	_ = viper.BindPFlag(config.SBSH_TERM_SOCKET_GID.ViperKey, terminalCmd.Flags().Lookup("socket-gid"))
+	_ = viper.BindEnv(config.SBSH_TERM_SOCKET_GID.ViperKey, config.SBSH_TERM_SOCKET_GID.EnvVar())
 
 	terminalCmd.Flags().StringP("file", "f", "", "Optional JSON file with the terminal spec (use '-' for stdin)")
 	_ = viper.BindPFlag(config.SBSH_TERM_SPEC.ViperKey, terminalCmd.Flags().Lookup("file"))
