@@ -113,6 +113,13 @@ func CreateTerminalFromProfile(profile *api.TerminalProfileDoc) (*api.TerminalSp
 		}
 		if profile.Spec.Socket.GID != nil {
 			g := *profile.Spec.Socket.GID
+			if g < 0 {
+				return nil, fmt.Errorf(
+					"invalid spec.socket.gid in profile %q: must be non-negative, got %d",
+					profile.Metadata.Name,
+					g,
+				)
+			}
 			spec.SocketGID = &g
 		}
 	}

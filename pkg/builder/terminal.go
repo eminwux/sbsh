@@ -45,6 +45,8 @@ type terminalConfig struct {
 	logFile          string
 	logLevel         string
 	socketFile       string
+	socketMode       string
+	socketGID        *int
 	profileName      string
 	profilesDir      string
 	disableSetPrompt bool
@@ -141,6 +143,26 @@ func WithSocketFile(path string) TerminalOption {
 	return func(c *terminalConfig) { c.socketFile = path }
 }
 
+// WithSocketMode sets the chmod mode applied to the control
+// socket after Listen, as an octal string ("0660", "660"). Empty
+// means "no override; fall through to the profile or the runner
+// default (0o600)".
+func WithSocketMode(mode string) TerminalOption {
+	return func(c *terminalConfig) { c.socketMode = mode }
+}
+
+// WithSocketGID sets the numeric GID applied via chown to the
+// control socket after Listen. Calling this option means
+// "explicitly set"; the zero value is a valid GID (root) and is
+// preserved. Omitting the option leaves the group unchanged (or
+// falls through to the profile).
+func WithSocketGID(gid int) TerminalOption {
+	return func(c *terminalConfig) {
+		g := gid
+		c.socketGID = &g
+	}
+}
+
 // WithDisableSetPrompt disables sbsh's automatic PS1 injection
 // when true. The default (false) preserves the shell-prompt
 // rewriting behavior.
@@ -188,6 +210,8 @@ func BuildTerminalSpec(
 		LogFile:          cfg.logFile,
 		LogLevel:         cfg.logLevel,
 		SocketFile:       cfg.socketFile,
+		SocketMode:       cfg.socketMode,
+		SocketGID:        cfg.socketGID,
 		EnvVars:          cfg.envVars,
 		DisableSetPrompt: cfg.disableSetPrompt,
 	})
