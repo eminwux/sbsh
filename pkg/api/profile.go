@@ -58,10 +58,20 @@ type TerminalProfileMetadata struct {
 }
 
 type TerminalProfileSpec struct {
-	RunTarget     RunTarget     `json:"runTarget"     yaml:"runTarget"`
-	RestartPolicy RestartPolicy `json:"restartPolicy" yaml:"restartPolicy"`
-	Shell         ShellSpec     `json:"shell"         yaml:"shell"`
-	Stages        StagesSpec    `json:"stages"        yaml:"stages"`
+	RunTarget     RunTarget     `json:"runTarget"        yaml:"runTarget"`
+	RestartPolicy RestartPolicy `json:"restartPolicy"    yaml:"restartPolicy"`
+	Shell         ShellSpec     `json:"shell"            yaml:"shell"`
+	Stages        StagesSpec    `json:"stages"           yaml:"stages"`
+	Socket        *SocketSpec   `json:"socket,omitempty" yaml:"socket,omitempty"`
+}
+
+// SocketSpec configures the control socket's filesystem permissions. Both
+// fields are optional; omitting the block keeps the legacy 0600 owner-only
+// behavior. Mode is an octal string ("0660") to avoid YAML's int/octal
+// ambiguity; Gid is a numeric host GID (nil leaves the group unchanged).
+type SocketSpec struct {
+	Mode string `json:"mode,omitempty" yaml:"mode,omitempty"`
+	GID  *int   `json:"gid,omitempty"  yaml:"gid,omitempty"`
 }
 
 // ShellSpec describes the base interactive process that owns the terminal lifetime.

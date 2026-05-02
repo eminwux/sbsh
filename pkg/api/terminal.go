@@ -16,7 +16,10 @@
 
 package api
 
-import "time"
+import (
+	"os"
+	"time"
+)
 
 type TerminalController interface {
 	Run(spec *TerminalSpec) error
@@ -69,6 +72,14 @@ type TerminalSpec struct {
 	LogFile     string `json:"logFile"`
 	LogLevel    string `json:"logLevel"`
 	SocketFile  string `json:"socketIO"`
+
+	// SocketMode is the chmod applied to the control socket after Listen.
+	// Zero means "use the runner default" (0600), preserving owner-only
+	// behavior for callers that never set the field.
+	SocketMode os.FileMode `json:"socketMode,omitempty"`
+	// SocketGID is the numeric GID applied via chown(socket, -1, gid)
+	// after Listen. nil leaves the group unchanged.
+	SocketGID *int `json:"socketGid,omitempty"`
 
 	ProfileName string     `json:"profileName"`
 	Stages      StagesSpec `json:"stages"`

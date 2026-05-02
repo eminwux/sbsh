@@ -26,6 +26,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -165,6 +166,8 @@ You can also use sbsh with parameters. For example:
 					LogFile:          viper.GetString(config.SBSH_ROOT_TERM_LOG_FILE.ViperKey),
 					LogLevel:         viper.GetString(config.SBSH_ROOT_TERM_LOG_LEVEL.ViperKey),
 					SocketFile:       viper.GetString(config.SBSH_ROOT_TERM_SOCKET.ViperKey),
+					SocketMode:       viper.GetString(config.SBSH_ROOT_TERM_SOCKET_MODE.ViperKey),
+					SocketGID:        readRootSocketGID(cmd),
 					DisableSetPrompt: viper.GetBool(config.SBSH_ROOT_TERM_DISABLE_SET_PROMPT.ViperKey),
 				},
 			)
@@ -349,6 +352,30 @@ func setTerminalFlags(rootCmd *cobra.Command) error {
 		return err
 	}
 
+	rootCmd.Flags().String(
+		"terminal-socket-mode",
+		"",
+		"Octal mode applied to the control socket after Listen (default 0600)",
+	)
+	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_SOCKET_MODE.ViperKey, rootCmd.Flags().Lookup("terminal-socket-mode")); err != nil {
+		return err
+	}
+	if err := viper.BindEnv(config.SBSH_ROOT_TERM_SOCKET_MODE.ViperKey, config.SBSH_ROOT_TERM_SOCKET_MODE.EnvVar()); err != nil {
+		return err
+	}
+
+	rootCmd.Flags().Int(
+		"terminal-socket-gid",
+		-1,
+		"Numeric GID applied to the control socket via chown after Listen; -1 leaves group unchanged",
+	)
+	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_SOCKET_GID.ViperKey, rootCmd.Flags().Lookup("terminal-socket-gid")); err != nil {
+		return err
+	}
+	if err := viper.BindEnv(config.SBSH_ROOT_TERM_SOCKET_GID.ViperKey, config.SBSH_ROOT_TERM_SOCKET_GID.EnvVar()); err != nil {
+		return err
+	}
+
 	rootCmd.Flags().Bool("terminal-disable-set-prompt", false, "Disable setting the prompt")
 	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_DISABLE_SET_PROMPT.ViperKey, rootCmd.Flags().Lookup("terminal-disable-set-prompt")); err != nil {
 		return err
@@ -439,6 +466,25 @@ func runClient(
 			}
 			logger.ErrorContext(ctx, "client controller exited with error", "error", err)
 			return err
+		}
+	}
+	return nil
+}
+
+// readRootSocketGID resolves --terminal-socket-gid: explicit flag wins,
+// then SBSH_ROOT_TERM_SOCKET_GID env, otherwise nil (= leave group
+// unchanged). The pointer return distinguishes "unset" from "explicit
+// 0 = root", which is required because the runner would otherwise try
+// to chown to gid 0 and fail under non-root callers.
+func readRootSocketGID(cmd *cobra.Command) *int {
+	if cmd.Flags().Changed("terminal-socket-gid") {
+		if v, err := cmd.Flags().GetInt("terminal-socket-gid"); err == nil {
+			return &v
+		}
+	}
+	if envStr, ok := os.LookupEnv(config.SBSH_ROOT_TERM_SOCKET_GID.EnvVar()); ok && envStr != "" {
+		if v, err := strconv.Atoi(envStr); err == nil {
+			return &v
 		}
 	}
 	return nil

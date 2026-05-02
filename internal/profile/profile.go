@@ -21,8 +21,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/eminwux/sbsh/internal/defaults"
@@ -97,7 +99,50 @@ func CreateTerminalFromProfile(profile *api.TerminalProfileDoc) (*api.TerminalSp
 		Stages:      profile.Spec.Stages,
 	}
 
+	if profile.Spec.Socket != nil {
+		if profile.Spec.Socket.Mode != "" {
+			mode, errMode := parseSocketMode(profile.Spec.Socket.Mode)
+			if errMode != nil {
+				return nil, fmt.Errorf(
+					"invalid spec.socket.mode in profile %q: %w",
+					profile.Metadata.Name,
+					errMode,
+				)
+			}
+			spec.SocketMode = mode
+		}
+		if profile.Spec.Socket.GID != nil {
+			g := *profile.Spec.Socket.GID
+			if g < 0 {
+				return nil, fmt.Errorf(
+					"invalid spec.socket.gid in profile %q: must be non-negative, got %d",
+					profile.Metadata.Name,
+					g,
+				)
+			}
+			spec.SocketGID = &g
+		}
+	}
+
 	return spec, nil
+}
+
+// chmodMask is the standard chmod surface: setuid/setgid/sticky plus the nine
+// rwx bits. parseSocketMode rejects any mode with bits outside this mask.
+const chmodMask uint64 = 0o7777
+
+// parseSocketMode parses an octal mode string like "0660" or "660" into an
+// os.FileMode and rejects modes with bits outside chmodMask. The leading "0"
+// is optional because strconv.ParseUint with base 8 accepts both forms.
+func parseSocketMode(s string) (os.FileMode, error) {
+	n, err := strconv.ParseUint(s, 8, 32)
+	if err != nil {
+		return 0, fmt.Errorf("not an octal mode: %w", err)
+	}
+	if n & ^chmodMask != 0 {
+		return 0, fmt.Errorf("mode bits outside 0o%o: 0o%o", chmodMask, n)
+	}
+	return os.FileMode(n), nil
 }
 
 func copyStringMap(in map[string]string) map[string]string {
@@ -112,18 +157,26 @@ func copyStringMap(in map[string]string) map[string]string {
 }
 
 type BuildTerminalSpecParams struct {
-	TerminalID       string
-	TerminalName     string
-	TerminalCmd      string
-	TerminalCmdArgs  []string
-	Cwd              string
-	CaptureFile      string
-	RunPath          string
-	ProfilesDir      string
-	ProfileName      string
-	LogFile          string
-	LogLevel         string
-	SocketFile       string
+	TerminalID      string
+	TerminalName    string
+	TerminalCmd     string
+	TerminalCmdArgs []string
+	Cwd             string
+	CaptureFile     string
+	RunPath         string
+	ProfilesDir     string
+	ProfileName     string
+	LogFile         string
+	LogLevel        string
+	SocketFile      string
+	// SocketMode is the raw octal flag value (e.g. "0660"). Empty means
+	// "no override; fall through to the profile or the runner default".
+	SocketMode string
+	// SocketGID is the numeric GID flag value, or nil to fall through to
+	// the profile / leave the group unchanged. A nil pointer is required
+	// because a zero int is a valid GID (root), so we can't conflate it
+	// with "unset".
+	SocketGID        *int
 	EnvVars          []string
 	DisableSetPrompt bool
 	ShutdownGrace    time.Duration
@@ -250,8 +303,31 @@ func BuildTerminalSpec(
 		return nil, errCreate
 	}
 	addInputValuesToTerminal(terminalSpec, input)
+	if errSocket := applySocketOverrides(terminalSpec, input); errSocket != nil {
+		return nil, errSocket
+	}
 
 	return terminalSpec, nil
+}
+
+// applySocketOverrides resolves the socket mode/gid precedence: explicit
+// flag/env values win over the profile's spec.socket; unset stays at
+// whatever CreateTerminalFromProfile produced (which is the profile value
+// or the zero value, the latter telling the runner to use 0o600 with no
+// chown).
+func applySocketOverrides(spec *api.TerminalSpec, input *BuildTerminalSpecParams) error {
+	if input.SocketMode != "" {
+		mode, err := parseSocketMode(input.SocketMode)
+		if err != nil {
+			return fmt.Errorf("%w: invalid socket mode %q: %w", errdefs.ErrInvalidFlag, input.SocketMode, err)
+		}
+		spec.SocketMode = mode
+	}
+	if input.SocketGID != nil {
+		g := *input.SocketGID
+		spec.SocketGID = &g
+	}
+	return nil
 }
 
 // addInputValuesToTerminal mutates terminalSpec by overriding its fields with non-empty values from input.

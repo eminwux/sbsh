@@ -82,6 +82,9 @@ spec:
       - script: echo "Starting..."
     postAttach: # Run after attaching
       - script: echo "Attached!"
+  socket: # Control-socket permissions (optional)
+    mode: "0660" # Octal string; defaults to 0600 if omitted
+    gid: 986 # Numeric host GID; omit to leave the group unchanged
 ```
 
 ## Field Reference
@@ -189,6 +192,49 @@ Lifecycle hooks that run at specific points in the terminal lifecycle.
     - script: kubectl get pods
     - script: git status
   ```
+
+#### `socket` section (optional)
+
+Configures the filesystem permissions of the terminal's control socket — the
+Unix domain socket that `sbsh attach` (and any other client) connects to.
+Both fields are optional; omitting the block keeps the legacy owner-only
+behavior (`srw------- listener-uid:listener-gid`), which is the right default
+when no other uid needs to attach.
+
+```yaml
+spec:
+  # ...
+  socket:
+    mode: "0660" # Octal string; defaults to "0600" if omitted
+    gid: 986 # Numeric host GID; omit to leave group unchanged
+```
+
+**`mode`** (optional, default `"0600"`)
+
+- Octal string applied via `chmod` after `Listen()`
+- Quote it (`"0660"`) so YAML does not silently re-parse octal as decimal
+- The leading `0` is optional — both `"0660"` and `"660"` work
+- Mode bits outside `0o7777` are rejected at profile load
+
+**`gid`** (optional, default unset)
+
+- Numeric host GID applied via `chown(socket, -1, gid)` after `Listen()`
+- The listener's uid stays the owner; only the group is rewritten
+- Omit the field (or leave it `null`) to leave the socket's group at the
+  listener's primary group
+
+The same configuration can also be supplied at launch time and overrides the
+profile when set. The root command and the `terminal` subcommand each take
+their own flag:
+
+- `sbsh --terminal-socket-mode 0660 --terminal-socket-gid 986`
+  (or `SBSH_ROOT_TERM_SOCKET_MODE=0660` / `SBSH_ROOT_TERM_SOCKET_GID=986`)
+- `sbsh terminal --socket-mode 0660 --socket-gid 986`
+  (or `SBSH_TERM_SOCKET_MODE=0660` / `SBSH_TERM_SOCKET_GID=986`)
+
+Widening the mode and setting a host group is opt-in for callers that share a
+terminal across uids in the same group; the default (no `socket` block, no
+flag) preserves owner-only access exactly as in earlier releases.
 
 ## Example Profiles
 

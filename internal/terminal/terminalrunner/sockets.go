@@ -25,11 +25,27 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// defaultSocketMode is the legacy owner-only mode applied when the spec
+// leaves SocketMode at its zero value. Group/world access is opt-in via
+// the --socket-mode flag, SBSH_TERM_SOCKET_MODE env, or the profile's
+// spec.socket.mode field.
+const defaultSocketMode os.FileMode = 0o600
+
 func (sr *Exec) OpenSocketCtrl() error {
 	sr.metadataMu.Lock()
 	socketFile := sr.metadata.Spec.SocketFile
+	socketMode := sr.metadata.Spec.SocketMode
+	var socketGID *int
+	if g := sr.metadata.Spec.SocketGID; g != nil {
+		gv := *g
+		socketGID = &gv
+	}
 	sr.metadata.Status.SocketFile = socketFile
 	sr.metadataMu.Unlock()
+
+	if socketMode == 0 {
+		socketMode = defaultSocketMode
+	}
 
 	sr.logger.Debug("OpenSocketCtrl: preparing to listen", "socket", socketFile)
 	errMetadata := sr.updateMetadata()
@@ -60,16 +76,37 @@ func (sr *Exec) OpenSocketCtrl() error {
 	// keep references for Close()
 	sr.lnCtrl = ctrlLn
 
-	if errChmod := os.Chmod(socketFile, 0o600); errChmod != nil {
+	if errChmod := os.Chmod(socketFile, socketMode); errChmod != nil {
 		sr.logger.Error(
 			"OpenSocketCtrl: failed to chmod socket file",
 			"socket",
 			socketFile,
+			"mode",
+			fmt.Sprintf("0o%o", socketMode),
 			"error",
 			errChmod,
 		)
 		_ = ctrlLn.Close()
 		return errChmod
+	}
+
+	if socketGID != nil {
+		// Chown(-1, gid) keeps the listener's uid as owner and only
+		// rewrites the group, so the inode permits group-mode access
+		// without changing the controlling identity.
+		if errChown := os.Chown(socketFile, -1, *socketGID); errChown != nil {
+			sr.logger.Error(
+				"OpenSocketCtrl: failed to chown socket file",
+				"socket",
+				socketFile,
+				"gid",
+				*socketGID,
+				"error",
+				errChown,
+			)
+			_ = ctrlLn.Close()
+			return errChown
+		}
 	}
 
 	// update metadata with socket file path
