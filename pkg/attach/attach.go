@@ -162,9 +162,27 @@ func Run(ctx context.Context, opts Options) error {
 		if ctrlErr == nil || errors.Is(ctrlErr, context.Canceled) {
 			return nil
 		}
-		// Drain WaitClose to release internal resources; surface the
-		// run error to the caller untouched.
+		// Drain WaitClose to release internal resources, then map the
+		// controller-level session-end sentinel to the matching public
+		// sentinel so embedders can branch with errors.Is. Setup and
+		// infrastructure failures (no errdefs session-end sentinel
+		// chained) keep their identity.
 		_ = ctrl.WaitClose()
-		return ctrlErr
+		return classifySessionEnd(ctrlErr)
+	}
+}
+
+// classifySessionEnd maps a controller-level error from Run to the
+// matching public sentinel. errdefs.ErrClientDetached → ErrDetached;
+// errdefs.ErrPeerClosed → ErrPeerClosed; anything else is returned
+// unchanged so existing errdefs.* matches keep working.
+func classifySessionEnd(err error) error {
+	switch {
+	case errors.Is(err, errdefs.ErrClientDetached):
+		return fmt.Errorf("%w: %w", ErrDetached, err)
+	case errors.Is(err, errdefs.ErrPeerClosed):
+		return fmt.Errorf("%w: %w", ErrPeerClosed, err)
+	default:
+		return err
 	}
 }

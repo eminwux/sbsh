@@ -1603,6 +1603,205 @@ func Test_EventDetachFailure(t *testing.T) {
 	<-exitCh
 }
 
+// Test_EventError_PeerClosed asserts that a bare EvError (no preceding
+// EvDetach) tags the close reason with errdefs.ErrPeerClosed so
+// pkg/attach.Run can surface attach.ErrPeerClosed at the public
+// boundary.
+func Test_EventError_PeerClosed(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sc := NewClientController(context.Background(), logger).(*Controller)
+
+	closeReason := make(chan error, 1)
+	sc.NewClientRunner = func(ctx context.Context, logger *slog.Logger, _ *api.ClientDoc, _ chan<- clientrunner.Event) clientrunner.ClientRunner {
+		return &clientrunner.Test{
+			Ctx:    ctx,
+			Logger: logger,
+			OpenSocketCtrlFunc: func() error {
+				return nil
+			},
+			StartServerFunc: func(_ context.Context, _ *clientrpc.ClientControllerRPC, readyCh chan error, _ chan error) {
+				select {
+				case readyCh <- nil:
+				default:
+				}
+			},
+			AttachFunc:         func(_ *api.AttachedTerminal) error { return nil },
+			IDFunc:             func() api.ID { return "test-terminal" },
+			CloseFunc:          func(reason error) error { closeReason <- reason; return nil },
+			ResizeFunc:         func(_ api.ResizeArgs) {},
+			CreateMetadataFunc: func() error { return nil },
+			StartTerminalCmdFunc: func(_ *api.AttachedTerminal) error {
+				return nil
+			},
+		}
+	}
+
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc:        func(_ *api.AttachedTerminal) error { return nil },
+			GetFunc:        func(_ api.ID) (*api.AttachedTerminal, bool) { return nil, false },
+			ListLiveFunc:   func() []api.ID { return []api.ID{} },
+			RemoveFunc:     func(_ api.ID) {},
+			CurrentFunc:    func() api.ID { return "sess-1" },
+			SetCurrentFunc: func(_ api.ID) error { return nil },
+		}
+	}
+
+	clientID := naming.RandomID()
+	doc := &api.ClientDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
+			Name:        "default",
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.ClientSpec{
+			ID:           api.ID(clientID),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString("global.runPath"),
+			TerminalSpec: &api.TerminalSpec{ID: "test-terminal"},
+		},
+	}
+
+	exitCh := make(chan error)
+	go func() {
+		exitCh <- sc.Run(doc)
+	}()
+	<-sc.ctrlReadyCh
+
+	sc.eventsCh <- clientrunner.Event{
+		ID:   "test-terminal",
+		Type: clientrunner.EvError,
+		Err:  errors.New("read/write routines exited"),
+		When: time.Now(),
+	}
+
+	select {
+	case reason := <-closeReason:
+		if !errors.Is(reason, errdefs.ErrPeerClosed) {
+			t.Fatalf("expected close reason to wrap errdefs.ErrPeerClosed, got: %v", reason)
+		}
+		if errors.Is(reason, errdefs.ErrClientDetached) {
+			t.Fatalf("expected close reason NOT to match errdefs.ErrClientDetached, got: %v", reason)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("CloseFunc was not called after EvError")
+	}
+
+	runErr := <-exitCh
+	if !errors.Is(runErr, errdefs.ErrPeerClosed) {
+		t.Fatalf("expected Run to return error wrapping errdefs.ErrPeerClosed, got: %v", runErr)
+	}
+}
+
+// Test_EventDetachThenError_ClientDetached asserts that an EvDetach
+// followed by EvError (the real-world flow: keystroke triggers Detach
+// RPC, terminal closes the IO conn, dual-copier reports it as a teardown)
+// tags the close reason with errdefs.ErrClientDetached so the public
+// boundary can route operators back into a re-attach loop instead of
+// killing the cell.
+func Test_EventDetachThenError_ClientDetached(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	sc := NewClientController(context.Background(), logger).(*Controller)
+
+	detachCalled := make(chan struct{}, 1)
+	closeReason := make(chan error, 1)
+	sc.NewClientRunner = func(ctx context.Context, logger *slog.Logger, _ *api.ClientDoc, _ chan<- clientrunner.Event) clientrunner.ClientRunner {
+		return &clientrunner.Test{
+			Ctx:    ctx,
+			Logger: logger,
+			OpenSocketCtrlFunc: func() error {
+				return nil
+			},
+			StartServerFunc: func(_ context.Context, _ *clientrpc.ClientControllerRPC, readyCh chan error, _ chan error) {
+				select {
+				case readyCh <- nil:
+				default:
+				}
+			},
+			AttachFunc:         func(_ *api.AttachedTerminal) error { return nil },
+			IDFunc:             func() api.ID { return "test-terminal" },
+			CloseFunc:          func(reason error) error { closeReason <- reason; return nil },
+			ResizeFunc:         func(_ api.ResizeArgs) {},
+			CreateMetadataFunc: func() error { return nil },
+			StartTerminalCmdFunc: func(_ *api.AttachedTerminal) error {
+				return nil
+			},
+			DetachFunc: func() error { detachCalled <- struct{}{}; return nil },
+		}
+	}
+
+	sc.NewTerminalStore = func() terminalstore.TerminalStore {
+		return &terminalstore.Test{
+			AddFunc:        func(_ *api.AttachedTerminal) error { return nil },
+			GetFunc:        func(_ api.ID) (*api.AttachedTerminal, bool) { return nil, false },
+			ListLiveFunc:   func() []api.ID { return []api.ID{} },
+			RemoveFunc:     func(_ api.ID) {},
+			CurrentFunc:    func() api.ID { return "sess-1" },
+			SetCurrentFunc: func(_ api.ID) error { return nil },
+		}
+	}
+
+	clientID := naming.RandomID()
+	doc := &api.ClientDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
+			Name:        "default",
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.ClientSpec{
+			ID:           api.ID(clientID),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString("global.runPath"),
+			TerminalSpec: &api.TerminalSpec{ID: "test-terminal"},
+		},
+	}
+
+	exitCh := make(chan error)
+	go func() {
+		exitCh <- sc.Run(doc)
+	}()
+	<-sc.ctrlReadyCh
+
+	sc.eventsCh <- clientrunner.Event{
+		ID:   "test-terminal",
+		Type: clientrunner.EvDetach,
+		When: time.Now(),
+	}
+	select {
+	case <-detachCalled:
+	case <-time.After(1 * time.Second):
+		t.Fatal("DetachFunc was not called after EvDetach")
+	}
+
+	sc.eventsCh <- clientrunner.Event{
+		ID:   "test-terminal",
+		Type: clientrunner.EvError,
+		Err:  errors.New("read/write routines exited"),
+		When: time.Now(),
+	}
+
+	select {
+	case reason := <-closeReason:
+		if !errors.Is(reason, errdefs.ErrClientDetached) {
+			t.Fatalf("expected close reason to wrap errdefs.ErrClientDetached, got: %v", reason)
+		}
+		if errors.Is(reason, errdefs.ErrPeerClosed) {
+			t.Fatalf("expected close reason NOT to match errdefs.ErrPeerClosed, got: %v", reason)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("CloseFunc was not called after EvError following EvDetach")
+	}
+
+	runErr := <-exitCh
+	if !errors.Is(runErr, errdefs.ErrClientDetached) {
+		t.Fatalf("expected Run to return error wrapping errdefs.ErrClientDetached, got: %v", runErr)
+	}
+}
+
 func Test_EventUnknown(_ *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	sc := NewClientController(context.Background(), logger).(*Controller)
