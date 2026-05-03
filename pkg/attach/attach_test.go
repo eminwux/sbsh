@@ -19,12 +19,14 @@ package attach_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -205,6 +207,82 @@ func TestRun_AttachFailureReturnsError(t *testing.T) {
 	}
 }
 
+// TestClassifySessionEnd_NilPassthrough confirms the helper is safe to
+// call with nil input — the same shape Run uses on the happy path.
+func TestClassifySessionEnd_NilPassthrough(t *testing.T) {
+	t.Parallel()
+	if got := attach.ClassifySessionEnd(nil); got != nil {
+		t.Fatalf("expected nil, got %v", got)
+	}
+}
+
+// TestClassifySessionEnd_ClientDetached confirms a controller error
+// chained with errdefs.ErrClientDetached surfaces as attach.ErrDetached
+// while preserving the inner sentinel and the substrings kukeon's
+// pre-migration string match relies on.
+func TestClassifySessionEnd_ClientDetached(t *testing.T) {
+	t.Parallel()
+	in := fmt.Errorf("%w: %w", errdefs.ErrCloseReq,
+		fmt.Errorf("%w: %w", errdefs.ErrClientDetached, errors.New("read/write routines exited")))
+	got := attach.ClassifySessionEnd(in)
+	if !errors.Is(got, attach.ErrDetached) {
+		t.Fatalf("expected attach.ErrDetached match, got: %v", got)
+	}
+	if errors.Is(got, attach.ErrPeerClosed) {
+		t.Fatalf("did not expect attach.ErrPeerClosed match, got: %v", got)
+	}
+	if !errors.Is(got, errdefs.ErrClientDetached) {
+		t.Fatalf("expected chain to preserve errdefs.ErrClientDetached, got: %v", got)
+	}
+	for _, sub := range []string{"close requested", "read/write routines exited"} {
+		if !strings.Contains(got.Error(), sub) {
+			t.Fatalf("expected error text to contain %q, got %q", sub, got.Error())
+		}
+	}
+}
+
+// TestClassifySessionEnd_PeerClosed confirms a controller error chained
+// with errdefs.ErrPeerClosed surfaces as attach.ErrPeerClosed while
+// preserving the inner sentinel and the legacy substrings.
+func TestClassifySessionEnd_PeerClosed(t *testing.T) {
+	t.Parallel()
+	in := fmt.Errorf("%w: %w", errdefs.ErrCloseReq,
+		fmt.Errorf("%w: %w", errdefs.ErrPeerClosed, errors.New("read/write routines exited")))
+	got := attach.ClassifySessionEnd(in)
+	if !errors.Is(got, attach.ErrPeerClosed) {
+		t.Fatalf("expected attach.ErrPeerClosed match, got: %v", got)
+	}
+	if errors.Is(got, attach.ErrDetached) {
+		t.Fatalf("did not expect attach.ErrDetached match, got: %v", got)
+	}
+	if !errors.Is(got, errdefs.ErrPeerClosed) {
+		t.Fatalf("expected chain to preserve errdefs.ErrPeerClosed, got: %v", got)
+	}
+	for _, sub := range []string{"close requested", "read/write routines exited"} {
+		if !strings.Contains(got.Error(), sub) {
+			t.Fatalf("expected error text to contain %q, got %q", sub, got.Error())
+		}
+	}
+}
+
+// TestClassifySessionEnd_SetupErrorPassesThrough confirms setup-time
+// failures (no session-end sentinel chained) keep their original
+// identity so existing errdefs.ErrAttach matchers still fire.
+func TestClassifySessionEnd_SetupErrorPassesThrough(t *testing.T) {
+	t.Parallel()
+	in := fmt.Errorf("%w: %w", errdefs.ErrAttach, errors.New("fake: attach refused"))
+	got := attach.ClassifySessionEnd(in)
+	if errors.Is(got, attach.ErrDetached) || errors.Is(got, attach.ErrPeerClosed) {
+		t.Fatalf("did not expect public session-end sentinel, got: %v", got)
+	}
+	if !errors.Is(got, errdefs.ErrAttach) {
+		t.Fatalf("expected chain to preserve errdefs.ErrAttach, got: %v", got)
+	}
+	if !errors.Is(got, in) {
+		t.Fatalf("expected pass-through of input, got: %v", got)
+	}
+}
+
 // TestRun_NilLoggerDoesNotPanic verifies the Options.Logger == nil
 // branch falls back to a discard logger rather than dereferencing nil.
 func TestRun_NilLoggerDoesNotPanic(t *testing.T) {
@@ -232,4 +310,3 @@ func TestRun_NilLoggerDoesNotPanic(t *testing.T) {
 	})
 	// No panic == pass.
 }
-

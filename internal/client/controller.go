@@ -54,6 +54,14 @@ type Controller struct {
 	closedCh     chan struct{}
 	shuttingDown atomic.Bool
 
+	// detachRequested is set whenever Detach() runs (keystroke event or
+	// external RPC). The dual-copier teardown that follows surfaces as
+	// EvError "read/write routines exited" — indistinguishable from a
+	// peer hangup at that layer. handleEvent reads this flag to decide
+	// whether to tag the close reason as ErrClientDetached or
+	// ErrPeerClosed so pkg/attach can surface the right public sentinel.
+	detachRequested atomic.Bool
+
 	eventsCh chan clientrunner.Event
 
 	rpcReadyCh chan error
@@ -400,7 +408,7 @@ func (s *Controller) handleEvent(ev clientrunner.Event) {
 
 	case clientrunner.EvError:
 		s.logger.ErrorContext(s.ctx, "terminal EvError", "id", ev.ID, "err", ev.Err)
-		s.onClosed(ev.ID, ev.Err)
+		s.onClosed(ev.ID, s.classifySessionEnd(ev.Err))
 	case clientrunner.EvDetach:
 		s.logger.InfoContext(s.ctx, "terminal EvDetach", "id", ev.ID)
 		err := s.Detach()
@@ -450,11 +458,31 @@ func (s *Controller) WaitClose() error {
 }
 
 func (s *Controller) Detach() error {
+	// Mark before issuing the RPC: the terminal's Detach response triggers
+	// an asynchronous IO conn close, and the resulting EvError must be
+	// classified as a clean detach even when the runner returns an error
+	// from the RPC itself.
+	s.detachRequested.Store(true)
 	// Request detach from terminal
 	if err := s.sr.Detach(); err != nil {
 		return fmt.Errorf("%w: %w", errdefs.ErrDetachTerminal, err)
 	}
 	return nil
+}
+
+// classifySessionEnd wraps the dual-copier teardown error with the
+// matching internal sentinel so pkg/attach.Run can surface a public
+// detach-vs-hangup distinction. A nil cause still carries the sentinel
+// so embedders can errors.Is even when the runner emitted no detail.
+func (s *Controller) classifySessionEnd(cause error) error {
+	sentinel := errdefs.ErrPeerClosed
+	if s.detachRequested.Load() {
+		sentinel = errdefs.ErrClientDetached
+	}
+	if cause == nil {
+		return sentinel
+	}
+	return fmt.Errorf("%w: %w", sentinel, cause)
 }
 
 func (s *Controller) Ping(in *api.PingMessage) (*api.PingMessage, error) {

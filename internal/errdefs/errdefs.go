@@ -85,4 +85,16 @@ var (
 	ErrTerminalStdinClosed    = errors.New("terminal stdin is closed")
 	ErrSubscriberLagged       = errors.New("subscriber fell behind and was disconnected")
 	ErrInvalidProfiles        = errors.New("one or more profiles failed validation")
+	// ErrClientDetached marks a session-end caused by the operator's
+	// in-band detach keystroke (or by an external Detach RPC). The
+	// remote terminal stays alive — re-attach is possible. Internal
+	// callers chain this on the close reason; pkg/attach.Run remaps it
+	// to attach.ErrDetached at the public boundary.
+	ErrClientDetached = errors.New("client detached")
+	// ErrPeerClosed marks a session-end caused by the remote terminal
+	// dropping the IO connection — workload exited, peer crashed, or
+	// the session otherwise ended on the far side. Internal callers
+	// chain this on the close reason; pkg/attach.Run remaps it to
+	// attach.ErrPeerClosed at the public boundary.
+	ErrPeerClosed = errors.New("peer closed connection")
 )
