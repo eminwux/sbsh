@@ -73,13 +73,13 @@ go run . -mode attach -sbsh "$(pwd)/../../../sbsh" -v
 
 Flags:
 
-| Flag | Description |
-| --- | --- |
-| `-sbsh` | **Required.** Absolute path to the `sbsh` binary. |
-| `-sb` | Absolute path to the `sb` binary. Defaults to `$(dirname <sbsh>)/sb`. Only consulted in `-mode=rpc`. |
-| `-mode` | `rpc` (default) or `attach`. See "What it does" above. |
+| Flag          | Description                                                                                               |
+| ------------- | --------------------------------------------------------------------------------------------------------- |
+| `-sbsh`       | **Required.** Absolute path to the `sbsh` binary.                                                         |
+| `-sb`         | Absolute path to the `sb` binary. Defaults to `$(dirname <sbsh>)/sb`. Only consulted in `-mode=rpc`.      |
+| `-mode`       | `rpc` (default) or `attach`. See "What it does" above.                                                    |
 | `-state-root` | Run path for sbsh state. Defaults to a fresh `$TMPDIR/sbsh-lib-example-*` directory (cleaned up on exit). |
-| `-v` | Log spawn/RPC internals at debug level. |
+| `-v`          | Log spawn/RPC internals at debug level.                                                                   |
 
 ### Headless contexts (`-mode=attach`)
 

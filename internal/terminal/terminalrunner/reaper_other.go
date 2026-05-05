@@ -25,8 +25,8 @@ import "log/slog"
 // PID 1.
 type reaper struct{}
 
-func newReaper(_ *slog.Logger) *reaper          { return &reaper{} }
-func (r *reaper) Start()                        {}
-func (r *reaper) Stop()                         {}
-func (r *reaper) RegisterChild(_ int)           {}
-func (r *reaper) TrackedExitCh() <-chan int     { return nil }
+func newReaper(_ *slog.Logger) *reaper      { return &reaper{} }
+func (r *reaper) Start()                    {}
+func (r *reaper) Stop()                     {}
+func (r *reaper) RegisterChild(_ int)       {}
+func (r *reaper) TrackedExitCh() <-chan int { return nil }

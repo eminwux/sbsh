@@ -12,15 +12,15 @@ A complete, build-tested example lives at
 
 The public library lives under [`github.com/eminwux/sbsh/pkg`](https://pkg.go.dev/github.com/eminwux/sbsh/pkg):
 
-| Package | Purpose |
-| --- | --- |
-| `pkg/api` | Declarative document types (`TerminalDoc`, `TerminalSpec`, `ClientDoc`, `TerminalProfileDoc`, …) and RPC payload types (`PingMessage`, `WriteRequest`, `SubscribeRequest`, `StopArgs`, …). Counterpart of the YAML/JSON manifests. |
-| `pkg/builder` | Construct a `TerminalSpec` or `ClientDoc` from a profile name plus inline overrides (`WithProfile`, `WithProfilesDir`, `WithCommand`, `WithEnv`, `WithClientMode`, …). No YAML round-trip. |
-| `pkg/spawn` | Launch detached `Terminal` and `Client` subprocesses (`NewTerminal`, `NewClient`). Returns `TerminalHandle` / `ClientHandle` with `PID`, `SocketPath`, `WaitReady`, `WaitClose`, `Close`. |
-| `pkg/discovery` | Enumerate live terminals/clients or look them up by ID/Name under a run path (`ScanTerminals`, `FindTerminalByID`, `FindTerminalByName`, `ScanClients`, `FindClientByName`). Load profiles from disk (`LoadProfilesFromDir`, `FindProfileByNameInDir`). |
-| `pkg/rpcclient/terminal` | JSON-RPC client for the `TerminalController` socket (`Ping`, `Resize`, `Attach`, `Detach`, `Metadata`, `State`, `Stop`, `Write`, `Subscribe`). |
-| `pkg/rpcclient/client` | JSON-RPC client for the `ClientController` socket (`Ping`, `Metadata`, `State`, `Stop`, `Detach`). |
-| `pkg/errors` | Curated error sentinels re-exported from `internal/errdefs`. Use `errors.Is` to branch on well-known failure modes without importing internal packages. |
+| Package                  | Purpose                                                                                                                                                                                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pkg/api`                | Declarative document types (`TerminalDoc`, `TerminalSpec`, `ClientDoc`, `TerminalProfileDoc`, …) and RPC payload types (`PingMessage`, `WriteRequest`, `SubscribeRequest`, `StopArgs`, …). Counterpart of the YAML/JSON manifests.                      |
+| `pkg/builder`            | Construct a `TerminalSpec` or `ClientDoc` from a profile name plus inline overrides (`WithProfile`, `WithProfilesDir`, `WithCommand`, `WithEnv`, `WithClientMode`, …). No YAML round-trip.                                                              |
+| `pkg/spawn`              | Launch detached `Terminal` and `Client` subprocesses (`NewTerminal`, `NewClient`). Returns `TerminalHandle` / `ClientHandle` with `PID`, `SocketPath`, `WaitReady`, `WaitClose`, `Close`.                                                               |
+| `pkg/discovery`          | Enumerate live terminals/clients or look them up by ID/Name under a run path (`ScanTerminals`, `FindTerminalByID`, `FindTerminalByName`, `ScanClients`, `FindClientByName`). Load profiles from disk (`LoadProfilesFromDir`, `FindProfileByNameInDir`). |
+| `pkg/rpcclient/terminal` | JSON-RPC client for the `TerminalController` socket (`Ping`, `Resize`, `Attach`, `Detach`, `Metadata`, `State`, `Stop`, `Write`, `Subscribe`).                                                                                                          |
+| `pkg/rpcclient/client`   | JSON-RPC client for the `ClientController` socket (`Ping`, `Metadata`, `State`, `Stop`, `Detach`).                                                                                                                                                      |
+| `pkg/errors`             | Curated error sentinels re-exported from `internal/errdefs`. Use `errors.Is` to branch on well-known failure modes without importing internal packages.                                                                                                 |
 
 Nothing under `internal/` is part of the supported surface and
 Go's visibility rules prevent external modules from importing it.
