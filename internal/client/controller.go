@@ -50,7 +50,6 @@ type Controller struct {
 
 	ctrlReadyCh  chan struct{}
 	closeReqCh   chan error
-	closingCh    chan error
 	closedCh     chan struct{}
 	shuttingDown atomic.Bool
 
@@ -92,7 +91,6 @@ func NewClientControllerWithIO(
 		cancel:      cancel,
 		logger:      logger,
 		closedCh:    make(chan struct{}),
-		closingCh:   make(chan error, 1),
 		ctrlReadyCh: make(chan struct{}),
 		// rpcReadyCh is buffered (cap 1) so StartServer can deposit its
 		// one-shot ready signal without blocking on a receiver. Run watches
@@ -428,15 +426,13 @@ func (s *Controller) onClosed(_ api.ID, err error) {
 func (s *Controller) Close(reason error) error {
 	// CompareAndSwap fuses the shutting-down check with the flip so that
 	// concurrent Close callers cannot both enter the body and re-send on the
-	// one-shot closeReqCh / closingCh — see the matching fix in
+	// one-shot closeReqCh — see the matching fix in
 	// internal/terminal/controller.go.
 	if !s.shuttingDown.CompareAndSwap(false, true) {
 		s.logger.Info("shutdown sequence already in progress, ignoring duplicate request", "reason", reason)
 		return nil
 	}
 	s.logger.Info("initiating shutdown sequence", "reason", reason)
-	// Set closing reason
-	s.closingCh <- reason
 
 	// Notify terminal runner to close all terminals
 	_ = s.sr.Close(reason)

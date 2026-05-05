@@ -2012,21 +2012,11 @@ func Test_CloseIdempotent(t *testing.T) {
 	// Initialize sr to avoid nil pointer
 	sc.sr = sc.NewClientRunner(sc.ctx, sc.logger, nil, sc.eventsCh)
 
-	// Start a goroutine to drain closingCh (simulating what Run() does)
-	go func() {
-		errC := <-sc.closingCh
-		sc.shuttingDown.Store(true)
-		sc.logger.Warn("controller closing", "reason", errC)
-	}()
-
 	// First close
 	err1 := sc.Close(errors.New("first close"))
 	if err1 != nil {
 		t.Fatalf("expected nil error from first Close; got: '%v'", err1)
 	}
-
-	// Wait a bit for shuttingDown to be set
-	time.Sleep(10 * time.Millisecond)
 
 	// Second close should be idempotent
 	err2 := sc.Close(errors.New("second close"))
@@ -2055,21 +2045,11 @@ func Test_CloseErrorHandling(t *testing.T) {
 
 	sc.sr = sc.NewClientRunner(sc.ctx, sc.logger, nil, sc.eventsCh)
 
-	// Start a goroutine to drain closingCh (simulating what Run() does)
-	go func() {
-		errC := <-sc.closingCh
-		sc.shuttingDown.Store(true)
-		sc.logger.Warn("controller closing", "reason", errC)
-	}()
-
 	// Close should still succeed even if sr.Close returns an error
 	err := sc.Close(errors.New("test close"))
 	if err != nil {
 		t.Fatalf("expected nil error from Close even when sr.Close fails; got: '%v'", err)
 	}
-
-	// Wait a bit for shuttingDown to be set by the goroutine
-	time.Sleep(10 * time.Millisecond)
 
 	// Verify shuttingDown is set
 	if !sc.shuttingDown.Load() {
