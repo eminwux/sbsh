@@ -330,6 +330,85 @@ spec:
 	}
 }
 
+// WithSocketMode threads the octal mode string through to spec.SocketMode.
+// Empty leaves spec.SocketMode at its zero value (runner default, 0o600).
+func TestBuildTerminalSpec_WithSocketMode(t *testing.T) {
+	runPath := t.TempDir()
+
+	// Default: no WithSocketMode → zero value, runner picks 0o600.
+	spec, err := builder.BuildTerminalSpec(context.Background(), testLogger(), runPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.SocketMode != 0 {
+		t.Fatalf("default socketMode: want 0, got 0o%o", spec.SocketMode)
+	}
+
+	// Override: "0660" parses to 0o660.
+	spec, err = builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithSocketMode("0660"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.SocketMode != 0o660 {
+		t.Fatalf("socketMode: want 0o660, got 0o%o", spec.SocketMode)
+	}
+}
+
+// WithSocketGID threads the explicit gid through to spec.SocketGID, and
+// preserves the unset/zero distinction: never calling WithSocketGID leaves
+// spec.SocketGID nil; calling WithSocketGID(0) sets *spec.SocketGID to 0.
+func TestBuildTerminalSpec_WithSocketGID(t *testing.T) {
+	runPath := t.TempDir()
+
+	// Default: no WithSocketGID → nil pointer, runner leaves group unchanged.
+	spec, err := builder.BuildTerminalSpec(context.Background(), testLogger(), runPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.SocketGID != nil {
+		t.Fatalf("default socketGID: want nil, got %d", *spec.SocketGID)
+	}
+
+	// Explicit non-zero: gets forwarded as the same value.
+	spec, err = builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithSocketGID(1234),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.SocketGID == nil {
+		t.Fatalf("socketGID: want non-nil pointer to 1234, got nil")
+	}
+	if *spec.SocketGID != 1234 {
+		t.Fatalf("socketGID: want 1234, got %d", *spec.SocketGID)
+	}
+
+	// Explicit zero: WithSocketGID(0) means "set to root", distinct from unset.
+	spec, err = builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithSocketGID(0),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.SocketGID == nil {
+		t.Fatalf("socketGID(0): want non-nil pointer to 0, got nil")
+	}
+	if *spec.SocketGID != 0 {
+		t.Fatalf("socketGID(0): want 0, got %d", *spec.SocketGID)
+	}
+}
+
 // WithCommand with empty argv (or empty argv[0]) is a no-op.
 func TestBuildTerminalSpec_WithCommandEmpty(t *testing.T) {
 	runPath := t.TempDir()
