@@ -311,7 +311,7 @@ way docker run, kubectl exec, runc exec, ctr run, sudo, env, and nsenter all
 take their argv.
 
 Examples:
-  sbsh terminal --name myterminal -- /bin/zsh
+  sbsh terminal --name my-terminal -- /bin/zsh
   sbsh terminal --profile devprofile
   sbsh terminal --profile devprofile --name customname -- /usr/bin/fish
   sbsh terminal -- /bin/sleep 3600
