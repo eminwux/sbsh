@@ -22,9 +22,11 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/eminwux/sbsh/internal/errdefs"
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
 func TestBuildTerminalSpec_EmptyRunPath_ReturnsErrRunPathRequired(t *testing.T) {
@@ -33,6 +35,62 @@ func TestBuildTerminalSpec_EmptyRunPath_ReturnsErrRunPathRequired(t *testing.T) 
 	_, err := BuildTerminalSpec(context.Background(), logger, &BuildTerminalSpecParams{})
 	if !errors.Is(err, errdefs.ErrRunPathRequired) {
 		t.Fatalf("expected errdefs.ErrRunPathRequired, got %v", err)
+	}
+}
+
+func profileWithSocketGID(name string, gid *int) *api.TerminalProfileDoc {
+	return &api.TerminalProfileDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindTerminalProfile,
+		Metadata:   api.TerminalProfileMetadata{Name: name},
+		Spec: api.TerminalProfileSpec{
+			RunTarget: api.RunTargetLocal,
+			Shell:     api.ShellSpec{Cmd: "/bin/bash"},
+			Socket:    &api.SocketSpec{GID: gid},
+		},
+	}
+}
+
+func TestCreateTerminalFromProfile_RejectsNegativeGID(t *testing.T) {
+	gid := -5
+	_, err := CreateTerminalFromProfile(profileWithSocketGID("tprof", &gid))
+	if err == nil {
+		t.Fatal("expected error for negative gid, got nil")
+	}
+	if !strings.Contains(err.Error(), "spec.socket.gid") {
+		t.Fatalf("error %q should mention spec.socket.gid", err.Error())
+	}
+	if !strings.Contains(err.Error(), "tprof") {
+		t.Fatalf("error %q should mention profile name", err.Error())
+	}
+}
+
+func TestCreateTerminalFromProfile_AcceptsValidGID(t *testing.T) {
+	gidZero := 0
+	gidPos := 1234
+	tests := []struct {
+		name string
+		gid  *int
+	}{
+		{name: "nil leaves group unchanged", gid: nil},
+		{name: "zero is a valid root gid", gid: &gidZero},
+		{name: "positive gid", gid: &gidPos},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			spec, err := CreateTerminalFromProfile(profileWithSocketGID("tprof", tc.gid))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			gotNil := spec.SocketGID == nil
+			wantNil := tc.gid == nil
+			if gotNil != wantNil {
+				t.Fatalf("SocketGID nil=%v, want nil=%v", gotNil, wantNil)
+			}
+			if !wantNil && *spec.SocketGID != *tc.gid {
+				t.Fatalf("SocketGID = %d, want %d", *spec.SocketGID, *tc.gid)
+			}
+		})
 	}
 }
 
