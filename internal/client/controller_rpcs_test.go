@@ -164,4 +164,3 @@ func TestController_Stop_NilArgsUsesDefaultReason(t *testing.T) {
 		t.Fatalf("Close was not triggered by Stop(nil)")
 	}
 }
-

@@ -9,7 +9,7 @@ on:
     branches:
       - main
     paths:
-      - 'docs/site/**'
+      - "docs/site/**"
   workflow_dispatch:
 
 jobs:

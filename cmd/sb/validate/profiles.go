@@ -70,9 +70,9 @@ rejected.`,
 // YAML file, together with the (partial) parse error that aborted reading
 // that file if any.
 type fileValidation struct {
-	Path       string
-	Results    []profile.ProfileValidationResult
-	DecodeErr  error
+	Path      string
+	Results   []profile.ProfileValidationResult
+	DecodeErr error
 }
 
 func runValidateProfiles(cmd *cobra.Command, args []string, stdout, stderr io.Writer) error {
@@ -236,4 +236,3 @@ func formatLabel(r profile.ProfileValidationResult) string {
 	}
 	return fmt.Sprintf("document %d (%s)", r.DocIndex, r.ProfileName)
 }
-

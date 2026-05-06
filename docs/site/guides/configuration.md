@@ -22,23 +22,23 @@ kind: Configuration
 metadata:
   name: default
 spec:
-  runPath: /path/to/state-root         # optional, default $HOME/.sbsh/run
-  profilesDir: /path/to/profiles.d     # optional, default $HOME/.sbsh/profiles.d
-  logLevel: info                       # optional, default info (debug|info|warn|error)
+  runPath: /path/to/state-root # optional, default $HOME/.sbsh/run
+  profilesDir: /path/to/profiles.d # optional, default $HOME/.sbsh/profiles.d
+  logLevel: info # optional, default info (debug|info|warn|error)
 ```
 
 All fields under `spec` are optional. An empty or missing field keeps the built-in default.
 
 ### Fields
 
-| Field              | Description                                                                                           |
-| ------------------ | ----------------------------------------------------------------------------------------------------- |
-| `apiVersion`       | Must be `sbsh/v1beta1`.                                                                               |
-| `kind`             | Must be `Configuration`. Any other kind is rejected.                                                  |
-| `metadata.name`    | Free-form label for the document. Optional.                                                           |
-| `spec.runPath`     | Root directory where sbsh writes per-terminal and per-client state.                                   |
-| `spec.profilesDir` | Directory scanned recursively for `*.yaml` / `*.yml` files containing `TerminalProfile` documents.    |
-| `spec.logLevel`    | Default log level when `--log-level` and `SBSH_LOG_LEVEL` are not provided.                           |
+| Field              | Description                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| `apiVersion`       | Must be `sbsh/v1beta1`.                                                                            |
+| `kind`             | Must be `Configuration`. Any other kind is rejected.                                               |
+| `metadata.name`    | Free-form label for the document. Optional.                                                        |
+| `spec.runPath`     | Root directory where sbsh writes per-terminal and per-client state.                                |
+| `spec.profilesDir` | Directory scanned recursively for `*.yaml` / `*.yml` files containing `TerminalProfile` documents. |
+| `spec.logLevel`    | Default log level when `--log-level` and `SBSH_LOG_LEVEL` are not provided.                        |
 
 ## Precedence
 

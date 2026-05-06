@@ -24,9 +24,10 @@ complexity. Items are ordered by priority.
 
 ## Gaps in detail
 
-### 1. No `sb get profile <name>` detail view  (P0) — **DONE**
+### 1. No `sb get profile <name>` detail view (P0) — **DONE**
 
 Closed by commit `e09b45e` (`feat: wide output for sb get`). At HEAD:
+
 - `sb get profile <name>` works via single-arg dispatch in
   `cmd/sb/get/profiles.go:42-50`; aliases `profile|prof|pro|p`.
 - `-o yaml|json` honored at `cmd/sb/get/profiles.go:60` and validated at
@@ -39,7 +40,7 @@ Residual polish (tracked informally): `printTerminalMetadata` duplicates
 output in the empty-format branch (`%+v` + `PrintHuman`);
 `FindProfileByName` returns a plain `fmt.Errorf` rather than a sentinel.
 
-### 2. No profile validation / lint command  (P0)
+### 2. No profile validation / lint command (P0)
 
 - **Observed:** An invalid profile (bad YAML, unknown field, invalid
   `runTarget`, malformed `prompt` escape) is only discovered when you try
@@ -53,7 +54,7 @@ output in the empty-format branch (`%+v` + `PrintHuman`);
   `runTarget: local`.
 - **Complexity:** Low–medium.
 
-### 3. No way to stop a live terminal  (P1) — **DONE**
+### 3. No way to stop a live terminal (P1) — **DONE**
 
 Implemented via a new `sb stop terminal <name>` command.
 
@@ -72,7 +73,7 @@ Implemented via a new `sb stop terminal <name>` command.
   command idempotent. Attached clients are warned then disconnected.
 - Metadata is left in place — `sb prune terminals` still owns cleanup.
 
-### 4. `sb get terminals` lacks PID and cwd  (P1)
+### 4. `sb get terminals` lacks PID and cwd (P1)
 
 - **Observed:** Columns are `NAME PROFILE TTY CREATED`. PID only appears in
   the launch output. `cwd` is not shown anywhere post-launch.
@@ -83,7 +84,7 @@ Implemented via a new `sb stop terminal <name>` command.
   already do this for `sb get`, per commit `e09b45e`).
 - **Complexity:** Low.
 
-### 5. No `sb logs` command; relying on `--terminal-capture-file`  (P1)
+### 5. No `sb logs` command; relying on `--terminal-capture-file` (P1)
 
 - **Observed:** To observe a detached terminal I had to pass
   `--terminal-capture-file /tmp/foo.log` at launch. The file contains raw ANSI
@@ -98,7 +99,7 @@ Implemented via a new `sb stop terminal <name>` command.
 - **Complexity:** Medium. Requires always-on capture (small buffer or
   on-disk ring).
 
-### 6. Profiles must live in one file  (P2) — RESOLVED
+### 6. Profiles must live in one file (P2) — RESOLVED
 
 - **Observed (historical):** `~/.sbsh/profiles.yaml` held all profiles separated
   by `---`. Editing one profile touched the shared file; concurrent edits by
@@ -110,7 +111,7 @@ Implemented via a new `sb stop terminal <name>` command.
   empty. The single-file layout is no longer read — breaking change,
   users migrate by dropping their profiles into `profiles.d/`.
 
-### 7. `onInit` semantics undocumented  (P2)
+### 7. `onInit` semantics undocumented (P2)
 
 - **Observed:** `internal/terminal/terminalrunner/lifecycle.go:259-282`
   shows `onInit` steps are typed into the PTY via `sr.Write(...)`. They are
@@ -130,14 +131,14 @@ Implemented via a new `sb stop terminal <name>` command.
   - Caveats: multi-line scripts, here-docs, and env scoping.
 - **Complexity:** Trivial (docs only).
 
-### 8. No structured output from `sb get`  (P2)
+### 8. No structured output from `sb get` (P2)
 
 - **Observed:** `sb get profiles` and `sb get terminals` emit a table only.
 - **Impact:** Agents cannot reliably parse output; must regex column widths.
 - **Fix:** Add `-o json` and `-o yaml` for both commands.
 - **Complexity:** Low.
 
-### 9. No published JSON Schema for `TerminalProfile`  (P3)
+### 9. No published JSON Schema for `TerminalProfile` (P3)
 
 - **Observed:** I had to cross-reference example profiles
   (`docs/profiles/*.yaml`) and the Go struct to confirm which fields exist
@@ -149,7 +150,7 @@ Implemented via a new `sb stop terminal <name>` command.
   and publish at `docs/schema/terminal-profile.json`.
 - **Complexity:** Medium.
 
-### 10. `--terminal-name` collision behavior  (P3)
+### 10. `--terminal-name` collision behavior (P3)
 
 - **Observed:** Behavior undocumented if a terminal with the same name
   already exists.
@@ -157,7 +158,7 @@ Implemented via a new `sb stop terminal <name>` command.
 - **Fix:** Document + either fail fast or append a suffix.
 - **Complexity:** Low.
 
-### 11. `CREATED` column sometimes shows `-`  (P3)
+### 11. `CREATED` column sometimes shows `-` (P3)
 
 - **Observed:** `sb get terminals` showed `CREATED: -` for
   `farseeing_smeagol` while others had `7m`.
@@ -167,10 +168,10 @@ Implemented via a new `sb stop terminal <name>` command.
   `api.State`.
 - **Complexity:** Low.
 
-### 12. Help text tautology  (P3)
+### 12. Help text tautology (P3)
 
 - **Observed:** `sbsh --help` prints `You can see available options and
-  commands with: sbsh help`.
+commands with: sbsh help`.
 - **Impact:** Confusing — `sbsh --help` already did that.
 - **Fix:** Replace with useful guidance (e.g. link to docs, or list
   example flows).
