@@ -81,6 +81,22 @@ type TerminalSpec struct {
 	// after Listen. nil leaves the group unchanged.
 	SocketGID *int `json:"socketGid,omitempty"`
 
+	// CaptureMode is the chmod applied to the per-terminal capture file
+	// after Open. Zero means "use the runner default" (0600), preserving
+	// owner-only behavior for callers that never set the field.
+	CaptureMode os.FileMode `json:"captureMode,omitempty"`
+	// CaptureGID is the numeric GID applied via chown(capture, -1, gid)
+	// after Open. nil leaves the group unchanged.
+	CaptureGID *int `json:"captureGid,omitempty"`
+
+	// LogFileMode is the chmod applied to the per-terminal log file after
+	// it is opened. Zero means "use the runner default" (0600), preserving
+	// owner-only behavior for callers that never set the field.
+	LogFileMode os.FileMode `json:"logFileMode,omitempty"`
+	// LogFileGID is the numeric GID applied via chown(logfile, -1, gid)
+	// after the log file is opened. nil leaves the group unchanged.
+	LogFileGID *int `json:"logFileGid,omitempty"`
+
 	ProfileName string     `json:"profileName"`
 	Stages      StagesSpec `json:"stages"`
 

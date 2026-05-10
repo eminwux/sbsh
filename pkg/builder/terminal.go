@@ -42,7 +42,11 @@ type terminalConfig struct {
 	envVars          []string
 	cwd              string
 	captureFile      string
+	captureMode      string
+	captureGID       *int
 	logFile          string
+	logFileMode      string
+	logFileGID       *int
 	logLevel         string
 	socketFile       string
 	socketMode       string
@@ -163,6 +167,46 @@ func WithSocketGID(gid int) TerminalOption {
 	}
 }
 
+// WithCaptureMode sets the chmod mode applied to the capture file
+// after Open, as an octal string ("0640", "640"). Empty means "no
+// override; fall through to the profile or the runner default
+// (0o600)".
+func WithCaptureMode(mode string) TerminalOption {
+	return func(c *terminalConfig) { c.captureMode = mode }
+}
+
+// WithCaptureGID sets the numeric GID applied via chown to the
+// capture file after Open. Calling this option means "explicitly
+// set"; the zero value is a valid GID (root) and is preserved.
+// Omitting the option leaves the group unchanged (or falls through
+// to the profile).
+func WithCaptureGID(gid int) TerminalOption {
+	return func(c *terminalConfig) {
+		g := gid
+		c.captureGID = &g
+	}
+}
+
+// WithLogFileMode sets the chmod mode applied to the log file
+// after Open, as an octal string ("0640", "640"). Empty means "no
+// override; fall through to the profile or the runner default
+// (0o600)".
+func WithLogFileMode(mode string) TerminalOption {
+	return func(c *terminalConfig) { c.logFileMode = mode }
+}
+
+// WithLogFileGID sets the numeric GID applied via chown to the log
+// file after Open. Calling this option means "explicitly set"; the
+// zero value is a valid GID (root) and is preserved. Omitting the
+// option leaves the group unchanged (or falls through to the
+// profile).
+func WithLogFileGID(gid int) TerminalOption {
+	return func(c *terminalConfig) {
+		g := gid
+		c.logFileGID = &g
+	}
+}
+
 // WithDisableSetPrompt disables sbsh's automatic PS1 injection
 // when true. The default (false) preserves the shell-prompt
 // rewriting behavior.
@@ -212,6 +256,10 @@ func BuildTerminalSpec(
 		SocketFile:       cfg.socketFile,
 		SocketMode:       cfg.socketMode,
 		SocketGID:        cfg.socketGID,
+		CaptureMode:      cfg.captureMode,
+		CaptureGID:       cfg.captureGID,
+		LogFileMode:      cfg.logFileMode,
+		LogFileGID:       cfg.logFileGID,
 		EnvVars:          cfg.envVars,
 		DisableSetPrompt: cfg.disableSetPrompt,
 	})

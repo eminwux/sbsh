@@ -31,6 +31,52 @@ import (
 // spec.socket.mode field.
 const defaultSocketMode os.FileMode = 0o600
 
+// defaultArtifactMode is the legacy owner-only mode applied when the
+// spec leaves CaptureMode / LogFileMode at their zero value. Group or
+// world access is opt-in via the matching --capture-* / --log-file-*
+// flags, env vars, or profile blocks. Same contract shape as
+// defaultSocketMode for the control socket.
+const defaultArtifactMode os.FileMode = 0o600
+
+// applyArtifactPerms chmods (and optionally chowns the group of) a
+// per-terminal artifact path that was just opened. Used for the capture
+// transcript and the log file — the control socket has its own helper in
+// OpenSocketCtrl because the path needs to be removed first and the
+// listener has to be torn down on failure.
+//
+// mode == 0 falls back to defaultArtifactMode so callers can pass the
+// raw spec field through without a guard. gid == nil leaves the group
+// unchanged. The chown form is Chown(path, -1, gid) so the listener's
+// uid stays the owner; only the group is rewritten.
+func (sr *Exec) applyArtifactPerms(label, path string, mode os.FileMode, gid *int) error {
+	if mode == 0 {
+		mode = defaultArtifactMode
+	}
+	if errChmod := os.Chmod(path, mode); errChmod != nil {
+		sr.logger.Error(
+			"applyArtifactPerms: chmod failed",
+			"artifact", label,
+			"path", path,
+			"mode", fmt.Sprintf("0o%o", mode),
+			"error", errChmod,
+		)
+		return fmt.Errorf("chmod %s: %w", label, errChmod)
+	}
+	if gid != nil {
+		if errChown := os.Chown(path, -1, *gid); errChown != nil {
+			sr.logger.Error(
+				"applyArtifactPerms: chown failed",
+				"artifact", label,
+				"path", path,
+				"gid", *gid,
+				"error", errChown,
+			)
+			return fmt.Errorf("chown %s: %w", label, errChown)
+		}
+	}
+	return nil
+}
+
 func (sr *Exec) OpenSocketCtrl() error {
 	sr.metadataMu.Lock()
 	socketFile := sr.metadata.Spec.SocketFile

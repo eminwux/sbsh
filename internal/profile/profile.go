@@ -99,42 +99,71 @@ func CreateTerminalFromProfile(profile *api.TerminalProfileDoc) (*api.TerminalSp
 		Stages:      profile.Spec.Stages,
 	}
 
-	if profile.Spec.Socket != nil {
-		if profile.Spec.Socket.Mode != "" {
-			mode, errMode := parseSocketMode(profile.Spec.Socket.Mode)
-			if errMode != nil {
-				return nil, fmt.Errorf(
-					"invalid spec.socket.mode in profile %q: %w",
-					profile.Metadata.Name,
-					errMode,
-				)
-			}
-			spec.SocketMode = mode
-		}
-		if profile.Spec.Socket.GID != nil {
-			g := *profile.Spec.Socket.GID
-			if g < 0 {
-				return nil, fmt.Errorf(
-					"invalid spec.socket.gid in profile %q: must be non-negative, got %d",
-					profile.Metadata.Name,
-					g,
-				)
-			}
-			spec.SocketGID = &g
-		}
+	if errPerm := applyProfilePermBlock(
+		profile.Spec.Socket, profile.Metadata.Name, "spec.socket",
+		&spec.SocketMode, &spec.SocketGID,
+	); errPerm != nil {
+		return nil, errPerm
+	}
+	if errPerm := applyProfilePermBlock(
+		profile.Spec.Capture, profile.Metadata.Name, "spec.capture",
+		&spec.CaptureMode, &spec.CaptureGID,
+	); errPerm != nil {
+		return nil, errPerm
+	}
+	if errPerm := applyProfilePermBlock(
+		profile.Spec.LogFile, profile.Metadata.Name, "spec.logFile",
+		&spec.LogFileMode, &spec.LogFileGID,
+	); errPerm != nil {
+		return nil, errPerm
 	}
 
 	return spec, nil
 }
 
+// applyProfilePermBlock validates and copies a profile's permissions block
+// (socket / capture / logFile — all share api.FilePermSpec) into the
+// matching TerminalSpec fields. fieldPath ("spec.socket" etc.) is folded
+// into error messages so callers can locate the offending YAML field.
+func applyProfilePermBlock(
+	block *api.FilePermSpec,
+	profileName, fieldPath string,
+	mode *os.FileMode,
+	gid **int,
+) error {
+	if block == nil {
+		return nil
+	}
+	if block.Mode != "" {
+		m, err := parseFileMode(block.Mode)
+		if err != nil {
+			return fmt.Errorf("invalid %s.mode in profile %q: %w", fieldPath, profileName, err)
+		}
+		*mode = m
+	}
+	if block.GID != nil {
+		g := *block.GID
+		if g < 0 {
+			return fmt.Errorf(
+				"invalid %s.gid in profile %q: must be non-negative, got %d",
+				fieldPath, profileName, g,
+			)
+		}
+		*gid = &g
+	}
+	return nil
+}
+
 // chmodMask is the standard chmod surface: setuid/setgid/sticky plus the nine
-// rwx bits. parseSocketMode rejects any mode with bits outside this mask.
+// rwx bits. parseFileMode rejects any mode with bits outside this mask.
 const chmodMask uint64 = 0o7777
 
-// parseSocketMode parses an octal mode string like "0660" or "660" into an
+// parseFileMode parses an octal mode string like "0660" or "660" into an
 // os.FileMode and rejects modes with bits outside chmodMask. The leading "0"
 // is optional because strconv.ParseUint with base 8 accepts both forms.
-func parseSocketMode(s string) (os.FileMode, error) {
+// Used for the control socket, capture file, and log file permission blocks
+// — all three share the same syntax surface.
+func parseFileMode(s string) (os.FileMode, error) {
 	n, err := strconv.ParseUint(s, 8, 32)
 	if err != nil {
 		return 0, fmt.Errorf("not an octal mode: %w", err)
@@ -176,7 +205,21 @@ type BuildTerminalSpecParams struct {
 	// the profile / leave the group unchanged. A nil pointer is required
 	// because a zero int is a valid GID (root), so we can't conflate it
 	// with "unset".
-	SocketGID        *int
+	SocketGID *int
+	// CaptureMode is the raw octal flag value applied to the capture
+	// file. Empty means "no override; fall through to the profile or the
+	// runner default".
+	CaptureMode string
+	// CaptureGID is the numeric GID flag value for the capture file, or
+	// nil to fall through to the profile / leave the group unchanged.
+	CaptureGID *int
+	// LogFileMode is the raw octal flag value applied to the log file.
+	// Empty means "no override; fall through to the profile or the runner
+	// default".
+	LogFileMode string
+	// LogFileGID is the numeric GID flag value for the log file, or nil
+	// to fall through to the profile / leave the group unchanged.
+	LogFileGID       *int
 	EnvVars          []string
 	DisableSetPrompt bool
 	ShutdownGrace    time.Duration
@@ -303,29 +346,60 @@ func BuildTerminalSpec(
 		return nil, errCreate
 	}
 	addInputValuesToTerminal(terminalSpec, input)
-	if errSocket := applySocketOverrides(terminalSpec, input); errSocket != nil {
-		return nil, errSocket
+	if errOv := applyPermOverrides(terminalSpec, input); errOv != nil {
+		return nil, errOv
 	}
 
 	return terminalSpec, nil
 }
 
-// applySocketOverrides resolves the socket mode/gid precedence: explicit
-// flag/env values win over the profile's spec.socket; unset stays at
-// whatever CreateTerminalFromProfile produced (which is the profile value
-// or the zero value, the latter telling the runner to use 0o600 with no
-// chown).
-func applySocketOverrides(spec *api.TerminalSpec, input *BuildTerminalSpecParams) error {
-	if input.SocketMode != "" {
-		mode, err := parseSocketMode(input.SocketMode)
-		if err != nil {
-			return fmt.Errorf("%w: invalid socket mode %q: %w", errdefs.ErrInvalidFlag, input.SocketMode, err)
-		}
-		spec.SocketMode = mode
+// applyPermOverrides resolves the mode/gid precedence for the socket,
+// capture, and log files: explicit flag/env values win over the profile's
+// matching spec block; unset stays at whatever CreateTerminalFromProfile
+// produced (which is the profile value or the zero value, the latter
+// telling the runner to use 0o600 with no chown).
+func applyPermOverrides(spec *api.TerminalSpec, input *BuildTerminalSpecParams) error {
+	if err := applyOnePermOverride(
+		input.SocketMode, input.SocketGID, "socket",
+		&spec.SocketMode, &spec.SocketGID,
+	); err != nil {
+		return err
 	}
-	if input.SocketGID != nil {
-		g := *input.SocketGID
-		spec.SocketGID = &g
+	if err := applyOnePermOverride(
+		input.CaptureMode, input.CaptureGID, "capture",
+		&spec.CaptureMode, &spec.CaptureGID,
+	); err != nil {
+		return err
+	}
+	if err := applyOnePermOverride(
+		input.LogFileMode, input.LogFileGID, "log-file",
+		&spec.LogFileMode, &spec.LogFileGID,
+	); err != nil {
+		return err
+	}
+	return nil
+}
+
+// applyOnePermOverride applies an explicit flag/env override (rawMode +
+// gidPtr) onto the matching TerminalSpec fields. label is folded into
+// error messages so callers see which artifact rejected the input.
+func applyOnePermOverride(
+	rawMode string,
+	gidPtr *int,
+	label string,
+	mode *os.FileMode,
+	gid **int,
+) error {
+	if rawMode != "" {
+		m, err := parseFileMode(rawMode)
+		if err != nil {
+			return fmt.Errorf("%w: invalid %s mode %q: %w", errdefs.ErrInvalidFlag, label, rawMode, err)
+		}
+		*mode = m
+	}
+	if gidPtr != nil {
+		g := *gidPtr
+		*gid = &g
 	}
 	return nil
 }

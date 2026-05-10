@@ -168,6 +168,10 @@ You can also use sbsh with parameters. For example:
 					SocketFile:       viper.GetString(config.SBSH_ROOT_TERM_SOCKET.ViperKey),
 					SocketMode:       viper.GetString(config.SBSH_ROOT_TERM_SOCKET_MODE.ViperKey),
 					SocketGID:        readRootSocketGID(cmd),
+					CaptureMode:      viper.GetString(config.SBSH_ROOT_TERM_CAPTURE_MODE.ViperKey),
+					CaptureGID:       readRootCaptureGID(cmd),
+					LogFileMode:      viper.GetString(config.SBSH_ROOT_TERM_LOG_FILE_MODE.ViperKey),
+					LogFileGID:       readRootLogFileGID(cmd),
 					DisableSetPrompt: viper.GetBool(config.SBSH_ROOT_TERM_DISABLE_SET_PROMPT.ViperKey),
 				},
 			)
@@ -376,6 +380,54 @@ func setTerminalFlags(rootCmd *cobra.Command) error {
 		return err
 	}
 
+	rootCmd.Flags().String(
+		"terminal-capture-mode",
+		"",
+		"Octal mode applied to the capture file after Open (default 0600)",
+	)
+	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_CAPTURE_MODE.ViperKey, rootCmd.Flags().Lookup("terminal-capture-mode")); err != nil {
+		return err
+	}
+	if err := viper.BindEnv(config.SBSH_ROOT_TERM_CAPTURE_MODE.ViperKey, config.SBSH_ROOT_TERM_CAPTURE_MODE.EnvVar()); err != nil {
+		return err
+	}
+
+	rootCmd.Flags().Int(
+		"terminal-capture-gid",
+		-1,
+		"Numeric GID applied to the capture file via chown after Open; -1 leaves group unchanged",
+	)
+	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_CAPTURE_GID.ViperKey, rootCmd.Flags().Lookup("terminal-capture-gid")); err != nil {
+		return err
+	}
+	if err := viper.BindEnv(config.SBSH_ROOT_TERM_CAPTURE_GID.ViperKey, config.SBSH_ROOT_TERM_CAPTURE_GID.EnvVar()); err != nil {
+		return err
+	}
+
+	rootCmd.Flags().String(
+		"terminal-log-file-mode",
+		"",
+		"Octal mode applied to the log file after Open (default 0600)",
+	)
+	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_LOG_FILE_MODE.ViperKey, rootCmd.Flags().Lookup("terminal-log-file-mode")); err != nil {
+		return err
+	}
+	if err := viper.BindEnv(config.SBSH_ROOT_TERM_LOG_FILE_MODE.ViperKey, config.SBSH_ROOT_TERM_LOG_FILE_MODE.EnvVar()); err != nil {
+		return err
+	}
+
+	rootCmd.Flags().Int(
+		"terminal-log-file-gid",
+		-1,
+		"Numeric GID applied to the log file via chown after Open; -1 leaves group unchanged",
+	)
+	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_LOG_FILE_GID.ViperKey, rootCmd.Flags().Lookup("terminal-log-file-gid")); err != nil {
+		return err
+	}
+	if err := viper.BindEnv(config.SBSH_ROOT_TERM_LOG_FILE_GID.ViperKey, config.SBSH_ROOT_TERM_LOG_FILE_GID.EnvVar()); err != nil {
+		return err
+	}
+
 	rootCmd.Flags().Bool("terminal-disable-set-prompt", false, "Disable setting the prompt")
 	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_DISABLE_SET_PROMPT.ViperKey, rootCmd.Flags().Lookup("terminal-disable-set-prompt")); err != nil {
 		return err
@@ -477,12 +529,26 @@ func runClient(
 // 0 = root", which is required because the runner would otherwise try
 // to chown to gid 0 and fail under non-root callers.
 func readRootSocketGID(cmd *cobra.Command) *int {
-	if cmd.Flags().Changed("terminal-socket-gid") {
-		if v, err := cmd.Flags().GetInt("terminal-socket-gid"); err == nil {
+	return readRootGIDFlag(cmd, "terminal-socket-gid", config.SBSH_ROOT_TERM_SOCKET_GID.EnvVar())
+}
+
+// readRootCaptureGID mirrors readRootSocketGID for --terminal-capture-gid.
+func readRootCaptureGID(cmd *cobra.Command) *int {
+	return readRootGIDFlag(cmd, "terminal-capture-gid", config.SBSH_ROOT_TERM_CAPTURE_GID.EnvVar())
+}
+
+// readRootLogFileGID mirrors readRootSocketGID for --terminal-log-file-gid.
+func readRootLogFileGID(cmd *cobra.Command) *int {
+	return readRootGIDFlag(cmd, "terminal-log-file-gid", config.SBSH_ROOT_TERM_LOG_FILE_GID.EnvVar())
+}
+
+func readRootGIDFlag(cmd *cobra.Command, flagName, envName string) *int {
+	if cmd.Flags().Changed(flagName) {
+		if v, err := cmd.Flags().GetInt(flagName); err == nil {
 			return &v
 		}
 	}
-	if envStr, ok := os.LookupEnv(config.SBSH_ROOT_TERM_SOCKET_GID.EnvVar()); ok && envStr != "" {
+	if envStr, ok := os.LookupEnv(envName); ok && envStr != "" {
 		if v, err := strconv.Atoi(envStr); err == nil {
 			return &v
 		}
