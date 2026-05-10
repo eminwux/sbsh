@@ -43,29 +43,66 @@ func (sr *Exec) StartTerminal(evCh chan<- Event) error {
 	}
 	sr.evCh = evCh
 
-	// 2) Prepare terminal command
+	// 2) Tighten/relax the per-terminal log file's permissions per the
+	//    spec. The file was created by SetupFileLogger before the runner
+	//    started, so it already exists at 0o600; this re-chmods (and
+	//    optionally chowns the group) to match the resolved mode/gid.
+	//    Skip silently when the spec did not name a log file — some test
+	//    fakes wire a stderr-only logger and leave the path empty.
+	if err := sr.applyLogFilePerms(); err != nil {
+		sr.logger.Error("failed to apply log file perms", "id", sr.id, "err", err)
+		return fmt.Errorf("failed to apply log file perms for terminal %s: %w", sr.id, err)
+	}
+
+	// 3) Prepare terminal command
 	if err := sr.prepareTerminalCommand(); err != nil {
 		sr.logger.Error("failed to run terminal command", "id", sr.id, "err", err)
 		return fmt.Errorf("failed to run terminal command for terminal %s: %w", sr.id, err)
 	}
 
-	// 3) Start PTY
+	// 4) Start PTY
 	if err := sr.startPty(); err != nil {
 		sr.logger.Error("failed to start PTY", "id", sr.id, "err", err)
 		return fmt.Errorf("failed to start PTY for terminal %s: %w", sr.id, err)
 	}
 
-	// 4) Update state to Starting
+	// 5) Update state to Starting
 	if err := sr.updateTerminalState(api.Starting); err != nil {
 		sr.logger.Error("failed to update terminal state on starting", "id", sr.id, "err", err)
 		return fmt.Errorf("failed to update terminal state on starting: %w", err)
 	}
 
-	// 5) Wait for terminal to close in background
+	// 6) Wait for terminal to close in background
 	sr.logger.Info("PTY started", "id", sr.id)
 	go sr.waitOnTerminal()
 
 	return nil
+}
+
+// applyLogFilePerms re-chmods (and optionally chowns the group of) the
+// per-terminal log file. The file is created by SetupFileLogger in the
+// parent process before the runner starts, so by the time we reach this
+// step it already exists at 0o600. The chmod/chown is by path because
+// the runner does not own the file handle.
+//
+// An empty Spec.LogFile is treated as "no log file configured" and the
+// step is a no-op — this keeps test runners that use an io.Discard
+// logger from tripping a missing-file error.
+func (sr *Exec) applyLogFilePerms() error {
+	sr.metadataMu.RLock()
+	logFile := sr.metadata.Spec.LogFile
+	mode := sr.metadata.Spec.LogFileMode
+	var gid *int
+	if g := sr.metadata.Spec.LogFileGID; g != nil {
+		gv := *g
+		gid = &gv
+	}
+	sr.metadataMu.RUnlock()
+
+	if logFile == "" {
+		return nil
+	}
+	return sr.applyArtifactPerms("log-file", logFile, mode, gid)
 }
 
 func (sr *Exec) waitOnTerminal() {

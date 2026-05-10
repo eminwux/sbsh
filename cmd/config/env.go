@@ -164,6 +164,14 @@ var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_ROOT_TERM_SOCKET_GID = DefineKV("SBSH_ROOT_TERM_SOCKET_GID", "sbsh.root.terminal.socketGid")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_ROOT_TERM_CAPTURE_MODE = DefineKV("SBSH_ROOT_TERM_CAPTURE_MODE", "sbsh.root.terminal.captureMode")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_ROOT_TERM_CAPTURE_GID = DefineKV("SBSH_ROOT_TERM_CAPTURE_GID", "sbsh.root.terminal.captureGid")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_ROOT_TERM_LOG_FILE_MODE = DefineKV("SBSH_ROOT_TERM_LOG_FILE_MODE", "sbsh.root.terminal.logFileMode")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_ROOT_TERM_LOG_FILE_GID = DefineKV("SBSH_ROOT_TERM_LOG_FILE_GID", "sbsh.root.terminal.logFileGid")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_ROOT_TERM_DISABLE_SET_PROMPT = DefineKV(
 		"SBSH_ROOT_TERM_DISABLE_SET_PROMPT",
 		"sbsh.root.terminal.disableSetPrompt",
@@ -192,6 +200,14 @@ var (
 	SBSH_TERM_SOCKET_MODE = DefineKV("SBSH_TERM_SOCKET_MODE", "sbsh.terminal.socketMode")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_TERM_SOCKET_GID = DefineKV("SBSH_TERM_SOCKET_GID", "sbsh.terminal.socketGid")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_TERM_CAPTURE_MODE = DefineKV("SBSH_TERM_CAPTURE_MODE", "sbsh.terminal.captureMode")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_TERM_CAPTURE_GID = DefineKV("SBSH_TERM_CAPTURE_GID", "sbsh.terminal.captureGid")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_TERM_LOG_FILE_MODE = DefineKV("SBSH_TERM_LOG_FILE_MODE", "sbsh.terminal.logFileMode")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_TERM_LOG_FILE_GID = DefineKV("SBSH_TERM_LOG_FILE_GID", "sbsh.terminal.logFileGid")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_TERM_ID = DefineKV("SBSH_TERM_ID", "sbsh.terminal.id")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable

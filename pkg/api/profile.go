@@ -58,21 +58,30 @@ type TerminalProfileMetadata struct {
 }
 
 type TerminalProfileSpec struct {
-	RunTarget     RunTarget     `json:"runTarget"        yaml:"runTarget"`
-	RestartPolicy RestartPolicy `json:"restartPolicy"    yaml:"restartPolicy"`
-	Shell         ShellSpec     `json:"shell"            yaml:"shell"`
-	Stages        StagesSpec    `json:"stages"           yaml:"stages"`
-	Socket        *SocketSpec   `json:"socket,omitempty" yaml:"socket,omitempty"`
+	RunTarget     RunTarget     `json:"runTarget"         yaml:"runTarget"`
+	RestartPolicy RestartPolicy `json:"restartPolicy"     yaml:"restartPolicy"`
+	Shell         ShellSpec     `json:"shell"             yaml:"shell"`
+	Stages        StagesSpec    `json:"stages"            yaml:"stages"`
+	Socket        *FilePermSpec `json:"socket,omitempty"  yaml:"socket,omitempty"`
+	Capture       *FilePermSpec `json:"capture,omitempty" yaml:"capture,omitempty"`
+	LogFile       *FilePermSpec `json:"logFile,omitempty" yaml:"logFile,omitempty"`
 }
 
-// SocketSpec configures the control socket's filesystem permissions. Both
+// FilePermSpec configures the filesystem permissions of a per-terminal
+// runtime artifact (control socket, capture transcript, log file). Both
 // fields are optional; omitting the block keeps the legacy 0600 owner-only
-// behavior. Mode is an octal string ("0660") to avoid YAML's int/octal
-// ambiguity; Gid is a numeric host GID (nil leaves the group unchanged).
-type SocketSpec struct {
+// behavior for that artifact. Mode is an octal string ("0660") to avoid
+// YAML's int/octal ambiguity; GID is a numeric host GID (nil leaves the
+// group unchanged).
+type FilePermSpec struct {
 	Mode string `json:"mode,omitempty" yaml:"mode,omitempty"`
 	GID  *int   `json:"gid,omitempty"  yaml:"gid,omitempty"`
 }
+
+// SocketSpec is the historical name for FilePermSpec introduced in #188 for
+// the spec.socket block. Kept as a type alias so external consumers that
+// reference api.SocketSpec keep compiling unchanged.
+type SocketSpec = FilePermSpec
 
 // ShellSpec describes the base interactive process that owns the terminal lifetime.
 type ShellSpec struct {

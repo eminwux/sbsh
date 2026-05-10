@@ -85,6 +85,12 @@ spec:
   socket: # Control-socket permissions (optional)
     mode: "0660" # Octal string; defaults to 0600 if omitted
     gid: 986 # Numeric host GID; omit to leave the group unchanged
+  capture: # Capture-transcript permissions (optional)
+    mode: "0640" # Octal string; defaults to 0600 if omitted
+    gid: 986 # Numeric host GID; omit to leave the group unchanged
+  logFile: # Per-terminal log-file permissions (optional)
+    mode: "0640" # Octal string; defaults to 0600 if omitted
+    gid: 986 # Numeric host GID; omit to leave the group unchanged
 ```
 
 ## Field Reference
@@ -234,6 +240,99 @@ their own flag:
 
 Widening the mode and setting a host group is opt-in for callers that share a
 terminal across uids in the same group; the default (no `socket` block, no
+flag) preserves owner-only access exactly as in earlier releases.
+
+#### `capture` section (optional)
+
+Configures the filesystem permissions of the terminal's capture transcript —
+the on-disk file that records the terminal's PTY output for later replay via
+`sb log <terminal>`. Both fields are optional; omitting the block keeps the
+legacy owner-only behavior (`-rw------- runner-uid:runner-gid`), which is the
+right default when no other uid needs to read the transcript.
+
+```yaml
+spec:
+  # ...
+  capture:
+    mode: "0640" # Octal string; defaults to "0600" if omitted
+    gid: 986 # Numeric host GID; omit to leave group unchanged
+```
+
+**`mode`** (optional, default `"0600"`)
+
+- Octal string applied via `chmod` after each `OpenFile` of the capture path
+  (including reopens triggered by terminal restarts)
+- Quote it (`"0640"`) so YAML does not silently re-parse octal as decimal
+- The leading `0` is optional — both `"0640"` and `"640"` work
+- Mode bits outside `0o7777` are rejected at profile load
+
+**`gid`** (optional, default unset)
+
+- Numeric host GID applied via `chown(captureFile, -1, gid)` after each
+  `OpenFile` of the capture path
+- The runner's uid stays the owner; only the group is rewritten
+- Omit the field (or leave it `null`) to leave the capture file's group at
+  the runner's primary group
+
+The same configuration can also be supplied at launch time and overrides the
+profile when set. The root command and the `terminal` subcommand each take
+their own flag:
+
+- `sbsh --terminal-capture-mode 0640 --terminal-capture-gid 986`
+  (or `SBSH_ROOT_TERM_CAPTURE_MODE=0640` / `SBSH_ROOT_TERM_CAPTURE_GID=986`)
+- `sbsh terminal --capture-mode 0640 --capture-gid 986`
+  (or `SBSH_TERM_CAPTURE_MODE=0640` / `SBSH_TERM_CAPTURE_GID=986`)
+
+Widening the mode and setting a host group is opt-in for callers that need a
+shared group (for example, a `kuke`-style log viewer running under a separate
+uid in the same group) to read the transcript; the default (no `capture`
+block, no flag) preserves owner-only access exactly as in earlier releases.
+
+#### `logFile` section (optional)
+
+Configures the filesystem permissions of the terminal's per-instance log
+file — the structured runner log that `sb log <terminal>` and `kuke log` tail
+for diagnostics. Both fields are optional; omitting the block keeps the legacy
+owner-only behavior (`-rw------- runner-uid:runner-gid`), which is the right
+default when no other uid needs to read the log.
+
+```yaml
+spec:
+  # ...
+  logFile:
+    mode: "0640" # Octal string; defaults to "0600" if omitted
+    gid: 986 # Numeric host GID; omit to leave group unchanged
+```
+
+**`mode`** (optional, default `"0600"`)
+
+- Octal string applied via `chmod` against the log file path after the runner
+  starts (the file itself is opened by the parent process, then re-permed in
+  the runner once the resolved spec is known)
+- Quote it (`"0640"`) so YAML does not silently re-parse octal as decimal
+- The leading `0` is optional — both `"0640"` and `"640"` work
+- Mode bits outside `0o7777` are rejected at profile load
+
+**`gid`** (optional, default unset)
+
+- Numeric host GID applied via `chown(logFile, -1, gid)` after the runner
+  starts
+- The runner's uid stays the owner; only the group is rewritten
+- Omit the field (or leave it `null`) to leave the log file's group at the
+  runner's primary group
+
+The same configuration can also be supplied at launch time and overrides the
+profile when set. The root command and the `terminal` subcommand each take
+their own flag:
+
+- `sbsh --terminal-log-file-mode 0640 --terminal-log-file-gid 986`
+  (or `SBSH_ROOT_TERM_LOG_FILE_MODE=0640` /
+  `SBSH_ROOT_TERM_LOG_FILE_GID=986`)
+- `sbsh terminal --log-file-mode 0640 --log-file-gid 986`
+  (or `SBSH_TERM_LOG_FILE_MODE=0640` / `SBSH_TERM_LOG_FILE_GID=986`)
+
+Widening the mode and setting a host group is opt-in for callers that share a
+log viewer across uids in the same group; the default (no `logFile` block, no
 flag) preserves owner-only access exactly as in earlier releases.
 
 ## Example Profiles

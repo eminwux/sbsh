@@ -180,10 +180,24 @@ func (sr *Exec) startPty() error {
 
 	sr.metadataMu.RLock()
 	captureFile := sr.metadata.Spec.CaptureFile
+	captureMode := sr.metadata.Spec.CaptureMode
+	var captureGID *int
+	if g := sr.metadata.Spec.CaptureGID; g != nil {
+		gv := *g
+		captureGID = &gv
+	}
 	sr.metadataMu.RUnlock()
+	// Open at the legacy 0o600 first; applyArtifactPerms re-chmods to
+	// the resolved mode (and optionally chowns the group). Doing the
+	// permissions step explicitly after Open mirrors the socket path and
+	// also covers reopens of a pre-existing inode (see issue #200).
 	logf, errO := os.OpenFile(captureFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if errO != nil {
 		return fmt.Errorf("open log file: %w", errO)
+	}
+	if errPerm := sr.applyArtifactPerms("capture", captureFile, captureMode, captureGID); errPerm != nil {
+		_ = logf.Close()
+		return errPerm
 	}
 
 	if errU := sr.updateMetadata(); errU != nil {

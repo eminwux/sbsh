@@ -409,6 +409,141 @@ func TestBuildTerminalSpec_WithSocketGID(t *testing.T) {
 	}
 }
 
+// WithCaptureMode threads the octal mode string through to spec.CaptureMode.
+// Empty leaves spec.CaptureMode at its zero value (runner default, 0o600).
+func TestBuildTerminalSpec_WithCaptureMode(t *testing.T) {
+	runPath := t.TempDir()
+
+	spec, err := builder.BuildTerminalSpec(context.Background(), testLogger(), runPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.CaptureMode != 0 {
+		t.Fatalf("default captureMode: want 0, got 0o%o", spec.CaptureMode)
+	}
+
+	spec, err = builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithCaptureMode("0640"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.CaptureMode != 0o640 {
+		t.Fatalf("captureMode: want 0o640, got 0o%o", spec.CaptureMode)
+	}
+}
+
+// WithCaptureGID preserves the unset/zero distinction the same way
+// WithSocketGID does: never calling it leaves spec.CaptureGID nil; calling
+// WithCaptureGID(0) sets *spec.CaptureGID to 0.
+func TestBuildTerminalSpec_WithCaptureGID(t *testing.T) {
+	runPath := t.TempDir()
+
+	spec, err := builder.BuildTerminalSpec(context.Background(), testLogger(), runPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.CaptureGID != nil {
+		t.Fatalf("default captureGID: want nil, got %d", *spec.CaptureGID)
+	}
+
+	spec, err = builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithCaptureGID(1234),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.CaptureGID == nil || *spec.CaptureGID != 1234 {
+		t.Fatalf("captureGID: want 1234, got %v", spec.CaptureGID)
+	}
+
+	spec, err = builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithCaptureGID(0),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.CaptureGID == nil || *spec.CaptureGID != 0 {
+		t.Fatalf("captureGID(0): want 0, got %v", spec.CaptureGID)
+	}
+}
+
+// WithLogFileMode threads the octal mode string through to spec.LogFileMode.
+// Empty leaves spec.LogFileMode at its zero value (runner default, 0o600).
+func TestBuildTerminalSpec_WithLogFileMode(t *testing.T) {
+	runPath := t.TempDir()
+
+	spec, err := builder.BuildTerminalSpec(context.Background(), testLogger(), runPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.LogFileMode != 0 {
+		t.Fatalf("default logFileMode: want 0, got 0o%o", spec.LogFileMode)
+	}
+
+	spec, err = builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithLogFileMode("0640"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.LogFileMode != 0o640 {
+		t.Fatalf("logFileMode: want 0o640, got 0o%o", spec.LogFileMode)
+	}
+}
+
+// WithLogFileGID preserves the unset/zero distinction the same way the
+// other GID options do.
+func TestBuildTerminalSpec_WithLogFileGID(t *testing.T) {
+	runPath := t.TempDir()
+
+	spec, err := builder.BuildTerminalSpec(context.Background(), testLogger(), runPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.LogFileGID != nil {
+		t.Fatalf("default logFileGID: want nil, got %d", *spec.LogFileGID)
+	}
+
+	spec, err = builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithLogFileGID(1234),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.LogFileGID == nil || *spec.LogFileGID != 1234 {
+		t.Fatalf("logFileGID: want 1234, got %v", spec.LogFileGID)
+	}
+
+	spec, err = builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithLogFileGID(0),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.LogFileGID == nil || *spec.LogFileGID != 0 {
+		t.Fatalf("logFileGID(0): want 0, got %v", spec.LogFileGID)
+	}
+}
+
 // WithCommand with empty argv (or empty argv[0]) is a no-op.
 func TestBuildTerminalSpec_WithCommandEmpty(t *testing.T) {
 	runPath := t.TempDir()

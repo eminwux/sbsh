@@ -97,12 +97,28 @@ func checkFileUsage(cmd *cobra.Command, _ []string) error {
 // viper.GetInt is unreliable here because BindPFlag only forwards a
 // *changed* pflag to viper.
 func readSocketGID(cmd *cobra.Command) *int {
-	if cmd.Flags().Changed("socket-gid") {
-		if v, err := cmd.Flags().GetInt("socket-gid"); err == nil {
+	return readGIDFlag(cmd, "socket-gid", config.SBSH_TERM_SOCKET_GID.EnvVar())
+}
+
+// readCaptureGID mirrors readSocketGID for --capture-gid. The same
+// pointer-vs-sentinel discipline applies: gid 0 (root) is a valid value
+// and must remain distinguishable from "unset, leave the group alone".
+func readCaptureGID(cmd *cobra.Command) *int {
+	return readGIDFlag(cmd, "capture-gid", config.SBSH_TERM_CAPTURE_GID.EnvVar())
+}
+
+// readLogFileGID mirrors readSocketGID for --log-file-gid.
+func readLogFileGID(cmd *cobra.Command) *int {
+	return readGIDFlag(cmd, "log-file-gid", config.SBSH_TERM_LOG_FILE_GID.EnvVar())
+}
+
+func readGIDFlag(cmd *cobra.Command, flagName, envName string) *int {
+	if cmd.Flags().Changed(flagName) {
+		if v, err := cmd.Flags().GetInt(flagName); err == nil {
 			return &v
 		}
 	}
-	if envStr, ok := os.LookupEnv(config.SBSH_TERM_SOCKET_GID.EnvVar()); ok && envStr != "" {
+	if envStr, ok := os.LookupEnv(envName); ok && envStr != "" {
 		if v, err := strconv.Atoi(envStr); err == nil {
 			return &v
 		}
@@ -141,6 +157,10 @@ func buildTerminalSpecFromFlags(
 			SocketFile:       viper.GetString(config.SBSH_TERM_SOCKET.ViperKey),
 			SocketMode:       viper.GetString(config.SBSH_TERM_SOCKET_MODE.ViperKey),
 			SocketGID:        readSocketGID(cmd),
+			CaptureMode:      viper.GetString(config.SBSH_TERM_CAPTURE_MODE.ViperKey),
+			CaptureGID:       readCaptureGID(cmd),
+			LogFileMode:      viper.GetString(config.SBSH_TERM_LOG_FILE_MODE.ViperKey),
+			LogFileGID:       readLogFileGID(cmd),
 			DisableSetPrompt: viper.GetBool(config.SBSH_TERM_DISABLE_SET_PROMPT.ViperKey),
 			ShutdownGrace:    viper.GetDuration(config.SBSH_TERM_SHUTDOWN_GRACE.ViperKey),
 		},
@@ -452,6 +472,38 @@ func setupTerminalCmdFlags(terminalCmd *cobra.Command) {
 	)
 	_ = viper.BindPFlag(config.SBSH_TERM_SOCKET_GID.ViperKey, terminalCmd.Flags().Lookup("socket-gid"))
 	_ = viper.BindEnv(config.SBSH_TERM_SOCKET_GID.ViperKey, config.SBSH_TERM_SOCKET_GID.EnvVar())
+
+	terminalCmd.Flags().String(
+		"capture-mode",
+		"",
+		"Octal mode applied to the capture file after Open (default 0600)",
+	)
+	_ = viper.BindPFlag(config.SBSH_TERM_CAPTURE_MODE.ViperKey, terminalCmd.Flags().Lookup("capture-mode"))
+	_ = viper.BindEnv(config.SBSH_TERM_CAPTURE_MODE.ViperKey, config.SBSH_TERM_CAPTURE_MODE.EnvVar())
+
+	terminalCmd.Flags().Int(
+		"capture-gid",
+		-1,
+		"Numeric GID applied to the capture file via chown after Open; -1 leaves group unchanged",
+	)
+	_ = viper.BindPFlag(config.SBSH_TERM_CAPTURE_GID.ViperKey, terminalCmd.Flags().Lookup("capture-gid"))
+	_ = viper.BindEnv(config.SBSH_TERM_CAPTURE_GID.ViperKey, config.SBSH_TERM_CAPTURE_GID.EnvVar())
+
+	terminalCmd.Flags().String(
+		"log-file-mode",
+		"",
+		"Octal mode applied to the log file after Open (default 0600)",
+	)
+	_ = viper.BindPFlag(config.SBSH_TERM_LOG_FILE_MODE.ViperKey, terminalCmd.Flags().Lookup("log-file-mode"))
+	_ = viper.BindEnv(config.SBSH_TERM_LOG_FILE_MODE.ViperKey, config.SBSH_TERM_LOG_FILE_MODE.EnvVar())
+
+	terminalCmd.Flags().Int(
+		"log-file-gid",
+		-1,
+		"Numeric GID applied to the log file via chown after Open; -1 leaves group unchanged",
+	)
+	_ = viper.BindPFlag(config.SBSH_TERM_LOG_FILE_GID.ViperKey, terminalCmd.Flags().Lookup("log-file-gid"))
+	_ = viper.BindEnv(config.SBSH_TERM_LOG_FILE_GID.ViperKey, config.SBSH_TERM_LOG_FILE_GID.EnvVar())
 
 	terminalCmd.Flags().StringP("file", "f", "", "Optional JSON file with the terminal spec (use '-' for stdin)")
 	_ = viper.BindPFlag(config.SBSH_TERM_SPEC.ViperKey, terminalCmd.Flags().Lookup("file"))
