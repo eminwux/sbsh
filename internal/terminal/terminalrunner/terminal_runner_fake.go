@@ -18,6 +18,7 @@ package terminalrunner
 
 import (
 	"context"
+	"net"
 	"sync"
 
 	"github.com/eminwux/sbsh/internal/errdefs"
@@ -28,6 +29,7 @@ import (
 type Test struct {
 	mu                  sync.RWMutex // protects function pointer fields
 	OpenSocketCtrlFunc  func() error
+	UseListenerFunc     func(ln net.Listener)
 	StartServerFunc     func(ctx context.Context, sc *terminalrpc.TerminalControllerRPC, readyCh chan error, doneCh chan error)
 	StartTerminalFunc   func(evCh chan<- Event) error
 	CloseFunc           func(reason error) error
@@ -53,6 +55,12 @@ func (sr *Test) OpenSocketCtrl() error {
 		return sr.OpenSocketCtrlFunc()
 	}
 	return nil
+}
+
+func (sr *Test) UseListener(ln net.Listener) {
+	if sr.UseListenerFunc != nil {
+		sr.UseListenerFunc(ln)
+	}
 }
 
 func (sr *Test) StartServer(

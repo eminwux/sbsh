@@ -195,3 +195,12 @@ func (sr *Exec) childDone() bool {
 func (sr *Exec) ID() api.ID {
 	return sr.id
 }
+
+// UseListener installs an externally-bound control-socket listener so
+// that OpenSocketCtrl is not the only path that can prime the accept
+// loop. Intended for the public pkg/terminal/server facade where the
+// caller owns the inode (e.g. kuketty claims it before fork+exec).
+// Must be called before StartServer.
+func (sr *Exec) UseListener(ln net.Listener) {
+	sr.lnCtrl = ln
+}

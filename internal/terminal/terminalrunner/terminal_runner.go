@@ -18,6 +18,7 @@ package terminalrunner
 
 import (
 	"context"
+	"net"
 
 	"github.com/eminwux/sbsh/internal/terminal/terminalrpc"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -25,6 +26,11 @@ import (
 
 type TerminalRunner interface {
 	OpenSocketCtrl() error
+	// UseListener injects a pre-bound control-socket listener so callers
+	// that need to claim the socket inode before forking (e.g.
+	// pkg/terminal/server) can hand it over without going through
+	// OpenSocketCtrl. Must be called before StartServer.
+	UseListener(ln net.Listener)
 	StartServer(ctx context.Context, sc *terminalrpc.TerminalControllerRPC, readyCh chan error, doneCh chan error)
 	StartTerminal(evCh chan<- Event) error
 	ID() api.ID
