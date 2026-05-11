@@ -53,9 +53,9 @@ func (h *ReformatHandler) Handle(_ context.Context, r slog.Record) error {
 }
 
 func (h *ReformatHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &ReformatHandler{Inner: h.Inner.WithAttrs(attrs)}
+	return &ReformatHandler{Inner: h.Inner.WithAttrs(attrs), Writer: h.Writer}
 }
 
 func (h *ReformatHandler) WithGroup(name string) slog.Handler {
-	return &ReformatHandler{Inner: h.Inner.WithGroup(name)}
+	return &ReformatHandler{Inner: h.Inner.WithGroup(name), Writer: h.Writer}
 }
