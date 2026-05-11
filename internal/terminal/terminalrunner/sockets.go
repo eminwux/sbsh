@@ -38,11 +38,48 @@ const defaultSocketMode os.FileMode = 0o600
 // defaultSocketMode for the control socket.
 const defaultArtifactMode os.FileMode = 0o600
 
+// applySocketPerms chmods (and optionally chowns the group of) the
+// control-socket inode after a listener has been bound to it. Called
+// from both OpenSocketCtrl (runner binds the socket itself) and
+// UseListener (caller hands in a pre-bound listener — pkg/terminal/server
+// facade case), so both paths land at the same on-disk permissions.
+//
+// mode == 0 falls back to defaultSocketMode so callers can pass the
+// raw spec field through without a guard. gid == nil leaves the group
+// unchanged. The chown form is Chown(path, -1, gid) so the listener's
+// uid stays the owner; only the group is rewritten.
+func (sr *Exec) applySocketPerms(path string, mode os.FileMode, gid *int) error {
+	if mode == 0 {
+		mode = defaultSocketMode
+	}
+	if errChmod := os.Chmod(path, mode); errChmod != nil {
+		sr.logger.Error(
+			"applySocketPerms: chmod failed",
+			"socket", path,
+			"mode", fmt.Sprintf("0o%o", mode),
+			"error", errChmod,
+		)
+		return fmt.Errorf("chmod socket: %w", errChmod)
+	}
+	if gid != nil {
+		if errChown := os.Chown(path, -1, *gid); errChown != nil {
+			sr.logger.Error(
+				"applySocketPerms: chown failed",
+				"socket", path,
+				"gid", *gid,
+				"error", errChown,
+			)
+			return fmt.Errorf("chown socket: %w", errChown)
+		}
+	}
+	return nil
+}
+
 // applyArtifactPerms chmods (and optionally chowns the group of) a
 // per-terminal artifact path that was just opened. Used for the capture
-// transcript and the log file — the control socket has its own helper in
-// OpenSocketCtrl because the path needs to be removed first and the
-// listener has to be torn down on failure.
+// transcript and the log file — the control socket goes through
+// applySocketPerms instead because the listener has to be torn down on
+// failure.
 //
 // mode == 0 falls back to defaultArtifactMode so callers can pass the
 // raw spec field through without a guard. gid == nil leaves the group
@@ -89,10 +126,6 @@ func (sr *Exec) OpenSocketCtrl() error {
 	sr.metadata.Status.SocketFile = socketFile
 	sr.metadataMu.Unlock()
 
-	if socketMode == 0 {
-		socketMode = defaultSocketMode
-	}
-
 	sr.logger.Debug("OpenSocketCtrl: preparing to listen", "socket", socketFile)
 	errMetadata := sr.updateMetadata()
 	if errMetadata != nil {
@@ -122,37 +155,9 @@ func (sr *Exec) OpenSocketCtrl() error {
 	// keep references for Close()
 	sr.lnCtrl = ctrlLn
 
-	if errChmod := os.Chmod(socketFile, socketMode); errChmod != nil {
-		sr.logger.Error(
-			"OpenSocketCtrl: failed to chmod socket file",
-			"socket",
-			socketFile,
-			"mode",
-			fmt.Sprintf("0o%o", socketMode),
-			"error",
-			errChmod,
-		)
+	if errPerms := sr.applySocketPerms(socketFile, socketMode, socketGID); errPerms != nil {
 		_ = ctrlLn.Close()
-		return errChmod
-	}
-
-	if socketGID != nil {
-		// Chown(-1, gid) keeps the listener's uid as owner and only
-		// rewrites the group, so the inode permits group-mode access
-		// without changing the controlling identity.
-		if errChown := os.Chown(socketFile, -1, *socketGID); errChown != nil {
-			sr.logger.Error(
-				"OpenSocketCtrl: failed to chown socket file",
-				"socket",
-				socketFile,
-				"gid",
-				*socketGID,
-				"error",
-				errChown,
-			)
-			_ = ctrlLn.Close()
-			return errChown
-		}
+		return errPerms
 	}
 
 	// update metadata with socket file path

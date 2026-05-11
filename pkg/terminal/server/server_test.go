@@ -22,7 +22,9 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -74,6 +76,82 @@ func TestServer_New_RejectsInvalidSpec(t *testing.T) {
 	}
 	if _, err := server.New(&api.TerminalSpec{}, logger); err == nil {
 		t.Fatal("New(spec with empty Command) returned no error")
+	}
+}
+
+// TestServer_UseListener_AppliesSocketPerms locks in the contract from
+// issue #205: when a caller hands a pre-bound listener to Serve and the
+// spec carries SocketMode / SocketGID, the runner chmods + chowns the
+// inode itself instead of leaving the umask-clipped Listen default in
+// place. The bug was that UseListener stored the listener and skipped
+// the perm dance — out-of-tree callers (e.g. kuketty) had to replicate
+// it manually. The fix routes both OpenSocketCtrl and UseListener
+// through the same applySocketPerms helper.
+func TestServer_UseListener_AppliesSocketPerms(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	tmp := t.TempDir()
+	socketPath := filepath.Join(tmp, "ctrl.sock")
+	capturePath := filepath.Join(tmp, "capture.log")
+
+	listener, listenErr := net.Listen("unix", socketPath)
+	if listenErr != nil {
+		t.Fatalf("net.Listen: %v", listenErr)
+	}
+
+	wantMode := os.FileMode(0o660)
+	wantGID := os.Getgid()
+
+	spec := &api.TerminalSpec{
+		ID:            api.ID("test-uselistener-perms"),
+		Name:          "test-uselistener-perms",
+		Labels:        map[string]string{},
+		Command:       "/bin/sh",
+		CommandArgs:   []string{},
+		EnvInherit:    true,
+		RunPath:       tmp,
+		SocketFile:    socketPath,
+		CaptureFile:   capturePath,
+		SocketMode:    wantMode,
+		SocketGID:     &wantGID,
+		ShutdownGrace: 500 * time.Millisecond,
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	srv, newErr := server.New(spec, logger)
+	if newErr != nil {
+		t.Fatalf("server.New: %v", newErr)
+	}
+
+	serveErrCh := make(chan error, 1)
+	go func() { serveErrCh <- srv.Serve(ctx, listener) }()
+	defer func() {
+		_ = srv.Stop(errors.New("test cleanup"))
+		select {
+		case <-serveErrCh:
+		case <-time.After(5 * time.Second):
+			t.Logf("Serve did not return within 5s of cleanup Stop")
+		}
+	}()
+
+	if waitErr := waitReady(ctx, srv, 10*time.Second); waitErr != nil {
+		t.Fatalf("waitReady: %v", waitErr)
+	}
+
+	info, statErr := os.Stat(socketPath)
+	if statErr != nil {
+		t.Fatalf("os.Stat(%q): %v", socketPath, statErr)
+	}
+	if gotMode := info.Mode().Perm(); gotMode != wantMode {
+		t.Errorf("socket mode = 0o%o, want 0o%o", gotMode, wantMode)
+	}
+	sys, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		t.Fatalf("info.Sys() type = %T, want *syscall.Stat_t", info.Sys())
+	}
+	if int(sys.Gid) != wantGID {
+		t.Errorf("socket gid = %d, want %d", sys.Gid, wantGID)
 	}
 }
 

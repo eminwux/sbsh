@@ -201,6 +201,23 @@ func (sr *Exec) ID() api.ID {
 // loop. Intended for the public pkg/terminal/server facade where the
 // caller owns the inode (e.g. kuketty claims it before fork+exec).
 // Must be called before StartServer.
-func (sr *Exec) UseListener(ln net.Listener) {
+//
+// Spec.SocketMode and Spec.SocketGID are applied to the inode resolved
+// from ln.Addr() so the on-disk permissions match what the
+// OpenSocketCtrl path produces. The listener is stored before the
+// chmod/chown so a failure here leaves it owned by the runner — the
+// caller can rely on runner.Close to tear it down.
+func (sr *Exec) UseListener(ln net.Listener) error {
 	sr.lnCtrl = ln
+
+	sr.metadataMu.RLock()
+	socketMode := sr.metadata.Spec.SocketMode
+	var socketGID *int
+	if g := sr.metadata.Spec.SocketGID; g != nil {
+		gv := *g
+		socketGID = &gv
+	}
+	sr.metadataMu.RUnlock()
+
+	return sr.applySocketPerms(ln.Addr().String(), socketMode, socketGID)
 }

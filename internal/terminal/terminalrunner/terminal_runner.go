@@ -29,8 +29,11 @@ type TerminalRunner interface {
 	// UseListener injects a pre-bound control-socket listener so callers
 	// that need to claim the socket inode before forking (e.g.
 	// pkg/terminal/server) can hand it over without going through
-	// OpenSocketCtrl. Must be called before StartServer.
-	UseListener(ln net.Listener)
+	// OpenSocketCtrl. Must be called before StartServer. The runner
+	// applies Spec.SocketMode / Spec.SocketGID to the inode resolved
+	// from ln.Addr() so on-disk permissions match the OpenSocketCtrl
+	// path; callers do not re-implement the chmod/chown dance.
+	UseListener(ln net.Listener) error
 	StartServer(ctx context.Context, sc *terminalrpc.TerminalControllerRPC, readyCh chan error, doneCh chan error)
 	StartTerminal(evCh chan<- Event) error
 	ID() api.ID
