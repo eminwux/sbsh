@@ -27,6 +27,8 @@ import (
 	"time"
 
 	"github.com/eminwux/sbsh/pkg/api"
+	"github.com/eminwux/sbsh/pkg/builder"
+	publog "github.com/eminwux/sbsh/pkg/logging"
 	rpcclient "github.com/eminwux/sbsh/pkg/rpcclient/terminal"
 	"github.com/eminwux/sbsh/pkg/terminal/server"
 )
@@ -61,6 +63,66 @@ func TestServer_PingWriteSubscribeStop(t *testing.T) {
 	t.Run("Write", func(t *testing.T) { runWrite(ctx, t, client) })
 	t.Run("SubscribeReceivesPTYBytes", func(t *testing.T) { runSubscribeRead(t, subConn) })
 	t.Run("Stop", func(t *testing.T) { runStop(t, h) })
+}
+
+// TestServer_DrivenByBuildTerminalSpec locks in the contract that an
+// out-of-tree caller can build a TerminalSpec via pkg/builder, pre-create
+// the per-terminal log file with pkg/logging.NewFileLogger, and then
+// drive pkg/terminal/server.Server.Serve to the api.Ready state — without
+// the `spec.LogFile = ""` post-step that issue #204 documented as the
+// workaround. The runner re-chmods spec.LogFile during StartTerminal;
+// before pkg/logging existed, callers depending only on public surfaces
+// hit chmod ENOENT here.
+func TestServer_DrivenByBuildTerminalSpec(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	tmp := t.TempDir()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	spec, err := builder.BuildTerminalSpec(ctx, logger, tmp,
+		builder.WithCommand([]string{"/bin/sh"}),
+	)
+	if err != nil {
+		t.Fatalf("BuildTerminalSpec: %v", err)
+	}
+	if spec.LogFile == "" {
+		t.Fatal("BuildTerminalSpec produced an empty LogFile; expected a derived path")
+	}
+
+	fl, err := publog.NewFileLogger(spec.LogFile, spec.LogLevel)
+	if err != nil {
+		t.Fatalf("NewFileLogger: %v", err)
+	}
+	t.Cleanup(func() { _ = fl.File.Close() })
+
+	listener, listenErr := net.Listen("unix", spec.SocketFile)
+	if listenErr != nil {
+		t.Fatalf("net.Listen: %v", listenErr)
+	}
+
+	spec.ShutdownGrace = 500 * time.Millisecond
+
+	srv, newErr := server.New(spec, logger)
+	if newErr != nil {
+		t.Fatalf("server.New: %v", newErr)
+	}
+
+	serveErrCh := make(chan error, 1)
+	go func() { serveErrCh <- srv.Serve(ctx, listener) }()
+
+	if waitErr := waitReady(ctx, srv, 10*time.Second); waitErr != nil {
+		t.Fatalf("waitReady: %v", waitErr)
+	}
+
+	if stopErr := srv.Stop(errors.New("test cleanup")); stopErr != nil {
+		t.Fatalf("Stop: %v", stopErr)
+	}
+	select {
+	case <-serveErrCh:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Serve did not return within 10s after Stop")
+	}
 }
 
 // TestServer_New_RejectsInvalidSpec covers the constructor guards so
