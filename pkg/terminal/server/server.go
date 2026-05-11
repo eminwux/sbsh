@@ -121,7 +121,11 @@ func (s *Server) bringUp(
 	rpcDoneCh := make(chan error, 1)
 
 	runner := terminalrunner.NewTerminalRunnerExec(ctx, s.logger, s.spec)
-	runner.UseListener(listener)
+	if err := runner.UseListener(listener); err != nil {
+		s.mu.Unlock()
+		_ = runner.Close(err)
+		return nil, nil, nil, fmt.Errorf("server: UseListener: %w", err)
+	}
 	s.runner = runner
 	s.mu.Unlock()
 

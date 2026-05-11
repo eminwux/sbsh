@@ -29,7 +29,7 @@ import (
 type Test struct {
 	mu                  sync.RWMutex // protects function pointer fields
 	OpenSocketCtrlFunc  func() error
-	UseListenerFunc     func(ln net.Listener)
+	UseListenerFunc     func(ln net.Listener) error
 	StartServerFunc     func(ctx context.Context, sc *terminalrpc.TerminalControllerRPC, readyCh chan error, doneCh chan error)
 	StartTerminalFunc   func(evCh chan<- Event) error
 	CloseFunc           func(reason error) error
@@ -57,10 +57,11 @@ func (sr *Test) OpenSocketCtrl() error {
 	return nil
 }
 
-func (sr *Test) UseListener(ln net.Listener) {
+func (sr *Test) UseListener(ln net.Listener) error {
 	if sr.UseListenerFunc != nil {
-		sr.UseListenerFunc(ln)
+		return sr.UseListenerFunc(ln)
 	}
+	return nil
 }
 
 func (sr *Test) StartServer(
