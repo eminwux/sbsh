@@ -21,59 +21,34 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 
 	"github.com/eminwux/sbsh/cmd/types"
+	publog "github.com/eminwux/sbsh/pkg/logging"
 	"github.com/spf13/cobra"
 )
 
-func ParseLevel(lvl string) slog.Level {
-	switch lvl {
-	case "debug":
-		return slog.LevelDebug
-	case "info":
-		return slog.LevelInfo
-	case "warn", "warning":
-		return slog.LevelWarn
-	case "error", "err":
-		return slog.LevelError
-	default:
-		// default if unknown
-		return slog.LevelInfo
-	}
-}
+// ReformatHandler aliases the public type so existing CLI references
+// (e.g. cmd/sb/sb.go) keep compiling without an import rewrite.
+type ReformatHandler = publog.ReformatHandler
+
+// ParseLevel re-exports the public ParseLevel for the same reason.
+func ParseLevel(lvl string) slog.Level { return publog.ParseLevel(lvl) }
 
 func SetupFileLogger(cmd *cobra.Command, logfile string, loglevel string) error {
 	if cmd == nil || logfile == "" || loglevel == "" {
 		return fmt.Errorf("cmd, logfile=%s, loglevel=%s must not be empty", logfile, loglevel)
 	}
-	if err := os.MkdirAll(filepath.Dir(logfile), 0o700); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create log directory: %v\n", err)
-		return err
-	}
-
-	f, err := os.OpenFile(logfile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	fl, err := publog.NewFileLogger(logfile, loglevel)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to open log file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Failed to set up file logger: %v\n", err)
 		return err
 	}
 
-	// Create a new logger that writes to the file with the specified log level
-	levelVar := new(slog.LevelVar)
-	levelVar.Set(ParseLevel(loglevel))
-
-	handler := &ReformatHandler{
-		Inner:  slog.NewTextHandler(f, &slog.HandlerOptions{Level: levelVar}),
-		Writer: f,
-	}
-	logger := slog.New(handler)
-
-	// Store both logger and levelVar in context using struct keys
+	levelVar := fl.LevelVar
 	ctx := cmd.Context()
-	ctx = context.WithValue(ctx, types.CtxLogger, logger)
+	ctx = context.WithValue(ctx, types.CtxLogger, fl.Logger)
 	ctx = context.WithValue(ctx, types.CtxLevelVar, &levelVar)
-	ctx = context.WithValue(ctx, types.CtxHandler, handler)
-
+	ctx = context.WithValue(ctx, types.CtxHandler, fl.Handler)
 	cmd.SetContext(ctx)
 	return nil
 }

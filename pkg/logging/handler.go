@@ -24,6 +24,10 @@ import (
 	"strings"
 )
 
+// ReformatHandler is the sbsh canonical slog.Handler: it formats each
+// record as `<RFC3339-timestamp> <LEVEL> <quoted-message> <attrs>` and
+// writes the line to Writer. Inner is consulted only for the Enabled
+// gate and for attribute/group propagation.
 type ReformatHandler struct {
 	Inner  slog.Handler
 	Writer io.Writer
@@ -36,7 +40,7 @@ func (h *ReformatHandler) Enabled(ctx context.Context, lvl slog.Level) bool {
 func (h *ReformatHandler) Handle(_ context.Context, r slog.Record) error {
 	ts := r.Time.Format("2006-01-02T15:04:05Z07:00")
 	level := strings.ToUpper(r.Level.String())
-	msg := fmt.Sprintf("%q", r.Message) // quoted message
+	msg := fmt.Sprintf("%q", r.Message)
 
 	attrs := ""
 	r.Attrs(func(a slog.Attr) bool {
@@ -49,9 +53,9 @@ func (h *ReformatHandler) Handle(_ context.Context, r slog.Record) error {
 }
 
 func (h *ReformatHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &ReformatHandler{Inner: h.Inner.WithAttrs(attrs)}
+	return &ReformatHandler{Inner: h.Inner.WithAttrs(attrs), Writer: h.Writer}
 }
 
 func (h *ReformatHandler) WithGroup(name string) slog.Handler {
-	return &ReformatHandler{Inner: h.Inner.WithGroup(name)}
+	return &ReformatHandler{Inner: h.Inner.WithGroup(name), Writer: h.Writer}
 }
