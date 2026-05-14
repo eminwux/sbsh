@@ -28,6 +28,7 @@ import (
 	"testing"
 
 	"github.com/eminwux/sbsh/internal/errdefs"
+	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/eminwux/sbsh/pkg/builder"
 )
 
@@ -74,8 +75,9 @@ func TestBuildTerminalSpec_EmptyRunPath(t *testing.T) {
 	}
 }
 
-// InlineOnly: no profile file, no profile name — falls back to the
-// hardcoded "default" profile with the inline command/env.
+// InlineOnly: BuildTerminalSpec is the profile-free lane — the
+// resulting spec carries the inline command/env verbatim and never
+// touches pkg/discovery or the hardcoded "default" profile.
 func TestBuildTerminalSpec_InlineOnly(t *testing.T) {
 	runPath := t.TempDir()
 	spec, err := builder.BuildTerminalSpec(
@@ -119,7 +121,7 @@ func TestBuildTerminalSpec_ProfileByName(t *testing.T) {
 	runPath := t.TempDir()
 	profiles := writeProfiles(t, twoProfilesYAML)
 
-	spec, err := builder.BuildTerminalSpec(
+	spec, err := builder.BuildTerminalSpecFromProfile(
 		context.Background(),
 		testLogger(),
 		runPath,
@@ -153,7 +155,7 @@ func TestBuildTerminalSpec_UnknownProfile(t *testing.T) {
 	runPath := t.TempDir()
 	profiles := writeProfiles(t, twoProfilesYAML)
 
-	_, err := builder.BuildTerminalSpec(
+	_, err := builder.BuildTerminalSpecFromProfile(
 		context.Background(),
 		testLogger(),
 		runPath,
@@ -233,7 +235,7 @@ func TestBuildTerminalSpec_MissingProfilesDir(t *testing.T) {
 	runPath := t.TempDir()
 	missing := filepath.Join(runPath, "no-such-profiles-dir")
 
-	_, err := builder.BuildTerminalSpec(
+	_, err := builder.BuildTerminalSpecFromProfile(
 		context.Background(),
 		testLogger(),
 		runPath,
@@ -299,7 +301,7 @@ spec:
 	profiles := writeProfiles(t, profilesYAML)
 
 	// No WithCwd: profile value sticks.
-	spec, err := builder.BuildTerminalSpec(
+	spec, err := builder.BuildTerminalSpecFromProfile(
 		context.Background(),
 		testLogger(),
 		runPath,
@@ -314,7 +316,7 @@ spec:
 	}
 
 	// With WithCwd: inline wins.
-	spec, err = builder.BuildTerminalSpec(
+	spec, err = builder.BuildTerminalSpecFromProfile(
 		context.Background(),
 		testLogger(),
 		runPath,
@@ -563,5 +565,361 @@ func TestBuildTerminalSpec_WithCommandEmpty(t *testing.T) {
 	}
 	if !reflect.DeepEqual(spec.CommandArgs, []string{"-i"}) {
 		t.Fatalf("args: got %v", spec.CommandArgs)
+	}
+}
+
+// WithStages stamps the full StagesSpec on the inline lane — no
+// profile, no hardcoded default, just the bytes the caller passed.
+func TestBuildTerminalSpec_WithStages_Inline(t *testing.T) {
+	runPath := t.TempDir()
+	stages := api.StagesSpec{
+		OnInit:     []api.ExecStep{{Script: "echo init"}},
+		PostAttach: []api.ExecStep{{Script: "echo attach"}},
+	}
+	spec, err := builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithStages(stages),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !reflect.DeepEqual(spec.Stages, stages) {
+		t.Fatalf("Stages: want %+v, got %+v", stages, spec.Stages)
+	}
+}
+
+// WithOnInit / WithPostAttach populate only their respective
+// sub-field on the inline lane, leaving the other side at zero.
+func TestBuildTerminalSpec_WithOnInitWithPostAttach_Inline(t *testing.T) {
+	runPath := t.TempDir()
+	onInit := []api.ExecStep{{Script: "init"}}
+	post := []api.ExecStep{{Script: "post"}}
+
+	t.Run("OnInit only", func(t *testing.T) {
+		spec, err := builder.BuildTerminalSpec(
+			context.Background(),
+			testLogger(),
+			runPath,
+			builder.WithOnInit(onInit),
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !reflect.DeepEqual(spec.Stages.OnInit, onInit) {
+			t.Fatalf("OnInit: want %+v, got %+v", onInit, spec.Stages.OnInit)
+		}
+		if len(spec.Stages.PostAttach) != 0 {
+			t.Fatalf("PostAttach: want empty, got %+v", spec.Stages.PostAttach)
+		}
+	})
+	t.Run("PostAttach only", func(t *testing.T) {
+		spec, err := builder.BuildTerminalSpec(
+			context.Background(),
+			testLogger(),
+			runPath,
+			builder.WithPostAttach(post),
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !reflect.DeepEqual(spec.Stages.PostAttach, post) {
+			t.Fatalf("PostAttach: want %+v, got %+v", post, spec.Stages.PostAttach)
+		}
+		if len(spec.Stages.OnInit) != 0 {
+			t.Fatalf("OnInit: want empty, got %+v", spec.Stages.OnInit)
+		}
+	})
+	t.Run("OnInit + PostAttach compose", func(t *testing.T) {
+		spec, err := builder.BuildTerminalSpec(
+			context.Background(),
+			testLogger(),
+			runPath,
+			builder.WithOnInit(onInit),
+			builder.WithPostAttach(post),
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !reflect.DeepEqual(spec.Stages.OnInit, onInit) {
+			t.Fatalf("OnInit: got %+v", spec.Stages.OnInit)
+		}
+		if !reflect.DeepEqual(spec.Stages.PostAttach, post) {
+			t.Fatalf("PostAttach: got %+v", spec.Stages.PostAttach)
+		}
+	})
+}
+
+// WithPrompt populates Spec.Prompt on the inline lane.
+func TestBuildTerminalSpec_WithPrompt_Inline(t *testing.T) {
+	runPath := t.TempDir()
+	spec, err := builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithPrompt("> "),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.Prompt != "> " {
+		t.Fatalf("Prompt: want %q, got %q", "> ", spec.Prompt)
+	}
+}
+
+// WithEnvInherit populates Spec.EnvInherit on the inline lane, with
+// the set-sentinel discipline that distinguishes "caller passed
+// false" from "caller did not pass anything".
+func TestBuildTerminalSpec_WithEnvInherit_Inline(t *testing.T) {
+	runPath := t.TempDir()
+
+	// Default: no WithEnvInherit → zero value (false). This is a
+	// behavior change from the FromProfile lane's hardcoded-default
+	// (which sets EnvInherit=true), and the contract for the inline
+	// lane is "zero unless set".
+	spec, err := builder.BuildTerminalSpec(context.Background(), testLogger(), runPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.EnvInherit {
+		t.Fatalf("default EnvInherit: want false, got true")
+	}
+
+	// Explicit true.
+	spec, err = builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithEnvInherit(true),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !spec.EnvInherit {
+		t.Fatalf("WithEnvInherit(true): want true, got false")
+	}
+}
+
+// Inline lane must reject WithProfile / WithProfilesDir with
+// errdefs.ErrInvalidOption. Silently ignoring them would hide a
+// programmer bug — fail loud.
+func TestBuildTerminalSpec_RejectsWithProfile(t *testing.T) {
+	runPath := t.TempDir()
+	_, err := builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithProfile("anything"),
+	)
+	if !errors.Is(err, errdefs.ErrInvalidOption) {
+		t.Fatalf("expected errdefs.ErrInvalidOption, got %v", err)
+	}
+}
+
+func TestBuildTerminalSpec_RejectsWithProfilesDir(t *testing.T) {
+	runPath := t.TempDir()
+	_, err := builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithProfilesDir("/tmp/whatever"),
+	)
+	if !errors.Is(err, errdefs.ErrInvalidOption) {
+		t.Fatalf("expected errdefs.ErrInvalidOption, got %v", err)
+	}
+}
+
+// Inline lane must not touch disk — even when the runPath-derived
+// default profilesDir does not exist, the build must succeed.
+// Passing WithProfilesDir is rejected upfront (see above), so the
+// "did not touch disk" guarantee turns on the absence of any
+// discovery call in the no-profile-option case.
+func TestBuildTerminalSpec_InlineDoesNotTouchDisk(t *testing.T) {
+	runPath := t.TempDir()
+	// Deliberately wipe out the runPath so any opportunistic
+	// directory scan would surface as an error.
+	if err := os.RemoveAll(runPath); err != nil {
+		t.Fatalf("RemoveAll: %v", err)
+	}
+
+	_, err := builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithCommand([]string{"/bin/sh"}),
+	)
+	if err != nil {
+		t.Fatalf("inline lane should not touch disk; got %v", err)
+	}
+}
+
+// FromProfile lane must accept the new With* options as overlays on
+// top of a profile-derived spec.
+func TestBuildTerminalSpecFromProfile_WithStages_Overlay(t *testing.T) {
+	const profilesYAML = `apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: stages-profile
+spec:
+  runTarget: local
+  shell:
+    cmd: /bin/bash
+  stages:
+    onInit:
+      - script: profile-init
+`
+	runPath := t.TempDir()
+	profiles := writeProfiles(t, profilesYAML)
+
+	// Profile alone: OnInit comes from YAML, PostAttach is zero.
+	spec, err := builder.BuildTerminalSpecFromProfile(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithProfilesDir(filepath.Dir(profiles)),
+		builder.WithProfile("stages-profile"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(spec.Stages.OnInit) != 1 || spec.Stages.OnInit[0].Script != "profile-init" {
+		t.Fatalf("profile-derived OnInit: got %+v", spec.Stages.OnInit)
+	}
+
+	// Inline override of OnInit only: PostAttach stays zero,
+	// OnInit is replaced wholesale.
+	spec, err = builder.BuildTerminalSpecFromProfile(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithProfilesDir(filepath.Dir(profiles)),
+		builder.WithProfile("stages-profile"),
+		builder.WithOnInit([]api.ExecStep{{Script: "inline-init"}}),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(spec.Stages.OnInit) != 1 || spec.Stages.OnInit[0].Script != "inline-init" {
+		t.Fatalf("overlay OnInit: got %+v", spec.Stages.OnInit)
+	}
+
+	// Inline override with WithStages: replaces both sub-fields.
+	spec, err = builder.BuildTerminalSpecFromProfile(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithProfilesDir(filepath.Dir(profiles)),
+		builder.WithProfile("stages-profile"),
+		builder.WithStages(api.StagesSpec{
+			OnInit:     []api.ExecStep{{Script: "new-init"}},
+			PostAttach: []api.ExecStep{{Script: "new-post"}},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(spec.Stages.OnInit) != 1 || spec.Stages.OnInit[0].Script != "new-init" {
+		t.Fatalf("WithStages OnInit: got %+v", spec.Stages.OnInit)
+	}
+	if len(spec.Stages.PostAttach) != 1 || spec.Stages.PostAttach[0].Script != "new-post" {
+		t.Fatalf("WithStages PostAttach: got %+v", spec.Stages.PostAttach)
+	}
+}
+
+// FromProfile + WithPrompt overlays prompt onto the profile-derived
+// value.
+func TestBuildTerminalSpecFromProfile_WithPrompt_Overlay(t *testing.T) {
+	const profilesYAML = `apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: prompt-profile
+spec:
+  runTarget: local
+  shell:
+    cmd: /bin/bash
+    prompt: "(profile) "
+`
+	runPath := t.TempDir()
+	profiles := writeProfiles(t, profilesYAML)
+
+	// Profile alone.
+	spec, err := builder.BuildTerminalSpecFromProfile(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithProfilesDir(filepath.Dir(profiles)),
+		builder.WithProfile("prompt-profile"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.Prompt != "(profile) " {
+		t.Fatalf("profile Prompt: got %q", spec.Prompt)
+	}
+
+	// Inline override wins.
+	spec, err = builder.BuildTerminalSpecFromProfile(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithProfilesDir(filepath.Dir(profiles)),
+		builder.WithProfile("prompt-profile"),
+		builder.WithPrompt("(inline) "),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.Prompt != "(inline) " {
+		t.Fatalf("inline Prompt: got %q", spec.Prompt)
+	}
+}
+
+// FromProfile + WithEnvInherit overlays EnvInherit. The profile
+// schema's `inheritEnv: true` is overlaid by WithEnvInherit(false)
+// without losing the "did the caller say so" sentinel.
+func TestBuildTerminalSpecFromProfile_WithEnvInherit_Overlay(t *testing.T) {
+	const profilesYAML = `apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: env-profile
+spec:
+  runTarget: local
+  shell:
+    cmd: /bin/bash
+    inheritEnv: true
+`
+	runPath := t.TempDir()
+	profiles := writeProfiles(t, profilesYAML)
+
+	// Profile alone: EnvInherit=true.
+	spec, err := builder.BuildTerminalSpecFromProfile(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithProfilesDir(filepath.Dir(profiles)),
+		builder.WithProfile("env-profile"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !spec.EnvInherit {
+		t.Fatalf("profile EnvInherit: want true, got false")
+	}
+
+	// Inline EnvInherit(false) wins.
+	spec, err = builder.BuildTerminalSpecFromProfile(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithProfilesDir(filepath.Dir(profiles)),
+		builder.WithProfile("env-profile"),
+		builder.WithEnvInherit(false),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.EnvInherit {
+		t.Fatalf("overlay EnvInherit(false): want false, got true")
 	}
 }

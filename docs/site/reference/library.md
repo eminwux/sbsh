@@ -12,15 +12,15 @@ A complete, build-tested example lives at
 
 The public library lives under [`github.com/eminwux/sbsh/pkg`](https://pkg.go.dev/github.com/eminwux/sbsh/pkg):
 
-| Package                  | Purpose                                                                                                                                                                                                                                                 |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pkg/api`                | Declarative document types (`TerminalDoc`, `TerminalSpec`, `ClientDoc`, `TerminalProfileDoc`, …) and RPC payload types (`PingMessage`, `WriteRequest`, `SubscribeRequest`, `StopArgs`, …). Counterpart of the YAML/JSON manifests.                      |
-| `pkg/builder`            | Construct a `TerminalSpec` or `ClientDoc` from a profile name plus inline overrides (`WithProfile`, `WithProfilesDir`, `WithCommand`, `WithEnv`, `WithClientMode`, …). No YAML round-trip.                                                              |
-| `pkg/spawn`              | Launch detached `Terminal` and `Client` subprocesses (`NewTerminal`, `NewClient`). Returns `TerminalHandle` / `ClientHandle` with `PID`, `SocketPath`, `WaitReady`, `WaitClose`, `Close`.                                                               |
-| `pkg/discovery`          | Enumerate live terminals/clients or look them up by ID/Name under a run path (`ScanTerminals`, `FindTerminalByID`, `FindTerminalByName`, `ScanClients`, `FindClientByName`). Load profiles from disk (`LoadProfilesFromDir`, `FindProfileByNameInDir`). |
-| `pkg/rpcclient/terminal` | JSON-RPC client for the `TerminalController` socket (`Ping`, `Resize`, `Attach`, `Detach`, `Metadata`, `State`, `Stop`, `Write`, `Subscribe`).                                                                                                          |
-| `pkg/rpcclient/client`   | JSON-RPC client for the `ClientController` socket (`Ping`, `Metadata`, `State`, `Stop`, `Detach`).                                                                                                                                                      |
-| `pkg/errors`             | Curated error sentinels re-exported from `internal/errdefs`. Use `errors.Is` to branch on well-known failure modes without importing internal packages.                                                                                                 |
+| Package                  | Purpose                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pkg/api`                | Declarative document types (`TerminalDoc`, `TerminalSpec`, `ClientDoc`, `TerminalProfileDoc`, …) and RPC payload types (`PingMessage`, `WriteRequest`, `SubscribeRequest`, `StopArgs`, …). Counterpart of the YAML/JSON manifests.                                                                                                                                 |
+| `pkg/builder`            | Construct a `TerminalSpec` or `ClientDoc` from inline options. `BuildTerminalSpec` is the profile-free lane (`WithCommand`, `WithEnv`, `WithStages`, `WithOnInit`, `WithPostAttach`, `WithPrompt`, `WithEnvInherit`, …); `BuildTerminalSpecFromProfile` is the profile-driven lane that additionally honors `WithProfile` / `WithProfilesDir`. No YAML round-trip. |
+| `pkg/spawn`              | Launch detached `Terminal` and `Client` subprocesses (`NewTerminal`, `NewClient`). Returns `TerminalHandle` / `ClientHandle` with `PID`, `SocketPath`, `WaitReady`, `WaitClose`, `Close`.                                                                                                                                                                          |
+| `pkg/discovery`          | Enumerate live terminals/clients or look them up by ID/Name under a run path (`ScanTerminals`, `FindTerminalByID`, `FindTerminalByName`, `ScanClients`, `FindClientByName`). Load profiles from disk (`LoadProfilesFromDir`, `FindProfileByNameInDir`).                                                                                                            |
+| `pkg/rpcclient/terminal` | JSON-RPC client for the `TerminalController` socket (`Ping`, `Resize`, `Attach`, `Detach`, `Metadata`, `State`, `Stop`, `Write`, `Subscribe`).                                                                                                                                                                                                                     |
+| `pkg/rpcclient/client`   | JSON-RPC client for the `ClientController` socket (`Ping`, `Metadata`, `State`, `Stop`, `Detach`).                                                                                                                                                                                                                                                                 |
+| `pkg/errors`             | Curated error sentinels re-exported from `internal/errdefs`. Use `errors.Is` to branch on well-known failure modes without importing internal packages.                                                                                                                                                                                                            |
 
 Nothing under `internal/` is part of the supported surface and
 Go's visibility rules prevent external modules from importing it.
@@ -117,18 +117,38 @@ The steps below mirror
 
 ### 1. Build a `TerminalSpec`
 
+`pkg/builder` exposes two entry points. `BuildTerminalSpec` is the
+profile-free lane — it never touches `pkg/discovery`, never resolves
+an implicit `"default"` profile, and rejects `WithProfile` /
+`WithProfilesDir` with `errdefs.ErrInvalidOption` so misuse fails
+loud:
+
 ```go
 spec, err := builder.BuildTerminalSpec(ctx, logger, stateRoot,
     builder.WithName("library-consumer-example"),
     builder.WithCommand([]string{"/bin/bash", "--norc", "--noprofile"}),
     builder.WithEnv(map[string]string{"PS1": "example> "}),
-    builder.WithDisableSetPrompt(true),
+    builder.WithPrompt("example> "),
+    builder.WithOnInit([]api.ExecStep{{Script: "echo init"}}),
 )
 ```
 
-`runPath` is required; everything else has a sane default. Set
-`WithProfile(name)` + `WithProfilesDir(dir)` to load from a profiles
-directory. Inline `With*` values override profile values.
+Use `BuildTerminalSpecFromProfile` instead when the caller wants a
+YAML profile on disk to provide defaults (empty `WithProfile`
+resolves to `"default"`, missing `"default"` falls back to the
+hardcoded profile). Inline `With*` values override profile values
+on this lane:
+
+```go
+spec, err := builder.BuildTerminalSpecFromProfile(ctx, logger, stateRoot,
+    builder.WithProfilesDir("/etc/sbsh/profiles.d"),
+    builder.WithProfile("dev"),
+    builder.WithName("library-consumer-example"),
+)
+```
+
+`runPath` is required on both lanes; everything else has a sane
+default.
 
 ### 2. Spawn the terminal
 

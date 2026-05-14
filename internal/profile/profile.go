@@ -223,48 +223,59 @@ type BuildTerminalSpecParams struct {
 	EnvVars          []string
 	DisableSetPrompt bool
 	ShutdownGrace    time.Duration
+	// Stages carries the inline-overlay values for Spec.Stages. The
+	// *Overlay sentinels below decide which sub-fields are applied; an
+	// unset overlay leaves the profile-derived value untouched. For the
+	// inline lane the spec starts from zero, so the overlay flags decide
+	// whether the field is populated at all.
+	Stages api.StagesSpec
+	// StagesOverlay overlays the full Stages value; takes precedence over
+	// OnInitOverlay / PostAttachOverlay so a caller that mixes them gets
+	// the full-replacement semantics they asked for.
+	StagesOverlay bool
+	// OnInitOverlay overlays only Stages.OnInit when StagesOverlay is
+	// false.
+	OnInitOverlay bool
+	// PostAttachOverlay overlays only Stages.PostAttach when
+	// StagesOverlay is false.
+	PostAttachOverlay bool
+	// Prompt + PromptSet: PromptSet=true means "stamp Prompt onto the
+	// spec"; false leaves the profile-derived (or zero) value alone.
+	Prompt    string
+	PromptSet bool
+	// EnvInherit + EnvInheritSet follow the same set-sentinel discipline
+	// — false is a valid value, so we need an explicit "did the caller
+	// set this" bit.
+	EnvInherit    bool
+	EnvInheritSet bool
 }
 
-// BuildTerminalSpec builds a TerminalSpec from command-line inputs and/or a profile.
-// It applies defaults for missing values, and if a profile name is given, it loads
-// the profiles file and merges the profile into the spec.
-// The returned TerminalSpec is ready to be used to spawn a terminal.
+// applyParamDefaults resolves the per-terminal defaults that both
+// BuildTerminalSpecFromProfile and BuildTerminalSpecInline need: random
+// ID / name, runPath-derived paths for log/capture/socket, the inline
+// command default, and the profiles-dir fallback. Mutates input in place
+// the same way the legacy single-function path did, so caller-visible
+// fields the CLI later round-trips into TerminalStatus stay populated.
 //
-// RunPath is required. Callers (CLI or library consumers) must resolve their own
-// state-root default before invoking this function; an empty RunPath returns
-// errdefs.ErrRunPathRequired.
-//
-//nolint:funlen // For understandability, this function is long but straightforward.
-func BuildTerminalSpec(
-	ctx context.Context,
-	logger *slog.Logger,
-	input *BuildTerminalSpecParams,
-) (*api.TerminalSpec, error) {
-	if input.RunPath == "" {
-		return nil, errdefs.ErrRunPathRequired
-	}
-
+// RunPath is the only required input; callers must pre-check it before
+// invoking this helper.
+func applyParamDefaults(input *BuildTerminalSpecParams) {
 	if input.TerminalID == "" {
-		// Default terminal ID to a random one
 		input.TerminalID = naming.RandomID()
 	}
-
 	if input.TerminalName == "" {
 		input.TerminalName = naming.RandomName()
 	}
-
 	if input.ProfilesDir == "" {
 		// Fallback: sit next to run state under $RUN_PATH so profile lookup
 		// still has a well-defined path when the caller has not resolved the
 		// $HOME-based default (which normally happens in LoadConfig).
 		input.ProfilesDir = filepath.Join(input.RunPath, ".sbsh", "profiles.d")
 	}
-
 	if input.TerminalCmd == "" {
 		input.TerminalCmd = "/bin/bash"
 		input.TerminalCmdArgs = []string{"-i"}
 	}
-
 	if input.LogFile == "" {
 		input.LogFile = filepath.Join(
 			input.RunPath,
@@ -273,11 +284,9 @@ func BuildTerminalSpec(
 			"log",
 		)
 	}
-
 	if input.LogLevel == "" {
 		input.LogLevel = "info"
 	}
-
 	if input.CaptureFile == "" {
 		input.CaptureFile = filepath.Join(
 			input.RunPath,
@@ -286,7 +295,6 @@ func BuildTerminalSpec(
 			"capture",
 		)
 	}
-
 	if input.SocketFile == "" {
 		input.SocketFile = filepath.Join(
 			input.RunPath,
@@ -295,6 +303,31 @@ func BuildTerminalSpec(
 			"socket",
 		)
 	}
+}
+
+// BuildTerminalSpecFromProfile builds a TerminalSpec by loading a YAML
+// profile from pkg/discovery and overlaying the caller-provided inline
+// values. The legacy behavior of this package: empty ProfileName resolves
+// to "default", and a missing "default" falls back to the hardcoded
+// profile from GetDefaultHardcodedProfile.
+//
+// RunPath is required; an empty RunPath returns errdefs.ErrRunPathRequired.
+//
+// SDK callers that want a profile-free path (no disk lookup, no implicit
+// "default" resolution) should call BuildTerminalSpecInline instead.
+//
+
+func BuildTerminalSpecFromProfile(
+	ctx context.Context,
+	logger *slog.Logger,
+	input *BuildTerminalSpecParams,
+) (*api.TerminalSpec, error) {
+	if input.RunPath == "" {
+		return nil, errdefs.ErrRunPathRequired
+	}
+
+	applyParamDefaults(input)
+
 	if input.ProfileName == "" {
 		input.ProfileName = "default"
 	}
@@ -310,7 +343,12 @@ func BuildTerminalSpec(
 
 	var terminalSpec *api.TerminalSpec
 
-	profileSpec, warnings, errFind := discovery.FindProfileByNameInDir(ctx, logger, input.ProfilesDir, input.ProfileName)
+	profileSpec, warnings, errFind := discovery.FindProfileByNameInDir(
+		ctx,
+		logger,
+		input.ProfilesDir,
+		input.ProfileName,
+	)
 	for _, w := range warnings {
 		logger.WarnContext(ctx, "profile loader warning", "file", w.File, "doc", w.DocIndex, "reason", w.Reason)
 	}
@@ -344,6 +382,47 @@ func BuildTerminalSpec(
 	terminalSpec, errCreate = CreateTerminalFromProfile(profileSpec)
 	if errCreate != nil {
 		return nil, errCreate
+	}
+	addInputValuesToTerminal(terminalSpec, input)
+	if errOv := applyPermOverrides(terminalSpec, input); errOv != nil {
+		return nil, errOv
+	}
+
+	return terminalSpec, nil
+}
+
+// BuildTerminalSpecInline builds a TerminalSpec from inline fields only.
+// It does not touch pkg/discovery, does not resolve an implicit "default"
+// profile, and does not invoke GetDefaultHardcodedProfile. The returned
+// spec has zero-valued Stages / Prompt / EnvInherit unless the caller's
+// *Overlay / *Set sentinels are true, modulo the Cmd / CmdArgs defaults
+// that applyParamDefaults applies so the runner has a sensible shell.
+//
+// RunPath is required; an empty RunPath returns errdefs.ErrRunPathRequired.
+//
+// Misuse — passing a ProfileName or ProfilesDir — must be rejected by the
+// caller (pkg/builder enforces this at the public boundary).
+func BuildTerminalSpecInline(
+	ctx context.Context,
+	logger *slog.Logger,
+	input *BuildTerminalSpecParams,
+) (*api.TerminalSpec, error) {
+	if input.RunPath == "" {
+		return nil, errdefs.ErrRunPathRequired
+	}
+
+	applyParamDefaults(input)
+
+	logger.DebugContext(
+		ctx,
+		"Building terminal spec from inline options (no profile lookup)",
+		"terminalID", input.TerminalID,
+	)
+
+	terminalSpec := &api.TerminalSpec{
+		Kind:        api.TerminalLocal,
+		Command:     input.TerminalCmd,
+		CommandArgs: append([]string(nil), input.TerminalCmdArgs...),
 	}
 	addInputValuesToTerminal(terminalSpec, input)
 	if errOv := applyPermOverrides(terminalSpec, input); errOv != nil {
@@ -407,6 +486,8 @@ func applyOnePermOverride(
 // addInputValuesToTerminal mutates terminalSpec by overriding its fields with non-empty values from input.
 // It sets ID, Name, RunPath, CaptureFile, LogFile, LogLevel, SocketFile, and appends EnvVars, avoiding duplicates.
 // Cwd overrides the profile's Shell.Cwd only when non-empty so profile values stay sticky by default.
+// Stages / Prompt / EnvInherit overlays follow the *Overlay / *Set sentinels — false leaves whatever
+// the profile path (or zero-init) produced untouched.
 func addInputValuesToTerminal(terminalSpec *api.TerminalSpec, input *BuildTerminalSpecParams) {
 	terminalSpec.ID = api.ID(input.TerminalID)
 	terminalSpec.Name = input.TerminalName
@@ -423,6 +504,23 @@ func addInputValuesToTerminal(terminalSpec *api.TerminalSpec, input *BuildTermin
 	terminalSpec.SetPrompt = !input.DisableSetPrompt
 	if input.ShutdownGrace > 0 {
 		terminalSpec.ShutdownGrace = input.ShutdownGrace
+	}
+	switch {
+	case input.StagesOverlay:
+		terminalSpec.Stages = input.Stages
+	default:
+		if input.OnInitOverlay {
+			terminalSpec.Stages.OnInit = input.Stages.OnInit
+		}
+		if input.PostAttachOverlay {
+			terminalSpec.Stages.PostAttach = input.Stages.PostAttach
+		}
+	}
+	if input.PromptSet {
+		terminalSpec.Prompt = input.Prompt
+	}
+	if input.EnvInheritSet {
+		terminalSpec.EnvInherit = input.EnvInherit
 	}
 }
 

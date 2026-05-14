@@ -152,7 +152,7 @@ You can also use sbsh with parameters. For example:
 				)
 			}
 
-			terminalSpec, buildErr := profile.BuildTerminalSpec(
+			terminalSpec, buildErr := profile.BuildTerminalSpecFromProfile(
 				cmd.Context(),
 				logger,
 				&profile.BuildTerminalSpecParams{

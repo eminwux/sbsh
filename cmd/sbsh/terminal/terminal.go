@@ -140,7 +140,7 @@ func buildTerminalSpecFromFlags(
 		terminalCmdArgs = workload[1:]
 	}
 
-	spec, buildErr := profile.BuildTerminalSpec(
+	spec, buildErr := profile.BuildTerminalSpecFromProfile(
 		cmd.Context(),
 		logger,
 		&profile.BuildTerminalSpecParams{
