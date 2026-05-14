@@ -29,10 +29,19 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-func TestBuildTerminalSpec_EmptyRunPath_ReturnsErrRunPathRequired(t *testing.T) {
+func TestBuildTerminalSpecFromProfile_EmptyRunPath_ReturnsErrRunPathRequired(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	_, err := BuildTerminalSpec(context.Background(), logger, &BuildTerminalSpecParams{})
+	_, err := BuildTerminalSpecFromProfile(context.Background(), logger, &BuildTerminalSpecParams{})
+	if !errors.Is(err, errdefs.ErrRunPathRequired) {
+		t.Fatalf("expected errdefs.ErrRunPathRequired, got %v", err)
+	}
+}
+
+func TestBuildTerminalSpecInline_EmptyRunPath_ReturnsErrRunPathRequired(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	_, err := BuildTerminalSpecInline(context.Background(), logger, &BuildTerminalSpecParams{})
 	if !errors.Is(err, errdefs.ErrRunPathRequired) {
 		t.Fatalf("expected errdefs.ErrRunPathRequired, got %v", err)
 	}

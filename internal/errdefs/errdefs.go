@@ -52,6 +52,11 @@ var (
 	ErrConfig                   = errors.New("config error")
 	ErrLoggerNotFound           = errors.New("logger not found in context")
 	ErrInvalidFlag              = errors.New("invalid flag usage")
+	// ErrInvalidOption flags programmer misuse of a builder option — e.g.,
+	// passing WithProfile to the inline (profile-free) BuildTerminalSpec
+	// lane. Distinct from ErrInvalidFlag so library consumers can tell a
+	// CLI-flag parse error from an SDK call-site misuse.
+	ErrInvalidOption            = errors.New("invalid builder option")
 	ErrStdinStat                = errors.New("failed to stat stdin")
 	ErrStdinEmpty               = errors.New("no data on stdin: use a pipe or redirect when using '-'")
 	ErrInvalidArgument          = errors.New("invalid positional argument")
