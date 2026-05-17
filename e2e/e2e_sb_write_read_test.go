@@ -32,8 +32,7 @@ import (
 // command's output appears in both the capture file (`sb read`) and the
 // live stream (`sb read -f`).
 func TestSb_WriteRead_Roundtrip(t *testing.T) {
-	runPath := getRandomRunPath(t)
-	mkdirRunPath(t, runPath)
+	runPath := newRunPath(t)
 
 	termName := "e2e-writeread"
 	runPathEnv := buildSbRunPathEnv(t, runPath)
@@ -113,8 +112,7 @@ func TestSb_WriteRead_Roundtrip(t *testing.T) {
 // sending bogus bytes.
 func TestSb_Write_CaretParsingErrors(t *testing.T) {
 	t.Parallel()
-	runPath := getRandomRunPath(t)
-	mkdirRunPath(t, runPath)
+	runPath := newRunPath(t)
 	runPathEnv := buildSbRunPathEnv(t, runPath)
 
 	// No terminal needs to be running — parsing happens before we dial

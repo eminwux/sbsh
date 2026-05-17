@@ -42,8 +42,7 @@ func TestSb_NoTerminals(t *testing.T) {
 		{"g", "t"},
 	}
 	for _, args := range tests {
-		runPath := getRandomRunPath(t)
-		mkdirRunPath(t, runPath)
+		runPath := newRunPath(t)
 		runPathEnv := buildSbRunPathEnv(t, runPath)
 		out = runReturningBinary(t, []string{runPathEnv}, sb, args...)
 		expected = discovery.NoTerminalsString
@@ -63,8 +62,7 @@ func TestSb_NoClients(t *testing.T) {
 		{"get", "clients"},
 	}
 	for _, args := range tests {
-		runPath := getRandomRunPath(t)
-		mkdirRunPath(t, runPath)
+		runPath := newRunPath(t)
 		runPathEnv := buildSbRunPathEnv(t, runPath)
 		out = runReturningBinary(t, []string{runPathEnv}, sb, args...)
 		expected = discovery.NoClientsString

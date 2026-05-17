@@ -33,8 +33,7 @@ func TestSbsh_Help(t *testing.T) {
 }
 
 func TestSbsh_Default(t *testing.T) {
-	runPath := getRandomRunPath(t)
-	mkdirRunPath(t, runPath)
+	runPath := newRunPath(t)
 
 	t.Cleanup(func() {
 		runPathEnv := buildSbRunPathEnv(t, runPath)
@@ -111,8 +110,7 @@ func TestSbsh_Default(t *testing.T) {
 }
 
 func TestSbsh_CustomId(t *testing.T) {
-	runPath := getRandomRunPath(t)
-	mkdirRunPath(t, runPath)
+	runPath := newRunPath(t)
 
 	t.Cleanup(func() {
 		runPathEnv := buildSbRunPathEnv(t, runPath)
@@ -189,8 +187,7 @@ func TestSbsh_CustomId(t *testing.T) {
 }
 
 func TestSbsh_Detach(t *testing.T) {
-	runPath := getRandomRunPath(t)
-	mkdirRunPath(t, runPath)
+	runPath := newRunPath(t)
 
 	t.Cleanup(func() {
 		runPathEnv := buildSbRunPathEnv(t, runPath)
