@@ -155,9 +155,21 @@ func (c *unixJSONServerCodec) WriteResponse(resp *rpc.Response, body interface{}
 		}
 	}
 
-	// FD-passing path
+	// FD-passing path. SCM_RIGHTS dup's each fd into the receiver's table;
+	// the sender owns its originals and must close them or the kernel keeps
+	// the underlying socketpair half open forever. Close on every exit path
+	// (success or pre-send marshal error) and clear r.FDs so a retry can't
+	// double-close.
 	if r, ok := body.(*api.ResponseWithFD); ok && len(r.FDs) > 0 {
-		c.logger.Info("Attach codec response", "json_payload", r.JSON, "fds", r.FDs)
+		fds := r.FDs
+		r.FDs = nil
+		defer func() {
+			for _, fd := range fds {
+				_ = unix.Close(fd)
+			}
+		}()
+
+		c.logger.Info("Attach codec response", "json_payload", r.JSON, "fds", fds)
 
 		wire := struct {
 			ID     any         `json:"id"`
@@ -170,7 +182,7 @@ func (c *unixJSONServerCodec) WriteResponse(resp *rpc.Response, body interface{}
 			return err
 		}
 
-		rights := unix.UnixRights(r.FDs...)
+		rights := unix.UnixRights(fds...)
 		if _, _, err := c.uc.WriteMsgUnix(buf.Bytes(), rights, nil); err != nil {
 			return err
 		}
