@@ -30,18 +30,18 @@ import (
 	rpcclient "github.com/eminwux/sbsh/pkg/rpcclient/terminal"
 )
 
-// TestServer_AttachDetachCycles_NoPipeFDLeak locks in the fix for
-// issue #215: setupPipes allocates an os.Pipe pair per Attach that
-// cleanupClient (and the Detach fast-path) used to leave open for the
-// lifetime of the runner process. The sibling SCM_RIGHTS test counts
-// only socket-typed fds because, before this fix, the pipe leak (two
-// fds per cycle) would dwarf the socket signal.
+// TestServer_AttachDetachCycles_NoPipeFDLeak locks in the no-pipe-fd-leak
+// invariant for Attach/Detach. Originally the leak source was the
+// per-Attach os.Pipe pair in setupPipes (issue #215). Issue #214 then
+// removed setupPipes outright in favor of a bounded subscriberWriter
+// wrapping client.conn, so the runner no longer allocates per-attach
+// pipe fds at all — but the invariant is still worth pinning down so a
+// future refactor that re-introduces a per-attach pipe doesn't quietly
+// resurrect the leak.
 //
 // This test counts only pipe-typed fds (`/proc/self/fd` entries whose
 // readlink starts with `pipe:`) so the SCM_RIGHTS regression and this
-// one stay independent. Without the cleanup fix every Attach/Detach
-// cycle leaks two pipe fds in the runner process; with it the count is
-// flat across cycles.
+// one stay independent.
 func TestServer_AttachDetachCycles_NoPipeFDLeak(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -82,11 +82,10 @@ func TestServer_AttachDetachCycles_NoPipeFDLeak(t *testing.T) {
 		t.Fatalf("countOpenPipeFDs (after): %v", err)
 	}
 
-	// Without the cleanup fix every cycle leaks two pipe fds (the
-	// pipeOutR/pipeOutW pair allocated in setupPipes), so 20 cycles
-	// produced +40. The tolerance covers any in-flight Go-runtime pipes
-	// (netpoll wake-up, gc) that briefly appear under load. Anything
-	// close to 2*cycles means the leak is back.
+	// Pre-issue-#214 every cycle leaked two pipe fds (the pipeOutR/pipeOutW
+	// pair allocated in setupPipes); post-#214 the runner allocates no
+	// per-attach pipes at all. The tolerance covers any in-flight Go-runtime
+	// pipes (netpoll wake-up, gc) that briefly appear under load.
 	delta := after - baseline
 	tolerance := cycles / 2
 	if delta > tolerance {
