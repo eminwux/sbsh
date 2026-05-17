@@ -332,6 +332,23 @@ func (sr *Exec) Detach(id *api.ID) error {
 	// TODO: remove from stdin fan-in if you have that side too
 	// sr.ptyPipes.multiInR.Remove(ioClient.pipeInR)
 
+	// 2a) Release the per-client pipe fds. cleanupClient (which would
+	// otherwise close them) never fires on Detach because CopierManager
+	// only invokes finish() on ctx.Done(), so without this every
+	// Attach/Detach cycle leaks both pipe ends in the runner process.
+	// Closing pipeOutR also unblocks the writer copier's Read so its
+	// goroutine exits instead of parking until terminal shutdown.
+	if ioClient.pipeOutW != nil {
+		if perr := ioClient.pipeOutW.Close(); perr != nil {
+			sr.logger.Debug("error closing client pipeOutW", "err", perr, "client", ioClient.id)
+		}
+	}
+	if ioClient.pipeOutR != nil {
+		if perr := ioClient.pipeOutR.Close(); perr != nil {
+			sr.logger.Debug("error closing client pipeOutR", "err", perr, "client", ioClient.id)
+		}
+	}
+
 	// 3) Drop from the registry so it’s no longer discoverable
 	sr.removeClient(ioClient)
 

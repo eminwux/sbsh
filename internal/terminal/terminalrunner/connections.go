@@ -38,6 +38,21 @@ func (sr *Exec) cleanupClient(client *ioClient) {
 		multiOutW.Remove(client.pipeOutW)
 	}
 
+	// Release the per-client pipe fds; otherwise each Attach/Detach cycle
+	// leaks both ends in the runner process. Close pipeOutW first so any
+	// bytes still buffered in the pipe can drain to the writer copier,
+	// then pipeOutR so its Read unblocks with EOF and the goroutine exits.
+	if client.pipeOutW != nil {
+		if perr := client.pipeOutW.Close(); perr != nil {
+			sr.logger.Debug("error closing client pipeOutW", "err", perr, "client", client.id)
+		}
+	}
+	if client.pipeOutR != nil {
+		if perr := client.pipeOutR.Close(); perr != nil {
+			sr.logger.Debug("error closing client pipeOutR", "err", perr, "client", client.id)
+		}
+	}
+
 	if cerr := client.conn.Close(); cerr != nil {
 		sr.logger.Warn("error closing client connection", "err", cerr, "client", client.id)
 	}
