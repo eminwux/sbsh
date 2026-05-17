@@ -20,7 +20,6 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"syscall"
@@ -28,7 +27,6 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/internal/terminal/terminalrunner"
 )
 
@@ -217,23 +215,9 @@ func setupPromptDetector(t *testing.T, pipeExpectR *os.File, regex *regexp.Regex
 	return promptCh
 }
 
-func mkdirRunPath(t *testing.T, fullDir string) {
+func newRunPath(t *testing.T) string {
 	t.Helper()
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("could not get working dir: %v", err)
-	}
-	fullDir = filepath.Join(cwd, fullDir)
-	if err = os.MkdirAll(fullDir, 0o755); err != nil {
-		t.Fatalf("could not create dir %s: %v", fullDir, err)
-	}
-}
-
-func getRandomRunPath(t *testing.T) string {
-	t.Helper()
-	rndDir := naming.RandomID()
-	fullDir := path.Join("tmp", rndDir)
-	return fullDir
+	return t.TempDir()
 }
 
 func buildSbRunPathEnv(t *testing.T, runPath string) string {
