@@ -101,10 +101,9 @@ type ptyPipes struct {
 }
 
 type ioClient struct {
-	id       *api.ID
-	conn     net.Conn
-	pipeOutR *os.File
-	pipeOutW *os.File
+	id        *api.ID
+	conn      net.Conn
+	outWriter *subscriberWriter
 }
 
 func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.TerminalSpec) TerminalRunner {

@@ -20,21 +20,6 @@ import (
 	"os"
 )
 
-func (sr *Exec) setupPipes(client *ioClient) error {
-	var err error
-	client.pipeOutR, client.pipeOutW, err = os.Pipe()
-	if err != nil {
-		sr.logger.Warn("failed to create pipe", "err", err)
-		return err
-	}
-	sr.ptyPipesMu.RLock()
-	multiOutW := sr.ptyPipes.multiOutW
-	sr.ptyPipesMu.RUnlock()
-	multiOutW.Add(client.pipeOutW)
-
-	return nil
-}
-
 func (sr *Exec) readLogFile() ([]byte, error) {
 	sr.metadataMu.RLock()
 	captureFile := sr.metadata.Status.CaptureFile
