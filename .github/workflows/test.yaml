@@ -57,3 +57,42 @@ jobs:
         run: |
           go build ./...
           go vet ./...
+
+  # sbsh's e2e suite drives the CLI through a creack/pty PTY (`/dev/ptmx`)
+  # and does not require root, docker, containerd, or CNI plugins — so the
+  # host-prereq install steps from kukeon's e2e job (the precedent cited in
+  # issue #235) are intentionally omitted. Runs in parallel with the unit
+  # job above; the e2e Makefile target reads the binaries from $(CURDIR)
+  # via E2E_BIN_DIR, so we build them in this job too.
+  e2e:
+    name: E2E
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binary
+        run: make sbsh-sb
+
+      - name: Verify binary
+        run: file ./sbsh | grep -q 'ELF 64-bit LSB executable'
+
+      # `timeout-minutes` bounds blast radius for a hung PTY child (the
+      # terminalrunner fan-out / fd-leak class of bug that #216, #217, #233
+      # fixed). `stdbuf -oL -eL` forces line-buffered stdout/stderr so each
+      # `go test -v` PASS/FAIL line streams to the runner log immediately
+      # rather than waiting on libc's 4 KiB pipe-buffer flush. `</dev/null`
+      # detaches stdin, and `> >(cat) 2> >(cat >&2)` re-parents stdout/stderr
+      # through fresh process-substitution pipes that close when `make`
+      # itself exits — without this, an inherited PTY fd in a stuck child
+      # can keep the step's pipes open after `go test` returns and stall
+      # the runner past `timeout-minutes`.
+      - name: Run e2e suite
+        timeout-minutes: 15
+        run: stdbuf -oL -eL make e2e </dev/null > >(cat) 2> >(cat >&2)
