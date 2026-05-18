@@ -87,6 +87,7 @@ func ScanAndPruneTerminals(ctx context.Context, logger *slog.Logger, runPath str
 		logger.ErrorContext(ctx, "ScanAndPruneTerminals: failed to scan terminals", "error", err)
 		return err
 	}
+	ReconcileTerminals(ctx, logger, runPath, terminals)
 	_, err = scanAndPruneMetadata(
 		ctx,
 		logger,

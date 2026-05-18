@@ -81,6 +81,7 @@ func ScanAndPruneClients(ctx context.Context, logger *slog.Logger, runPath strin
 		logger.ErrorContext(ctx, "ScanAndPruneClients: failed to scan clients", "error", err)
 		return err
 	}
+	ReconcileClients(ctx, logger, runPath, clients)
 	_, err = scanAndPruneMetadata(
 		ctx,
 		logger,
