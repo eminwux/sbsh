@@ -20,7 +20,15 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 )
+
+// liveSocketProbeTimeout bounds the DialTimeout used by OpenSocketCtrl to
+// decide whether a peer is already serving the control socket path before
+// unlinking it. A successful dial inside this window means the inode is
+// live and the bind must refuse; any dial failure (ENOENT, ECONNREFUSED,
+// timeout) means no peer is accepting and the path is safe to unlink.
+const liveSocketProbeTimeout = 100 * time.Millisecond
 
 func (sr *Exec) OpenSocketCtrl() error {
 	sr.metadataMu.RLock()
@@ -28,6 +36,24 @@ func (sr *Exec) OpenSocketCtrl() error {
 	sr.metadataMu.RUnlock()
 
 	sr.logger.Debug("OpenSocketCtrl: preparing to listen", "socket", socketCtrl)
+
+	// Probe before unlinking: a successful dial means a live peer is
+	// serving this path (operator passed the same --id / --socket-file
+	// twice, two starts raced, an old process is still draining a slow
+	// client). Refusing the bind keeps the victim's socket intact and
+	// surfaces a clear diagnostic instead of silently breaking new
+	// dials against the older client. A dial failure (ENOENT,
+	// ECONNREFUSED, timeout) means no peer is accepting; the path is
+	// safe to unlink.
+	probeDialer := net.Dialer{Timeout: liveSocketProbeTimeout}
+	if conn, errDial := probeDialer.DialContext(sr.ctx, "unix", socketCtrl); errDial == nil {
+		_ = conn.Close()
+		sr.logger.Error(
+			"OpenSocketCtrl: socket already in use by live peer",
+			"socket", socketCtrl,
+		)
+		return fmt.Errorf("socket already in use by live peer: %s", socketCtrl)
+	}
 
 	// remove stale socket if it exists
 	if _, err := os.Stat(socketCtrl); err == nil {
