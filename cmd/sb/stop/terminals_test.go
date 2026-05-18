@@ -18,12 +18,18 @@ package stop
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/eminwux/sbsh/cmd/config"
+	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/errdefs"
+	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/viper"
 )
 
@@ -134,5 +140,73 @@ func Test_ProcessIsOurs_ZeroTokenFallsBack(t *testing.T) {
 	}
 	if processIsOurs(0, 0) {
 		t.Fatal("expected processIsOurs(0, 0) to be false")
+	}
+}
+
+func writeStopTestTerminal(t *testing.T, runPath, id, name string, state api.TerminalStatusMode, pid int) {
+	t.Helper()
+	dir := filepath.Join(runPath, defaults.TerminalsRunPath, id)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("mkdir %s: %v", dir, err)
+	}
+	doc := api.TerminalDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindTerminal,
+		Spec:       api.TerminalSpec{ID: api.ID(id), Name: name, RunPath: runPath},
+		Status: api.TerminalStatus{
+			State:           state,
+			Pid:             pid,
+			TerminalRunPath: dir,
+		},
+	}
+	b, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if writeErr := os.WriteFile(filepath.Join(dir, "metadata.json"), b, 0o644); writeErr != nil {
+		t.Fatalf("write metadata.json: %v", writeErr)
+	}
+}
+
+func readStopTestTerminalState(t *testing.T, runPath, id string) api.TerminalStatusMode {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(runPath, defaults.TerminalsRunPath, id, "metadata.json"))
+	if err != nil {
+		t.Fatalf("read metadata: %v", err)
+	}
+	var doc api.TerminalDoc
+	if unmarshalErr := json.Unmarshal(b, &doc); unmarshalErr != nil {
+		t.Fatalf("unmarshal: %v", unmarshalErr)
+	}
+	return doc.Status.State
+}
+
+// Test_ResolveTargets_SingleName_PersistsExited covers the previously-missing
+// reconcile step on the single-target name path: a stale terminal whose
+// recorded PID is dead should be persisted as Exited after resolveTargets
+// runs, matching what the --all branch already does.
+func Test_ResolveTargets_SingleName_PersistsExited(t *testing.T) {
+	const deadPid = 0x7fffffff // very-high PID unlikely to exist
+	runPath := t.TempDir()
+	writeStopTestTerminal(t, runPath, "id-dead", "alpha", api.Ready, deadPid)
+
+	opts := stopOpts{
+		runPath: runPath,
+		name:    "alpha",
+		timeout: defaultStopTimeout,
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	docs, err := resolveTargets(context.Background(), logger, opts)
+	if err != nil {
+		t.Fatalf("resolveTargets: %v", err)
+	}
+	if len(docs) != 1 {
+		t.Fatalf("expected 1 doc, got %d", len(docs))
+	}
+	if docs[0].Status.State != api.Exited {
+		t.Fatalf("in-memory: expected Exited after reconcile, got %v", docs[0].Status.State)
+	}
+	if got := readStopTestTerminalState(t, runPath, "id-dead"); got != api.Exited {
+		t.Fatalf("persisted: expected Exited after reconcile, got %v", got)
 	}
 }

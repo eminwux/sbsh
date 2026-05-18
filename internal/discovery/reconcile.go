@@ -25,6 +25,7 @@ import (
 	"syscall"
 
 	"github.com/eminwux/sbsh/internal/defaults"
+	"github.com/eminwux/sbsh/internal/pidutil"
 	"github.com/eminwux/sbsh/internal/shared"
 	"github.com/eminwux/sbsh/pkg/api"
 )
@@ -56,6 +57,32 @@ func isProcessAlive(pid int) bool {
 	return false
 }
 
+// isInstanceAlive extends isProcessAlive with PID-reuse rejection: if a
+// start-time token was recorded, the live PID must still belong to the same
+// process instance that produced it. A zero token degrades to liveness-only,
+// matching the contract documented on pidutil.Match for legacy metadata and
+// non-Linux platforms.
+func isInstanceAlive(pid int, pidStart uint64) bool {
+	if !isProcessAlive(pid) {
+		return false
+	}
+	if pidStart == 0 {
+		return true
+	}
+	ok, err := pidutil.Match(pid, pidStart)
+	if err != nil {
+		// /proc entry vanished between the signal-0 check and the token read —
+		// treat as gone so callers persist Exited.
+		if errors.Is(err, os.ErrNotExist) {
+			return false
+		}
+		// Other read errors are inconclusive; keep prior behavior (treat as
+		// alive) rather than invent an Exited state on a transient /proc error.
+		return true
+	}
+	return ok
+}
+
 // ReconcileTerminals checks each terminal's recorded PID and, if the process
 // is gone but the metadata still claims a live state, rewrites metadata.json
 // with state=Exited. Mutates terminals in place so callers see fresh state.
@@ -79,7 +106,7 @@ func reconcileTerminal(
 	if t.Status.State == api.Exited {
 		return
 	}
-	if isProcessAlive(t.Status.Pid) {
+	if isInstanceAlive(t.Status.Pid, t.Status.PidStart) {
 		return
 	}
 	logger.InfoContext(ctx, "reconcileTerminal: marking stale terminal as Exited",
@@ -125,7 +152,7 @@ func reconcileClient(
 	if c.Status.State == api.ClientExited {
 		return
 	}
-	if isProcessAlive(c.Status.Pid) {
+	if isInstanceAlive(c.Status.Pid, c.Status.PidStart) {
 		return
 	}
 	logger.InfoContext(ctx, "reconcileClient: marking stale client as Exited",
