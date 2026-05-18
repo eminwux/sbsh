@@ -22,9 +22,11 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/internal/defaults"
@@ -208,5 +210,47 @@ func Test_ResolveTargets_SingleName_PersistsExited(t *testing.T) {
 	}
 	if got := readStopTestTerminalState(t, runPath, "id-dead"); got != api.Exited {
 		t.Fatalf("persisted: expected Exited after reconcile, got %v", got)
+	}
+}
+
+func Test_StopViaRPC_StaleSocket_RespectsTimeout(t *testing.T) {
+	tmpDir := t.TempDir()
+	sockPath := filepath.Join(tmpDir, "controller.sock")
+
+	// Fake a stale controller socket: bind a Unix listener, prevent the
+	// default unlink-on-close so the socket file survives, then close the
+	// listener. Subsequent dial() returns ECONNREFUSED quickly; without a
+	// bounded ctx the retry loop burns ~600ms of inter-attempt delays
+	// (and up to ~9.6s if dial itself stalls — see #251).
+	addr := &net.UnixAddr{Name: sockPath, Net: "unix"}
+	l, err := net.ListenUnix("unix", addr)
+	if err != nil {
+		t.Fatalf("ListenUnix: %v", err)
+	}
+	l.SetUnlinkOnClose(false)
+	if closeErr := l.Close(); closeErr != nil {
+		t.Fatalf("Close listener: %v", closeErr)
+	}
+	if _, statErr := os.Stat(sockPath); statErr != nil {
+		t.Fatalf("expected stale socket file at %s, stat: %v", sockPath, statErr)
+	}
+
+	doc := &api.TerminalDoc{
+		Spec:   api.TerminalSpec{Name: "stale"},
+		Status: api.TerminalStatus{SocketFile: sockPath},
+	}
+
+	timeout := 100 * time.Millisecond
+	start := time.Now()
+	rpcErr := stopViaRPC(context.Background(), slog.Default(), doc, timeout)
+	elapsed := time.Since(start)
+
+	if rpcErr == nil {
+		t.Fatal("stopViaRPC against a stale socket: expected error, got nil")
+	}
+	// Generous slack for CI variance but well below the retry-delay budget
+	// (~600ms) and orders of magnitude below the pre-fix 9.6s ceiling.
+	if elapsed > 500*time.Millisecond {
+		t.Fatalf("stopViaRPC took %v with timeout=%v; expected <500ms (pre-fix: 0.6s-9.6s)", elapsed, timeout)
 	}
 }
