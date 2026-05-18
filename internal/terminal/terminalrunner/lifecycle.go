@@ -139,8 +139,14 @@ func (sr *Exec) watchChildExit() {
 			_ = sr.cmd.Process.Release()
 		}
 	} else {
-		_ = sr.cmd.Wait()
-		exitErr = errors.New("the shell process has exited")
+		// cmd.Wait()'s *exec.ExitError carries the real exit code (and signal
+		// info on signaled deaths) — propagate it so EvCmdExited consumers can
+		// distinguish "shell exited 0" from "shell killed by SIGSEGV".
+		if werr := sr.cmd.Wait(); werr != nil {
+			exitErr = fmt.Errorf("shell process exited: %w", werr)
+		} else {
+			exitErr = errors.New("shell process exited (code 0)")
+		}
 	}
 
 	sr.logger.Info("child process has exited", "parent_pid", os.Getpid(), "child_pid", pid)
