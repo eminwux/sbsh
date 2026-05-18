@@ -144,29 +144,41 @@ func Run(ctx context.Context, opts Options) error {
 	}()
 
 	if waitErr := ctrl.WaitReady(); waitErr != nil {
-		// Drain ctrl.Run so the goroutine can exit; ignore its error
-		// (already surfaced via WaitReady or closing).
+		// WaitReady only returns non-nil when ctx fires before the
+		// controller signals readiness — i.e. ctx-cancel during setup.
+		// Actively close so the goroutine can exit even if a setup step
+		// is blocked on something that doesn't observe ctx; without
+		// this, <-errCh would have to trust every downstream RPC to
+		// honour ctx-cancel. Return the same ErrContextDone shape the
+		// post-setup path uses so callers branching on errors.Is see
+		// one sentinel for any ctx-cancel.
+		_ = ctrl.Close(waitErr)
 		<-errCh
-		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, waitErr)
+		return fmt.Errorf("%w: %w", errdefs.ErrContextDone, waitErr)
 	}
 
 	select {
 	case <-ctx.Done():
-		if waitErr := ctrl.WaitClose(); waitErr != nil {
-			return fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, waitErr)
-		}
+		// Force shutdown for the same reason as the WaitReady path, and
+		// so WaitClose (which blocks on closedCh, which only Close
+		// closes) doesn't depend on the controller reaching its own
+		// ctx.Done observer before exiting.
+		ctxErr := ctx.Err()
+		_ = ctrl.Close(ctxErr)
+		_ = ctrl.WaitClose()
 		<-errCh
-		return fmt.Errorf("%w: %w", errdefs.ErrContextDone, ctx.Err())
+		return fmt.Errorf("%w: %w", errdefs.ErrContextDone, ctxErr)
 
 	case ctrlErr := <-errCh:
-		if ctrlErr == nil || errors.Is(ctrlErr, context.Canceled) {
+		if ctrlErr == nil {
 			return nil
 		}
 		// Drain WaitClose to release internal resources, then map the
 		// controller-level session-end sentinel to the matching public
-		// sentinel so embedders can branch with errors.Is. Setup and
-		// infrastructure failures (no errdefs session-end sentinel
-		// chained) keep their identity.
+		// sentinel so embedders can branch with errors.Is. ctx-cancel
+		// surfaces here as errdefs.ErrContextDone chained with ctx.Err
+		// — pass it through unchanged so the two arms of this select
+		// return the same shape regardless of which one wins the race.
 		_ = ctrl.WaitClose()
 		return classifySessionEnd(ctrlErr)
 	}

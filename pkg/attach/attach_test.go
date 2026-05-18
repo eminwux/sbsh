@@ -49,6 +49,11 @@ type fakeTerminalController struct {
 	attachCalls atomic.Int32
 	state       api.TerminalStatusMode
 	attachErr   error
+	// attachBlock, if non-nil, makes Attach block until the channel is
+	// closed. Used to pin Run inside the controller's setup phase so
+	// the ctx-cancel race in pkg/attach.Run's shutdown select is
+	// reachable from a test.
+	attachBlock <-chan struct{}
 }
 
 func (f *fakeTerminalController) Ping(in *api.PingMessage, out *api.PingMessage) error {
@@ -69,6 +74,9 @@ func (f *fakeTerminalController) State(_ *api.Empty, out *api.TerminalStatusMode
 
 func (f *fakeTerminalController) Attach(_ *api.ID, _ *api.Empty) error {
 	f.attachCalls.Add(1)
+	if f.attachBlock != nil {
+		<-f.attachBlock
+	}
 	return f.attachErr
 }
 
@@ -280,6 +288,75 @@ func TestClassifySessionEnd_SetupErrorPassesThrough(t *testing.T) {
 	}
 	if !errors.Is(got, in) {
 		t.Fatalf("expected pass-through of input, got: %v", got)
+	}
+}
+
+// TestRun_CtxCancelReturnsErrContextDone is the regression for #246: the
+// shutdown select used to race on ctx-cancel — half the runs returned
+// errdefs.ErrContextDone (the documented behavior) and half returned nil
+// because the errCh arm short-circuited on errors.Is(ctrlErr,
+// context.Canceled). The fake's Attach blocks until t.Cleanup so Run
+// stays in the controller's setup phase; cancelling ctx from the test
+// must surface as errdefs.ErrContextDone every time.
+func TestRun_CtxCancelReturnsErrContextDone(t *testing.T) {
+	t.Parallel()
+	tempDir := t.TempDir()
+	block := make(chan struct{})
+	t.Cleanup(func() { close(block) })
+
+	fake := &fakeTerminalController{
+		state:       api.Ready,
+		attachBlock: block,
+	}
+	sock := startFakeTerminalServer(t, tempDir, fake)
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = r.Close()
+		_ = w.Close()
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	runDone := make(chan error, 1)
+	go func() {
+		runDone <- attach.Run(ctx, attach.Options{
+			SocketPath:             sock,
+			Stdin:                  r,
+			Stdout:                 w,
+			Stderr:                 w,
+			DisableDetachKeystroke: true,
+			Logger:                 discardLogger(),
+		})
+	}()
+
+	// Wait for Run to reach the Attach RPC so the cancel races against
+	// a controller pinned in setup, not a controller that finished early.
+	deadline := time.Now().Add(2 * time.Second)
+	for fake.attachCalls.Load() == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("Attach was never called; Run did not progress past setup")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	cancel()
+
+	select {
+	case runErr := <-runDone:
+		if runErr == nil {
+			t.Fatal("expected non-nil error after ctx-cancel, got nil")
+		}
+		if !errors.Is(runErr, errdefs.ErrContextDone) {
+			t.Fatalf("expected error wrapping errdefs.ErrContextDone, got: %v", runErr)
+		}
+		if !errors.Is(runErr, context.Canceled) {
+			t.Fatalf("expected context.Canceled in chain, got: %v", runErr)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run did not return within 5s of ctx-cancel")
 	}
 }
 
