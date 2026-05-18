@@ -64,6 +64,7 @@ func newOpenSocketCtrlExec(t *testing.T, socketFile string) *Exec {
 		childDoneOnce: &sync.Once{},
 		ptyPipes:      &ptyPipes{},
 		closePTY:      &sync.Once{},
+		closeClosedCh: &sync.Once{},
 	}
 }
 

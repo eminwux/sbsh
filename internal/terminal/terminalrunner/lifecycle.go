@@ -321,7 +321,13 @@ func (sr *Exec) Close(reason error) error {
 		}
 	}
 
-	close(sr.closedCh)
+	// Guard close(closedCh) so a repeat Close on the same runner does not
+	// panic on an already-closed channel. The other once-only steps in this
+	// function (closePTY, closeCapture, childDoneOnce) follow the same
+	// per-resource sync.Once pattern. See #242.
+	sr.closeClosedCh.Do(func() {
+		close(sr.closedCh)
+	})
 	return nil
 }
 

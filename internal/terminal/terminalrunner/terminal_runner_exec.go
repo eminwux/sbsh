@@ -88,6 +88,11 @@ type Exec struct {
 	captureFile  *os.File
 	closeCapture *sync.Once
 
+	// closeClosedCh guards close(closedCh) so a second Close call does not
+	// panic on a channel that is already closed. Matches the per-resource
+	// once pattern used for closePTY/closeCapture. See #242.
+	closeClosedCh *sync.Once
+
 	// initMode is captured at construction time so tests can toggle
 	// initmode.Enable before/after NewTerminalRunnerExec without surprising
 	// the already-running goroutines.
@@ -171,6 +176,7 @@ func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.T
 		ptyPipes:      &ptyPipes{},
 		closePTY:      &sync.Once{},
 		closeCapture:  &sync.Once{},
+		closeClosedCh: &sync.Once{},
 
 		initMode: inInit,
 		reaper:   rp,
