@@ -23,8 +23,3 @@ var (
 	ErrPipeWrite error = errors.New("could not write pty->pipe")
 	ErrPipeRead  error = errors.New("could not read pipe->pipe")
 )
-
-var (
-	ErrTerminalRead  error = errors.New("could not read pipe->pty")
-	ErrTerminalWrite error = errors.New("could not write pty->pipe")
-)
