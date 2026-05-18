@@ -236,13 +236,36 @@ func (sr *Exec) Close(reason error) error {
 
 	// close clients
 	//
+	// Snapshot multiOutW outside clientsMu: cleanupClient takes
+	// ptyPipesMu then clientsMu (via removeClient), so acquiring them in
+	// the opposite order here would invert the lock graph.
+	//
+	// Per-client teardown mirrors cleanupClient (connections.go) and the
+	// Detach RPC path: drop the attacher's bounded writer from the
+	// fan-out, Close it to wake its drain goroutine, then close the conn.
+	// Pre-fix Close only closed conn and relied on the dualcopier
+	// reader-side onClose firing detach to indirectly drain the
+	// goroutine; that path still runs (idempotently, gated by
+	// detachOnce + clear() below), but the indirect dependency is no
+	// longer load-bearing for goroutine teardown. See #230.
+	//
 	// clear() instead of `sr.clients = nil`: a concurrent addClient call
 	// can race past Close's unlock (per-conn RPC handlers outlive the
 	// accept loop's ctx-cancel exit), and writing to a nil map panics.
 	// Emptying the map keeps it addressable so the late write is a benign
 	// stale-entry no-op shape. See #225.
+	sr.ptyPipesMu.RLock()
+	multiOutW := sr.ptyPipes.multiOutW
+	sr.ptyPipesMu.RUnlock()
+
 	sr.clientsMu.Lock()
 	for _, c := range sr.clients {
+		if c.outWriter != nil {
+			if multiOutW != nil {
+				multiOutW.Remove(c.outWriter)
+			}
+			_ = c.outWriter.Close()
+		}
 		if err := c.conn.Close(); err != nil {
 			sr.logger.Warn("could not close client connection", "id", sr.id, "client", c.id, "err", err)
 		}
