@@ -112,7 +112,17 @@ type TerminalStatus struct {
 	// write time so callers that later signal Pid can reject a recycled
 	// PID. Zero means "no token recorded" and consumers should treat the
 	// PID as unverifiable. See internal/pidutil.
-	PidStart        uint64             `json:"pidStart,omitempty"`
+	PidStart uint64 `json:"pidStart,omitempty"`
+	// ChildPgid is the child shell's process-group id, captured at PTY
+	// start. The child is spawned with Setsid: true, so the pgid equals
+	// the child's PID and lives in a different session from the
+	// controller. `sb stop --force` (and the --kill-after escalation)
+	// signal -ChildPgid before SIGKILL'ing the controller so the entire
+	// child pgroup is reaped even when the shell traps SIGHUP. Zero
+	// means "metadata predates this field" — callers must skip the
+	// pgroup-kill rather than risk Kill(0, sig) hitting the caller's
+	// own process group.
+	ChildPgid       int                `json:"childPgid,omitempty"`
 	Tty             string             `json:"tty"`
 	State           TerminalStatusMode `json:"state"`
 	SocketFile      string             `json:"socketCtrl"`

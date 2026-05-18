@@ -17,6 +17,7 @@
 package stop
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -24,13 +25,16 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/errdefs"
+	"github.com/eminwux/sbsh/internal/pidutil"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/spf13/viper"
 )
@@ -252,5 +256,139 @@ func Test_StopViaRPC_StaleSocket_RespectsTimeout(t *testing.T) {
 	// (~600ms) and orders of magnitude below the pre-fix 9.6s ceiling.
 	if elapsed > 500*time.Millisecond {
 		t.Fatalf("stopViaRPC took %v with timeout=%v; expected <500ms (pre-fix: 0.6s-9.6s)", elapsed, timeout)
+	}
+}
+
+// startBackgroundProc spawns cmd, fires a one-shot goroutine that Wait()s
+// on it so the test process reaps the zombie, and registers a Cleanup that
+// SIGKILLs the whole pgroup as a safety net. The returned channel closes
+// once Wait() returns, letting the test assert "process is gone" without
+// racing zombie state.
+func startBackgroundProc(t *testing.T, cmd *exec.Cmd) <-chan struct{} {
+	t.Helper()
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start %v: %v", cmd.Args, err)
+	}
+	done := make(chan struct{})
+	go func() {
+		_, _ = cmd.Process.Wait()
+		close(done)
+	}()
+	t.Cleanup(func() {
+		// Best-effort pgroup kill in case the test fails before our
+		// signal lands. ESRCH (group already drained) is fine.
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		_ = cmd.Process.Kill()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+		}
+	})
+	return done
+}
+
+// Test_StopOneTerminal_Force_ReapsChildPgroupOnSIGHUPTrap covers #252:
+// `sb stop --force` must SIGKILL the recorded child pgroup before SIGKILL'ing
+// the controller, otherwise a shell that traps or ignores SIGHUP (the
+// PTY-master-close fallback) survives reparented to init.
+//
+// We approximate the runner's two-process layout without spinning up a real
+// controller/PTY: a long-sleeping "controller" stand-in, plus a SIGHUP-and-
+// SIGTERM-trapping child shell in its own session (Setsid → pgid == pid).
+// Pre-fix, --force only SIGKILLs the controller and the child shell stays
+// alive past sigkillGrace; post-fix the pgroup-kill takes it down.
+func Test_StopOneTerminal_Force_ReapsChildPgroupOnSIGHUPTrap(t *testing.T) {
+	// Child shell: trap HUP and TERM so only SIGKILL takes it (and the
+	// backgrounded sleep) down. Setsid puts it in its own pgroup, mirroring
+	// the runner's prepareTerminalCommand.
+	child := exec.Command("/bin/sh", "-c", `trap '' HUP TERM; sleep 60 & wait`)
+	child.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	childDone := startBackgroundProc(t, child)
+
+	// Controller stand-in: a plain sleep we can SIGKILL by PID.
+	parent := exec.Command("/bin/sh", "-c", `sleep 60`)
+	parentDone := startBackgroundProc(t, parent)
+
+	// Give the child shell time to install the trap before we signal —
+	// without this, SIGKILL on the pgroup can win the race before `trap`
+	// runs, which trivially passes the test for the wrong reason.
+
+	time.Sleep(100 * time.Millisecond)
+
+	parentPidStart, err := pidutil.StartTime(parent.Process.Pid)
+	if err != nil {
+		t.Fatalf("StartTime(parent=%d): %v", parent.Process.Pid, err)
+	}
+
+	doc := &api.TerminalDoc{
+		Spec: api.TerminalSpec{Name: "trap-hup"},
+		Status: api.TerminalStatus{
+			State:     api.Ready,
+			Pid:       parent.Process.Pid,
+			PidStart:  parentPidStart,
+			ChildPgid: child.Process.Pid, // Setsid → pgid == child.Pid
+		},
+	}
+	opts := stopOpts{force: true, timeout: defaultStopTimeout}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	var stdout, stderr bytes.Buffer
+
+	start := time.Now()
+	res := stopOneTerminal(context.Background(), logger, &stdout, &stderr, doc, opts)
+	elapsed := time.Since(start)
+
+	if res != resultStopped {
+		t.Fatalf("expected resultStopped, got %v\nstdout=%q\nstderr=%q", res, stdout.String(), stderr.String())
+	}
+	if elapsed > sigkillGrace {
+		t.Fatalf("stopOneTerminal --force took %v; expected <= sigkillGrace (%v)", elapsed, sigkillGrace)
+	}
+
+	// Controller is reaped by SIGKILL on doc.Status.Pid.
+	select {
+	case <-parentDone:
+	case <-time.After(sigkillGrace):
+		t.Fatalf("controller stand-in still alive after sigkillGrace=%v", sigkillGrace)
+	}
+	// Load-bearing assertion for #252: the trap-HUP child must be reaped
+	// by the pgroup-kill, not survive past sigkillGrace.
+	select {
+	case <-childDone:
+	case <-time.After(sigkillGrace):
+		t.Fatalf("child shell pgroup still alive after sigkillGrace=%v; --force only reaped controller", sigkillGrace)
+	}
+}
+
+// Test_SendPgroupSignal_ZeroPgidIsNoOp guards the critical invariant that
+// Kill(0, sig) — which on POSIX means "signal every process in the caller's
+// own pgroup" — must never be issued. Older terminals on disk have no
+// ChildPgid recorded; the field defaults to zero.
+func Test_SendPgroupSignal_ZeroPgidIsNoOp(t *testing.T) {
+	if err := sendPgroupKill(0); err != nil {
+		t.Fatalf("sendPgroupKill(0) = %v; want nil (no-op)", err)
+	}
+	if err := sendPgroupKill(-1); err != nil {
+		t.Fatalf("sendPgroupKill(-1) = %v; want nil (no-op)", err)
+	}
+}
+
+// Test_SendPgroupSignal_GoneGroupIsNoOp covers the ESRCH path: a pgid whose
+// members have already drained must not surface as an error to the caller.
+func Test_SendPgroupSignal_GoneGroupIsNoOp(t *testing.T) {
+	probe := exec.Command("/bin/sh", "-c", `exit 0`)
+	probe.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := probe.Start(); err != nil {
+		t.Fatalf("start probe: %v", err)
+	}
+	pgid := probe.Process.Pid
+	if _, err := probe.Process.Wait(); err != nil {
+		t.Fatalf("wait probe: %v", err)
+	}
+	// Brief settle so the pgroup is fully drained — exit(0) on the
+	// leader can race ahead of pgroup teardown on slow CI.
+
+	time.Sleep(50 * time.Millisecond)
+	if err := sendPgroupKill(pgid); err != nil {
+		t.Fatalf("sendPgroupKill(drained pgid=%d) = %v; want nil (ESRCH suppressed)", pgid, err)
 	}
 }

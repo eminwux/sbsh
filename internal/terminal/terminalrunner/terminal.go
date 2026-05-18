@@ -166,9 +166,14 @@ func (sr *Exec) startPty() error {
 		return fmt.Errorf("error setting initial pty size: %w", errS)
 	}
 
-	// Set tty device in status metadata
+	// Set tty device in status metadata. Capture ChildPgid here too:
+	// cmd.Process.Pid is the child shell's PID, and because we set
+	// Setsid: true in prepareTerminalCommand, the child is its own
+	// session leader, so pgid == pid. Consumers (e.g. `sb stop --force`)
+	// signal -ChildPgid to reap the whole child pgroup.
 	sr.metadataMu.Lock()
 	sr.metadata.Status.Tty = sr.pts.Name()
+	sr.metadata.Status.ChildPgid = sr.cmd.Process.Pid
 	sr.metadataMu.Unlock()
 
 	if sr.initMode && sr.reaper != nil {
