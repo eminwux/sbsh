@@ -36,6 +36,11 @@ import (
 
 // scanMetadataFiles reads all metadata.json files matching the pattern and unmarshals them.
 // It returns a slice of unmarshaled metadata structs of type T.
+//
+// Per-file read or decode failures are logged at Warn and skipped — one
+// corrupt or unreadable metadata.json must not mask every other live
+// terminal/client from discovery. An error is returned only for
+// unrecoverable conditions (glob itself failing, ctx cancellation).
 func scanMetadataFiles[T any](
 	ctx context.Context,
 	logger *slog.Logger,
@@ -54,6 +59,7 @@ func scanMetadataFiles[T any](
 	}
 
 	out := make([]T, 0, len(paths))
+	skipped := 0
 	for _, p := range paths {
 		select {
 		case <-ctx.Done():
@@ -63,20 +69,25 @@ func scanMetadataFiles[T any](
 		}
 		b, errRead := os.ReadFile(p)
 		if errRead != nil {
-			logger.ErrorContext(ctx, fmt.Sprintf("%s: failed to read file", logPrefix), "file", p, "error", errRead)
-			return nil, fmt.Errorf("read %s: %w", p, errRead)
+			logger.WarnContext(
+				ctx,
+				fmt.Sprintf("%s: failed to read file, skipping", logPrefix),
+				"file", p,
+				"error", errRead,
+			)
+			skipped++
+			continue
 		}
 		var s T
 		if errUnmarshal := json.Unmarshal(b, &s); errUnmarshal != nil {
-			logger.ErrorContext(
+			logger.WarnContext(
 				ctx,
-				fmt.Sprintf("%s: failed to decode file", logPrefix),
-				"file",
-				p,
-				"error",
-				errUnmarshal,
+				fmt.Sprintf("%s: failed to decode file, skipping", logPrefix),
+				"file", p,
+				"error", errUnmarshal,
 			)
-			return nil, fmt.Errorf("decode %s: %w", p, errUnmarshal)
+			skipped++
+			continue
 		}
 		logger.DebugContext(
 			ctx,
@@ -89,7 +100,12 @@ func scanMetadataFiles[T any](
 		out = append(out, s)
 	}
 
-	logger.InfoContext(ctx, fmt.Sprintf("%s: finished scanning", logPrefix), "count", len(out))
+	logger.InfoContext(
+		ctx,
+		fmt.Sprintf("%s: finished scanning", logPrefix),
+		"count", len(out),
+		"skipped", skipped,
+	)
 	return out, nil
 }
 
