@@ -66,14 +66,16 @@ func (w ProfileWarning) String() string {
 //
 // Any problem that is scoped to a single file or document becomes a
 // ProfileWarning rather than aborting the scan:
+//   - cannot read a directory entry during the walk (unreadable subdir,
+//     broken filesystem state under a subtree),
 //   - cannot open a file,
 //   - malformed YAML,
 //   - missing required apiVersion/kind/metadata.name,
 //   - unsupported apiVersion or kind,
 //   - duplicate profile name (keeps the first and skips subsequent).
 //
-// An error is returned only for unrecoverable conditions such as a walk
-// failure on the directory itself.
+// An error is returned only for unrecoverable conditions such as the
+// initial stat on dir failing for a reason other than os.ErrNotExist.
 func LoadProfilesFromDir(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -96,14 +98,14 @@ func LoadProfilesFromDir(
 		return nil, nil, fmt.Errorf("profiles path %q is not a directory", dir)
 	}
 
-	files, err := collectYAMLFiles(dir)
+	files, walkWarnings, err := collectYAMLFiles(dir)
 	if err != nil {
-		return nil, nil, err
+		return nil, walkWarnings, err
 	}
 
 	var (
 		profiles []api.TerminalProfileDoc
-		warnings []ProfileWarning
+		warnings = walkWarnings
 		// seen maps profile name -> file that first loaded that name.
 		seen = make(map[string]string)
 	)
@@ -136,12 +138,27 @@ func LoadProfilesFromDir(
 }
 
 // collectYAMLFiles returns the lexicographically sorted list of *.yaml and
-// *.yml files found under dir (recursively).
-func collectYAMLFiles(dir string) ([]string, error) {
-	var files []string
+// *.yml files found under dir (recursively). Per-entry walk failures
+// (unreadable subdirectory, broken filesystem state under a subtree) become
+// ProfileWarning entries; the walk continues so siblings still load.
+func collectYAMLFiles(dir string) ([]string, []ProfileWarning, error) {
+	var (
+		files    []string
+		warnings []ProfileWarning
+	)
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, e error) error {
 		if e != nil {
-			return e
+			warnings = append(warnings, ProfileWarning{
+				File:   path,
+				Reason: fmt.Sprintf("walk: %v", e),
+			})
+			// For an unreadable directory, SkipDir prevents the walker from
+			// re-reporting the same ReadDir failure; for a file or the
+			// initial-stat case (d == nil), nil lets siblings still process.
+			if d != nil && d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if d.IsDir() {
 			return nil
@@ -153,10 +170,10 @@ func collectYAMLFiles(dir string) ([]string, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("walk profiles dir %q: %w", dir, err)
+		return nil, warnings, fmt.Errorf("walk profiles dir %q: %w", dir, err)
 	}
 	sort.Strings(files)
-	return files, nil
+	return files, warnings, nil
 }
 
 // loadProfilesFromFile decodes every YAML document in a single file and

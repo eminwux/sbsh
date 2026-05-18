@@ -289,6 +289,54 @@ spec:
 	}
 }
 
+func TestLoadProfilesFromDir_UnreadableSubdirProducesWarning(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses directory permission bits, cannot exercise per-entry walk failure")
+	}
+	ctx := context.Background()
+	logger := testLogger()
+	dir := t.TempDir()
+
+	writeFile(t, dir, "good.yaml", `apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: good
+spec:
+  runTarget: local
+  shell:
+    cmd: /bin/sh
+`)
+	bad := filepath.Join(dir, "bad")
+	if err := os.Mkdir(bad, 0o000); err != nil {
+		t.Fatalf("mkdir bad: %v", err)
+	}
+	// Restore perms so t.TempDir's cleanup can recurse into bad/.
+	t.Cleanup(func() {
+		_ = os.Chmod(bad, 0o755)
+	})
+
+	got, warnings, err := discovery.LoadProfilesFromDir(ctx, logger, dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0].Metadata.Name != "good" {
+		t.Fatalf("expected sibling YAML to still load, got %+v", got)
+	}
+	if len(warnings) == 0 {
+		t.Fatal("expected a warning for the unreadable subdir, got none")
+	}
+	var matched *discovery.ProfileWarning
+	for i := range warnings {
+		if strings.HasSuffix(warnings[i].File, "bad") && strings.Contains(warnings[i].Reason, "walk") {
+			matched = &warnings[i]
+			break
+		}
+	}
+	if matched == nil {
+		t.Fatalf("expected walk warning pointing at the unreadable subdir, got %v", warnings)
+	}
+}
+
 func TestLoadProfilesFromDir_UnsupportedKindProducesWarning(t *testing.T) {
 	ctx := context.Background()
 	logger := testLogger()
