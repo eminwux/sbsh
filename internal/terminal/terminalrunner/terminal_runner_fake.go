@@ -76,7 +76,7 @@ func (sr *Test) StartServer(
 }
 
 func (sr *Test) StartTerminal(evCh chan<- Event) error {
-	if sr.OpenSocketCtrlFunc != nil {
+	if sr.StartTerminalFunc != nil {
 		return sr.StartTerminalFunc(evCh)
 	}
 	return nil
@@ -118,7 +118,7 @@ func (sr *Test) Attach(id *api.ID, response *api.ResponseWithFD) error {
 
 func (sr *Test) Detach(id *api.ID) error {
 	if sr.DetachFunc != nil {
-		_ = sr.DetachFunc(id)
+		return sr.DetachFunc(id)
 	}
 	return errdefs.ErrFuncNotSet
 }
