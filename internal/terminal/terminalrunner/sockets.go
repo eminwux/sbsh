@@ -20,10 +20,18 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"github.com/eminwux/sbsh/pkg/api"
 	"golang.org/x/sys/unix"
 )
+
+// liveSocketProbeTimeout bounds the DialTimeout used by OpenSocketCtrl to
+// decide whether a peer is already serving the control socket path before
+// unlinking it. A successful dial inside this window means the inode is
+// live and the bind must refuse; any dial failure (ENOENT, ECONNREFUSED,
+// timeout) means no peer is accepting and the path is safe to unlink.
+const liveSocketProbeTimeout = 100 * time.Millisecond
 
 // defaultSocketMode is the legacy owner-only mode applied when the spec
 // leaves SocketMode at its zero value. Group/world access is opt-in via
@@ -131,6 +139,23 @@ func (sr *Exec) OpenSocketCtrl() error {
 	if errMetadata != nil {
 		sr.logger.Error("OpenSocketCtrl: failed to update metadata", "error", errMetadata)
 		return fmt.Errorf("update metadata: %w", errMetadata)
+	}
+
+	// Probe before unlinking: a successful dial means a live peer is
+	// serving this path (operator passed the same --id / --socket-file
+	// twice, two starts raced, an old process is still draining a slow
+	// client). Refusing the bind keeps the victim's socket intact and
+	// surfaces a clear diagnostic instead of silently breaking attach
+	// against the older terminal. A dial failure (ENOENT, ECONNREFUSED,
+	// timeout) means no peer is accepting; the path is safe to unlink.
+	probeDialer := net.Dialer{Timeout: liveSocketProbeTimeout}
+	if conn, errDial := probeDialer.DialContext(sr.ctx, "unix", socketFile); errDial == nil {
+		_ = conn.Close()
+		sr.logger.Error(
+			"OpenSocketCtrl: socket already in use by live peer",
+			"socket", socketFile,
+		)
+		return fmt.Errorf("socket already in use by live peer: %s", socketFile)
 	}
 
 	// Remove sockets if they already exist
