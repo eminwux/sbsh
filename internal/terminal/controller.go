@@ -225,7 +225,7 @@ func (c *Controller) Run(spec *api.TerminalSpec) error {
 				return errdefs.ErrRPCServerExited
 			}
 			c.logger.ErrorContext(c.ctx, "rpc server has failed", "err", err)
-			if errC := c.Close(err); err != nil {
+			if errC := c.Close(err); errC != nil {
 				c.logger.ErrorContext(c.ctx, "error during Close after rpc server failure", "err", errC)
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrOnClose, errC)
 			}
