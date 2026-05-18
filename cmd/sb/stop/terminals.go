@@ -70,6 +70,10 @@ is unreachable, falls back to SIGTERM on the recorded PID. After signalling,
 waits up to --timeout for the process to exit. With --force, sends SIGKILL
 immediately. With --kill-after, escalates to SIGKILL when the timeout elapses.
 
+Both --force and the --kill-after escalation reap the child shell's entire
+process group (SIGKILL on the recorded child pgid) before SIGKILL'ing the
+controller, so a shell that traps or ignores SIGHUP is taken down too.
+
 Metadata is left in place so 'sb prune terminals' can clean it up.`,
 		SilenceUsage:      true,
 		Args:              cobra.MaximumNArgs(1),
@@ -101,7 +105,7 @@ func setupStopTerminalsCmd(c *cobra.Command) {
 	c.Flags().Bool("all", false, "Stop every active terminal")
 	_ = viper.BindPFlag(config.SB_STOP_ALL.ViperKey, c.Flags().Lookup("all"))
 
-	c.Flags().Bool("force", false, "Send SIGKILL immediately instead of a graceful stop")
+	c.Flags().Bool("force", false, "Send SIGKILL immediately (reaps the entire child pgroup, not just the controller)")
 	_ = viper.BindPFlag(config.SB_STOP_FORCE.ViperKey, c.Flags().Lookup("force"))
 
 	c.Flags().Duration("timeout", defaultStopTimeout, "How long to wait for the terminal to exit")
@@ -260,6 +264,14 @@ func stopOneTerminal(
 	}
 
 	if opts.force {
+		// Reap the child pgroup first: SIGKILL the controller alone
+		// leaves any pgroup member that traps SIGHUP (or ignores it via
+		// nohup) reparented to init. Pre-#252 metadata has no ChildPgid
+		// recorded; sendPgroupSignal treats zero as a no-op.
+		if err := sendPgroupKill(doc.Status.ChildPgid); err != nil {
+			fmt.Fprintf(stderr, "failed to SIGKILL terminal %q child pgroup: %v\n", name, err)
+			return resultFailed
+		}
 		if err := sendSignal(doc.Status.Pid, doc.Status.PidStart, syscall.SIGKILL); err != nil {
 			fmt.Fprintf(stderr, "failed to SIGKILL terminal %q: %v\n", name, err)
 			return resultFailed
@@ -295,6 +307,12 @@ func stopOneTerminal(
 	}
 
 	fmt.Fprintf(stdout, "terminal %q did not exit within %s; escalating to SIGKILL\n", name, opts.timeout)
+	// Mirror the --force branch: reap the child pgroup before SIGKILL'ing
+	// the controller so SIGHUP-trapping members don't survive.
+	if err := sendPgroupKill(doc.Status.ChildPgid); err != nil {
+		fmt.Fprintf(stderr, "failed to SIGKILL terminal %q child pgroup: %v\n", name, err)
+		return resultFailed
+	}
 	if err := sendSignal(doc.Status.Pid, doc.Status.PidStart, syscall.SIGKILL); err != nil {
 		fmt.Fprintf(stderr, "failed to SIGKILL terminal %q: %v\n", name, err)
 		return resultFailed
@@ -331,6 +349,25 @@ func stopViaRPC(
 	defer func() { _ = rc.Close() }()
 
 	return rc.Stop(rpcCtx, &api.StopArgs{Reason: "sb stop"})
+}
+
+// sendPgroupKill SIGKILLs the process group led by pgid via
+// syscall.Kill(-pgid, SIGKILL). It is intentionally permissive about ESRCH
+// (pgroup already drained) and about pgid <= 0: a zero pgid means the
+// terminal metadata predates ChildPgid (#252), and Kill(0, SIGKILL) would
+// signal the caller's own pgroup — a destructive surprise we refuse.
+// There is no PidStart-style recycle protection on the pgid here: the
+// caller has already verified the controller is alive (processIsOurs on
+// doc.Status.Pid) and the runner exits when the child does, so a stale
+// ChildPgid implies a dead controller, which the caller filters out.
+func sendPgroupKill(pgid int) error {
+	if pgid <= 0 {
+		return nil
+	}
+	if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+		return fmt.Errorf("%w: %w", errdefs.ErrSignalProcess, err)
+	}
+	return nil
 }
 
 // sendSignal delivers sig to pid, but only after confirming pid still maps
