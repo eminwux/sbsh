@@ -229,14 +229,19 @@ func (sr *Exec) Close(reason error) error {
 	}
 
 	// close clients
+	//
+	// clear() instead of `sr.clients = nil`: a concurrent addClient call
+	// can race past Close's unlock (per-conn RPC handlers outlive the
+	// accept loop's ctx-cancel exit), and writing to a nil map panics.
+	// Emptying the map keeps it addressable so the late write is a benign
+	// stale-entry no-op shape. See #225.
 	sr.clientsMu.Lock()
 	for _, c := range sr.clients {
 		if err := c.conn.Close(); err != nil {
 			sr.logger.Warn("could not close client connection", "id", sr.id, "client", c.id, "err", err)
 		}
 	}
-
-	sr.clients = nil
+	clear(sr.clients)
 	sr.clientsMu.Unlock()
 
 	// close all output subscribers
