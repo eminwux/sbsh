@@ -88,13 +88,14 @@ func (c *unixJSONServerCodec) ReadRequestHeader(r *rpc.Request) error {
 
 // ReadRequestBody unmarshals the first element of the params array into body (like std jsonrpc).
 func (c *unixJSONServerCodec) ReadRequestBody(body interface{}) error {
-	if body == nil {
-		return nil
-	}
 	// We don't get seq here, so we rely on json.Decoder’s sequencing; net/rpc calls
 	// ReadRequestBody immediately after ReadRequestHeader on the same goroutine,
 	// so the most recent seq is r.Seq. To keep this simple, we pop the smallest seq
-	// that still has params (the one we just set).
+	// that still has params (the one we just set). We must consume the entry even
+	// when body is nil — net/rpc passes nil to discard the body of an unknown
+	// method, and leaving the entry behind would both leak the buffer for the
+	// connection's lifetime and cause cross-talk on the next call (smallest-seq
+	// pick would return the stale prior-request params).
 	c.seqMu.Lock()
 	var chosenSeq uint64
 	for s := range c.paramsBySeq {
@@ -105,6 +106,10 @@ func (c *unixJSONServerCodec) ReadRequestBody(body interface{}) error {
 	params := c.paramsBySeq[chosenSeq]
 	delete(c.paramsBySeq, chosenSeq)
 	c.seqMu.Unlock()
+
+	if body == nil {
+		return nil
+	}
 
 	if len(params) == 0 || string(params) == "null" {
 		return nil
