@@ -199,6 +199,9 @@ func (sr *Exec) startPty() error {
 		_ = logf.Close()
 		return errPerm
 	}
+	// Hand fd ownership to the runner; Close closes it after PTY teardown
+	// so in-flight multiOutW.Write has settled. See #229.
+	sr.captureFile = logf
 
 	if errU := sr.updateMetadata(); errU != nil {
 		return fmt.Errorf("update metadata: %w", errU)
