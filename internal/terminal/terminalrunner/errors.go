@@ -23,3 +23,9 @@ var (
 	ErrPipeWrite error = errors.New("could not write pty->pipe")
 	ErrPipeRead  error = errors.New("could not read pipe->pipe")
 )
+
+// errTerminalClosing is returned by Subscribe (and any future post-Close
+// RPC handler) when the runner has observed ctx cancel and refuses to
+// register a new attacher. Package-private — callers across the RPC
+// boundary see the string form.
+var errTerminalClosing = errors.New("terminal closing")
