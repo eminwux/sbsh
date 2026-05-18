@@ -71,7 +71,7 @@ func (sr *Exec) StartServer(
 			// Normal path: listener closed by ctx cancel
 			if errors.Is(err, net.ErrClosed) || sr.ctx.Err() != nil {
 				select {
-				case doneCh <- errors.New("unknown rpc server error"):
+				case doneCh <- nil:
 				default:
 				}
 				close(doneCh)

@@ -183,6 +183,10 @@ func (s *Server) runLoop(
 			if err != nil {
 				return err
 			}
+			// graceful: listener closed by ctx cancel; mirror the ctx.Done branch.
+			if cerr := ctx.Err(); cerr != nil {
+				return cerr
+			}
 			return errors.New("server: rpc server exited")
 		case err := <-s.stopCh:
 			if err != nil {

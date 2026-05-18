@@ -216,6 +216,14 @@ func (c *Controller) Run(spec *api.TerminalSpec) error {
 			c.handleEvent(ev)
 
 		case err := <-c.rpcDoneCh:
+			if err == nil {
+				c.logger.InfoContext(c.ctx, "rpc server exited gracefully")
+				if errC := c.Close(nil); errC != nil {
+					c.logger.ErrorContext(c.ctx, "error during Close after rpc server graceful exit", "err", errC)
+					return fmt.Errorf("%w: %w", errdefs.ErrRPCServerExited, errC)
+				}
+				return errdefs.ErrRPCServerExited
+			}
 			c.logger.ErrorContext(c.ctx, "rpc server has failed", "err", err)
 			if errC := c.Close(err); err != nil {
 				c.logger.ErrorContext(c.ctx, "error during Close after rpc server failure", "err", errC)
