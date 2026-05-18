@@ -274,7 +274,7 @@ func stopOneTerminal(
 	}
 
 	// Graceful path: try RPC first, fall back to SIGTERM.
-	if err := stopViaRPC(ctx, logger, doc); err != nil {
+	if err := stopViaRPC(ctx, logger, doc, opts.timeout); err != nil {
 		logger.DebugContext(ctx, "Stop RPC failed, falling back to SIGTERM",
 			"name", name, "error", err)
 		if errSig := sendSignal(doc.Status.Pid, doc.Status.PidStart, syscall.SIGTERM); errSig != nil {
@@ -312,16 +312,25 @@ func stopViaRPC(
 	ctx context.Context,
 	logger *slog.Logger,
 	doc *api.TerminalDoc,
+	timeout time.Duration,
 ) error {
 	socket := doc.Status.SocketFile
 	if socket == "" {
 		return errors.New("terminal metadata has no control socket recorded")
 	}
 
+	// Bound the whole RPC budget (dial retries + call) to the user's --timeout
+	// so a stale or wedged controller socket can't burn ~9.6s of retries before
+	// the SIGTERM fallback. The post-signal waitForExit gets its own --timeout
+	// budget; the user's stop wall-clock is bounded by ~2*timeout in the worst
+	// case, never by the retry loop's hardcoded ~9.6s.
+	rpcCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	rc := rpcterminal.NewUnix(socket, logger, rpcterminal.WithDialTimeout(stopRPCDialTimeout))
 	defer func() { _ = rc.Close() }()
 
-	return rc.Stop(ctx, &api.StopArgs{Reason: "sb stop"})
+	return rc.Stop(rpcCtx, &api.StopArgs{Reason: "sb stop"})
 }
 
 // sendSignal delivers sig to pid, but only after confirming pid still maps
