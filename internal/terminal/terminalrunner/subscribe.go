@@ -101,6 +101,16 @@ func (sr *Exec) Subscribe(req *api.SubscribeRequest, response *api.ResponseWithF
 		return fmt.Errorf("Subscribe: terminal not running")
 	}
 
+	// Early shutdown check: avoid registry mutation when Close has already
+	// flipped the context. Cheaper than the late check below and rejects
+	// late RPCs that arrive on a per-conn handler still draining after the
+	// accept loop's ctx-cancel exit. See #226.
+	if sr.ctx.Err() != nil {
+		_ = conn.Close()
+		_ = unix.Close(cliFD)
+		return errTerminalClosing
+	}
+
 	var sub *subscriberWriter
 	var detachOnce sync.Once
 	detach := func() {
@@ -115,6 +125,21 @@ func (sr *Exec) Subscribe(req *api.SubscribeRequest, response *api.ResponseWithF
 	sr.addSubscriber(sub)
 	multiOutW.Add(sub)
 	go sub.Run()
+
+	// Late shutdown check: Close's closeAllSubscribers may have already
+	// snapshotted sr.subscribers before our addSubscriber landed (Close
+	// runs ctxCancel before snapshotting), leaving the drain parked on
+	// cond.Wait() with no writer to signal it. Re-check ctx after the
+	// goroutine is live and, if shutdown observed, Close the subscriber
+	// ourselves — drain wakes, runs onDetach (multiOutW.Remove +
+	// removeSubscriber) and closes conn via its deferred close. Both
+	// detach() and sub.Close() are idempotent, so concurring with Close's
+	// own iteration is harmless. See #226.
+	if sr.ctx.Err() != nil {
+		_ = sub.Close()
+		_ = unix.Close(cliFD)
+		return errTerminalClosing
+	}
 
 	payload := struct {
 		OK bool `json:"ok"`
