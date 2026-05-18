@@ -263,6 +263,18 @@ func (sr *Exec) Close(reason error) error {
 		}
 	}
 
+	// Close the capture file fd. Sequenced after closeAllSubscribers and
+	// ptmx teardown so the PTY reader has stopped writing to multiOutW
+	// (which holds captureFile as its always-on writer). closeCapture
+	// guards against double-Close per #229's idempotency AC.
+	if sr.captureFile != nil && sr.closeCapture != nil {
+		sr.closeCapture.Do(func() {
+			if err := sr.captureFile.Close(); err != nil {
+				sr.logger.Warn("could not close capture file", "id", sr.id, "err", err)
+			}
+		})
+	}
+
 	// remove Ctrl socket
 	sr.metadataMu.RLock()
 	socketFile := sr.metadata.Status.SocketFile

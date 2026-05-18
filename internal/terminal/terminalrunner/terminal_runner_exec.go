@@ -81,6 +81,13 @@ type Exec struct {
 
 	closePTY *sync.Once
 
+	// captureFile is the *os.File backing the always-on capture writer in
+	// multiOutW. The runner owns the fd from startPty onward; Close closes
+	// it via closeCapture so repeated New→Start→Close cycles in-process do
+	// not leak fds. See #229.
+	captureFile  *os.File
+	closeCapture *sync.Once
+
 	// initMode is captured at construction time so tests can toggle
 	// initmode.Enable before/after NewTerminalRunnerExec without surprising
 	// the already-running goroutines.
@@ -163,6 +170,7 @@ func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.T
 		childDoneOnce: &sync.Once{},
 		ptyPipes:      &ptyPipes{},
 		closePTY:      &sync.Once{},
+		closeCapture:  &sync.Once{},
 
 		initMode: inInit,
 		reaper:   rp,
