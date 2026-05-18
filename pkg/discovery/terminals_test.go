@@ -101,12 +101,59 @@ func TestScanTerminals_InvalidJSON(t *testing.T) {
 	runPath := t.TempDir()
 	writeInvalidTerminalJSON(t, runPath, "bad-id")
 
-	_, err := discovery.ScanTerminals(ctx, logger, runPath)
-	if err == nil {
-		t.Fatal("expected error on invalid JSON, got nil")
+	got, err := discovery.ScanTerminals(ctx, logger, runPath)
+	if err != nil {
+		t.Fatalf("expected no error on invalid JSON (per-file failures are skipped), got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "decode") {
-		t.Fatalf("expected decode error, got: %v", err)
+	if len(got) != 0 {
+		t.Fatalf("expected 0 terminals (only the corrupt one was present), got %d", len(got))
+	}
+}
+
+// TestScanTerminals_InvalidJSON_SiblingsStillLoad verifies the core contract
+// from #258: one corrupt metadata.json must not mask every other live
+// terminal from discovery.
+func TestScanTerminals_InvalidJSON_SiblingsStillLoad(t *testing.T) {
+	ctx := context.Background()
+	logger := testLogger()
+	runPath := t.TempDir()
+
+	writeTerminalDoc(t, runPath, "id-good-1", "alpha")
+	writeInvalidTerminalJSON(t, runPath, "id-bad")
+	writeTerminalDoc(t, runPath, "id-good-2", "beta")
+
+	got, err := discovery.ScanTerminals(ctx, logger, runPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	wantIDs := []string{"id-good-1", "id-good-2"}
+	if len(got) != len(wantIDs) {
+		t.Fatalf("want %d terminals, got %d (%+v)", len(wantIDs), len(got), got)
+	}
+	for i, w := range wantIDs {
+		if string(got[i].Spec.ID) != w {
+			t.Fatalf("mismatch at %d: want %q, got %q", i, w, got[i].Spec.ID)
+		}
+	}
+}
+
+// TestFindTerminalByID_SkipsCorruptSibling verifies that `sb attach <id>`
+// (which routes through FindTerminalByID) succeeds when an unrelated
+// terminal's metadata.json is corrupt — AC bullet 3 of #258.
+func TestFindTerminalByID_SkipsCorruptSibling(t *testing.T) {
+	ctx := context.Background()
+	logger := testLogger()
+	runPath := t.TempDir()
+
+	writeTerminalDoc(t, runPath, "id-good", "good")
+	writeInvalidTerminalJSON(t, runPath, "id-bad")
+
+	got, err := discovery.FindTerminalByID(ctx, logger, runPath, "id-good")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got == nil || string(got.Spec.ID) != "id-good" {
+		t.Fatalf("want id-good, got %+v", got)
 	}
 }
 

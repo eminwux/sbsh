@@ -95,9 +95,39 @@ func TestScanClients_InvalidJSON(t *testing.T) {
 	runPath := t.TempDir()
 	writeInvalidClientJSON(t, runPath, "bad")
 
-	_, err := discovery.ScanClients(ctx, logger, runPath)
-	if err == nil {
-		t.Fatal("expected decode error, got nil")
+	got, err := discovery.ScanClients(ctx, logger, runPath)
+	if err != nil {
+		t.Fatalf("expected no error on invalid JSON (per-file failures are skipped), got: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected 0 clients (only the corrupt one was present), got %d", len(got))
+	}
+}
+
+// TestScanClients_InvalidJSON_SiblingsStillLoad verifies the core contract
+// from #258: one corrupt metadata.json must not mask every other live
+// client from discovery.
+func TestScanClients_InvalidJSON_SiblingsStillLoad(t *testing.T) {
+	ctx := context.Background()
+	logger := testLogger()
+	runPath := t.TempDir()
+
+	writeClientDoc(t, runPath, "c-good-1", "alpha")
+	writeInvalidClientJSON(t, runPath, "c-bad")
+	writeClientDoc(t, runPath, "c-good-2", "beta")
+
+	got, err := discovery.ScanClients(ctx, logger, runPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	wantIDs := []string{"c-good-1", "c-good-2"}
+	if len(got) != len(wantIDs) {
+		t.Fatalf("want %d clients, got %d (%+v)", len(wantIDs), len(got), got)
+	}
+	for i, w := range wantIDs {
+		if string(got[i].Spec.ID) != w {
+			t.Fatalf("mismatch at %d: want %q, got %q", i, w, got[i].Spec.ID)
+		}
 	}
 }
 
