@@ -224,7 +224,12 @@ func resolveTargets(
 	if doc == nil {
 		return nil, fmt.Errorf("%w: terminal %q", errdefs.ErrTerminalNotFound, opts.name)
 	}
-	return []api.TerminalDoc{*doc}, nil
+	// Persist Exited if the recorded process is gone (or its PID has been
+	// recycled to an unrelated instance). Mirrors the --all branch above so
+	// metadata stays consistent regardless of which target path was taken.
+	docs := []api.TerminalDoc{*doc}
+	discovery.ReconcileTerminals(ctx, logger, opts.runPath, docs)
+	return docs, nil
 }
 
 func stopOneTerminal(
