@@ -71,6 +71,7 @@ func newSubscribeRaceExec(t *testing.T) *Exec {
 		childDoneOnce: &sync.Once{},
 		ptyPipes:      &ptyPipes{multiOutW: NewDynamicMultiWriter(logger)},
 		closePTY:      &sync.Once{},
+		closeClosedCh: &sync.Once{},
 	}
 }
 

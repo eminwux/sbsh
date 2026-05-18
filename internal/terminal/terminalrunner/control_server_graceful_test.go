@@ -57,6 +57,7 @@ func newStartServerTestExec(t *testing.T, logger *slog.Logger) (*Exec, func()) {
 		childDoneOnce: &sync.Once{},
 		ptyPipes:      &ptyPipes{},
 		closePTY:      &sync.Once{},
+		closeClosedCh: &sync.Once{},
 	}
 	cleanup := func() {
 		cancel()

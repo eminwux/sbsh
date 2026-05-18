@@ -64,6 +64,7 @@ func newCaptureFDExec(t *testing.T) (*Exec, *os.File) {
 		ptyPipes:      &ptyPipes{},
 		closePTY:      &sync.Once{},
 		closeCapture:  &sync.Once{},
+		closeClosedCh: &sync.Once{},
 		captureFile:   logf,
 	}
 	return sr, logf
@@ -85,9 +86,10 @@ func TestExecClose_CapturesFileFD(t *testing.T) {
 }
 
 // TestExecClose_CaptureFileDoubleCloseIsHarmless is the regression for #229's
-// idempotency AC. closeCapture is a sync.Once, so a second Close on the
-// runner must not double-close the underlying fd (which would error and log
-// a warning), and must not panic.
+// idempotency AC plus the closedCh follow-up in #242. closeCapture and
+// closeClosedCh are sync.Once, so a second Close on the runner must not
+// double-close the underlying fd (which would error and log a warning), must
+// not panic on `close of closed channel`, and must return nil.
 func TestExecClose_CaptureFileDoubleCloseIsHarmless(t *testing.T) {
 	sr, _ := newCaptureFDExec(t)
 
@@ -99,11 +101,6 @@ func TestExecClose_CaptureFileDoubleCloseIsHarmless(t *testing.T) {
 			t.Fatalf("second Close panicked: %v", r)
 		}
 	}()
-	// Reset closedCh so the second Close's `close(sr.closedCh)` does not
-	// panic on a closed channel — that's an orthogonal Close-idempotency
-	// concern, not what this test is asserting. The sync.Once on
-	// closeCapture is what protects the capture fd from a double-close.
-	sr.closedCh = make(chan struct{})
 	if err := sr.Close(nil); err != nil {
 		t.Fatalf("second Close returned error: %v", err)
 	}
