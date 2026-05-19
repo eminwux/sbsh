@@ -359,11 +359,11 @@ func Test_StopOneTerminal_Force_ReapsChildPgroupOnSIGHUPTrap(t *testing.T) {
 	}
 }
 
-// Test_SendPgroupSignal_ZeroPgidIsNoOp guards the critical invariant that
+// Test_SendPgroupKill_ZeroPgidIsNoOp guards the critical invariant that
 // Kill(0, sig) — which on POSIX means "signal every process in the caller's
 // own pgroup" — must never be issued. Older terminals on disk have no
 // ChildPgid recorded; the field defaults to zero.
-func Test_SendPgroupSignal_ZeroPgidIsNoOp(t *testing.T) {
+func Test_SendPgroupKill_ZeroPgidIsNoOp(t *testing.T) {
 	if err := sendPgroupKill(0); err != nil {
 		t.Fatalf("sendPgroupKill(0) = %v; want nil (no-op)", err)
 	}
@@ -372,9 +372,9 @@ func Test_SendPgroupSignal_ZeroPgidIsNoOp(t *testing.T) {
 	}
 }
 
-// Test_SendPgroupSignal_GoneGroupIsNoOp covers the ESRCH path: a pgid whose
+// Test_SendPgroupKill_GoneGroupIsNoOp covers the ESRCH path: a pgid whose
 // members have already drained must not surface as an error to the caller.
-func Test_SendPgroupSignal_GoneGroupIsNoOp(t *testing.T) {
+func Test_SendPgroupKill_GoneGroupIsNoOp(t *testing.T) {
 	probe := exec.Command("/bin/sh", "-c", `exit 0`)
 	probe.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := probe.Start(); err != nil {
