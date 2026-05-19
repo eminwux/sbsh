@@ -14,8 +14,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package terminalstore is the client-side, in-memory registry of
-// terminals known to a single sbsh client process.
+// Package terminalstore is a client-side, in-memory fail-fast guard
+// against duplicate terminal IDs inside a single sbsh client process.
 //
 // # Scope and lifetime
 //
@@ -23,7 +23,8 @@
 // internal/client/controller.go) and dies with the controller goroutine
 // when the client process exits or its context is cancelled. The store
 // holds *api.AttachedTerminal values keyed by api.ID; it is not
-// persisted to disk.
+// persisted to disk and exposes only Add — there is no lifecycle
+// tracking, no listing, and no current-terminal pointer here.
 //
 // The authoritative inventory of terminals across the host lives on
 // disk under <runPath>/terminals/<id>/. That directory tree is the
@@ -38,14 +39,10 @@
 //
 // # Concurrency
 //
-// All TerminalStore operations on the production Exec implementation
-// are guarded by a single sync.RWMutex. Read methods (Get, ListLive,
-// Current) take the read lock; mutators (Add, Remove, SetCurrent)
-// take the write lock. Each compound check-then-write sequence —
-// Add's "exists? then insert (and maybe set current)" and
-// SetCurrent's "exists? then assign" — runs under one write-lock
-// acquisition, so they are atomic with respect to concurrent callers.
-// There is no internal TOCTOU window.
+// Add is guarded by a sync.Mutex. The check-then-insert sequence —
+// "exists? then insert" — runs under one lock acquisition, so it is
+// atomic with respect to concurrent callers. There is no internal
+// TOCTOU window.
 //
 // The store is keyed by api.ID exclusively. There is no name-keyed
 // lookup, and no callers route from a store entry to a kill(2)

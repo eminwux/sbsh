@@ -17,7 +17,6 @@
 package terminalstore
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/eminwux/sbsh/internal/errdefs"
@@ -26,17 +25,11 @@ import (
 
 type TerminalStore interface {
 	Add(s *api.AttachedTerminal) error
-	Get(id api.ID) (*api.AttachedTerminal, bool)
-	ListLive() []api.ID
-	Remove(id api.ID)
-	Current() api.ID
-	SetCurrent(id api.ID) error
 }
 
 type Exec struct {
-	mu        sync.RWMutex
+	mu        sync.Mutex
 	terminals map[api.ID]*api.AttachedTerminal
-	current   api.ID
 }
 
 func NewTerminalStoreExec() TerminalStore {
@@ -53,8 +46,6 @@ func NewSupervisedTerminal(spec *api.TerminalSpec) *api.AttachedTerminal {
 	}
 }
 
-/* Basic ops */
-
 func (m *Exec) Add(s *api.AttachedTerminal) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -62,50 +53,5 @@ func (m *Exec) Add(s *api.AttachedTerminal) error {
 		return errdefs.ErrTerminalExists
 	}
 	m.terminals[s.Spec.ID] = s
-	if m.current == "" {
-		m.current = s.Spec.ID
-	}
-	return nil
-}
-
-func (m *Exec) Get(id api.ID) (*api.AttachedTerminal, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	s, ok := m.terminals[id]
-	return s, ok
-}
-
-func (m *Exec) ListLive() []api.ID {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	out := make([]api.ID, 0, len(m.terminals))
-	for id := range m.terminals {
-		out = append(out, id)
-	}
-	return out
-}
-
-func (m *Exec) Remove(id api.ID) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.terminals, id)
-	if m.current == id {
-		m.current = "" // caller can SetCurrent to another live terminal
-	}
-}
-
-func (m *Exec) Current() api.ID {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.current
-}
-
-func (m *Exec) SetCurrent(id api.ID) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if _, ok := m.terminals[id]; !ok {
-		return errors.New("unknown terminal id")
-	}
-	m.current = id
 	return nil
 }

@@ -220,28 +220,6 @@ func Test_ErrAttach(t *testing.T) {
 			AddFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return &api.AttachedTerminal{
-					Spec: &api.TerminalSpec{
-						ID:   "term-1",
-						Name: "terminal-1",
-					},
-				}, true
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {
-			},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
-				return nil
-			},
 		}
 	}
 
@@ -321,23 +299,6 @@ func Test_ErrContextDone(t *testing.T) {
 	sc.NewTerminalStore = func() terminalstore.TerminalStore {
 		return &terminalstore.Test{
 			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {
-			},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
 				return nil
 			},
 		}
@@ -486,23 +447,6 @@ func Test_ErrRPCServerExited(t *testing.T) {
 			AddFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {
-			},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
-				return nil
-			},
 		}
 	}
 
@@ -581,23 +525,6 @@ func Test_ErrCloseReq(t *testing.T) {
 	sc.NewTerminalStore = func() terminalstore.TerminalStore {
 		return &terminalstore.Test{
 			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {
-			},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
 				return nil
 			},
 		}
@@ -681,23 +608,6 @@ func Test_ErrStartCmd(t *testing.T) {
 			AddFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {
-			},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
-				return nil
-			},
 		}
 	}
 
@@ -773,23 +683,6 @@ func Test_ErrTerminalStore(t *testing.T) {
 		return &terminalstore.Test{
 			AddFunc: func(_ *api.AttachedTerminal) error {
 				return errors.New("force add fail")
-			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {
-			},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
-				return nil
 			},
 		}
 	}
@@ -902,22 +795,6 @@ func Test_ErrNoTerminalSpec(t *testing.T) {
 			AddFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
-				return nil
-			},
 		}
 	}
 
@@ -978,22 +855,6 @@ func Test_ErrTerminalExists(t *testing.T) {
 		return &terminalstore.Test{
 			AddFunc: func(_ *api.AttachedTerminal) error {
 				return errdefs.ErrTerminalExists
-			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
-				return nil
 			},
 		}
 	}
@@ -1208,22 +1069,6 @@ func Test_EventCmdExited(t *testing.T) {
 			AddFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
-				return nil
-			},
 		}
 	}
 
@@ -1315,22 +1160,6 @@ func Test_EventError(t *testing.T) {
 	sc.NewTerminalStore = func() terminalstore.TerminalStore {
 		return &terminalstore.Test{
 			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
 				return nil
 			},
 		}
@@ -1427,22 +1256,6 @@ func Test_EventDetach(t *testing.T) {
 			AddFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
-				return nil
-			},
 		}
 	}
 
@@ -1537,22 +1350,6 @@ func Test_EventDetachFailure(t *testing.T) {
 			AddFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
-				return nil
-			},
 		}
 	}
 
@@ -1638,12 +1435,7 @@ func Test_EventError_PeerClosed(t *testing.T) {
 
 	sc.NewTerminalStore = func() terminalstore.TerminalStore {
 		return &terminalstore.Test{
-			AddFunc:        func(_ *api.AttachedTerminal) error { return nil },
-			GetFunc:        func(_ api.ID) (*api.AttachedTerminal, bool) { return nil, false },
-			ListLiveFunc:   func() []api.ID { return []api.ID{} },
-			RemoveFunc:     func(_ api.ID) {},
-			CurrentFunc:    func() api.ID { return "sess-1" },
-			SetCurrentFunc: func(_ api.ID) error { return nil },
+			AddFunc: func(_ *api.AttachedTerminal) error { return nil },
 		}
 	}
 
@@ -1734,12 +1526,7 @@ func Test_EventDetachThenError_ClientDetached(t *testing.T) {
 
 	sc.NewTerminalStore = func() terminalstore.TerminalStore {
 		return &terminalstore.Test{
-			AddFunc:        func(_ *api.AttachedTerminal) error { return nil },
-			GetFunc:        func(_ api.ID) (*api.AttachedTerminal, bool) { return nil, false },
-			ListLiveFunc:   func() []api.ID { return []api.ID{} },
-			RemoveFunc:     func(_ api.ID) {},
-			CurrentFunc:    func() api.ID { return "sess-1" },
-			SetCurrentFunc: func(_ api.ID) error { return nil },
+			AddFunc: func(_ *api.AttachedTerminal) error { return nil },
 		}
 	}
 
@@ -1836,22 +1623,6 @@ func Test_EventUnknown(_ *testing.T) {
 	sc.NewTerminalStore = func() terminalstore.TerminalStore {
 		return &terminalstore.Test{
 			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
 				return nil
 			},
 		}
@@ -2093,22 +1864,6 @@ func Test_RunNewTerminalSuccess(t *testing.T) {
 			AddFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {},
-			CurrentFunc: func() api.ID {
-				return "sess-1"
-			},
-			SetCurrentFunc: func(id api.ID) error {
-				if id == "" {
-					return errors.New("empty id not allowed")
-				}
-				return nil
-			},
 		}
 	}
 
@@ -2239,19 +1994,6 @@ func Test_ClientAttach_WaitForStartingOrReady(t *testing.T) {
 			AddFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {},
-			CurrentFunc: func() api.ID {
-				return "term-1"
-			},
-			SetCurrentFunc: func(_ api.ID) error {
-				return nil
-			},
 		}
 	}
 
@@ -2374,19 +2116,6 @@ func Test_ClientAttach_StateTransition(t *testing.T) {
 	sc.NewTerminalStore = func() terminalstore.TerminalStore {
 		return &terminalstore.Test{
 			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-			GetFunc: func(_ api.ID) (*api.AttachedTerminal, bool) {
-				return nil, false
-			},
-			ListLiveFunc: func() []api.ID {
-				return []api.ID{}
-			},
-			RemoveFunc: func(_ api.ID) {},
-			CurrentFunc: func() api.ID {
-				return "term-1"
-			},
-			SetCurrentFunc: func(_ api.ID) error {
 				return nil
 			},
 		}
