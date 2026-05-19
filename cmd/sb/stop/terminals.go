@@ -267,7 +267,7 @@ func stopOneTerminal(
 		// Reap the child pgroup first: SIGKILL the controller alone
 		// leaves any pgroup member that traps SIGHUP (or ignores it via
 		// nohup) reparented to init. Pre-#252 metadata has no ChildPgid
-		// recorded; sendPgroupSignal treats zero as a no-op.
+		// recorded; sendPgroupKill treats zero as a no-op.
 		if err := sendPgroupKill(doc.Status.ChildPgid); err != nil {
 			fmt.Fprintf(stderr, "failed to SIGKILL terminal %q child pgroup: %v\n", name, err)
 			return resultFailed
