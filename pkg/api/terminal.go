@@ -17,6 +17,8 @@
 package api
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"time"
 )
@@ -115,6 +117,97 @@ type TerminalSpec struct {
 	// exit after SIGTERM before escalating to SIGKILL. Zero means "use the
 	// runner's default" (30s, matching Kubernetes terminationGracePeriodSeconds).
 	ShutdownGrace time.Duration `json:"shutdownGrace,omitempty"`
+
+	// Children declares N child processes the terminal multiplexes onto a
+	// single attach session. When empty, the spec retains its single-child
+	// shape via the top-level Command/CommandArgs/CaptureFile fields. When
+	// non-empty, the top-level Command must be empty (mutually exclusive)
+	// and the supervisor spawns each child via its own ChildSpec. The
+	// supervisor behavior that consumes this list (spawn, drain, gating,
+	// switch, replay, lifecycle) ships in later phases of the supervisor
+	// series; phase 1 introduces the schema only.
+	Children []ChildSpec `json:"children,omitempty" yaml:"children,omitempty"`
+
+	// CyclePrefix is the byte sequence the attach client interprets as the
+	// "cycle to next child" escape (consumed in phase 4). Empty means "use
+	// the supervisor default" (^A / "\x01"). Stored verbatim — the attach
+	// client compares the inbound byte stream against this prefix literally.
+	CyclePrefix string `json:"cyclePrefix,omitempty" yaml:"cyclePrefix,omitempty"`
+
+	// SwitchReplayBytes bounds the trailing capture-tail length the
+	// supervisor replays to the operator when cycling onto a child whose
+	// PTY has already produced output (consumed in phase 5). Zero means
+	// "use the supervisor default" (4096). Negative values are rejected by
+	// Validate.
+	SwitchReplayBytes int `json:"switchReplayBytes,omitempty" yaml:"switchReplayBytes,omitempty"`
+}
+
+// ChildSpec declares one child process supervised by a TerminalSpec whose
+// Children list is non-empty. Each child is spawned with its own Command +
+// CommandArgs and its own capture file; the supervisor multiplexes the
+// children's PTY output onto whichever attach session is currently focused
+// on that child (see TerminalSpec.CyclePrefix for the operator-visible
+// cycle key).
+//
+// Turn is the cycle-order index used by phase 4's switch logic; children
+// are visited in ascending Turn order, with ties broken by the order they
+// appear in TerminalSpec.Children.
+type ChildSpec struct {
+	Name        string      `json:"name"                  yaml:"name"`
+	Command     string      `json:"command"               yaml:"command"`
+	CommandArgs []string    `json:"commandArgs,omitempty" yaml:"commandArgs,omitempty"`
+	CaptureFile string      `json:"captureFile,omitempty" yaml:"captureFile,omitempty"`
+	CaptureMode os.FileMode `json:"captureMode,omitempty" yaml:"captureMode,omitempty"`
+	Turn        int         `json:"turn,omitempty"        yaml:"turn,omitempty"`
+}
+
+// Validate enforces the phase-1 schema rules on a TerminalSpec:
+//
+//   - Children may not coexist with a top-level Command (the two shapes are
+//     mutually exclusive; the supervisor either runs one child via the
+//     top-level Command/CommandArgs pair or N children via Children).
+//   - At least one of Children or top-level Command must be set, so the
+//     supervisor has something to spawn.
+//   - Child names must be unique within a single spec, so phase 4's switch
+//     logic can address children by name without ambiguity.
+//   - Each child must carry a non-empty Name and Command (a child whose
+//     identity or argv is unset cannot be supervised).
+//   - SwitchReplayBytes must be non-negative.
+//
+// Validate is the canonical entry point library callers reach for before
+// handing a spec to the runner. Phase 1 only adds the method; later phases
+// wire it into the runner's startup path.
+func (s *TerminalSpec) Validate() error {
+	hasChildren := len(s.Children) > 0
+	hasTopCmd := s.Command != ""
+
+	if hasChildren && hasTopCmd {
+		return errors.New("terminal spec: children and top-level command are mutually exclusive")
+	}
+	if !hasChildren && !hasTopCmd {
+		return errors.New("terminal spec: either children or top-level command must be set")
+	}
+	if s.SwitchReplayBytes < 0 {
+		return fmt.Errorf("terminal spec: switchReplayBytes must be non-negative, got %d", s.SwitchReplayBytes)
+	}
+
+	if hasChildren {
+		seen := make(map[string]struct{}, len(s.Children))
+		for i, c := range s.Children {
+			if c.Name == "" {
+				return fmt.Errorf("terminal spec: children[%d].name is required", i)
+			}
+			if c.Command == "" {
+				return fmt.Errorf("terminal spec: children[%d] (%q).command is required", i, c.Name)
+			}
+			if _, dup := seen[c.Name]; dup {
+				return fmt.Errorf("terminal spec: duplicate child name %q", c.Name)
+			}
+			seen[c.Name] = struct{}{}
+		}
+	}
+
+	return nil
 }
 
 type TerminalStatus struct {
