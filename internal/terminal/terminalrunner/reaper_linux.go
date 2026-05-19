@@ -45,6 +45,13 @@ type reaper struct {
 	trackedOnce    sync.Once
 	trackedExitCh  chan int // buffered 1; receives exit code for trackedPid
 	trackedStopped bool
+
+	// watchMu guards watches, the multi-child exit-routing table used by the
+	// child-set spawn path (TerminalSpec.Children). RegisterChild/TrackedExitCh
+	// route the single primary child; WatchChild routes each supervised child
+	// in a child set, where there is no single "tracked" pid.
+	watchMu sync.Mutex
+	watches map[int]chan int // pid -> buffered(1) exit channel
 }
 
 // newReaper constructs a reaper but does not start it. Call Start to install
@@ -79,6 +86,15 @@ func (r *reaper) Stop() {
 	}
 	close(r.stop)
 	signal.Stop(r.sigCh)
+	// Unblock any supervised-child watchers still waiting on an exit the
+	// reaper will never deliver after shutdown. Closing the channel makes
+	// their receive return ok=false.
+	r.watchMu.Lock()
+	for pid, ch := range r.watches {
+		close(ch)
+		delete(r.watches, pid)
+	}
+	r.watchMu.Unlock()
 	<-r.done
 }
 
@@ -100,6 +116,38 @@ func (r *reaper) RegisterChild(pid int) {
 // channel is buffered so the reaper never blocks delivering.
 func (r *reaper) TrackedExitCh() <-chan int {
 	return r.trackedExitCh
+}
+
+// WatchChild registers interest in pid's exit and returns a buffered channel
+// that receives its exit code exactly once when the reaper reaps it (then is
+// closed). Unlike RegisterChild — which routes the single primary shell to
+// TrackedExitCh — WatchChild supports an arbitrary number of supervised
+// children: the child-set spawn path registers each child here so its exit is
+// observed even though the reaper, not os/exec.Wait, consumes the SIGCHLD.
+//
+// Callers must register immediately after fork+exec; an exit that races ahead
+// of registration is reaped as an orphan and not delivered, mirroring the
+// pre-existing RegisterChild window. On reaper Stop, any still-pending watch
+// channel is closed so its waiter unblocks. Safe to call concurrently.
+func (r *reaper) WatchChild(pid int) <-chan int {
+	r.watchMu.Lock()
+	defer r.watchMu.Unlock()
+	if r.watches == nil {
+		r.watches = make(map[int]chan int)
+	}
+	ch := make(chan int, 1)
+	r.watches[pid] = ch
+	return ch
+}
+
+// exitCodeFromStatus maps a WaitStatus to the shell-conventional exit code:
+// the raw exit status, or 128+signal when the process was signaled.
+func exitCodeFromStatus(status syscall.WaitStatus) int {
+	if status.Signaled() {
+		//nolint:mnd // shell-conventional encoding of signal death
+		return 128 + int(status.Signal())
+	}
+	return status.ExitStatus()
 }
 
 // drainOnce runs a single WNOHANG Wait4 sweep, returning the number of
@@ -136,12 +184,7 @@ func (r *reaper) handleReaped(pid int, status syscall.WaitStatus) {
 	r.mu.Unlock()
 
 	if tracked != 0 && pid == tracked && !stopped {
-		exitCode := status.ExitStatus()
-		if status.Signaled() {
-			// 128 + signal number is the shell-conventional encoding.
-			//nolint:mnd // shell-conventional encoding of signal death
-			exitCode = 128 + int(status.Signal())
-		}
+		exitCode := exitCodeFromStatus(status)
 		r.trackedOnce.Do(func() {
 			r.mu.Lock()
 			r.trackedStopped = true
@@ -152,6 +195,19 @@ func (r *reaper) handleReaped(pid int, status syscall.WaitStatus) {
 		r.logger.Info("reaper: tracked child exited", "pid", pid, "exit", exitCode)
 		return
 	}
+
+	// Route to a supervised child-set watcher, if one registered this pid.
+	r.watchMu.Lock()
+	if ch, ok := r.watches[pid]; ok {
+		delete(r.watches, pid)
+		r.watchMu.Unlock()
+		exitCode := exitCodeFromStatus(status)
+		ch <- exitCode // buffered(1), never blocks
+		close(ch)
+		r.logger.Info("reaper: watched child exited", "pid", pid, "exit", exitCode)
+		return
+	}
+	r.watchMu.Unlock()
 
 	r.logger.Debug("reaper: reaped orphan", "pid", pid, "status", status)
 }

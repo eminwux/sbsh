@@ -54,16 +54,31 @@ func (sr *Exec) StartTerminal(evCh chan<- Event) error {
 		return fmt.Errorf("failed to apply log file perms for terminal %s: %w", sr.id, err)
 	}
 
-	// 3) Prepare terminal command
-	if err := sr.prepareTerminalCommand(); err != nil {
-		sr.logger.Error("failed to run terminal command", "id", sr.id, "err", err)
-		return fmt.Errorf("failed to run terminal command for terminal %s: %w", sr.id, err)
-	}
+	// 3+4) Spawn the workload. A non-empty Spec.Children takes the child-set
+	// path (socketpair-stdio spawn + per-child capture drain); it is mutually
+	// exclusive with the top-level Command (enforced by TerminalSpec.Validate).
+	// The single-child PTY path is unchanged when Children is empty.
+	sr.metadataMu.RLock()
+	hasChildren := len(sr.metadata.Spec.Children) > 0
+	sr.metadataMu.RUnlock()
 
-	// 4) Start PTY
-	if err := sr.startPty(); err != nil {
-		sr.logger.Error("failed to start PTY", "id", sr.id, "err", err)
-		return fmt.Errorf("failed to start PTY for terminal %s: %w", sr.id, err)
+	if hasChildren {
+		if err := sr.startChildren(); err != nil {
+			sr.logger.Error("failed to start children", "id", sr.id, "err", err)
+			return fmt.Errorf("failed to start children for terminal %s: %w", sr.id, err)
+		}
+	} else {
+		// 3) Prepare terminal command
+		if err := sr.prepareTerminalCommand(); err != nil {
+			sr.logger.Error("failed to run terminal command", "id", sr.id, "err", err)
+			return fmt.Errorf("failed to run terminal command for terminal %s: %w", sr.id, err)
+		}
+
+		// 4) Start PTY
+		if err := sr.startPty(); err != nil {
+			sr.logger.Error("failed to start PTY", "id", sr.id, "err", err)
+			return fmt.Errorf("failed to start PTY for terminal %s: %w", sr.id, err)
+		}
 	}
 
 	// 5) Update state to Starting
