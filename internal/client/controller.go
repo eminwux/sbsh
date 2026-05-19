@@ -27,7 +27,6 @@ import (
 
 	"github.com/eminwux/sbsh/internal/client/clientrpc"
 	"github.com/eminwux/sbsh/internal/client/clientrunner"
-	"github.com/eminwux/sbsh/internal/client/terminalstore"
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
@@ -42,11 +41,9 @@ type Controller struct {
 	cancel context.CancelCauseFunc
 	logger *slog.Logger
 
-	NewClientRunner  func(ctx context.Context, logger *slog.Logger, doc *api.ClientDoc, evCh chan<- clientrunner.Event) clientrunner.ClientRunner
-	NewTerminalStore func() terminalstore.TerminalStore
+	NewClientRunner func(ctx context.Context, logger *slog.Logger, doc *api.ClientDoc, evCh chan<- clientrunner.Event) clientrunner.ClientRunner
 
 	sr clientrunner.ClientRunner
-	ss terminalstore.TerminalStore
 
 	ctrlReadyCh  chan struct{}
 	closeReqCh   chan error
@@ -104,7 +101,6 @@ func NewClientControllerWithIO(
 		NewClientRunner: func(ctx context.Context, logger *slog.Logger, doc *api.ClientDoc, evCh chan<- clientrunner.Event) clientrunner.ClientRunner {
 			return clientrunner.NewClientRunnerExecWithIO(ctx, logger, doc, evCh, stdin, stdout, stderr)
 		},
-		NewTerminalStore: terminalstore.NewTerminalStoreExec,
 	}
 	return c
 }
@@ -127,7 +123,6 @@ func (s *Controller) Run(doc *api.ClientDoc) error {
 	defer s.logger.Info("controller loop stopped", "run_path", doc.Spec.RunPath)
 
 	s.sr = s.NewClientRunner(s.ctx, s.logger, doc, s.eventsCh)
-	s.ss = s.NewTerminalStore()
 
 	errMetadata := s.sr.CreateMetadata()
 	if errMetadata != nil {
@@ -194,8 +189,7 @@ func (s *Controller) Run(doc *api.ClientDoc) error {
 			}
 			close(s.ctrlReadyCh)
 			// Wrap with appropriate errdefs error if not already wrapped
-			if !errors.Is(errCreate, errdefs.ErrNoTerminalSpec) && !errors.Is(errCreate, errdefs.ErrStartCmd) &&
-				!errors.Is(errCreate, errdefs.ErrTerminalStore) {
+			if !errors.Is(errCreate, errdefs.ErrNoTerminalSpec) && !errors.Is(errCreate, errdefs.ErrStartCmd) {
 				return fmt.Errorf("%w: %w", errdefs.ErrStartTerminal, errCreate)
 			}
 			return errCreate
@@ -330,11 +324,7 @@ func (s *Controller) createAttachTerminal(doc *api.ClientDoc) (*api.AttachedTerm
 		if spec.ID == "" {
 			spec.ID = api.ID(naming.RandomID())
 		}
-		terminal := terminalstore.NewSupervisedTerminal(&spec)
-		if err := s.ss.Add(terminal); err != nil {
-			return nil, fmt.Errorf("%w: %w", errdefs.ErrTerminalStore, err)
-		}
-		return terminal, nil
+		return newSupervisedTerminal(&spec), nil
 	}
 
 	var metadata *api.TerminalDoc
@@ -364,11 +354,7 @@ func (s *Controller) createAttachTerminal(doc *api.ClientDoc) (*api.AttachedTerm
 		return nil, errdefs.ErrTerminalMetadataNotFound
 	}
 
-	terminal := terminalstore.NewSupervisedTerminal(&metadata.Spec)
-	if err := s.ss.Add(terminal); err != nil {
-		return nil, fmt.Errorf("%w: %w", errdefs.ErrTerminalStore, err)
-	}
-	return terminal, nil
+	return newSupervisedTerminal(&metadata.Spec), nil
 }
 
 func (s *Controller) createRunNewTerminal(doc *api.ClientDoc) (*api.AttachedTerminal, error) {
@@ -380,7 +366,7 @@ func (s *Controller) createRunNewTerminal(doc *api.ClientDoc) (*api.AttachedTerm
 		"terminal", "-",
 	}
 
-	terminal := terminalstore.NewSupervisedTerminal(doc.Spec.TerminalSpec)
+	terminal := newSupervisedTerminal(doc.Spec.TerminalSpec)
 
 	execPath, errExe := os.Executable()
 	if errExe != nil {
@@ -389,11 +375,19 @@ func (s *Controller) createRunNewTerminal(doc *api.ClientDoc) (*api.AttachedTerm
 	terminal.Command = execPath
 	terminal.CommandArgs = args
 
-	if errNew := s.ss.Add(terminal); errNew != nil {
-		return nil, fmt.Errorf("%w: %w", errdefs.ErrTerminalStore, errNew)
-	}
-
 	return terminal, nil
+}
+
+// newSupervisedTerminal builds the *api.AttachedTerminal a client drives
+// for the lifetime of one sb/sbsh invocation. Each createRun/createAttach
+// path constructs exactly one and hands it straight to the caller; there
+// is no client-side registry behind it (see issue #275, parent audit #223).
+func newSupervisedTerminal(spec *api.TerminalSpec) *api.AttachedTerminal {
+	return &api.AttachedTerminal{
+		Spec:        spec,
+		Command:     spec.Command,
+		CommandArgs: spec.CommandArgs,
+	}
 }
 
 /* ---------- Event handlers ---------- */

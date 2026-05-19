@@ -28,7 +28,6 @@ import (
 
 	"github.com/eminwux/sbsh/internal/client/clientrpc"
 	"github.com/eminwux/sbsh/internal/client/clientrunner"
-	"github.com/eminwux/sbsh/internal/client/terminalstore"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -215,14 +214,6 @@ func Test_ErrAttach(t *testing.T) {
 		}
 	}
 
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
 	clientID := naming.RandomID()
 	// Define a new Client for attach mode (TerminalSpec without valid ID/Name means AttachToTerminal)
 	doc := &api.ClientDoc{
@@ -296,14 +287,6 @@ func Test_ErrContextDone(t *testing.T) {
 		}
 	}
 
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
 	clientID := naming.RandomID()
 	// Define a new Client for RunNewTerminal (has TerminalSpec with ID)
 	doc := &api.ClientDoc{
@@ -362,10 +345,6 @@ func Test_ErrContextDone_RPCNeverReady(t *testing.T) {
 			},
 		}
 	}
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{}
-	}
-
 	clientID := naming.RandomID()
 	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
@@ -442,14 +421,6 @@ func Test_ErrRPCServerExited(t *testing.T) {
 		}
 	}
 
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
 	exitCh := make(chan error)
 
 	clientID := naming.RandomID()
@@ -517,14 +488,6 @@ func Test_ErrCloseReq(t *testing.T) {
 				return nil
 			},
 			StartTerminalCmdFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
 		}
@@ -603,14 +566,6 @@ func Test_ErrStartCmd(t *testing.T) {
 		}
 	}
 
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
 	exitCh := make(chan error)
 
 	clientID := naming.RandomID()
@@ -639,80 +594,6 @@ func Test_ErrStartCmd(t *testing.T) {
 
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrStartCmd) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrStartCmd, err)
-	}
-}
-
-func Test_ErrTerminalStore(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sc := NewClientController(context.Background(), logger).(*Controller)
-	sc.NewClientRunner = func(ctx context.Context, logger *slog.Logger, _ *api.ClientDoc, _ chan<- clientrunner.Event) clientrunner.ClientRunner {
-		return &clientrunner.Test{
-			Ctx:    ctx,
-			Logger: logger,
-			OpenSocketCtrlFunc: func() error {
-				// default: return nil listener and nil error
-				return nil
-			},
-			StartServerFunc: func(_ context.Context, _ *clientrpc.ClientControllerRPC, readyCh chan error, _ chan error) {
-				// default: immediately signal ready
-				select {
-				case readyCh <- nil:
-				default:
-				}
-			},
-			AttachFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-			IDFunc: func() api.ID {
-				// default: empty ID
-				return ""
-			},
-			CloseFunc: func(_ error) error {
-				// default: succeed
-				return nil
-			},
-			ResizeFunc: func(_ api.ResizeArgs) {
-				// default: no-op
-			},
-			CreateMetadataFunc: func() error {
-				return nil
-			},
-		}
-	}
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return errors.New("force add fail")
-			},
-		}
-	}
-
-	exitCh := make(chan error)
-
-	clientID := naming.RandomID()
-	// Define a new Client
-	doc := &api.ClientDoc{
-		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindClient,
-		Metadata: api.ClientMetadata{
-			Name:        "default",
-			Labels:      make(map[string]string),
-			Annotations: make(map[string]string),
-		},
-		Spec: api.ClientSpec{
-			ID:           api.ID(clientID),
-			LogFile:      "/tmp/sbsh-logs/s0",
-			RunPath:      viper.GetString("global.runPath"),
-			TerminalSpec: &api.TerminalSpec{ID: "test-terminal"},
-		},
-	}
-
-	go func() {
-		exitCh <- sc.Run(doc)
-	}()
-
-	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrTerminalStore) {
-		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrTerminalStore, err)
 	}
 }
 
@@ -790,14 +671,6 @@ func Test_ErrNoTerminalSpec(t *testing.T) {
 		}
 	}
 
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
 	clientID := naming.RandomID()
 	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
@@ -825,73 +698,6 @@ func Test_ErrNoTerminalSpec(t *testing.T) {
 	// the controller checks for ID/Name and errors with ErrAttachNoTerminalSpec
 	if err := <-exitCh; err != nil && !errors.Is(err, errdefs.ErrAttachNoTerminalSpec) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrAttachNoTerminalSpec, err)
-	}
-}
-
-func Test_ErrTerminalExists(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sc := NewClientController(context.Background(), logger).(*Controller)
-	sc.NewClientRunner = func(ctx context.Context, logger *slog.Logger, _ *api.ClientDoc, _ chan<- clientrunner.Event) clientrunner.ClientRunner {
-		return &clientrunner.Test{
-			Ctx:    ctx,
-			Logger: logger,
-			OpenSocketCtrlFunc: func() error {
-				return nil
-			},
-			StartServerFunc: func(_ context.Context, _ *clientrpc.ClientControllerRPC, readyCh chan error, _ chan error) {
-				select {
-				case readyCh <- nil:
-				default:
-				}
-			},
-			IDFunc:             func() api.ID { return "" },
-			CloseFunc:          func(_ error) error { return nil },
-			ResizeFunc:         func(_ api.ResizeArgs) {},
-			CreateMetadataFunc: func() error { return nil },
-		}
-	}
-
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return errdefs.ErrTerminalExists
-			},
-		}
-	}
-
-	clientID := naming.RandomID()
-	doc := &api.ClientDoc{
-		APIVersion: api.APIVersionV1Beta1,
-		Kind:       api.KindClient,
-		Metadata: api.ClientMetadata{
-			Name:        "default",
-			Labels:      make(map[string]string),
-			Annotations: make(map[string]string),
-		},
-		Spec: api.ClientSpec{
-			ID:           api.ID(clientID),
-			LogFile:      "/tmp/sbsh-logs/s0",
-			RunPath:      viper.GetString("global.runPath"),
-			TerminalSpec: &api.TerminalSpec{ID: "test-terminal"},
-		},
-	}
-
-	exitCh := make(chan error)
-	go func() {
-		exitCh <- sc.Run(doc)
-	}()
-
-	if err := <-exitCh; err != nil {
-		// Should be wrapped with ErrTerminalStore
-		if !errors.Is(err, errdefs.ErrTerminalStore) {
-			t.Fatalf("expected error to wrap '%v'; got: '%v'", errdefs.ErrTerminalStore, err)
-		}
-		// Should also contain ErrTerminalExists
-		if !errors.Is(err, errdefs.ErrTerminalExists) {
-			t.Fatalf("expected error to wrap '%v'; got: '%v'", errdefs.ErrTerminalExists, err)
-		}
-	} else {
-		t.Fatal("expected error but got nil")
 	}
 }
 
@@ -1064,14 +870,6 @@ func Test_EventCmdExited(t *testing.T) {
 		}
 	}
 
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
 	clientID := naming.RandomID()
 	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
@@ -1152,14 +950,6 @@ func Test_EventError(t *testing.T) {
 			ResizeFunc:         func(_ api.ResizeArgs) {},
 			CreateMetadataFunc: func() error { return nil },
 			StartTerminalCmdFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
 		}
@@ -1251,14 +1041,6 @@ func Test_EventDetach(t *testing.T) {
 		}
 	}
 
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
 	clientID := naming.RandomID()
 	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
@@ -1345,14 +1127,6 @@ func Test_EventDetachFailure(t *testing.T) {
 		}
 	}
 
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
 	clientID := naming.RandomID()
 	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
@@ -1430,12 +1204,6 @@ func Test_EventError_PeerClosed(t *testing.T) {
 			StartTerminalCmdFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
-		}
-	}
-
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error { return nil },
 		}
 	}
 
@@ -1524,12 +1292,6 @@ func Test_EventDetachThenError_ClientDetached(t *testing.T) {
 		}
 	}
 
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error { return nil },
-		}
-	}
-
 	clientID := naming.RandomID()
 	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
@@ -1615,14 +1377,6 @@ func Test_EventUnknown(_ *testing.T) {
 			ResizeFunc:         func(_ api.ResizeArgs) {},
 			CreateMetadataFunc: func() error { return nil },
 			StartTerminalCmdFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
 				return nil
 			},
 		}
@@ -1859,14 +1613,6 @@ func Test_RunNewTerminalSuccess(t *testing.T) {
 		}
 	}
 
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
 	clientID := naming.RandomID()
 	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
@@ -1989,14 +1735,6 @@ func Test_ClientAttach_WaitForStartingOrReady(t *testing.T) {
 		}
 	}
 
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
 	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
 		Kind:       api.KindClient,
@@ -2113,14 +1851,6 @@ func Test_ClientAttach_StateTransition(t *testing.T) {
 		}
 	}
 
-	sc.NewTerminalStore = func() terminalstore.TerminalStore {
-		return &terminalstore.Test{
-			AddFunc: func(_ *api.AttachedTerminal) error {
-				return nil
-			},
-		}
-	}
-
 	doc := &api.ClientDoc{
 		APIVersion: api.APIVersionV1Beta1,
 		Kind:       api.KindClient,
@@ -2160,19 +1890,11 @@ func Test_ClientAttach_StateTransition(t *testing.T) {
 // Test_CreateAttachTerminal_SocketFileOnly_SynthesizesID verifies that the
 // SocketFile-only short-circuit in createAttachTerminal populates a synthetic
 // ID when the caller (e.g. pkg/attach embedders) supplied only the control
-// socket path. Without the synthetic ID, terminalstore keys, event records,
-// and log fields would all carry the empty string.
+// socket path. Without the synthetic ID, event records and log fields would
+// all carry the empty string.
 func Test_CreateAttachTerminal_SocketFileOnly_SynthesizesID(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	sc := NewClientController(context.Background(), logger).(*Controller)
-
-	var added *api.AttachedTerminal
-	sc.ss = &terminalstore.Test{
-		AddFunc: func(s *api.AttachedTerminal) error {
-			added = s
-			return nil
-		},
-	}
 
 	doc := &api.ClientDoc{
 		Spec: api.ClientSpec{
@@ -2192,14 +1914,8 @@ func Test_CreateAttachTerminal_SocketFileOnly_SynthesizesID(t *testing.T) {
 	if terminal.Spec.ID == "" {
 		t.Fatal("terminal.Spec.ID is empty; expected synthetic ID for SocketFile-only attach")
 	}
-	if added == nil {
-		t.Fatal("terminalstore.Add was not called")
-	}
-	if added.Spec.ID != terminal.Spec.ID {
-		t.Fatalf("stored terminal ID %q != returned terminal ID %q", added.Spec.ID, terminal.Spec.ID)
-	}
 	// Caller's TerminalSpec must not be mutated — the synthetic ID lives on
-	// the local copy passed to terminalstore.
+	// the local copy createAttachTerminal builds.
 	if doc.Spec.TerminalSpec.ID != "" {
 		t.Fatalf("doc.Spec.TerminalSpec.ID was mutated to %q; embedder's spec must stay untouched", doc.Spec.TerminalSpec.ID)
 	}
@@ -2211,10 +1927,6 @@ func Test_CreateAttachTerminal_SocketFileOnly_SynthesizesID(t *testing.T) {
 func Test_CreateAttachTerminal_SocketFileOnly_PreservesProvidedID(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	sc := NewClientController(context.Background(), logger).(*Controller)
-
-	sc.ss = &terminalstore.Test{
-		AddFunc: func(_ *api.AttachedTerminal) error { return nil },
-	}
 
 	doc := &api.ClientDoc{
 		Spec: api.ClientSpec{
