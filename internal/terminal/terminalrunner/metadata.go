@@ -31,13 +31,27 @@ import (
 func (sr *Exec) CreateMetadata() error {
 	sr.metadataMu.Lock()
 	runPath := sr.metadata.Spec.RunPath
-	dir := filepath.Join(runPath, defaults.TerminalsRunPath, string(sr.id))
+	metadataDirOverride := sr.metadata.Spec.MetadataDir
 	sr.metadataMu.Unlock()
 
-	sr.logger.Debug("CreateMetadata: creating terminal directory", "dir", dir)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		sr.logger.Error("CreateMetadata: failed to create terminal dir", "dir", dir, "error", err)
-		return fmt.Errorf("mkdir terminal dir: %w", err)
+	dir, embedderOwnsDir := resolveMetadataDir(runPath, metadataDirOverride, sr.id)
+
+	if embedderOwnsDir {
+		// MetadataDir is set: the embedder pre-allocated this directory
+		// (e.g. via a bind mount) and owns its contents. Do not MkdirAll —
+		// avoid silently creating a parent the embedder didn't intend, and
+		// avoid puncturing the embedder's "this dir is fully mine" contract
+		// with sbsh-injected subdirs. See pkg/api.TerminalSpec.MetadataDir.
+		sr.logger.Debug(
+			"CreateMetadata: using embedder-owned metadata directory",
+			"dir", dir,
+		)
+	} else {
+		sr.logger.Debug("CreateMetadata: creating terminal directory", "dir", dir)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			sr.logger.Error("CreateMetadata: failed to create terminal dir", "dir", dir, "error", err)
+			return fmt.Errorf("mkdir terminal dir: %w", err)
+		}
 	}
 
 	pid := os.Getpid()
@@ -74,15 +88,30 @@ func (sr *Exec) CreateMetadata() error {
 func (sr *Exec) getTerminalDir() string {
 	sr.metadataMu.RLock()
 	defer sr.metadataMu.RUnlock()
-	return filepath.Join(sr.metadata.Spec.RunPath, defaults.TerminalsRunPath, string(sr.id))
+	dir, _ := resolveMetadataDir(sr.metadata.Spec.RunPath, sr.metadata.Spec.MetadataDir, sr.id)
+	return dir
 }
 
 func (sr *Exec) updateMetadata() error {
 	sr.metadataMu.RLock()
 	metadataCopy := sr.metadata
-	dir := filepath.Join(sr.metadata.Spec.RunPath, defaults.TerminalsRunPath, string(sr.id))
+	dir, _ := resolveMetadataDir(sr.metadata.Spec.RunPath, sr.metadata.Spec.MetadataDir, sr.id)
 	sr.metadataMu.RUnlock()
 	return shared.WriteMetadata(sr.ctx, metadataCopy, dir)
+}
+
+// resolveMetadataDir picks the directory where metadata.json is written.
+// When metadataDirOverride is non-empty the embedder owns that directory
+// (e.g. kukeon bind-mounts /run/kukeon/tty into the container) and the
+// runner places metadata.json there without creating any sbsh-injected
+// subdir; the second return is true on that branch so callers can skip
+// MkdirAll. Empty preserves the legacy runPath/terminals/<id>/ layout
+// scanned by pkg/discovery.ScanTerminals.
+func resolveMetadataDir(runPath, metadataDirOverride string, id api.ID) (string, bool) {
+	if metadataDirOverride != "" {
+		return metadataDirOverride, true
+	}
+	return filepath.Join(runPath, defaults.TerminalsRunPath, string(id)), false
 }
 
 func (sr *Exec) updateTerminalState(status api.TerminalStatusMode) error {

@@ -73,6 +73,17 @@ type TerminalSpec struct {
 	LogLevel    string `json:"logLevel"`
 	SocketFile  string `json:"socketIO"`
 
+	// MetadataDir overrides where the runner writes metadata.json. When
+	// non-empty, the runner uses this directory verbatim and does NOT
+	// create the legacy runPath/terminals/<id>/ subdir. The builder sets
+	// this when all three of LogFile, CaptureFile, and SocketFile are
+	// caller-supplied via With* options — the signal that the embedder
+	// already owns the per-terminal directory layout and does not want
+	// sbsh-injected subdirs under runPath. Empty preserves the legacy
+	// behavior (and the discoverability of metadata.json via
+	// pkg/discovery.ScanTerminals).
+	MetadataDir string `json:"metadataDir,omitempty"`
+
 	// SocketMode is the chmod applied to the control socket after Listen.
 	// Zero means "use the runner default" (0600), preserving owner-only
 	// behavior for callers that never set the field.

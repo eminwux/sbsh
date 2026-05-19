@@ -22,9 +22,11 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/pkg/api"
 )
@@ -304,6 +306,110 @@ func TestApplyOnePermOverride_ExplicitGIDReplacesPrior(t *testing.T) {
 	}
 	if gid == nil || *gid != 7 {
 		t.Fatalf("gid: want 7, got %v", gid)
+	}
+}
+
+// applyParamDefaults: when LogFile, CaptureFile, and SocketFile are all
+// caller-supplied the helper sets MetadataDir to LogFile.dirname so the
+// runner places metadata.json next to the caller-owned files instead of
+// injecting runPath/terminals/<id>/. This is the embedder-opt-out path
+// for the per-terminal subdir convention. See issue #273.
+func TestApplyParamDefaults_AllExplicitArtifactPaths_SetsMetadataDir(t *testing.T) {
+	customDir := "/run/embedder/tty"
+	p := &BuildTerminalSpecParams{
+		RunPath:     "/run/sbsh",
+		LogFile:     filepath.Join(customDir, "log"),
+		CaptureFile: filepath.Join(customDir, "capture"),
+		SocketFile:  filepath.Join(customDir, "socket"),
+	}
+	applyParamDefaults(p)
+	if p.MetadataDir != customDir {
+		t.Fatalf("MetadataDir: want %q, got %q", customDir, p.MetadataDir)
+	}
+}
+
+// applyParamDefaults: if any one artifact path is left empty the legacy
+// default fires (paths derived under runPath/terminals/<id>/) and
+// MetadataDir stays empty so the runner uses the legacy directory. The
+// existing CLI lane must not regress — pkg/discovery.ScanTerminals still
+// finds metadata.json at the legacy location.
+func TestApplyParamDefaults_PartialOrEmptyArtifactPaths_LeavesMetadataDirEmpty(t *testing.T) {
+	customDir := "/run/embedder/tty"
+	tests := []struct {
+		name string
+		in   *BuildTerminalSpecParams
+	}{
+		{
+			name: "all empty",
+			in:   &BuildTerminalSpecParams{RunPath: "/run/sbsh"},
+		},
+		{
+			name: "log only",
+			in: &BuildTerminalSpecParams{
+				RunPath: "/run/sbsh",
+				LogFile: filepath.Join(customDir, "log"),
+			},
+		},
+		{
+			name: "log + capture, no socket",
+			in: &BuildTerminalSpecParams{
+				RunPath:     "/run/sbsh",
+				LogFile:     filepath.Join(customDir, "log"),
+				CaptureFile: filepath.Join(customDir, "capture"),
+			},
+		},
+		{
+			name: "log + socket, no capture",
+			in: &BuildTerminalSpecParams{
+				RunPath:    "/run/sbsh",
+				LogFile:    filepath.Join(customDir, "log"),
+				SocketFile: filepath.Join(customDir, "socket"),
+			},
+		},
+		{
+			name: "capture + socket, no log",
+			in: &BuildTerminalSpecParams{
+				RunPath:     "/run/sbsh",
+				CaptureFile: filepath.Join(customDir, "capture"),
+				SocketFile:  filepath.Join(customDir, "socket"),
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			applyParamDefaults(tc.in)
+			if tc.in.MetadataDir != "" {
+				t.Fatalf("MetadataDir: want empty, got %q", tc.in.MetadataDir)
+			}
+			// And the defaulted artifact paths must still live under the
+			// legacy runPath/terminals/<id>/ subdir so ScanTerminals keeps
+			// working for any artifact the caller did not provide.
+			legacyDir := filepath.Join(tc.in.RunPath, defaults.TerminalsRunPath, tc.in.TerminalID)
+			for _, p := range []string{tc.in.LogFile, tc.in.CaptureFile, tc.in.SocketFile} {
+				if filepath.Dir(p) != legacyDir && filepath.Dir(p) != customDir {
+					t.Fatalf("unexpected artifact dir: %q (want legacy %q or custom %q)",
+						filepath.Dir(p), legacyDir, customDir)
+				}
+			}
+		})
+	}
+}
+
+// applyParamDefaults: a caller that already populated MetadataDir (e.g.
+// kukeon's wrapper that pre-resolves the metadata location) must not have
+// its choice overwritten by the LogFile.dirname fallback.
+func TestApplyParamDefaults_PreSetMetadataDir_NotOverwritten(t *testing.T) {
+	preset := "/run/embedder/tty"
+	p := &BuildTerminalSpecParams{
+		RunPath:     "/run/sbsh",
+		LogFile:     "/some/other/place/log",
+		CaptureFile: "/some/other/place/capture",
+		SocketFile:  "/some/other/place/socket",
+		MetadataDir: preset,
+	}
+	applyParamDefaults(p)
+	if p.MetadataDir != preset {
+		t.Fatalf("MetadataDir: want preserved %q, got %q", preset, p.MetadataDir)
 	}
 }
 
