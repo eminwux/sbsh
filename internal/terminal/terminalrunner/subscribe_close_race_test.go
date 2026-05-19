@@ -128,8 +128,8 @@ func TestSubscribe_NoOrphanDrainOnConcurrentClose(t *testing.T) {
 				// Post-Close rejection is the expected outcome for the
 				// late-arriving half; the cliFD was already closed by
 				// Subscribe's error path. Count the rejection so the
-				// test surfaces if every single subscriber was rejected
-				// (would indicate the race window never opened).
+				// post-wg.Wait() assertion can fail if every single
+				// subscriber was rejected (race window never opened).
 				if !errors.Is(err, errTerminalClosing) {
 					t.Errorf("subscribe (idx=%d): unexpected error: %v", idx, err)
 				}
@@ -151,6 +151,13 @@ func TestSubscribe_NoOrphanDrainOnConcurrentClose(t *testing.T) {
 		t.Fatalf("Close returned error: %v", err)
 	}
 	wg.Wait()
+
+	// If every subscriber took the early-rejection path the race window the
+	// test exists to cover never opened — a future change to Subscribe that
+	// fires the ctx-check more aggressively would silently still pass.
+	if subscribeErrCount.Load() == concurrentSubscribers {
+		t.Fatal("race window never opened — every subscriber was early-rejected")
+	}
 
 	// Invariant 1 (eventually): every registered subscriber was detached.
 	// The drain goroutine runs onDetach in its defer, so the registry
