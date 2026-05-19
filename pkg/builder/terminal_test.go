@@ -546,6 +546,54 @@ func TestBuildTerminalSpec_WithLogFileGID(t *testing.T) {
 	}
 }
 
+// Option A (issue #273): when an embedder passes all three of
+// WithLogFile, WithCaptureFile, and WithSocketFile, the resulting spec
+// carries a non-empty MetadataDir = LogFile.dirname. The runner uses
+// that to place metadata.json next to the embedder-owned files instead
+// of injecting runPath/terminals/<id>/.
+func TestBuildTerminalSpec_AllExplicitArtifactPaths_SetsMetadataDir(t *testing.T) {
+	runPath := t.TempDir()
+	embedderDir := filepath.Join(t.TempDir(), "tty")
+	spec, err := builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		builder.WithLogFile(filepath.Join(embedderDir, "kuketty.log")),
+		builder.WithCaptureFile(filepath.Join(embedderDir, "capture")),
+		builder.WithSocketFile(filepath.Join(embedderDir, "socket")),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.MetadataDir != embedderDir {
+		t.Fatalf("MetadataDir: want %q, got %q", embedderDir, spec.MetadataDir)
+	}
+}
+
+// Option A (issue #273): an embedder that supplies only some of the
+// artifact paths still triggers the legacy runPath/terminals/<id>/
+// layout for the unset paths, so MetadataDir stays empty and
+// pkg/discovery.ScanTerminals continues to find metadata.json under
+// the legacy directory. Covers the no-regression half of the AC.
+func TestBuildTerminalSpec_PartialExplicitArtifactPaths_LeavesMetadataDirEmpty(t *testing.T) {
+	runPath := t.TempDir()
+	embedderDir := filepath.Join(t.TempDir(), "tty")
+	spec, err := builder.BuildTerminalSpec(
+		context.Background(),
+		testLogger(),
+		runPath,
+		// Two of three explicit — not enough to opt out.
+		builder.WithLogFile(filepath.Join(embedderDir, "kuketty.log")),
+		builder.WithCaptureFile(filepath.Join(embedderDir, "capture")),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.MetadataDir != "" {
+		t.Fatalf("MetadataDir: want empty, got %q", spec.MetadataDir)
+	}
+}
+
 // WithCommand with empty argv (or empty argv[0]) is a no-op.
 func TestBuildTerminalSpec_WithCommandEmpty(t *testing.T) {
 	runPath := t.TempDir()

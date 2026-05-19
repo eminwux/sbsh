@@ -219,7 +219,14 @@ type BuildTerminalSpecParams struct {
 	LogFileMode string
 	// LogFileGID is the numeric GID flag value for the log file, or nil
 	// to fall through to the profile / leave the group unchanged.
-	LogFileGID       *int
+	LogFileGID *int
+	// MetadataDir, when non-empty, overrides where the runner writes
+	// metadata.json — bypassing the legacy runPath/terminals/<id>/
+	// subdir. applyParamDefaults derives it (from LogFile.dirname) when
+	// all three of LogFile, CaptureFile, and SocketFile are
+	// caller-supplied; an embedder that pre-allocates the per-terminal
+	// directory layout (e.g. kukeon) can also set it explicitly.
+	MetadataDir      string
 	EnvVars          []string
 	DisableSetPrompt bool
 	ShutdownGrace    time.Duration
@@ -276,6 +283,13 @@ func applyParamDefaults(input *BuildTerminalSpecParams) {
 		input.TerminalCmd = "/bin/bash"
 		input.TerminalCmdArgs = []string{"-i"}
 	}
+	// Capture "all three artifact paths are caller-supplied" before the
+	// defaulting block fires, so the runner can place metadata.json next
+	// to the caller-owned files instead of injecting a terminals/<id>/
+	// subdir under runPath. See pkg/api.TerminalSpec.MetadataDir.
+	explicitArtifactPaths := input.LogFile != "" &&
+		input.CaptureFile != "" &&
+		input.SocketFile != ""
 	if input.LogFile == "" {
 		input.LogFile = filepath.Join(
 			input.RunPath,
@@ -302,6 +316,9 @@ func applyParamDefaults(input *BuildTerminalSpecParams) {
 			input.TerminalID,
 			"socket",
 		)
+	}
+	if explicitArtifactPaths && input.MetadataDir == "" {
+		input.MetadataDir = filepath.Dir(input.LogFile)
 	}
 }
 
@@ -496,6 +513,7 @@ func addInputValuesToTerminal(terminalSpec *api.TerminalSpec, input *BuildTermin
 	terminalSpec.LogFile = input.LogFile
 	terminalSpec.LogLevel = input.LogLevel
 	terminalSpec.SocketFile = input.SocketFile
+	terminalSpec.MetadataDir = input.MetadataDir
 	if input.Cwd != "" {
 		terminalSpec.Cwd = input.Cwd
 	}
