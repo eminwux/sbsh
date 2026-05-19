@@ -205,10 +205,13 @@ func (sr *Exec) startPty() error {
 		return errPerm
 	}
 	// Hand fd ownership to the runner; Close closes it after PTY teardown
-	// so in-flight multiOutW.Write has settled. See #229.
+	// so in-flight multiOutW.Write has settled. See #229. Error returns
+	// after this assignment must close the fd via closeCapture so the
+	// idempotency contract holds whether Close runs or not (see #241).
 	sr.captureFile = logf
 
 	if errU := sr.updateMetadata(); errU != nil {
+		sr.closeCapture.Do(func() { _ = sr.captureFile.Close() })
 		return fmt.Errorf("update metadata: %w", errU)
 	}
 
@@ -217,6 +220,7 @@ func (sr *Exec) startPty() error {
 	// conn writes to pipeInW
 	pipeInR, pipeInW, err := os.Pipe()
 	if err != nil {
+		sr.closeCapture.Do(func() { _ = sr.captureFile.Close() })
 		sr.logger.Error("error opening IN pipe", "err", err)
 		return fmt.Errorf("error opening IN pipe: %w", err)
 	}
