@@ -23,7 +23,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/eminwux/sbsh/internal/client/terminalstore"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/eminwux/sbsh/pkg/rpcclient/terminal"
 	"golang.org/x/term"
@@ -51,7 +50,6 @@ type Exec struct {
 
 	events   chan<- Event
 	terminal *api.AttachedTerminal
-	Mgr      *terminalstore.Exec
 
 	lnCtrl net.Listener
 
