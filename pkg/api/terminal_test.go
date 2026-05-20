@@ -80,50 +80,50 @@ func Test_TerminalSpec_Validate(t *testing.T) {
 			spec: TerminalSpec{Command: "/bin/bash"},
 		},
 		{
-			name: "multi-child via Children",
+			name: "multi-process via Processes",
 			spec: TerminalSpec{
-				Children: []ChildSpec{
+				Processes: []ProcessSpec{
 					{Name: "a", Command: "/bin/bash"},
 					{Name: "b", Command: "/bin/sh"},
 				},
 			},
 		},
 		{
-			name: "rejects Children + top-level Command",
+			name: "rejects Processes + top-level Command",
 			spec: TerminalSpec{
-				Command:  "/bin/bash",
-				Children: []ChildSpec{{Name: "a", Command: "/bin/bash"}},
+				Command:   "/bin/bash",
+				Processes: []ProcessSpec{{Name: "a", Command: "/bin/bash"}},
 			},
 			wantErr: "mutually exclusive",
 		},
 		{
-			name:    "rejects empty Children + empty top-level Command",
+			name:    "rejects empty Processes + empty top-level Command",
 			spec:    TerminalSpec{},
-			wantErr: "either children or top-level command must be set",
+			wantErr: "either processes or top-level command must be set",
 		},
 		{
-			name: "rejects duplicate child names",
+			name: "rejects duplicate process names",
 			spec: TerminalSpec{
-				Children: []ChildSpec{
+				Processes: []ProcessSpec{
 					{Name: "a", Command: "/bin/bash"},
 					{Name: "a", Command: "/bin/sh"},
 				},
 			},
-			wantErr: `duplicate child name "a"`,
+			wantErr: `duplicate process name "a"`,
 		},
 		{
-			name: "rejects empty child Name",
+			name: "rejects empty process Name",
 			spec: TerminalSpec{
-				Children: []ChildSpec{{Command: "/bin/bash"}},
+				Processes: []ProcessSpec{{Command: "/bin/bash"}},
 			},
-			wantErr: "children[0].name is required",
+			wantErr: "processes[0].name is required",
 		},
 		{
-			name: "rejects empty child Command",
+			name: "rejects empty process Command",
 			spec: TerminalSpec{
-				Children: []ChildSpec{{Name: "a"}},
+				Processes: []ProcessSpec{{Name: "a"}},
 			},
-			wantErr: "children[0]",
+			wantErr: "processes[0]",
 		},
 		{
 			name: "rejects negative SwitchReplayBytes",
@@ -169,7 +169,7 @@ func Test_TerminalSpec_Validate(t *testing.T) {
 }
 
 // Test_TerminalSpec_YAML_RoundTrip_SingleChild asserts that a spec carrying
-// today's single-child shape (top-level Command, empty Children) marshals
+// today's single-child shape (top-level Command, empty Processes) marshals
 // to YAML and back to a YAML form that is byte-identical on the second
 // pass, and that the new phase-1 fields stay absent from the wire form
 // when zero — preserving backwards compatibility with pre-phase-1
@@ -191,7 +191,7 @@ func Test_TerminalSpec_YAML_RoundTrip_SingleChild(t *testing.T) {
 	}
 
 	got := string(first)
-	for _, key := range []string{"children", "cyclePrefix", "switchReplayBytes"} {
+	for _, key := range []string{"processes", "cyclePrefix", "switchReplayBytes"} {
 		if strings.Contains(got, key+":") {
 			t.Errorf("marshalled YAML unexpectedly carries %q for a single-child spec:\n%s", key, got)
 		}
@@ -211,7 +211,7 @@ func Test_TerminalSpec_YAML_RoundTrip_SingleChild(t *testing.T) {
 		t.Errorf("YAML round-trip lost data:\nwant: %#v\n got: %#v", original, decoded)
 	}
 	// And that the new phase-1 fields stayed at their zero values.
-	if len(decoded.Children) != 0 || decoded.CyclePrefix != "" || decoded.SwitchReplayBytes != 0 {
+	if len(decoded.Processes) != 0 || decoded.CyclePrefix != "" || decoded.SwitchReplayBytes != 0 {
 		t.Errorf("phase-1 fields drifted on round-trip: %#v", decoded)
 	}
 
@@ -234,14 +234,14 @@ func Test_TerminalSpec_YAML_RoundTrip_SingleChild(t *testing.T) {
 func marshalYAML(v any) ([]byte, error)   { return yaml.Marshal(v) }
 func unmarshalYAML(b []byte, v any) error { return yaml.Unmarshal(b, v) }
 
-// Test_TerminalSpec_YAML_Parse_Children asserts that a YAML document
-// carrying the phase-1 multi-child shape parses into ChildSpec entries
+// Test_TerminalSpec_YAML_Parse_Processes asserts that a YAML document
+// carrying the phase-1 multi-process shape parses into ProcessSpec entries
 // with the expected field bindings (json/yaml tag names).
-func Test_TerminalSpec_YAML_Parse_Children(t *testing.T) {
+func Test_TerminalSpec_YAML_Parse_Processes(t *testing.T) {
 	src := []byte(`
 id: term-2
 name: multi
-children:
+processes:
   - name: a
     command: /bin/bash
     commandArgs: ["-l"]
@@ -259,20 +259,20 @@ switchReplayBytes: 8192
 		t.Fatalf("yaml.Unmarshal: %v", err)
 	}
 
-	if len(spec.Children) != 2 {
-		t.Fatalf("Children len = %d, want 2", len(spec.Children))
+	if len(spec.Processes) != 2 {
+		t.Fatalf("Processes len = %d, want 2", len(spec.Processes))
 	}
-	if spec.Children[0].Name != "a" || spec.Children[0].Command != "/bin/bash" {
-		t.Errorf("Children[0] = %+v, want {Name:a Command:/bin/bash ...}", spec.Children[0])
+	if spec.Processes[0].Name != "a" || spec.Processes[0].Command != "/bin/bash" {
+		t.Errorf("Processes[0] = %+v, want {Name:a Command:/bin/bash ...}", spec.Processes[0])
 	}
-	if !reflect.DeepEqual(spec.Children[0].CommandArgs, []string{"-l"}) {
-		t.Errorf("Children[0].CommandArgs = %v, want [-l]", spec.Children[0].CommandArgs)
+	if !reflect.DeepEqual(spec.Processes[0].CommandArgs, []string{"-l"}) {
+		t.Errorf("Processes[0].CommandArgs = %v, want [-l]", spec.Processes[0].CommandArgs)
 	}
-	if spec.Children[0].CaptureFile != "/tmp/a.cap" {
-		t.Errorf("Children[0].CaptureFile = %q, want /tmp/a.cap", spec.Children[0].CaptureFile)
+	if spec.Processes[0].CaptureFile != "/tmp/a.cap" {
+		t.Errorf("Processes[0].CaptureFile = %q, want /tmp/a.cap", spec.Processes[0].CaptureFile)
 	}
-	if spec.Children[1].Turn != 1 {
-		t.Errorf("Children[1].Turn = %d, want 1", spec.Children[1].Turn)
+	if spec.Processes[1].Turn != 1 {
+		t.Errorf("Processes[1].Turn = %d, want 1", spec.Processes[1].Turn)
 	}
 	if spec.CyclePrefix != "\x02" {
 		t.Errorf("CyclePrefix = %q, want \\x02", spec.CyclePrefix)
@@ -282,18 +282,18 @@ switchReplayBytes: 8192
 	}
 
 	if err := spec.Validate(); err != nil {
-		t.Fatalf("Validate() on parsed multi-child spec: %v", err)
+		t.Fatalf("Validate() on parsed multi-process spec: %v", err)
 	}
 }
 
-// Test_TerminalSpec_JSON_RoundTrip_Children covers the metadata.json
+// Test_TerminalSpec_JSON_RoundTrip_Processes covers the metadata.json
 // codepath: TerminalSpec is persisted as JSON, so the new fields must
 // round-trip cleanly through encoding/json too.
-func Test_TerminalSpec_JSON_RoundTrip_Children(t *testing.T) {
+func Test_TerminalSpec_JSON_RoundTrip_Processes(t *testing.T) {
 	original := TerminalSpec{
 		ID:   "term-3",
 		Name: "multi-json",
-		Children: []ChildSpec{
+		Processes: []ProcessSpec{
 			{Name: "a", Command: "/bin/bash", CommandArgs: []string{"-l"}},
 			{Name: "b", Command: "/bin/sh", Turn: 1},
 		},
@@ -311,9 +311,9 @@ func Test_TerminalSpec_JSON_RoundTrip_Children(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &decoded); err != nil {
 		t.Fatalf("json.Unmarshal: %v", err)
 	}
-	if !reflect.DeepEqual(decoded.Children, original.Children) {
-		t.Fatalf("Children diverged after JSON round-trip:\nwant: %#v\n got: %#v",
-			original.Children, decoded.Children)
+	if !reflect.DeepEqual(decoded.Processes, original.Processes) {
+		t.Fatalf("Processes diverged after JSON round-trip:\nwant: %#v\n got: %#v",
+			original.Processes, decoded.Processes)
 	}
 	if decoded.CyclePrefix != original.CyclePrefix {
 		t.Errorf("CyclePrefix diverged: want %q, got %q", original.CyclePrefix, decoded.CyclePrefix)
