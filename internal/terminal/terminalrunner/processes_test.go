@@ -18,6 +18,7 @@ package terminalrunner
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -218,6 +219,36 @@ func TestStartProcesses_TurnOrderedSpawn(t *testing.T) {
 			t.Fatalf("processes[%d] turn=%d; want turn 0 first", i, sr.processes[i].spec.Turn)
 		}
 	}
+}
+
+// TestStartProcesses_DrainClosesParentEndOnExit asserts the parent socket end
+// is closed when the process exits (drain EOF), not deferred until runner
+// Close. Regression guard for the early-exit leak: the runner ctx is left live
+// here, so a parentEnd that only the ctx.Done watcher could close would stay
+// open and this poll would time out.
+func TestStartProcesses_DrainClosesParentEndOnExit(t *testing.T) {
+	sr := newProcessesTestExec(t, []api.ProcessSpec{
+		{Name: "x", Command: "/bin/sh", CommandArgs: []string{"-c", "printf done"}},
+	})
+	if err := sr.startProcesses(); err != nil {
+		t.Fatalf("startProcesses: %v", err)
+	}
+	c := sr.processByName(t, "x")
+	waitDone(t, c)
+
+	// The drain teardown closes parentEnd shortly after the process EOFs. Poll
+	// until a read reports the fd closed; io.EOF (data drained, not yet closed)
+	// keeps polling. *os.File is safe for the concurrent read against the drain
+	// goroutine still finishing up.
+	deadline := time.Now().Add(processTestTimeout)
+	var one [1]byte
+	for time.Now().Before(deadline) {
+		if _, err := c.parentEnd.Read(one[:]); errors.Is(err, os.ErrClosed) {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("parentEnd not closed after process exit; fd/goroutine leaked until Close")
 }
 
 // TestOrderedTurns asserts distinct turns come back ascending and deduplicated.

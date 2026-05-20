@@ -243,16 +243,25 @@ func (sr *Exec) openProcessCapture(spec api.ProcessSpec) (*os.File, error) {
 
 // drainProcess continuously copies the process's socketpair output into its
 // capture file until EOF (process closed its stdio) or the runner's context is
-// canceled. The capture fd is closed when the drain ends so a process's
-// transcript is flushed and the fd does not leak across New→Start→Close
-// cycles.
+// canceled. The capture fd and the parent socket end are both closed when the
+// drain ends so a process's transcript is flushed and neither fd leaks across
+// New→Start→Close cycles.
 func (sr *Exec) drainProcess(c *procState) {
 	defer c.closeCapture()
 
-	// Closing parentEnd on ctx cancel unblocks the Read below so the drain
-	// goroutine exits on Close even if the process is still alive.
+	// Closing parentEnd unblocks a still-running Read so the drain goroutine
+	// exits on Close even if the process is still alive. The watcher waits on
+	// whichever comes first — runner Close (ctx cancel) or the drain returning
+	// on its own (process EOF, signalled by drainDone) — then closes parentEnd
+	// either way. Tearing the watcher down via drainDone is what keeps the fd
+	// and this goroutine from outliving the drain when the process exits early.
+	drainDone := make(chan struct{})
+	defer close(drainDone)
 	go func() {
-		<-sr.ctx.Done()
+		select {
+		case <-sr.ctx.Done():
+		case <-drainDone:
+		}
 		_ = c.parentEnd.Close()
 	}()
 
