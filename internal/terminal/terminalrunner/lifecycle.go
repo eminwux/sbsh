@@ -54,31 +54,16 @@ func (sr *Exec) StartTerminal(evCh chan<- Event) error {
 		return fmt.Errorf("failed to apply log file perms for terminal %s: %w", sr.id, err)
 	}
 
-	// 3+4) Spawn the workload. A non-empty Spec.Processes takes the process-set
-	// path (socketpair-stdio spawn + per-process capture drain); it is mutually
-	// exclusive with the top-level Command (enforced by TerminalSpec.Validate).
-	// The single-child PTY path is unchanged when Processes is empty.
-	sr.metadataMu.RLock()
-	hasProcesses := len(sr.metadata.Spec.Processes) > 0
-	sr.metadataMu.RUnlock()
+	// 3) Prepare terminal command
+	if err := sr.prepareTerminalCommand(); err != nil {
+		sr.logger.Error("failed to run terminal command", "id", sr.id, "err", err)
+		return fmt.Errorf("failed to run terminal command for terminal %s: %w", sr.id, err)
+	}
 
-	if hasProcesses {
-		if err := sr.startProcesses(); err != nil {
-			sr.logger.Error("failed to start processes", "id", sr.id, "err", err)
-			return fmt.Errorf("failed to start processes for terminal %s: %w", sr.id, err)
-		}
-	} else {
-		// 3) Prepare terminal command
-		if err := sr.prepareTerminalCommand(); err != nil {
-			sr.logger.Error("failed to run terminal command", "id", sr.id, "err", err)
-			return fmt.Errorf("failed to run terminal command for terminal %s: %w", sr.id, err)
-		}
-
-		// 4) Start PTY
-		if err := sr.startPty(); err != nil {
-			sr.logger.Error("failed to start PTY", "id", sr.id, "err", err)
-			return fmt.Errorf("failed to start PTY for terminal %s: %w", sr.id, err)
-		}
+	// 4) Start PTY
+	if err := sr.startPty(); err != nil {
+		sr.logger.Error("failed to start PTY", "id", sr.id, "err", err)
+		return fmt.Errorf("failed to start PTY for terminal %s: %w", sr.id, err)
 	}
 
 	// 5) Update state to Starting
