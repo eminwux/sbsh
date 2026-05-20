@@ -31,28 +31,28 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// childDrainBufSize is the read buffer used by each child's drain goroutine
-// when copying the child's socketpair output into its capture file. Matches
+// processDrainBufSize is the read buffer used by each process's drain goroutine
+// when copying the process's socketpair output into its capture file. Matches
 // the PTY reader's buffer size in terminal.go.
-const childDrainBufSize = 8192
+const processDrainBufSize = 8192
 
-// childProc holds the runtime state for one supervised child spawned from a
-// non-empty TerminalSpec.Children. Each child runs with socketpair stdio (not
-// a PTY); the parent end is drained into the child's capture file by a
-// per-child goroutine. Phase 2 owns spawn + drain + exit observation;
-// multiplexing the child onto the operator's attach session is phase 3.
-type childProc struct {
-	spec      api.ChildSpec
+// procState holds the runtime state for one supervised process spawned from a
+// non-empty TerminalSpec.Processes. Each process runs with socketpair stdio
+// (not a PTY); the parent end is drained into the process's capture file by a
+// per-process goroutine. Phase 2 owns spawn + drain + exit observation;
+// multiplexing the process onto the operator's attach session is phase 3.
+type procState struct {
+	spec      api.ProcessSpec
 	cmd       *exec.Cmd
-	parentEnd *os.File // parent side of the socketpair; child side is dup'd to the child's 0/1/2
+	parentEnd *os.File // parent side of the socketpair; child side is dup'd to the process's 0/1/2
 
 	// captureFile backs the drain goroutine's write target. nil when the
-	// child declared no CaptureFile — output is then drained to discard so a
-	// full socket buffer never blocks the child.
+	// process declared no CaptureFile — output is then drained to discard so a
+	// full socket buffer never blocks the process.
 	captureFile      *os.File
 	closeCaptureOnce sync.Once
 
-	// doneCh is closed once the child's exit has been observed (via the reaper
+	// doneCh is closed once the process's exit has been observed (via the reaper
 	// in PID-1 init mode, or os/exec.Wait otherwise). exitErr carries the
 	// observed exit cause for later phases; nil means a clean exit.
 	doneCh   chan struct{}
@@ -60,7 +60,7 @@ type childProc struct {
 	exitErr  error
 }
 
-func (c *childProc) closeCapture() {
+func (c *procState) closeCapture() {
 	c.closeCaptureOnce.Do(func() {
 		if c.captureFile != nil {
 			_ = c.captureFile.Close()
@@ -68,37 +68,37 @@ func (c *childProc) closeCapture() {
 	})
 }
 
-func (c *childProc) markDone(err error) {
+func (c *procState) markDone(err error) {
 	c.doneOnce.Do(func() {
 		c.exitErr = err
 		close(c.doneCh)
 	})
 }
 
-// startChildren spawns every child declared in Spec.Children with socketpair
-// stdio, ordered by ChildSpec.Turn. Children are grouped by Turn ascending;
-// group N is spawned only after every child in group N-1 has fork+exec'd.
-// Children sharing a Turn (including the default Turn 0) are spawned
-// concurrently — no intra-group ordering is guaranteed. The gating is
+// startProcesses spawns every process declared in Spec.Processes with
+// socketpair stdio, ordered by ProcessSpec.Turn. Processes are grouped by Turn
+// ascending; group N is spawned only after every process in group N-1 has
+// fork+exec'd. Processes sharing a Turn (including the default Turn 0) are
+// spawned concurrently — no intra-group ordering is guaranteed. The gating is
 // process-started only: there are no health or readiness semantics.
 //
-// It is the child-set counterpart to prepareTerminalCommand+startPty and is
-// reached from StartTerminal when Spec.Children is non-empty. On a spawn
-// failure within a group the already-started children keep running (they are
+// It is the process-set counterpart to prepareTerminalCommand+startPty and is
+// reached from StartTerminal when Spec.Processes is non-empty. On a spawn
+// failure within a group the already-started processes keep running (they are
 // torn down when the runner's context is canceled by Close); the error is
 // returned so the caller can surface it.
-func (sr *Exec) startChildren() error {
+func (sr *Exec) startProcesses() error {
 	sr.metadataMu.RLock()
-	specs := make([]api.ChildSpec, len(sr.metadata.Spec.Children))
-	copy(specs, sr.metadata.Spec.Children)
+	specs := make([]api.ProcessSpec, len(sr.metadata.Spec.Processes))
+	copy(specs, sr.metadata.Spec.Processes)
 	sr.metadataMu.RUnlock()
 
 	if len(specs) == 0 {
-		return errors.New("startChildren called with empty Spec.Children")
+		return errors.New("startProcesses called with empty Spec.Processes")
 	}
 
 	for _, turn := range orderedTurns(specs) {
-		group := childrenWithTurn(specs, turn)
+		group := processesWithTurn(specs, turn)
 		if err := sr.spawnGroup(turn, group); err != nil {
 			return err
 		}
@@ -107,7 +107,7 @@ func (sr *Exec) startChildren() error {
 }
 
 // orderedTurns returns the distinct Turn values present in specs, ascending.
-func orderedTurns(specs []api.ChildSpec) []int {
+func orderedTurns(specs []api.ProcessSpec) []int {
 	seen := make(map[int]struct{}, len(specs))
 	turns := make([]int, 0, len(specs))
 	for _, s := range specs {
@@ -121,10 +121,10 @@ func orderedTurns(specs []api.ChildSpec) []int {
 	return turns
 }
 
-// childrenWithTurn returns the children whose Turn equals turn, preserving
+// processesWithTurn returns the processes whose Turn equals turn, preserving
 // their declaration order in the spec.
-func childrenWithTurn(specs []api.ChildSpec, turn int) []api.ChildSpec {
-	group := make([]api.ChildSpec, 0, len(specs))
+func processesWithTurn(specs []api.ProcessSpec, turn int) []api.ProcessSpec {
+	group := make([]api.ProcessSpec, 0, len(specs))
 	for _, s := range specs {
 		if s.Turn == turn {
 			group = append(group, s)
@@ -133,42 +133,42 @@ func childrenWithTurn(specs []api.ChildSpec, turn int) []api.ChildSpec {
 	return group
 }
 
-// spawnGroup fork+execs every child in a single Turn group concurrently and
+// spawnGroup fork+execs every process in a single Turn group concurrently and
 // blocks until all have started (or failed to start). The barrier is what
-// enforces the turn-ordered gating in startChildren: the next group is not
+// enforces the turn-ordered gating in startProcesses: the next group is not
 // touched until this one has fully fork+exec'd.
-func (sr *Exec) spawnGroup(turn int, group []api.ChildSpec) error {
-	sr.logger.Debug("spawning child group", "turn", turn, "count", len(group))
+func (sr *Exec) spawnGroup(turn int, group []api.ProcessSpec) error {
+	sr.logger.Debug("spawning process group", "turn", turn, "count", len(group))
 	var wg sync.WaitGroup
 	errs := make([]error, len(group))
 	for i := range group {
 		wg.Add(1)
-		go func(idx int, spec api.ChildSpec) {
+		go func(idx int, spec api.ProcessSpec) {
 			defer wg.Done()
-			errs[idx] = sr.spawnChild(spec)
+			errs[idx] = sr.spawnProcess(spec)
 		}(i, group[i])
 	}
 	wg.Wait()
 	return errors.Join(errs...)
 }
 
-// spawnChild allocates a socketpair, fork+execs the child with the child end
-// wired to its stdin/stdout/stderr, and starts the per-child drain and
-// exit-observation goroutines. The child's pid joins the PID-1 reaper's watch
+// spawnProcess allocates a socketpair, fork+execs the process with the child
+// end wired to its stdin/stdout/stderr, and starts the per-process drain and
+// exit-observation goroutines. The process's pid joins the PID-1 reaper's watch
 // set in init mode so its exit is observed without racing os/exec.Wait.
-func (sr *Exec) spawnChild(spec api.ChildSpec) error {
+func (sr *Exec) spawnProcess(spec api.ProcessSpec) error {
 	sv, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|sockCloexec, 0)
 	if err != nil {
-		return fmt.Errorf("child %q: socketpair: %w", spec.Name, err)
+		return fmt.Errorf("process %q: socketpair: %w", spec.Name, err)
 	}
 	parentEnd := os.NewFile(uintptr(sv[0]), "child-"+spec.Name+"-parent")
 	childEnd := os.NewFile(uintptr(sv[1]), "child-"+spec.Name+"-child")
 
-	// A child with no CaptureFile leaves captureFile nil; drainChild then
-	// discards its output so a full socket buffer never blocks the child.
+	// A process with no CaptureFile leaves captureFile nil; drainProcess then
+	// discards its output so a full socket buffer never blocks the process.
 	var captureFile *os.File
 	if spec.CaptureFile != "" {
-		captureFile, err = sr.openChildCapture(spec)
+		captureFile, err = sr.openProcessCapture(spec)
 		if err != nil {
 			_ = parentEnd.Close()
 			_ = childEnd.Close()
@@ -176,7 +176,7 @@ func (sr *Exec) spawnChild(spec api.ChildSpec) error {
 		}
 	}
 
-	//nolint:gosec // the operator declares the child command and its args
+	//nolint:gosec // the operator declares the process command and its args
 	cmd := exec.CommandContext(sr.ctx, spec.Command, spec.CommandArgs...)
 	cmd.Stdin = childEnd
 	cmd.Stdout = childEnd
@@ -191,14 +191,14 @@ func (sr *Exec) spawnChild(spec api.ChildSpec) error {
 		if captureFile != nil {
 			_ = captureFile.Close()
 		}
-		return fmt.Errorf("child %q: start: %w", spec.Name, errStart)
+		return fmt.Errorf("process %q: start: %w", spec.Name, errStart)
 	}
 	// The child now owns its dup'd copy of childEnd (fds 0/1/2); the parent's
 	// reference is no longer needed and would otherwise hold the socket open
 	// past the child's exit, hiding EOF from the drain goroutine.
 	_ = childEnd.Close()
 
-	c := &childProc{
+	c := &procState{
 		spec:        spec,
 		cmd:         cmd,
 		parentEnd:   parentEnd,
@@ -213,55 +213,55 @@ func (sr *Exec) spawnChild(spec api.ChildSpec) error {
 		reaperCh = sr.reaper.WatchChild(cmd.Process.Pid)
 	}
 
-	sr.childrenMu.Lock()
-	sr.children = append(sr.children, c)
-	sr.childrenMu.Unlock()
+	sr.processesMu.Lock()
+	sr.processes = append(sr.processes, c)
+	sr.processesMu.Unlock()
 
-	sr.logger.Info("supervised child started",
-		"child", spec.Name, "pid", cmd.Process.Pid, "turn", spec.Turn)
+	sr.logger.Info("supervised process started",
+		"process", spec.Name, "pid", cmd.Process.Pid, "turn", spec.Turn)
 
-	go sr.drainChild(c)
-	go sr.watchChildProcExit(c, reaperCh)
+	go sr.drainProcess(c)
+	go sr.watchProcessExit(c, reaperCh)
 	return nil
 }
 
-// openChildCapture opens (creating/appending) the child's capture file at the
-// legacy 0o600 and then re-chmods it to the resolved ChildSpec.CaptureMode
+// openProcessCapture opens (creating/appending) the process's capture file at
+// the legacy 0o600 and then re-chmods it to the resolved ProcessSpec.CaptureMode
 // (0o600 when unset), mirroring the single-child capture path. Callers must
 // only invoke this when spec.CaptureFile is non-empty.
-func (sr *Exec) openChildCapture(spec api.ChildSpec) (*os.File, error) {
+func (sr *Exec) openProcessCapture(spec api.ProcessSpec) (*os.File, error) {
 	f, err := os.OpenFile(spec.CaptureFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
-		return nil, fmt.Errorf("child %q: open capture file %q: %w", spec.Name, spec.CaptureFile, err)
+		return nil, fmt.Errorf("process %q: open capture file %q: %w", spec.Name, spec.CaptureFile, err)
 	}
-	if errPerm := sr.applyArtifactPerms("child-capture", spec.CaptureFile, spec.CaptureMode, nil); errPerm != nil {
+	if errPerm := sr.applyArtifactPerms("process-capture", spec.CaptureFile, spec.CaptureMode, nil); errPerm != nil {
 		_ = f.Close()
 		return nil, errPerm
 	}
 	return f, nil
 }
 
-// drainChild continuously copies the child's socketpair output into its
-// capture file until EOF (child closed its stdio) or the runner's context is
-// canceled. The capture fd is closed when the drain ends so a child's
+// drainProcess continuously copies the process's socketpair output into its
+// capture file until EOF (process closed its stdio) or the runner's context is
+// canceled. The capture fd is closed when the drain ends so a process's
 // transcript is flushed and the fd does not leak across New→Start→Close
 // cycles.
-func (sr *Exec) drainChild(c *childProc) {
+func (sr *Exec) drainProcess(c *procState) {
 	defer c.closeCapture()
 
 	// Closing parentEnd on ctx cancel unblocks the Read below so the drain
-	// goroutine exits on Close even if the child is still alive.
+	// goroutine exits on Close even if the process is still alive.
 	go func() {
 		<-sr.ctx.Done()
 		_ = c.parentEnd.Close()
 	}()
 
-	buf := make([]byte, childDrainBufSize)
+	buf := make([]byte, processDrainBufSize)
 	for {
 		n, errRead := c.parentEnd.Read(buf)
 		if n > 0 && c.captureFile != nil {
 			if _, errWrite := c.captureFile.Write(buf[:n]); errWrite != nil {
-				sr.logger.Error("child capture write error", "child", c.spec.Name, "err", errWrite)
+				sr.logger.Error("process capture write error", "process", c.spec.Name, "err", errWrite)
 				return
 			}
 		}
@@ -269,31 +269,31 @@ func (sr *Exec) drainChild(c *childProc) {
 			if !errors.Is(errRead, io.EOF) &&
 				!errors.Is(errRead, os.ErrClosed) &&
 				!errors.Is(errRead, net.ErrClosed) {
-				sr.logger.Debug("child drain read ended", "child", c.spec.Name, "err", errRead)
+				sr.logger.Debug("process drain read ended", "process", c.spec.Name, "err", errRead)
 			}
 			return
 		}
 	}
 }
 
-// watchChildProcExit observes the child's exit and records the cause on the
-// child's doneCh. In PID-1 init mode the reaper has already consumed the
+// watchProcessExit observes the process's exit and records the cause on the
+// process's doneCh. In PID-1 init mode the reaper has already consumed the
 // SIGCHLD, so the reaper's per-child channel is authoritative and a cmd.Wait
 // would race to ECHILD; outside init mode cmd.Wait carries the real status.
 // Mirrors watchChildExit's dual-path logic for the single-child case.
-func (sr *Exec) watchChildProcExit(c *childProc, reaperCh <-chan int) {
+func (sr *Exec) watchProcessExit(c *procState, reaperCh <-chan int) {
 	var exitErr error
 	if sr.initMode && sr.reaper != nil {
 		if code, ok := <-reaperCh; ok && code != 0 {
-			exitErr = fmt.Errorf("child %q exited: code=%d", c.spec.Name, code)
+			exitErr = fmt.Errorf("process %q exited: code=%d", c.spec.Name, code)
 		}
 		if c.cmd.Process != nil {
 			_ = c.cmd.Process.Release()
 		}
 	} else if werr := c.cmd.Wait(); werr != nil {
-		exitErr = fmt.Errorf("child %q exited: %w", c.spec.Name, werr)
+		exitErr = fmt.Errorf("process %q exited: %w", c.spec.Name, werr)
 	}
 
-	sr.logger.Info("supervised child exited", "child", c.spec.Name, "err", exitErr)
+	sr.logger.Info("supervised process exited", "process", c.spec.Name, "err", exitErr)
 	c.markDone(exitErr)
 }

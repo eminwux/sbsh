@@ -47,7 +47,7 @@ type reaper struct {
 	trackedStopped bool
 
 	// watchMu guards watches, the multi-child exit-routing table used by the
-	// child-set spawn path (TerminalSpec.Children). RegisterChild/TrackedExitCh
+	// child-set spawn path (TerminalSpec.Processes). RegisterChild/TrackedExitCh
 	// route the single primary child; WatchChild routes each supervised child
 	// in a child set, where there is no single "tracked" pid.
 	watchMu sync.Mutex

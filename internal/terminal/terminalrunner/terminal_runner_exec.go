@@ -45,13 +45,13 @@ type Exec struct {
 	pts   *os.File // slave
 	state api.TerminalState
 
-	// children holds the supervised child processes spawned from a non-empty
-	// Spec.Children (the child-set path; mutually exclusive with the single
+	// processes holds the supervised processes spawned from a non-empty
+	// Spec.Processes (the process-set path; mutually exclusive with the single
 	// top-level Command). Empty for the single-child path. Phase 2 spawns and
-	// drains each child; multiplexing onto the operator and the
-	// all-children-exited lifecycle ship in later phases.
-	children   []*childProc
-	childrenMu sync.Mutex
+	// drains each process; multiplexing onto the operator and the
+	// all-processes-exited lifecycle ship in later phases.
+	processes   []*procState
+	processesMu sync.Mutex
 
 	gates struct {
 		StdinOpen bool

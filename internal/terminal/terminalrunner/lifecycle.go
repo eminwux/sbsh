@@ -54,18 +54,18 @@ func (sr *Exec) StartTerminal(evCh chan<- Event) error {
 		return fmt.Errorf("failed to apply log file perms for terminal %s: %w", sr.id, err)
 	}
 
-	// 3+4) Spawn the workload. A non-empty Spec.Children takes the child-set
-	// path (socketpair-stdio spawn + per-child capture drain); it is mutually
+	// 3+4) Spawn the workload. A non-empty Spec.Processes takes the process-set
+	// path (socketpair-stdio spawn + per-process capture drain); it is mutually
 	// exclusive with the top-level Command (enforced by TerminalSpec.Validate).
-	// The single-child PTY path is unchanged when Children is empty.
+	// The single-child PTY path is unchanged when Processes is empty.
 	sr.metadataMu.RLock()
-	hasChildren := len(sr.metadata.Spec.Children) > 0
+	hasProcesses := len(sr.metadata.Spec.Processes) > 0
 	sr.metadataMu.RUnlock()
 
-	if hasChildren {
-		if err := sr.startChildren(); err != nil {
-			sr.logger.Error("failed to start children", "id", sr.id, "err", err)
-			return fmt.Errorf("failed to start children for terminal %s: %w", sr.id, err)
+	if hasProcesses {
+		if err := sr.startProcesses(); err != nil {
+			sr.logger.Error("failed to start processes", "id", sr.id, "err", err)
+			return fmt.Errorf("failed to start processes for terminal %s: %w", sr.id, err)
 		}
 	} else {
 		// 3) Prepare terminal command
