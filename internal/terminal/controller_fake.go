@@ -39,6 +39,7 @@ type ControllerTest struct {
 	StopFunc      func(args *api.StopArgs) error
 	WriteFunc     func(req *api.WriteRequest) error
 	SubscribeFunc func(req *api.SubscribeRequest, response *api.ResponseWithFD) error
+	SwitchFunc    func(name api.ProcessName) error
 }
 
 func (f *ControllerTest) Run(spec *api.TerminalSpec) error {
@@ -128,6 +129,13 @@ func (f *ControllerTest) Write(req *api.WriteRequest) error {
 func (f *ControllerTest) Subscribe(req *api.SubscribeRequest, response *api.ResponseWithFD) error {
 	if f.SubscribeFunc != nil {
 		return f.SubscribeFunc(req, response)
+	}
+	return errdefs.ErrFuncNotSet
+}
+
+func (f *ControllerTest) Switch(name api.ProcessName) error {
+	if f.SwitchFunc != nil {
+		return f.SwitchFunc(name)
 	}
 	return errdefs.ErrFuncNotSet
 }

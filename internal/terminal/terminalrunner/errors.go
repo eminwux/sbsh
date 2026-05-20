@@ -24,6 +24,10 @@ var (
 	ErrPipeRead  error = errors.New("could not read pipe->pipe")
 )
 
+// ErrUnknownProcess is returned by Switch when the requested process name does
+// not match any spawned process in the running terminal's spec.
+var ErrUnknownProcess = errors.New("unknown process")
+
 // errTerminalClosing is returned by Subscribe (and any future post-Close
 // RPC handler) when the runner has observed ctx cancel and refuses to
 // register a new attacher. Package-private — callers across the RPC

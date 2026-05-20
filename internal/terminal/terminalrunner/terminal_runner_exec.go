@@ -53,6 +53,14 @@ type Exec struct {
 	processes   []*procState
 	processesMu sync.Mutex
 
+	// current names the supervised process whose socket is mirrored onto the
+	// operator's attach session (process-set path only). It defaults to the
+	// first process in spec order at startProcesses time and is moved by the
+	// Switch RPC. Guarded by processesMu — the same lock that protects the
+	// processes slice — so a Switch and a drain/relay goroutine's
+	// "am I current?" check serialize against each other.
+	current api.ProcessName
+
 	gates struct {
 		StdinOpen bool
 		OutputOn  bool

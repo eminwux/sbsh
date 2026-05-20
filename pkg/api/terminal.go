@@ -37,6 +37,10 @@ type TerminalController interface {
 	Stop(args *StopArgs) error
 	Write(req *WriteRequest) error
 	Subscribe(req *SubscribeRequest, reply *ResponseWithFD) error
+	// Switch focuses the operator's attach session on the named supervised
+	// process. The name must match a ProcessSpec.Name in the running
+	// terminal's spec; an unknown name is rejected with a wrapped error.
+	Switch(name ProcessName) error
 }
 
 type TerminalDoc struct {
@@ -126,6 +130,11 @@ type TerminalSpec struct {
 	// supervisor behavior that consumes this list (spawn, drain, gating,
 	// switch, replay, lifecycle) ships in later phases of the supervisor
 	// series; phase 1 introduces the schema only.
+	//
+	// The first process in this slice (declaration order, independent of
+	// ProcessSpec.Turn) is the supervisor's initially-focused process: the
+	// operator's attach session relays IO to it until a Switch RPC moves the
+	// focus elsewhere.
 	Processes []ProcessSpec `json:"processes,omitempty" yaml:"processes,omitempty"`
 
 	// CyclePrefix is the byte sequence the attach client interprets as the
@@ -141,6 +150,11 @@ type TerminalSpec struct {
 	// Validate.
 	SwitchReplayBytes int `json:"switchReplayBytes,omitempty" yaml:"switchReplayBytes,omitempty"`
 }
+
+// ProcessName identifies a supervised process by its ProcessSpec.Name. The
+// Switch RPC and the supervisor's current-process state address processes by
+// this name.
+type ProcessName string
 
 // ProcessSpec declares one process supervised by a TerminalSpec whose
 // Processes list is non-empty. Each process is spawned with its own Command +
@@ -306,6 +320,7 @@ const (
 	TerminalMethodStop      = TerminalService + ".Stop"
 	TerminalMethodWrite     = TerminalService + ".Write"
 	TerminalMethodSubscribe = TerminalService + ".Subscribe"
+	TerminalMethodSwitch    = TerminalService + ".Switch"
 )
 
 type PingMessage struct {
@@ -326,6 +341,13 @@ type StopArgs struct {
 // caret notation or hex-escape interpretation.
 type WriteRequest struct {
 	Data []byte
+}
+
+// SwitchRequest names the supervised process the operator's attach session
+// should focus on. Name must match a ProcessSpec.Name in the running
+// terminal's spec; the supervisor rejects unknown names.
+type SwitchRequest struct {
+	Name ProcessName
 }
 
 // SubscribeRequest identifies the caller of a Subscribe RPC. ClientID

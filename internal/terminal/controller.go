@@ -386,6 +386,16 @@ func (c *Controller) Subscribe(req *api.SubscribeRequest, response *api.Response
 	return sr.Subscribe(req, response)
 }
 
+func (c *Controller) Switch(name api.ProcessName) error {
+	c.srMu.RLock()
+	sr := c.sr
+	c.srMu.RUnlock()
+	if sr == nil {
+		return errors.New("terminal runner not initialized")
+	}
+	return sr.Switch(name)
+}
+
 func (c *Controller) State() (*api.TerminalStatusMode, error) {
 	c.srMu.RLock()
 	sr := c.sr

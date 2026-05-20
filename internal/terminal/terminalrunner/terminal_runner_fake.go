@@ -44,6 +44,7 @@ type Test struct {
 	PostAttachShellFunc func() error
 	WritePTYFunc        func(data []byte) error
 	SubscribeFunc       func(req *api.SubscribeRequest, response *api.ResponseWithFD) error
+	SwitchFunc          func(name api.ProcessName) error
 }
 
 func NewTerminalRunnerTest(_ context.Context) TerminalRunner {
@@ -164,6 +165,13 @@ func (sr *Test) WritePTY(data []byte) error {
 func (sr *Test) Subscribe(req *api.SubscribeRequest, response *api.ResponseWithFD) error {
 	if sr.SubscribeFunc != nil {
 		return sr.SubscribeFunc(req, response)
+	}
+	return errdefs.ErrFuncNotSet
+}
+
+func (sr *Test) Switch(name api.ProcessName) error {
+	if sr.SwitchFunc != nil {
+		return sr.SwitchFunc(name)
 	}
 	return errdefs.ErrFuncNotSet
 }

@@ -48,4 +48,8 @@ type TerminalRunner interface {
 	Metadata() (*api.TerminalDoc, error)
 	WritePTY(data []byte) error
 	Subscribe(req *api.SubscribeRequest, response *api.ResponseWithFD) error
+	// Switch focuses the operator's attach session on the named supervised
+	// process (process-set path only). Validates the name against the
+	// spawned processes; an unknown name is rejected with a wrapped error.
+	Switch(name api.ProcessName) error
 }

@@ -36,6 +36,11 @@ import (
 // the PTY reader's buffer size in terminal.go.
 const processDrainBufSize = 8192
 
+// processInputBufSize is the read buffer used by the operator-input relay when
+// copying the attach session's input into the current process's socket.
+// Matches the PTY writer's buffer size in terminal.go.
+const processInputBufSize = 4096
+
 // procState holds the runtime state for one supervised process spawned from a
 // non-empty TerminalSpec.Processes. Each process runs with socketpair stdio
 // (not a PTY); the parent end is drained into the process's capture file by a
@@ -97,6 +102,20 @@ func (sr *Exec) startProcesses() error {
 		return errors.New("startProcesses called with empty Spec.Processes")
 	}
 
+	// The operator's attach session focuses the first process in spec order
+	// (declaration order, independent of Turn) until a Switch RPC moves it.
+	// Set current before any drain goroutine starts so the per-read
+	// "am I current?" check never races an unset value.
+	sr.processesMu.Lock()
+	sr.current = api.ProcessName(specs[0].Name)
+	sr.processesMu.Unlock()
+
+	// Wire the operator IO relay before spawning so each process's drain can
+	// mirror its socket onto the attach session the moment it produces output.
+	if err := sr.setupProcessOperatorIO(); err != nil {
+		return err
+	}
+
 	for _, turn := range orderedTurns(specs) {
 		group := processesWithTurn(specs, turn)
 		if err := sr.spawnGroup(turn, group); err != nil {
@@ -104,6 +123,112 @@ func (sr *Exec) startProcesses() error {
 		}
 	}
 	return nil
+}
+
+// setupProcessOperatorIO wires the operator-facing IO plumbing for the
+// process-set path, mirroring startPty's ptyPipes setup so the existing attach
+// handler (connections.go) and Subscribe path work unchanged:
+//
+//   - pipeInW receives the operator's input (written by the attach handler);
+//     relayOperatorInput drains pipeInR into whichever process is current.
+//   - multiOutW fans the current process's output out to attachers and
+//     subscribers. Unlike the single-child path there is no always-on capture
+//     writer here — each process drains to its own capture file, so the
+//     operator sink is purely the live multiplex.
+func (sr *Exec) setupProcessOperatorIO() error {
+	pipeInR, pipeInW, err := os.Pipe()
+	if err != nil {
+		return fmt.Errorf("open process input pipe: %w", err)
+	}
+	multiOutW := NewDynamicMultiWriter(sr.logger)
+
+	sr.ptyPipesMu.Lock()
+	if sr.ptyPipes == nil {
+		sr.ptyPipes = &ptyPipes{}
+	}
+	sr.ptyPipes.pipeInR = pipeInR
+	sr.ptyPipes.pipeInW = pipeInW
+	sr.ptyPipes.multiOutW = multiOutW
+	sr.ptyPipesMu.Unlock()
+
+	go sr.relayOperatorInput(pipeInR)
+	return nil
+}
+
+// relayOperatorInput copies the operator's input stream (pipeInR, fed by the
+// attach handler via pipeInW) into the current process's socket. The target is
+// re-resolved on every chunk under processesMu, so a Switch RPC redirects
+// subsequent input atomically. The relay exits when the runner's context is
+// canceled (the ctx watcher closes pipeInR, unblocking the Read).
+func (sr *Exec) relayOperatorInput(pipeInR *os.File) {
+	go func() {
+		<-sr.ctx.Done()
+		_ = pipeInR.Close()
+	}()
+
+	buf := make([]byte, processInputBufSize)
+	for {
+		n, errRead := pipeInR.Read(buf)
+		if n > 0 {
+			sr.processesMu.Lock()
+			target := sr.currentProcessLocked()
+			sr.processesMu.Unlock()
+			// Resolve-then-write outside the lock: a closed parentEnd (the
+			// target exited between resolve and write) surfaces as a write
+			// error we log and move past rather than holding processesMu
+			// across a blocking write.
+			if target != nil {
+				if _, errWrite := target.parentEnd.Write(buf[:n]); errWrite != nil {
+					sr.logger.Debug("operator input write to process failed",
+						"process", target.spec.Name, "err", errWrite)
+				}
+			}
+		}
+		if errRead != nil {
+			if !errors.Is(errRead, io.EOF) && !errors.Is(errRead, os.ErrClosed) {
+				sr.logger.Debug("operator input relay read ended", "err", errRead)
+			}
+			return
+		}
+	}
+}
+
+// Switch focuses the operator's attach session on the named process. It
+// validates the name against the spawned processes and atomically swaps the
+// relay target under processesMu; an unknown name is rejected with a wrapped
+// ErrUnknownProcess and leaves the current focus unchanged.
+func (sr *Exec) Switch(name api.ProcessName) error {
+	sr.processesMu.Lock()
+	defer sr.processesMu.Unlock()
+	for _, c := range sr.processes {
+		if api.ProcessName(c.spec.Name) == name {
+			sr.current = name
+			sr.logger.Info("switched current process", "process", name)
+			return nil
+		}
+	}
+	return fmt.Errorf("%w: %q", ErrUnknownProcess, name)
+}
+
+// currentProcessLocked returns the procState that currently owns the operator
+// focus, or nil if none matches (e.g. before startProcesses set current).
+// Callers must hold processesMu.
+func (sr *Exec) currentProcessLocked() *procState {
+	for _, c := range sr.processes {
+		if api.ProcessName(c.spec.Name) == sr.current {
+			return c
+		}
+	}
+	return nil
+}
+
+// isCurrentProcess reports whether name holds the operator focus. It reads
+// sr.current under processesMu — the same lock Switch takes — so a drain
+// goroutine's per-read focus check serializes against a concurrent Switch.
+func (sr *Exec) isCurrentProcess(name string) bool {
+	sr.processesMu.Lock()
+	defer sr.processesMu.Unlock()
+	return sr.current == api.ProcessName(name)
 }
 
 // orderedTurns returns the distinct Turn values present in specs, ascending.
@@ -249,6 +374,17 @@ func (sr *Exec) openProcessCapture(spec api.ProcessSpec) (*os.File, error) {
 func (sr *Exec) drainProcess(c *procState) {
 	defer c.closeCapture()
 
+	// Snapshot the operator output fan-out once. It is wired by
+	// setupProcessOperatorIO before any drain goroutine starts and never
+	// reassigned, so a single read here is safe and avoids per-iteration
+	// lock traffic on ptyPipesMu.
+	sr.ptyPipesMu.RLock()
+	var operatorOut *DynamicMultiWriter
+	if sr.ptyPipes != nil {
+		operatorOut = sr.ptyPipes.multiOutW
+	}
+	sr.ptyPipesMu.RUnlock()
+
 	// Closing parentEnd unblocks a still-running Read so the drain goroutine
 	// exits on Close even if the process is still alive. The watcher waits on
 	// whichever comes first — runner Close (ctx cancel) or the drain returning
@@ -268,8 +404,8 @@ func (sr *Exec) drainProcess(c *procState) {
 	buf := make([]byte, processDrainBufSize)
 	for {
 		n, errRead := c.parentEnd.Read(buf)
-		if n > 0 && c.captureFile != nil {
-			if _, errWrite := c.captureFile.Write(buf[:n]); errWrite != nil {
+		if n > 0 {
+			if errWrite := sr.writeProcessChunk(c, operatorOut, buf[:n]); errWrite != nil {
 				sr.logger.Error("process capture write error", "process", c.spec.Name, "err", errWrite)
 				return
 			}
@@ -283,6 +419,28 @@ func (sr *Exec) drainProcess(c *procState) {
 			return
 		}
 	}
+}
+
+// writeProcessChunk persists one drained chunk to the process's capture file
+// and, when the process currently holds the operator focus, mirrors it onto the
+// attach session. isCurrentProcess reads sr.current under processesMu — the
+// same lock Switch takes — so a focus change serializes against this per-chunk
+// decision and the operator output flips atomically at buffer granularity. Only
+// a failed capture write is returned (the drain's durable sink is gone, so it
+// must stop); a failed operator-mirror write is non-fatal because the capture
+// file remains and DynamicMultiWriter already prunes a single stale attacher.
+func (sr *Exec) writeProcessChunk(c *procState, operatorOut *DynamicMultiWriter, p []byte) error {
+	if c.captureFile != nil {
+		if _, err := c.captureFile.Write(p); err != nil {
+			return err
+		}
+	}
+	if operatorOut != nil && sr.isCurrentProcess(c.spec.Name) {
+		if _, err := operatorOut.Write(p); err != nil {
+			sr.logger.Debug("operator mirror write ended", "process", c.spec.Name, "err", err)
+		}
+	}
+	return nil
 }
 
 // watchProcessExit observes the process's exit and records the cause on the

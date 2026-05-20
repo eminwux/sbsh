@@ -73,3 +73,7 @@ func (s *TerminalControllerRPC) Write(req *api.WriteRequest, _ *api.Empty) error
 func (s *TerminalControllerRPC) Subscribe(req *api.SubscribeRequest, response *api.ResponseWithFD) error {
 	return s.Core.Subscribe(req, response)
 }
+
+func (s *TerminalControllerRPC) Switch(req *api.SwitchRequest, _ *api.Empty) error {
+	return s.Core.Switch(req.Name)
+}

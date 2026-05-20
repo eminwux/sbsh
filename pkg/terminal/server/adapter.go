@@ -117,3 +117,11 @@ func (a *rpcAdapter) Subscribe(req *api.SubscribeRequest, response *api.Response
 	}
 	return r.Subscribe(req, response)
 }
+
+func (a *rpcAdapter) Switch(name api.ProcessName) error {
+	r := a.srv.getRunner()
+	if r == nil {
+		return errors.New("server: terminal not running")
+	}
+	return r.Switch(name)
+}
