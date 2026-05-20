@@ -118,41 +118,41 @@ type TerminalSpec struct {
 	// runner's default" (30s, matching Kubernetes terminationGracePeriodSeconds).
 	ShutdownGrace time.Duration `json:"shutdownGrace,omitempty"`
 
-	// Processes declares N processes the terminal multiplexes onto a
+	// Children declares N child processes the terminal multiplexes onto a
 	// single attach session. When empty, the spec retains its single-child
 	// shape via the top-level Command/CommandArgs/CaptureFile fields. When
 	// non-empty, the top-level Command must be empty (mutually exclusive)
-	// and the supervisor spawns each process via its own ProcessSpec. The
+	// and the supervisor spawns each child via its own ChildSpec. The
 	// supervisor behavior that consumes this list (spawn, drain, gating,
 	// switch, replay, lifecycle) ships in later phases of the supervisor
 	// series; phase 1 introduces the schema only.
-	Processes []ProcessSpec `json:"processes,omitempty" yaml:"processes,omitempty"`
+	Children []ChildSpec `json:"children,omitempty" yaml:"children,omitempty"`
 
 	// CyclePrefix is the byte sequence the attach client interprets as the
-	// "cycle to next process" escape (consumed in phase 4). Empty means "use
+	// "cycle to next child" escape (consumed in phase 4). Empty means "use
 	// the supervisor default" (^A / "\x01"). Stored verbatim — the attach
 	// client compares the inbound byte stream against this prefix literally.
 	CyclePrefix string `json:"cyclePrefix,omitempty" yaml:"cyclePrefix,omitempty"`
 
 	// SwitchReplayBytes bounds the trailing capture-tail length the
-	// supervisor replays to the operator when cycling onto a process whose
+	// supervisor replays to the operator when cycling onto a child whose
 	// PTY has already produced output (consumed in phase 5). Zero means
 	// "use the supervisor default" (4096). Negative values are rejected by
 	// Validate.
 	SwitchReplayBytes int `json:"switchReplayBytes,omitempty" yaml:"switchReplayBytes,omitempty"`
 }
 
-// ProcessSpec declares one process supervised by a TerminalSpec whose
-// Processes list is non-empty. Each process is spawned with its own Command +
+// ChildSpec declares one child process supervised by a TerminalSpec whose
+// Children list is non-empty. Each child is spawned with its own Command +
 // CommandArgs and its own capture file; the supervisor multiplexes the
-// processes' PTY output onto whichever attach session is currently focused
-// on that process (see TerminalSpec.CyclePrefix for the operator-visible
+// children's PTY output onto whichever attach session is currently focused
+// on that child (see TerminalSpec.CyclePrefix for the operator-visible
 // cycle key).
 //
-// Turn is the cycle-order index used by phase 4's switch logic; processes
+// Turn is the cycle-order index used by phase 4's switch logic; children
 // are visited in ascending Turn order, with ties broken by the order they
-// appear in TerminalSpec.Processes.
-type ProcessSpec struct {
+// appear in TerminalSpec.Children.
+type ChildSpec struct {
 	Name        string      `json:"name"                  yaml:"name"`
 	Command     string      `json:"command"               yaml:"command"`
 	CommandArgs []string    `json:"commandArgs,omitempty" yaml:"commandArgs,omitempty"`
@@ -163,14 +163,14 @@ type ProcessSpec struct {
 
 // Validate enforces the phase-1 schema rules on a TerminalSpec:
 //
-//   - Processes may not coexist with a top-level Command (the two shapes are
-//     mutually exclusive; the supervisor either runs one process via the
-//     top-level Command/CommandArgs pair or N processes via Processes).
-//   - At least one of Processes or top-level Command must be set, so the
+//   - Children may not coexist with a top-level Command (the two shapes are
+//     mutually exclusive; the supervisor either runs one child via the
+//     top-level Command/CommandArgs pair or N children via Children).
+//   - At least one of Children or top-level Command must be set, so the
 //     supervisor has something to spawn.
-//   - Process names must be unique within a single spec, so phase 4's switch
-//     logic can address processes by name without ambiguity.
-//   - Each process must carry a non-empty Name and Command (a process whose
+//   - Child names must be unique within a single spec, so phase 4's switch
+//     logic can address children by name without ambiguity.
+//   - Each child must carry a non-empty Name and Command (a child whose
 //     identity or argv is unset cannot be supervised).
 //   - SwitchReplayBytes must be non-negative.
 //
@@ -178,30 +178,30 @@ type ProcessSpec struct {
 // handing a spec to the runner. Phase 1 only adds the method; later phases
 // wire it into the runner's startup path.
 func (s *TerminalSpec) Validate() error {
-	hasProcesses := len(s.Processes) > 0
+	hasChildren := len(s.Children) > 0
 	hasTopCmd := s.Command != ""
 
-	if hasProcesses && hasTopCmd {
-		return errors.New("terminal spec: processes and top-level command are mutually exclusive")
+	if hasChildren && hasTopCmd {
+		return errors.New("terminal spec: children and top-level command are mutually exclusive")
 	}
-	if !hasProcesses && !hasTopCmd {
-		return errors.New("terminal spec: either processes or top-level command must be set")
+	if !hasChildren && !hasTopCmd {
+		return errors.New("terminal spec: either children or top-level command must be set")
 	}
 	if s.SwitchReplayBytes < 0 {
 		return fmt.Errorf("terminal spec: switchReplayBytes must be non-negative, got %d", s.SwitchReplayBytes)
 	}
 
-	if hasProcesses {
-		seen := make(map[string]struct{}, len(s.Processes))
-		for i, c := range s.Processes {
+	if hasChildren {
+		seen := make(map[string]struct{}, len(s.Children))
+		for i, c := range s.Children {
 			if c.Name == "" {
-				return fmt.Errorf("terminal spec: processes[%d].name is required", i)
+				return fmt.Errorf("terminal spec: children[%d].name is required", i)
 			}
 			if c.Command == "" {
-				return fmt.Errorf("terminal spec: processes[%d] (%q).command is required", i, c.Name)
+				return fmt.Errorf("terminal spec: children[%d] (%q).command is required", i, c.Name)
 			}
 			if _, dup := seen[c.Name]; dup {
-				return fmt.Errorf("terminal spec: duplicate process name %q", c.Name)
+				return fmt.Errorf("terminal spec: duplicate child name %q", c.Name)
 			}
 			seen[c.Name] = struct{}{}
 		}
