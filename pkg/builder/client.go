@@ -41,6 +41,7 @@ type clientConfig struct {
 	mode            api.ClientMode
 	modeSet         bool
 	detachKeystroke *bool
+	fullCapture     bool
 	terminalSpec    *api.TerminalSpec
 }
 
@@ -87,6 +88,13 @@ func WithClientDetachKeystroke(enable bool) ClientOption {
 		v := enable
 		c.detachKeystroke = &v
 	}
+}
+
+// WithClientFullCapture opts into replaying the entire raw capture
+// buffer on attach instead of the default bounded screen repaint. The
+// default is false (repaint). Mirrors the CLI's --full-capture flag.
+func WithClientFullCapture(enable bool) ClientOption {
+	return func(c *clientConfig) { c.fullCapture = enable }
 }
 
 // WithClientTerminalSpec embeds a pre-built TerminalSpec into the
@@ -166,6 +174,7 @@ func BuildClientDoc(
 			SockerCtrl:      cfg.socketFile,
 			TerminalSpec:    cfg.terminalSpec,
 			DetachKeystroke: detach,
+			FullCapture:     cfg.fullCapture,
 			ClientMode:      mode,
 		},
 	}

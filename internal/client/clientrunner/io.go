@@ -144,7 +144,14 @@ func (sr *Exec) startConnectionManager() error {
 
 func (sr *Exec) attach() error {
 	var response struct{}
-	conn, err := sr.terminalClient.Attach(sr.ctx, &sr.id, &response)
+	sr.metadataMu.RLock()
+	fullCapture := sr.metadata.Spec.FullCapture
+	sr.metadataMu.RUnlock()
+	conn, err := sr.terminalClient.Attach(
+		sr.ctx,
+		&api.AttachRequest{ClientID: sr.id, FullCapture: fullCapture},
+		&response,
+	)
 	if err != nil {
 		sr.logger.ErrorContext(sr.ctx, "attach: failed to attach", "error", err)
 		return err

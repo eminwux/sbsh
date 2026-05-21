@@ -167,7 +167,7 @@ func validateClientInputs(doc *api.ClientDoc, opts ClientOptions) error {
 // If --id and --name are both set the CLI rejects the combination,
 // so spawn deterministically prefers ID (matches CLI precedence).
 func buildClientAttachArgs(doc *api.ClientDoc, opts ClientOptions) []string {
-	const maxAttachArgs = 8 // --run-path X attach --socket S --id I --disable-detach
+	const maxAttachArgs = 9 // --run-path X attach --socket S --id I --disable-detach --full-capture
 	args := make([]string, 0, maxAttachArgs+len(opts.ExtraArgs))
 
 	if doc.Spec.RunPath != "" {
@@ -178,6 +178,10 @@ func buildClientAttachArgs(doc *api.ClientDoc, opts ClientOptions) []string {
 
 	if !doc.Spec.DetachKeystroke {
 		args = append(args, "--disable-detach")
+	}
+
+	if doc.Spec.FullCapture {
+		args = append(args, "--full-capture")
 	}
 
 	term := doc.Spec.TerminalSpec

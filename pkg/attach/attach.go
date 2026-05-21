@@ -57,6 +57,11 @@ type Options struct {
 	// escape sequence and triggers a clean detach when it fires.
 	DisableDetachKeystroke bool
 
+	// FullCapture, when true, replays the entire raw capture buffer on
+	// attach instead of the default bounded repaint of the current screen.
+	// It flows through ClientSpec.FullCapture to the terminal server.
+	FullCapture bool
+
 	// Logger is a structured logger for diagnostics. Defaults to a
 	// discard logger when nil so embedders aren't forced to wire one
 	// in.
@@ -129,6 +134,7 @@ func Run(ctx context.Context, opts Options) error {
 			SockerCtrl:      clientCtrlSocket,
 			ClientMode:      api.AttachToTerminal,
 			DetachKeystroke: !opts.DisableDetachKeystroke,
+			FullCapture:     opts.FullCapture,
 			TerminalSpec: &api.TerminalSpec{
 				SocketFile: opts.SocketPath,
 			},

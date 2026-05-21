@@ -120,6 +120,10 @@ type ioClient struct {
 	id        *api.ID
 	conn      net.Conn
 	outWriter *subscriberWriter
+	// fullCapture selects the attach replay mode for this client: when true
+	// the full raw capture buffer is replayed, otherwise a bounded repaint
+	// of the current screen is synthesized from the screen model.
+	fullCapture bool
 }
 
 func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.TerminalSpec) TerminalRunner {

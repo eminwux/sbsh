@@ -54,8 +54,8 @@ func (s *TerminalControllerRPC) Detach(id *api.ID, _ *api.Empty) error {
 	return s.Core.Detach(id)
 }
 
-func (s *TerminalControllerRPC) Attach(id *api.ID, response *api.ResponseWithFD) error {
-	return s.Core.Attach(id, response)
+func (s *TerminalControllerRPC) Attach(req *api.AttachRequest, response *api.ResponseWithFD) error {
+	return s.Core.Attach(req, response)
 }
 
 func (s *TerminalControllerRPC) Metadata(_ api.Empty, metadata *api.TerminalDoc) error {

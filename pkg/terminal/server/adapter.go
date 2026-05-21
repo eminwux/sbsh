@@ -65,12 +65,12 @@ func (a *rpcAdapter) Detach(id *api.ID) error {
 	return r.Detach(id)
 }
 
-func (a *rpcAdapter) Attach(id *api.ID, response *api.ResponseWithFD) error {
+func (a *rpcAdapter) Attach(req *api.AttachRequest, response *api.ResponseWithFD) error {
 	r := a.srv.getRunner()
 	if r == nil {
 		return errors.New("server: terminal not running")
 	}
-	if err := r.Attach(id, response); err != nil {
+	if err := r.Attach(req, response); err != nil {
 		return err
 	}
 	return r.PostAttachShell()

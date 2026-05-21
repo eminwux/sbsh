@@ -32,7 +32,7 @@ type ControllerTest struct {
 	PingFunc       func(in *api.PingMessage) (*api.PingMessage, error)
 	CloseFunc      func(reason error) error
 	ResizeFunc     func()
-	AttachFunc     func(id *api.ID, response *api.ResponseWithFD) error
+	AttachFunc     func(req *api.AttachRequest, response *api.ResponseWithFD) error
 	DetachFunc     func(id *api.ID) error
 	MetadataFunc   func() (*api.TerminalDoc, error)
 	StateFunc      func() (*api.TerminalStatusMode, error)
@@ -84,9 +84,9 @@ func (f *ControllerTest) Resize(_ api.ResizeArgs) {
 	}
 }
 
-func (f *ControllerTest) Attach(id *api.ID, response *api.ResponseWithFD) error {
+func (f *ControllerTest) Attach(req *api.AttachRequest, response *api.ResponseWithFD) error {
 	if f.AttachFunc != nil {
-		return f.AttachFunc(id, response)
+		return f.AttachFunc(req, response)
 	}
 	return errdefs.ErrFuncNotSet
 }

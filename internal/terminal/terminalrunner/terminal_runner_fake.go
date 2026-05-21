@@ -36,7 +36,7 @@ type Test struct {
 	ResizeFunc          func(args api.ResizeArgs)
 	IDFunc              func() api.ID
 	CreateMetadataFunc  func() error
-	AttachFunc          func(id *api.ID, response *api.ResponseWithFD) error
+	AttachFunc          func(req *api.AttachRequest, response *api.ResponseWithFD) error
 	DetachFunc          func(id *api.ID) error
 	SetupShellFunc      func() error
 	OnInitShellFunc     func() error
@@ -111,9 +111,9 @@ func (sr *Test) CreateMetadata() error {
 	return nil
 }
 
-func (sr *Test) Attach(id *api.ID, response *api.ResponseWithFD) error {
+func (sr *Test) Attach(req *api.AttachRequest, response *api.ResponseWithFD) error {
 	if sr.AttachFunc != nil {
-		return sr.AttachFunc(id, response)
+		return sr.AttachFunc(req, response)
 	}
 	return errdefs.ErrFuncNotSet
 }

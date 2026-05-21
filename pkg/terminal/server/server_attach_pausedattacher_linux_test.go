@@ -112,7 +112,7 @@ func TestServer_PausedAttacher_DoesNotHeadOfLineBlock(t *testing.T) {
 
 func attachClient(ctx context.Context, t *testing.T, client rpcclient.Client, id api.ID) net.Conn {
 	t.Helper()
-	conn, err := client.Attach(ctx, &id, nil)
+	conn, err := client.Attach(ctx, &api.AttachRequest{ClientID: id}, nil)
 	if err != nil {
 		t.Fatalf("Attach(%s): %v", id, err)
 	}

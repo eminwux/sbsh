@@ -29,7 +29,7 @@ type TerminalController interface {
 	Close(reason error) error
 	Resize(ResizeArgs)
 	Detach(id *ID) error
-	Attach(id *ID, reply *ResponseWithFD) error
+	Attach(req *AttachRequest, reply *ResponseWithFD) error
 	Metadata() (*TerminalDoc, error)
 	State() (*TerminalStatusMode, error)
 	Stop(args *StopArgs) error
@@ -242,6 +242,17 @@ type WriteRequest struct {
 // not appear in TerminalStatus.Attachers.
 type SubscribeRequest struct {
 	ClientID ID
+}
+
+// AttachRequest is the argument for an Attach RPC. ClientID identifies the
+// attaching client (used for attacher accounting and to label the IO fd
+// the server hands back). FullCapture opts into replaying the entire raw
+// capture buffer on attach — the legacy behavior — instead of the default
+// bounded repaint synthesized from the live screen model. It mirrors the
+// CLI's --full-capture flag, which plumbs through ClientSpec.FullCapture.
+type AttachRequest struct {
+	ClientID    ID
+	FullCapture bool
 }
 
 // ResponseWithFD carries a normal JSON result plus OOB file descriptors.

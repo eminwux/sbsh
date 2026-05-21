@@ -108,7 +108,7 @@ func TestServer_AttachDetachCycles_NoFDLeak(t *testing.T) {
 }
 
 func attachDetachOnce(ctx context.Context, client rpcclient.Client, id api.ID) error {
-	conn, err := client.Attach(ctx, &id, nil)
+	conn, err := client.Attach(ctx, &api.AttachRequest{ClientID: id}, nil)
 	if err != nil {
 		return fmt.Errorf("Attach(%s): %w", id, err)
 	}

@@ -157,6 +157,34 @@ func TestBuildClientAttachArgs_ByName_DisableDetach(t *testing.T) {
 	}
 }
 
+// TestBuildClientAttachArgs_FullCapture covers the --full-capture leg:
+// ClientSpec.FullCapture=true appends the flag (after --disable-detach,
+// before the terminal selector), mirroring the --disable-detach precedent.
+func TestBuildClientAttachArgs_FullCapture(t *testing.T) {
+	t.Parallel()
+	doc := &api.ClientDoc{
+		Spec: api.ClientSpec{
+			RunPath:         "/run/sbsh",
+			SockerCtrl:      "/run/sbsh/clients/c-4/socket",
+			ClientMode:      api.AttachToTerminal,
+			DetachKeystroke: true, // no --disable-detach
+			FullCapture:     true,
+			TerminalSpec:    &api.TerminalSpec{ID: "t-4"},
+		},
+	}
+	got := buildClientAttachArgs(doc, ClientOptions{})
+	want := []string{
+		"--run-path", "/run/sbsh",
+		"attach",
+		"--socket", "/run/sbsh/clients/c-4/socket",
+		"--full-capture",
+		"--id", "t-4",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("buildClientAttachArgs = %q; want %q", got, want)
+	}
+}
+
 // TestBuildClientAttachArgs_IDWinsOverName locks down the tie-break
 // rule: when a TerminalSpec carries both ID and Name, spawn emits
 // --id only (no positional name arg). This matches `sb attach`, which

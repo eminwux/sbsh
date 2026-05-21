@@ -212,6 +212,93 @@ func TestScreenModelConcurrentWriteAndSnapshot(t *testing.T) {
 	}
 }
 
+// An empty screen (no output yet, the "empty capture" case) repaints to a
+// bare clear-screen + home, no alt-screen switch, cursor home and visible.
+func TestRepaintEmptyScreen(t *testing.T) {
+	m := newScreenModel()
+	got := string(m.repaint())
+
+	if strings.Contains(got, escEnterAltScreen) {
+		t.Errorf("empty primary screen must not enter alt screen; got %q", got)
+	}
+	if !strings.Contains(got, escClearScreen) || !strings.Contains(got, escCursorHome) {
+		t.Errorf("repaint must clear and home; got %q", got)
+	}
+	// Cursor lands at row 1, col 1 and stays visible.
+	if !strings.HasSuffix(got, "\x1b[1;1H"+escShowCursor) {
+		t.Errorf("empty repaint should end at home with a visible cursor; got %q", got)
+	}
+}
+
+// A plain line of output repaints by positioning at row 1 and writing the
+// glyphs — no newlines, which would stairstep in raw mode.
+func TestRepaintPlainOutput(t *testing.T) {
+	m := newScreenModel()
+	feed(m, "hello world")
+	got := string(m.repaint())
+
+	if !strings.Contains(got, "\x1b[1;1Hhello world") {
+		t.Errorf("repaint should position row 1 then write the line; got %q", got)
+	}
+	if strings.Contains(got, "\n") {
+		t.Errorf("repaint must not use newlines (raw mode); got %q", got)
+	}
+}
+
+// Reattaching to an alt-screen app (vim/htop) must re-enter the alternate
+// buffer and paint its current contents, not the primary screen's history.
+func TestRepaintAltScreen(t *testing.T) {
+	m := newScreenModel()
+	feed(m, "primary content")
+	feed(m, "\x1b[?1049h", "\x1b[2J\x1b[H", "ALT SCREEN APP")
+
+	got := string(m.repaint())
+	if !strings.HasPrefix(got, escEnterAltScreen) {
+		t.Errorf("alt-screen repaint must switch to the alt buffer first; got %q", got)
+	}
+	if !strings.Contains(got, "ALT SCREEN APP") {
+		t.Errorf("repaint should paint the alt-screen contents; got %q", got)
+	}
+	if strings.Contains(got, "primary content") {
+		t.Errorf("alt-screen repaint must not leak primary content; got %q", got)
+	}
+}
+
+// The cursor's position and hidden state survive the repaint.
+func TestRepaintCursorPositionAndVisibility(t *testing.T) {
+	m := newScreenModel()
+	feed(m, "\x1b[5;10H", "\x1b[?25l") // CUP row 5 col 10, then hide cursor
+
+	got := string(m.repaint())
+	if !strings.Contains(got, "\x1b[5;10H") {
+		t.Errorf("repaint should restore the cursor to row 5 col 10; got %q", got)
+	}
+	if !strings.HasSuffix(got, escHideCursor) {
+		t.Errorf("repaint should end with the cursor hidden; got %q", got)
+	}
+}
+
+// Repaint is bounded to the viewport regardless of session length: feeding
+// far more lines than the grid has rows still paints at most one positioned
+// row per grid row, never the whole scrollback history.
+func TestRepaintBoundedToViewport(t *testing.T) {
+	m := newScreenModel()
+	for i := range 1000 {
+		feed(m, "line\r\n")
+		_ = i
+	}
+	got := string(m.repaint())
+
+	if n := strings.Count(got, "\x1b[1;1H"); n != 1 {
+		t.Errorf("repaint should home exactly once; got %d in %q", n, got)
+	}
+	// At most rows positioned writes (CSI <row>;1H) — one per grid row.
+	positioned := strings.Count(got, ";1H")
+	if positioned > vt100Rows+1 { // +1 for the final cursor-restore CUP
+		t.Errorf("repaint painted %d positioned rows, exceeds viewport %d", positioned, vt100Rows)
+	}
+}
+
 func newScreenExec() *Exec {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Exec{

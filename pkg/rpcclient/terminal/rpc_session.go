@@ -187,7 +187,7 @@ func (c *client) Detach(ctx context.Context, id *api.ID) error {
 }
 
 // Attach (uses FD-aware codec) returns the IO net.Conn built from the FD sent via SCM_RIGHTS; also fills 'out' with JSON result.
-func (c *client) Attach(ctx context.Context, id *api.ID, out any) (net.Conn, error) {
+func (c *client) Attach(ctx context.Context, req *api.AttachRequest, out any) (net.Conn, error) {
 	var gotFDs []int
 
 	c.logger.InfoContext(ctx, "Attach RPC call starting")
@@ -195,7 +195,7 @@ func (c *client) Attach(ctx context.Context, id *api.ID, out any) (net.Conn, err
 	err := c.callWithCodec(
 		ctx,
 		api.TerminalMethodAttach,
-		id,
+		req,
 		out,
 		func(conn net.Conn) (rpc.ClientCodec, func(), error) {
 			c.logger.DebugContext(ctx, "preparing codec for Attach")

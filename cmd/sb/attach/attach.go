@@ -172,6 +172,9 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 	_ = viper.BindPFlag(config.SB_ATTACH_SOCKET.ViperKey, attachCmd.Flags().Lookup("socket"))
 	attachCmd.Flags().Bool("disable-detach", false, "Disable detach keystroke (^] twice)")
 	_ = viper.BindPFlag(config.SB_ATTACH_DISABLE_DETACH_KEYSTROKE.ViperKey, attachCmd.Flags().Lookup("disable-detach"))
+	attachCmd.Flags().
+		Bool("full-capture", false, "Replay the entire raw capture buffer on attach instead of repainting the current screen")
+	_ = viper.BindPFlag(config.SB_ATTACH_FULL_CAPTURE.ViperKey, attachCmd.Flags().Lookup("full-capture"))
 }
 
 func run(
@@ -194,8 +197,18 @@ func run(
 	}
 
 	disableDetach := viper.GetBool(config.SB_ATTACH_DISABLE_DETACH_KEYSTROKE.ViperKey)
+	fullCapture := viper.GetBool(config.SB_ATTACH_FULL_CAPTURE.ViperKey)
 
-	logger.DebugContext(ctx, "delegating to pkg/attach.Run", "socket", socketPath, "disable_detach", disableDetach)
+	logger.DebugContext(
+		ctx,
+		"delegating to pkg/attach.Run",
+		"socket",
+		socketPath,
+		"disable_detach",
+		disableDetach,
+		"full_capture",
+		fullCapture,
+	)
 
 	runErr := attach.Run(ctx, attach.Options{
 		SocketPath:             socketPath,
@@ -203,6 +216,7 @@ func run(
 		Stdout:                 os.Stdout,
 		Stderr:                 os.Stderr,
 		DisableDetachKeystroke: disableDetach,
+		FullCapture:            fullCapture,
 		Logger:                 logger,
 	})
 	if runErr == nil || errors.Is(runErr, context.Canceled) || errors.Is(runErr, errdefs.ErrContextDone) {

@@ -306,22 +306,22 @@ func (c *Controller) Resize(args api.ResizeArgs) {
 	}
 }
 
-func (c *Controller) Attach(id *api.ID, response *api.ResponseWithFD) error {
+func (c *Controller) Attach(req *api.AttachRequest, response *api.ResponseWithFD) error {
 	c.srMu.RLock()
 	sr := c.sr
 	c.srMu.RUnlock()
 	if sr == nil {
 		return errors.New("terminal runner not initialized")
 	}
-	err := sr.Attach(id, response)
+	err := sr.Attach(req, response)
 	if err != nil {
-		c.logger.ErrorContext(c.ctx, "Attach failed", "id", id, "error", err)
+		c.logger.ErrorContext(c.ctx, "Attach failed", "id", req.ClientID, "error", err)
 		return err
 	}
 
 	errPostAttach := sr.PostAttachShell()
 	if errPostAttach != nil {
-		c.logger.ErrorContext(c.ctx, "Attach failed", "id", id, "error", errPostAttach)
+		c.logger.ErrorContext(c.ctx, "Attach failed", "id", req.ClientID, "error", errPostAttach)
 		return errPostAttach
 	}
 

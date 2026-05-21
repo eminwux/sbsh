@@ -370,8 +370,8 @@ func (sr *Exec) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (sr *Exec) Attach(clientID *api.ID, response *api.ResponseWithFD) error {
-	cliFD, err := sr.CreateNewClient(clientID)
+func (sr *Exec) Attach(req *api.AttachRequest, response *api.ResponseWithFD) error {
+	cliFD, err := sr.CreateNewClient(&req.ClientID, req.FullCapture)
 	if err != nil {
 		return err
 	}
@@ -382,7 +382,7 @@ func (sr *Exec) Attach(clientID *api.ID, response *api.ResponseWithFD) error {
 
 	fds := []int{cliFD}
 
-	sr.logger.Debug("Attach response", "id", clientID, "ok", payload.OK, "fds", fds)
+	sr.logger.Debug("Attach response", "id", req.ClientID, "fullCapture", req.FullCapture, "ok", payload.OK, "fds", fds)
 
 	response.JSON = payload
 	response.FDs = fds

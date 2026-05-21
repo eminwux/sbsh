@@ -47,7 +47,7 @@ func (m *mockTerminalClient) Detach(_ context.Context, _ *api.ID) error {
 	return nil
 }
 
-func (m *mockTerminalClient) Attach(_ context.Context, _ *api.ID, _ any) (net.Conn, error) {
+func (m *mockTerminalClient) Attach(_ context.Context, _ *api.AttachRequest, _ any) (net.Conn, error) {
 	return nil, errors.New("not implemented in mock")
 }
 
