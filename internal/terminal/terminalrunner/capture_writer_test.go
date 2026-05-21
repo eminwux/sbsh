@@ -50,6 +50,26 @@ func newTestCaptureWriter(
 	return w
 }
 
+// gzSize returns the on-disk gzip size CompressSegment produces for payload.
+// Closed segments are compressed on rotation, so byte-retention caps are set
+// relative to the compressed size rather than the raw payload length.
+func gzSize(t *testing.T, payload []byte) int64 {
+	t.Helper()
+	raw := filepath.Join(t.TempDir(), "sample.000000")
+	if err := os.WriteFile(raw, payload, 0o600); err != nil {
+		t.Fatalf("write sample: %v", err)
+	}
+	gzPath, err := capture.CompressSegment(raw)
+	if err != nil {
+		t.Fatalf("compress sample: %v", err)
+	}
+	info, err := os.Stat(gzPath)
+	if err != nil {
+		t.Fatalf("stat sample gz: %v", err)
+	}
+	return info.Size()
+}
+
 func mustWrite(t *testing.T, w io.Writer, b []byte) {
 	t.Helper()
 	n, err := w.Write(b)
@@ -109,14 +129,23 @@ func TestCaptureWriter_SingleRotation(t *testing.T) {
 	if len(segs) != 1 {
 		t.Fatalf("expected 1 closed segment, got %d", len(segs))
 	}
-	closed, err := os.ReadFile(segs[0].Path)
+	// The closed segment is gzip-compressed; the canonical (live) stays raw.
+	if !segs[0].Compressed {
+		t.Fatalf("closed segment should be compressed: %+v", segs[0])
+	}
+	if filepath.Ext(segs[0].Path) != capture.GzSuffix {
+		t.Fatalf("closed segment path = %q, want a %q suffix", segs[0].Path, capture.GzSuffix)
+	}
+	// Reassembly transparently decompresses the closed segment, then the live
+	// tail: the full transcript reads back as everything written.
+	full, err := capture.ReadAll(canonical)
 	if err != nil {
-		t.Fatalf("read closed: %v", err)
+		t.Fatalf("ReadAll: %v", err)
 	}
-	if !bytes.Equal(closed, []byte("12345678")) {
-		t.Fatalf("closed segment = %q, want %q", closed, "12345678")
+	if !bytes.Equal(full, []byte("12345678tail")) {
+		t.Fatalf("reassembled = %q, want %q", full, "12345678tail")
 	}
-	// cat of the canonical shows the live tail only.
+	// cat of the canonical shows the live tail only — never compressed.
 	live, err := os.ReadFile(canonical)
 	if err != nil {
 		t.Fatalf("read canonical: %v", err)
@@ -155,12 +184,18 @@ func TestCaptureWriter_MultipleRotationsAndPrune(t *testing.T) {
 	if len(segs) != 2 {
 		t.Fatalf("expected retention to cap closed segments at 2, got %d", len(segs))
 	}
-	// The two surviving closed segments must be the newest two written
-	// before the final (empty) live segment: "EEEE" and "FFFF".
-	got0, _ := os.ReadFile(segs[0].Path)
-	got1, _ := os.ReadFile(segs[1].Path)
-	if !bytes.Equal(got0, []byte("EEEE")) || !bytes.Equal(got1, []byte("FFFF")) {
-		t.Fatalf("surviving segments = %q,%q, want EEEE,FFFF", got0, got1)
+	// The two surviving closed segments must be the newest two written before
+	// the final (empty) live segment: "EEEE" then "FFFF". They are gzip-
+	// compressed, so verify content through the decompressing reassembler.
+	if !segs[0].Compressed || !segs[1].Compressed {
+		t.Fatalf("surviving closed segments should be compressed: %+v", segs)
+	}
+	got, err := capture.ReadAll(canonical)
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	if !bytes.Equal(got, []byte("EEEEFFFF")) {
+		t.Fatalf("reassembled survivors = %q, want %q", got, "EEEEFFFF")
 	}
 }
 
@@ -169,11 +204,14 @@ func TestCaptureWriter_MultipleRotationsAndPrune(t *testing.T) {
 func TestCaptureWriter_BytePrune(t *testing.T) {
 	dir := t.TempDir()
 	canonical := filepath.Join(dir, "capture")
-	// 4-byte segments, no count cap, keep at most 8 closed bytes (2 segments).
-	w := newTestCaptureWriter(t, canonical, 4, 0, 8)
+	// Identical 8-byte payloads each compress to a fixed size g once closed;
+	// a byte cap of 2*g (no count cap) must retain exactly the newest two.
+	payload := []byte("PAYLOAD8")
+	g := gzSize(t, payload)
+	w := newTestCaptureWriter(t, canonical, int64(len(payload)), 0, 2*g)
 
-	for _, c := range [][]byte{[]byte("AAAA"), []byte("BBBB"), []byte("CCCC"), []byte("DDDD")} {
-		mustWrite(t, w, c)
+	for range 4 {
+		mustWrite(t, w, payload) // each write hits the threshold and rotates
 	}
 	if err := w.Close(); err != nil {
 		t.Fatalf("close: %v", err)
@@ -183,12 +221,15 @@ func TestCaptureWriter_BytePrune(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ClosedSegments: %v", err)
 	}
+	if len(segs) != 2 {
+		t.Fatalf("byte retention should keep newest 2 (cap=2*%d), got %d", g, len(segs))
+	}
 	var total int64
 	for _, s := range segs {
 		total += s.Size
 	}
-	if total > 8 {
-		t.Fatalf("byte retention exceeded: total closed bytes = %d, cap 8", total)
+	if total > 2*g {
+		t.Fatalf("byte retention exceeded: total closed bytes = %d, cap %d", total, 2*g)
 	}
 }
 

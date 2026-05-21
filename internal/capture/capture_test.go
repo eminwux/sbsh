@@ -47,28 +47,61 @@ func TestClosedSegments_OrderAndFilter(t *testing.T) {
 	writeFile(t, SegmentPath(canonical, 2), []byte("two"))
 	writeFile(t, SegmentPath(canonical, 0), []byte("zero"))
 	writeFile(t, SegmentPath(canonical, 10), []byte("ten!!"))
+	// A compressed closed segment must be spliced in (seq 1, ".gz" form).
+	writeFile(t, SegmentPath(canonical, 1)+GzSuffix, []byte("x"))
 	// Live segment — must not appear among closed segments.
 	writeFile(t, canonical, []byte("live"))
-	// Unrelated siblings that must be ignored: non-digit suffix and a
-	// future compressed segment.
+	// Unrelated siblings that must be ignored: non-digit suffix and an
+	// in-flight compression temp file.
 	writeFile(t, canonical+".notes", []byte("x"))
-	writeFile(t, SegmentPath(canonical, 1)+".gz", []byte("x"))
+	writeFile(t, SegmentPath(canonical, 5)+GzSuffix+".tmp", []byte("x"))
 
 	segs, err := ClosedSegments(canonical)
 	if err != nil {
 		t.Fatalf("ClosedSegments: %v", err)
 	}
-	if len(segs) != 3 {
-		t.Fatalf("got %d closed segments, want 3: %+v", len(segs), segs)
+	if len(segs) != 4 {
+		t.Fatalf("got %d closed segments, want 4: %+v", len(segs), segs)
 	}
-	wantSeq := []uint64{0, 2, 10}
+	wantSeq := []uint64{0, 1, 2, 10}
 	for i, s := range segs {
 		if s.Seq != wantSeq[i] {
 			t.Fatalf("segment %d seq = %d, want %d", i, s.Seq, wantSeq[i])
 		}
 	}
-	if segs[2].Size != int64(len("ten!!")) {
-		t.Fatalf("seq 10 size = %d, want %d", segs[2].Size, len("ten!!"))
+	if !segs[1].Compressed {
+		t.Fatalf("seq 1 should be flagged compressed: %+v", segs[1])
+	}
+	if segs[0].Compressed {
+		t.Fatalf("seq 0 (raw) should not be flagged compressed: %+v", segs[0])
+	}
+	if segs[3].Size != int64(len("ten!!")) {
+		t.Fatalf("seq 10 size = %d, want %d", segs[3].Size, len("ten!!"))
+	}
+}
+
+func TestClosedSegments_RawWinsOverGzForSameSeq(t *testing.T) {
+	dir := t.TempDir()
+	canonical := filepath.Join(dir, "capture")
+
+	// Both raw and ".gz" exist for seq 3 — the transient window during
+	// rotation's compress step. They must collapse to a single segment,
+	// preferring the raw copy.
+	writeFile(t, SegmentPath(canonical, 3), []byte("raw-bytes"))
+	writeFile(t, SegmentPath(canonical, 3)+GzSuffix, []byte("gz-bytes"))
+
+	segs, err := ClosedSegments(canonical)
+	if err != nil {
+		t.Fatalf("ClosedSegments: %v", err)
+	}
+	if len(segs) != 1 {
+		t.Fatalf("got %d segments, want 1 (collapsed): %+v", len(segs), segs)
+	}
+	if segs[0].Compressed {
+		t.Fatalf("collapsed segment should be the raw copy: %+v", segs[0])
+	}
+	if segs[0].Path != SegmentPath(canonical, 3) {
+		t.Fatalf("collapsed path = %q, want raw %q", segs[0].Path, SegmentPath(canonical, 3))
 	}
 }
 
@@ -193,5 +226,81 @@ func TestDump_NeverWritten(t *testing.T) {
 	}
 	if buf.Len() != 0 {
 		t.Fatalf("want no output, got %q", buf.String())
+	}
+}
+
+func TestCompressSegment_RoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	canonical := filepath.Join(dir, "capture")
+	raw := SegmentPath(canonical, 0)
+	// Repetitive payload so gzip actually shrinks it — also exercises a
+	// payload larger than one gzip block.
+	original := bytes.Repeat([]byte("the quick brown fox jumped over\n"), 4096)
+	writeFile(t, raw, original)
+
+	gzPath, err := CompressSegment(raw)
+	if err != nil {
+		t.Fatalf("CompressSegment: %v", err)
+	}
+	if want := raw + GzSuffix; gzPath != want {
+		t.Fatalf("gzPath = %q, want %q", gzPath, want)
+	}
+	// Raw is removed; only the compressed copy remains.
+	if _, serr := os.Stat(raw); !os.IsNotExist(serr) {
+		t.Fatalf("raw segment still present after compress: %v", serr)
+	}
+	info, err := os.Stat(gzPath)
+	if err != nil {
+		t.Fatalf("stat %q: %v", gzPath, err)
+	}
+	if info.Size() >= int64(len(original)) {
+		t.Fatalf("compressed size %d not smaller than original %d", info.Size(), len(original))
+	}
+	// No in-flight temp file is left behind.
+	if _, serr := os.Stat(gzPath + ".tmp"); !os.IsNotExist(serr) {
+		t.Fatalf("temp file lingered: %v", serr)
+	}
+
+	// Round-trip: the compressed segment reads back as the original bytes.
+	got, err := ReadAll(canonical)
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	if !bytes.Equal(got, original) {
+		t.Fatalf("round-trip mismatch: got %d bytes, want %d", len(got), len(original))
+	}
+}
+
+func TestReadAll_SpansGzClosedAndRawLive(t *testing.T) {
+	dir := t.TempDir()
+	canonical := filepath.Join(dir, "capture")
+
+	// Two closed segments compressed to ".gz", then a raw live segment —
+	// the steady state after rotations have compressed older segments.
+	writeFile(t, SegmentPath(canonical, 0), []byte("AAAA"))
+	if _, err := CompressSegment(SegmentPath(canonical, 0)); err != nil {
+		t.Fatalf("compress seq 0: %v", err)
+	}
+	writeFile(t, SegmentPath(canonical, 1), []byte("BBBB"))
+	if _, err := CompressSegment(SegmentPath(canonical, 1)); err != nil {
+		t.Fatalf("compress seq 1: %v", err)
+	}
+	writeFile(t, canonical, []byte("CCCC"))
+
+	data, err := ReadAll(canonical)
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	if want := []byte("AAAABBBBCCCC"); !bytes.Equal(data, want) {
+		t.Fatalf("ReadAll = %q, want %q", data, want)
+	}
+
+	// Dump must agree with ReadAll across the same mixed layout.
+	var buf bytes.Buffer
+	if derr := Dump(canonical, &buf); derr != nil {
+		t.Fatalf("Dump: %v", derr)
+	}
+	if buf.String() != "AAAABBBBCCCC" {
+		t.Fatalf("Dump = %q, want %q", buf.String(), "AAAABBBBCCCC")
 	}
 }
