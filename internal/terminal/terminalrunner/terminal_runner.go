@@ -34,7 +34,13 @@ type TerminalRunner interface {
 	// from ln.Addr() so on-disk permissions match the OpenSocketCtrl
 	// path; callers do not re-implement the chmod/chown dance.
 	UseListener(ln net.Listener) error
-	StartServer(ctx context.Context, sc *terminalrpc.TerminalControllerRPC, readyCh chan error, doneCh chan error)
+	StartServer(
+		ctx context.Context,
+		sc *terminalrpc.TerminalControllerRPC,
+		readyCh chan error,
+		doneCh chan error,
+		extra ...terminalrpc.ExtraHandler,
+	)
 	StartTerminal(evCh chan<- Event) error
 	ID() api.ID
 	Close(reason error) error

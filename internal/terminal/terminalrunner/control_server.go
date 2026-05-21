@@ -32,6 +32,7 @@ func (sr *Exec) StartServer(
 	sc *terminalrpc.TerminalControllerRPC,
 	readyCh chan error,
 	doneCh chan error,
+	extra ...terminalrpc.ExtraHandler,
 ) {
 	// Ensure ln is closed and no leaks on exit
 	defer func() {
@@ -58,6 +59,23 @@ func (sr *Exec) StartServer(
 		}
 		close(doneCh)
 		return
+	}
+	// Register embedder-supplied custom verbs on the same server, after
+	// the built-in service so a custom Name colliding with it is
+	// rejected by net/rpc ("service already defined"). Method-level
+	// collisions are impossible: net/rpc dispatches by full
+	// "Service.Method", and these live under distinct service names.
+	for _, h := range extra {
+		if err := srv.RegisterName(h.Name, h.Receiver); err != nil {
+			readyCh <- err
+			close(readyCh)
+			select {
+			case doneCh <- err:
+			default:
+			}
+			close(doneCh)
+			return
+		}
 	}
 	// Signal: the accept loop is about to run on an already-listening socket.
 	readyCh <- nil

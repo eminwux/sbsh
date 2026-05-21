@@ -46,6 +46,8 @@ type Server struct {
 	spec   *api.TerminalSpec
 	logger *slog.Logger
 
+	handlers []Handler
+
 	mu          sync.Mutex
 	serveCalled bool
 	runner      terminalrunner.TerminalRunner
@@ -56,8 +58,10 @@ type Server struct {
 
 // New constructs a server bound to spec. The PTY is not spawned here —
 // the wrapped child is forked on Serve so a caller can listen on the
-// control socket and signal readiness first.
-func New(spec *api.TerminalSpec, logger *slog.Logger) (*Server, error) {
+// control socket and signal readiness first. Pass WithHandlers to
+// register custom JSON-RPC verbs on the same listener as the built-in
+// attach/control protocol.
+func New(spec *api.TerminalSpec, logger *slog.Logger, opts ...Option) (*Server, error) {
 	if spec == nil {
 		return nil, errors.New("server: nil TerminalSpec")
 	}
@@ -67,11 +71,41 @@ func New(spec *api.TerminalSpec, logger *slog.Logger) (*Server, error) {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	return &Server{
+	s := &Server{
 		spec:   spec,
 		logger: logger,
 		stopCh: make(chan error, 1),
-	}, nil
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	if err := validateHandlers(s.handlers); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// validateHandlers rejects custom handler registrations that would
+// collide with the built-in service or with each other before Serve
+// reaches the runner, so embedders get a clear constructor error rather
+// than an opaque failure on the Serve goroutine.
+func validateHandlers(handlers []Handler) error {
+	seen := make(map[string]struct{}, len(handlers))
+	for _, h := range handlers {
+		switch {
+		case h.Name == "":
+			return errors.New("server: custom handler with empty Name")
+		case h.Name == api.TerminalService:
+			return fmt.Errorf("server: custom handler Name %q collides with the built-in service", h.Name)
+		case h.Receiver == nil:
+			return fmt.Errorf("server: custom handler %q has a nil Receiver", h.Name)
+		}
+		if _, dup := seen[h.Name]; dup {
+			return fmt.Errorf("server: duplicate custom handler Name %q", h.Name)
+		}
+		seen[h.Name] = struct{}{}
+	}
+	return nil
 }
 
 // Serve accepts on listener and dispatches the TerminalController
@@ -135,7 +169,11 @@ func (s *Server) bringUp(
 	}
 
 	svc := &terminalrpc.TerminalControllerRPC{Core: &rpcAdapter{srv: s}}
-	go runner.StartServer(ctx, svc, rpcReadyCh, rpcDoneCh)
+	extra := make([]terminalrpc.ExtraHandler, 0, len(s.handlers))
+	for _, h := range s.handlers {
+		extra = append(extra, terminalrpc.ExtraHandler{Name: h.Name, Receiver: h.Receiver})
+	}
+	go runner.StartServer(ctx, svc, rpcReadyCh, rpcDoneCh, extra...)
 
 	if err := <-rpcReadyCh; err != nil {
 		_ = runner.Close(err)

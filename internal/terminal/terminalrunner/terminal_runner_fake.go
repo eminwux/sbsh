@@ -30,7 +30,7 @@ type Test struct {
 	mu                  sync.RWMutex // protects function pointer fields
 	OpenSocketCtrlFunc  func() error
 	UseListenerFunc     func(ln net.Listener) error
-	StartServerFunc     func(ctx context.Context, sc *terminalrpc.TerminalControllerRPC, readyCh chan error, doneCh chan error)
+	StartServerFunc     func(ctx context.Context, sc *terminalrpc.TerminalControllerRPC, readyCh chan error, doneCh chan error, extra ...terminalrpc.ExtraHandler)
 	StartTerminalFunc   func(evCh chan<- Event) error
 	CloseFunc           func(reason error) error
 	ResizeFunc          func(args api.ResizeArgs)
@@ -69,9 +69,10 @@ func (sr *Test) StartServer(
 	sc *terminalrpc.TerminalControllerRPC,
 	readyCh chan error,
 	doneCh chan error,
+	extra ...terminalrpc.ExtraHandler,
 ) {
 	if sr.StartServerFunc != nil {
-		sr.StartServerFunc(ctx, sc, readyCh, doneCh)
+		sr.StartServerFunc(ctx, sc, readyCh, doneCh, extra...)
 	}
 }
 

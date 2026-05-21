@@ -156,7 +156,7 @@ func Test_ErrStartRPCServer(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- errors.New("make server fail")
 			},
 		}
@@ -197,7 +197,7 @@ func Test_ErrStartTerminal(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -239,7 +239,7 @@ func Test_ErrSetupShell(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -284,7 +284,7 @@ func Test_ErrInitShell(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -332,7 +332,7 @@ func Test_ErrContextDone(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -384,7 +384,7 @@ func Test_ErrRPCServerExited(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -435,7 +435,7 @@ func Test_WaitReady(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -492,7 +492,7 @@ func Test_ErrCloseReq(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -547,7 +547,7 @@ func Test_HandleEvent_EvCmdExited(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -608,7 +608,7 @@ func Test_HandleEvent_EvError(_ *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -667,7 +667,7 @@ func Test_TerminalState_Initializing(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -746,7 +746,7 @@ func Test_TerminalState_Starting(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -826,7 +826,7 @@ func Test_TerminalState_SettingUp(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -903,7 +903,7 @@ func Test_TerminalState_Ready(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -982,7 +982,7 @@ func Test_TerminalState_OnInit(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -1059,7 +1059,7 @@ func Test_TerminalState_Exited(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
@@ -1147,7 +1147,7 @@ func Test_TerminalState_PostAttach(t *testing.T) {
 			OpenSocketCtrlFunc: func() error {
 				return nil
 			},
-			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error) {
+			StartServerFunc: func(_ context.Context, _ *terminalrpc.TerminalControllerRPC, readyCh chan error, _ chan error, _ ...terminalrpc.ExtraHandler) {
 				readyCh <- nil
 			},
 			StartTerminalFunc: func(_ chan<- terminalrunner.Event) error {
