@@ -36,6 +36,21 @@ var subscriberWriteTimeout = 5 * time.Second
 // abandoned subscriber must never be able to stall the shared fan-out.
 const defaultSubscriberBufferBytes = 1 << 20 // 1 MiB
 
+// subscriberBackpressureStall bounds how long a single overflowing Write may
+// pace the producer on behalf of a backpressure-mode (interactive) attacher
+// before giving up and dropping the attacher on lag. A *live* interactive
+// reader frees ring space within microseconds, so its overflowing Writes
+// return well inside this budget and the producer is throttled to terminal
+// speed (issue #312). A *paused or abandoned* attacher frees nothing, so its
+// Write trips the budget once, drops the attacher, and frees the producer —
+// the bounded transient that keeps the #217 invariant intact (a stuck
+// attacher must not head-of-line-block the capture sink and sibling
+// attachers). Generous enough not to false-drop a momentarily slow live
+// terminal; var (not const) so tests can shorten it.
+//
+//nolint:gochecknoglobals // test-tunable knob, mirrors subscriberWriteTimeout
+var subscriberBackpressureStall = 2 * time.Second
+
 // laggedNotice is appended to a subscriber stream when the ring overflows
 // so a caller can distinguish disconnection from a clean EOF. The \r\n
 // framing is intentional: it renders cleanly in terminal mode and the
@@ -45,18 +60,38 @@ var laggedNotice = []byte("\r\n[sbsh: subscriber lagged, disconnecting]\r\n")
 
 // subscriberWriter absorbs PTY output from the multiwriter into a bounded
 // in-memory ring and forwards it to an external net.Conn on a dedicated
-// goroutine. The Write path never blocks: on overflow the subscriber is
-// marked lagged, detached, and its conn is closed.
+// goroutine.
+//
+// Two fan-out policies share this type, selected per consumer class via
+// enableBackpressure (issue #312):
+//
+//   - Passive observers (Subscribe / `sb read`, the capture writer, the
+//     vt-parser screen model) keep backpressure==false: the Write path never
+//     blocks, and on overflow the subscriber is marked lagged, detached, and
+//     its conn is closed. A passive observer must never stall the session.
+//
+//   - The interactive attacher (connections.go) sets backpressure==true: on
+//     overflow Write *paces the producer* to the attacher's drain rate
+//     instead of dropping it, so the attached terminal flow-controls the
+//     shell exactly as a real PTY does — slow but never dropped. The pacing
+//     is bounded by subscriberBackpressureStall so a stuck attacher still
+//     falls through to drop-on-lag and cannot head-of-line-block the shared
+//     fan-out (the #217 invariant).
+//
+// #217 (f6b3f4f) collapsed both classes onto the single drop-on-lag path,
+// which regressed the interactive firehose case (`cat /dev/urandom | hexdump`
+// disconnected the client); the split must not be silently re-merged again.
 type subscriberWriter struct {
-	mu       sync.Mutex
-	cond     *sync.Cond
-	buf      bytes.Buffer
-	maxBytes int
-	closed   bool
-	lagged   bool
-	conn     net.Conn
-	onDetach func()
-	logger   *slog.Logger
+	mu           sync.Mutex
+	cond         *sync.Cond
+	buf          bytes.Buffer
+	maxBytes     int
+	closed       bool
+	lagged       bool
+	backpressure bool
+	conn         net.Conn
+	onDetach     func()
+	logger       *slog.Logger
 }
 
 func newSubscriberWriter(conn net.Conn, maxBytes int, onDetach func(), logger *slog.Logger) *subscriberWriter {
@@ -73,30 +108,89 @@ func newSubscriberWriter(conn net.Conn, maxBytes int, onDetach func(), logger *s
 	return s
 }
 
+// enableBackpressure switches this writer to the interactive fan-out policy:
+// on ring overflow Write paces the producer until the drain frees space
+// instead of dropping the attacher on lag. Call before the writer is
+// registered in the fan-out. See the subscriberWriter doc and issue #312 for
+// why interactive attach uses backpressure while passive subscribe does not.
+func (s *subscriberWriter) enableBackpressure() {
+	s.mu.Lock()
+	s.backpressure = true
+	s.mu.Unlock()
+}
+
 // Write is called by DynamicMultiWriter on the PTY reader goroutine. It
-// enqueues bytes into the bounded ring and returns immediately. When the
-// ring would exceed maxBytes the subscriber is marked lagged+closed and
-// the drain goroutine is signalled; Run owns the conn lifecycle and will
-// flush any buffered bytes, emit laggedNotice, and close the conn. Write
-// always reports success to the fan-out so one bad subscriber cannot
+// enqueues bytes into the bounded ring. In passive (drop-on-lag) mode it
+// returns immediately and, when the ring would exceed maxBytes, marks the
+// subscriber lagged+closed and signals the drain; Run owns the conn lifecycle
+// and will flush any buffered bytes, emit laggedNotice, and close the conn.
+//
+// In backpressure mode (interactive attach, issue #312) an overflowing Write
+// instead waits for the drain to free space — pacing the producer to the
+// attacher's terminal speed — and only falls through to the lagged path if
+// the attacher makes no progress within subscriberBackpressureStall (a stuck
+// or abandoned peer), so it can never head-of-line-block the fan-out.
+//
+// Write always reports success to the fan-out so one bad subscriber cannot
 // abort output to other attachers or the capture file.
 func (s *subscriberWriter) Write(p []byte) (int, error) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.closed {
-		s.mu.Unlock()
 		return len(p), nil
 	}
 	if s.buf.Len()+len(p) > s.maxBytes {
+		// Backpressure mode: pace the producer to the live attacher's drain
+		// rate. waitForRoom returns true once the drain has freed enough
+		// space (throttle), or false if the writer closed or the stall
+		// budget elapsed with no progress (drop the stuck attacher below).
+		if s.backpressure && s.waitForRoom(len(p)) {
+			_, _ = s.buf.Write(p)
+			s.cond.Broadcast()
+			return len(p), nil
+		}
+		if s.closed {
+			return len(p), nil
+		}
 		s.lagged = true
 		s.closed = true
 		s.cond.Broadcast()
-		s.mu.Unlock()
 		return len(p), nil
 	}
 	_, _ = s.buf.Write(p)
-	s.cond.Signal()
-	s.mu.Unlock()
+	s.cond.Broadcast()
 	return len(p), nil
+}
+
+// waitForRoom blocks (with s.mu held) until the ring has space for need bytes
+// or the per-write stall budget elapses without the drain making progress.
+// Returns true when space is available — the caller enqueues, pacing the
+// producer to the drain — and false when the writer was closed or the budget
+// elapsed (the caller drops the attacher on lag, freeing the producer). Only
+// reached in backpressure mode. A one-shot timer broadcasts at the deadline
+// so a producer parked on a stuck (non-reading) peer wakes even though the
+// drain itself is blocked in conn.Write; for a live reader the drain's own
+// post-dequeue Broadcast wakes the producer long before the timer fires.
+func (s *subscriberWriter) waitForRoom(need int) bool {
+	deadline := time.Now().Add(subscriberBackpressureStall)
+	timer := time.AfterFunc(subscriberBackpressureStall, func() {
+		s.mu.Lock()
+		s.cond.Broadcast()
+		s.mu.Unlock()
+	})
+	defer timer.Stop()
+	for {
+		if s.closed {
+			return false
+		}
+		if s.buf.Len()+need <= s.maxBytes {
+			return true
+		}
+		if !time.Now().Before(deadline) {
+			return false
+		}
+		s.cond.Wait()
+	}
 }
 
 // seedReplay pre-loads the ring with the capture replay so the single
@@ -164,6 +258,10 @@ func (s *subscriberWriter) Run() {
 		}
 		chunk := make([]byte, s.buf.Len())
 		_, _ = s.buf.Read(chunk)
+		// Wake any producer parked in waitForRoom now that the ring has
+		// drained — this is the throttle release for backpressure mode and a
+		// harmless re-check for passive mode (no producer ever parks there).
+		s.cond.Broadcast()
 		s.mu.Unlock()
 
 		_ = s.conn.SetWriteDeadline(time.Now().Add(subscriberWriteTimeout))
@@ -171,6 +269,10 @@ func (s *subscriberWriter) Run() {
 			s.logger.Debug("subscriber conn write failed; closing", "err", err)
 			s.mu.Lock()
 			s.closed = true
+			// Broadcast so a backpressure producer parked on this now-dead
+			// peer unblocks immediately instead of waiting out its stall
+			// budget; it will take the drop-on-lag path on wake.
+			s.cond.Broadcast()
 			s.mu.Unlock()
 			return
 		}

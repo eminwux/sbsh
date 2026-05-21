@@ -36,6 +36,15 @@ func shortenWriteTimeout(d time.Duration) func() {
 	return func() { subscriberWriteTimeout = prev }
 }
 
+// shortenBackpressureStall lowers the per-write backpressure stall budget so
+// a stuck-attacher scenario falls through to drop-on-lag quickly instead of
+// pacing the producer for the production 2s. Returns a restore func.
+func shortenBackpressureStall(d time.Duration) func() {
+	prev := subscriberBackpressureStall
+	subscriberBackpressureStall = d
+	return func() { subscriberBackpressureStall = prev }
+}
+
 // newPipeConnPair returns a (clientSide, serverSide) net.Pipe pair. The
 // subscriberWriter forwards bytes into serverSide; the test reads from
 // clientSide to verify output.
@@ -135,6 +144,137 @@ func TestSubscriber_SeededReplayPrecedesLiveOutputLargeCapture(t *testing.T) {
 	}
 	if !detached.Load() {
 		t.Fatal("detach callback not invoked after clean close")
+	}
+}
+
+// TestSubscriber_BackpressureThrottlesSlowInteractiveReader is the regression
+// for issue #312: an interactive attacher running a firehose
+// (`cat /dev/urandom | hexdump`) used to overflow the 1 MiB ring and be
+// disconnected with the lagged sentinel (regressed by #217, f6b3f4f). With
+// backpressure the producer is paced to the attacher's drain rate — slow but
+// never dropped, exactly how a real PTY flow-controls a process to its
+// terminal. The slow-but-live reader below consumes far less per tick than
+// the producer emits, forcing the ring past maxBytes repeatedly; the writer
+// must throttle (no lagged) and deliver the whole stream.
+func TestSubscriber_BackpressureThrottlesSlowInteractiveReader(t *testing.T) {
+	// Not t.Parallel: mutates package-level timeout vars.
+	clientSide, serverSide := newPipeConnPair()
+	defer clientSide.Close()
+
+	const maxBytes = 4096
+	var detached atomic.Bool
+	sub := newSubscriberWriter(serverSide, maxBytes, func() { detached.Store(true) }, slog.Default())
+	sub.enableBackpressure()
+	go sub.Run()
+
+	// total well past the ring bound: a drop-on-lag writer would disconnect
+	// here. The reader is live (always reading) but slow — small reads with a
+	// brief pause — so the producer outpaces it and the ring keeps filling.
+	const total = maxBytes * 8
+	readDone := make(chan int, 1)
+	go func() {
+		buf := make([]byte, 256)
+		got := 0
+		for got < total {
+			n, err := clientSide.Read(buf)
+			got += n
+			if err != nil {
+				break
+			}
+			time.Sleep(200 * time.Microsecond)
+		}
+		readDone <- got
+	}()
+
+	chunk := bytes.Repeat([]byte("A"), 512)
+	writeDone := make(chan struct{})
+	go func() {
+		defer close(writeDone)
+		for sent := 0; sent < total; sent += len(chunk) {
+			n, err := sub.Write(chunk)
+			if err != nil || n != len(chunk) {
+				t.Errorf("Write: n=%d err=%v", n, err)
+				return
+			}
+		}
+		_ = sub.Close()
+	}()
+
+	select {
+	case <-writeDone:
+	case <-time.After(10 * time.Second):
+		t.Fatal("producer never completed — backpressure deadlocked")
+	}
+
+	got := <-readDone
+
+	sub.mu.Lock()
+	lagged := sub.lagged
+	sub.mu.Unlock()
+	if lagged {
+		t.Fatal("interactive attacher was lagged-dropped despite actively reading (issue #312)")
+	}
+	if got < total {
+		t.Fatalf("reader received %d of %d bytes — stream truncated", got, total)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for !detached.Load() && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !detached.Load() {
+		t.Fatal("detach callback not invoked after clean close")
+	}
+}
+
+// TestSubscriber_BackpressureStuckAttacherDropsAndFreesProducer locks in the
+// #217 invariant under the new policy: a backpressure attacher whose peer
+// stops reading must not pace the producer indefinitely. After the stall
+// budget elapses the writer falls through to drop-on-lag — Write returns,
+// the attacher is detached, and the shared fan-out is freed.
+func TestSubscriber_BackpressureStuckAttacherDropsAndFreesProducer(t *testing.T) {
+	// Not t.Parallel: mutates package-level timeout vars.
+	restoreStall := shortenBackpressureStall(100 * time.Millisecond)
+	defer restoreStall()
+	restoreWrite := shortenWriteTimeout(100 * time.Millisecond)
+	defer restoreWrite()
+
+	clientSide, serverSide := newPipeConnPair()
+	defer clientSide.Close()
+
+	const maxBytes = 128
+	var detached atomic.Bool
+	sub := newSubscriberWriter(serverSide, maxBytes, func() { detached.Store(true) }, slog.Default())
+	sub.enableBackpressure()
+	go sub.Run()
+
+	// Peer never reads, so the drain blocks and the ring fills. The producer's
+	// overflowing Writes must still return (after pacing out the stall budget)
+	// rather than parking forever.
+	chunk := bytes.Repeat([]byte("A"), 64)
+	writeDone := make(chan struct{})
+	go func() {
+		defer close(writeDone)
+		for range 100 {
+			if n, err := sub.Write(chunk); err != nil || n != len(chunk) {
+				t.Errorf("Write: n=%d err=%v", n, err)
+				return
+			}
+		}
+	}()
+
+	select {
+	case <-writeDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("producer parked on a stuck attacher — #217 invariant violated")
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for !detached.Load() && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !detached.Load() {
+		t.Fatal("stuck backpressure attacher was not detached")
 	}
 }
 

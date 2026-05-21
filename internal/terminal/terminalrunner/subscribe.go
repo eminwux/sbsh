@@ -121,6 +121,12 @@ func (sr *Exec) Subscribe(req *api.SubscribeRequest, response *api.ResponseWithF
 		})
 	}
 
+	// Passive observer: keep the drop-on-lag policy (no enableBackpressure).
+	// A Subscribe / `sb read` consumer that falls behind must be disconnected
+	// with the lagged sentinel rather than pacing the producer, so it can
+	// never stall the session for the interactive attacher. The interactive
+	// attach path (connections.go) is the one that opts into backpressure;
+	// the policy split is documented on subscriberWriter. See issue #312.
 	sub = newSubscriberWriter(conn, defaultSubscriberBufferBytes, detach, sr.logger)
 	sr.addSubscriber(sub)
 	multiOutW.Add(sub)
