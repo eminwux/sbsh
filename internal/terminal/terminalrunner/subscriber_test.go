@@ -18,6 +18,7 @@ package terminalrunner
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -73,6 +74,67 @@ func TestSubscriber_DeliversBytesInOrder(t *testing.T) {
 	}
 	if !detached.Load() {
 		t.Fatal("detach callback not invoked on clean close")
+	}
+}
+
+// TestSubscriber_SeededReplayPrecedesLiveOutputLargeCapture is the
+// regression for issue #299: attaching a second client to a busy terminal
+// with a large (>1 MiB) capture used to write the replay directly to the
+// conn on a second goroutine, racing the drain goroutine's per-write
+// SetWriteDeadline and disconnecting the new client with i/o timeout. The
+// fix seeds the replay into the ring and grows the byte bound so the single
+// drain goroutine emits replay-then-live in order without tripping the
+// lagged path. Without seedReplay's bound growth the first live Write would
+// overflow the 1 MiB ring and the client would receive laggedNotice plus a
+// truncated stream.
+func TestSubscriber_SeededReplayPrecedesLiveOutputLargeCapture(t *testing.T) {
+	// Not t.Parallel: tests in this file mutate subscriberWriteTimeout.
+	clientSide, serverSide := newPipeConnPair()
+	defer clientSide.Close()
+
+	// Replay larger than the 1 MiB ring bound — the case that exposed the bug.
+	replay := bytes.Repeat([]byte("R"), defaultSubscriberBufferBytes+4096)
+	live := []byte("LIVE-AFTER-REPLAY")
+
+	var detached atomic.Bool
+	sub := newSubscriberWriter(
+		serverSide,
+		defaultSubscriberBufferBytes,
+		func() { detached.Store(true) },
+		slog.Default(),
+	)
+	sub.seedReplay(replay)
+	go sub.Run()
+
+	// Live output arrives via the fan-out after the seed, exactly as the PTY
+	// reader would deliver it once the writer is registered in multiOutW.
+	go func() {
+		n, err := sub.Write(live)
+		if err != nil || n != len(live) {
+			t.Errorf("live Write: n=%d err=%v", n, err)
+		}
+		_ = sub.Close()
+	}()
+
+	got, err := io.ReadAll(clientSide)
+	if err != nil && !errors.Is(err, io.EOF) {
+		t.Fatalf("read: %v", err)
+	}
+	if bytes.Contains(got, laggedNotice) {
+		t.Fatal("client was lagged-dropped during large replay (issue #299 regression)")
+	}
+	want := append(append([]byte(nil), replay...), live...)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("stream mismatch: got %d bytes, want %d (replay=%d live=%d)",
+			len(got), len(want), len(replay), len(live))
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for !detached.Load() && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !detached.Load() {
+		t.Fatal("detach callback not invoked after clean close")
 	}
 }
 

@@ -99,6 +99,27 @@ func (s *subscriberWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// seedReplay pre-loads the ring with the capture replay so the single
+// drain goroutine emits it ahead of any live PTY output, and grows the
+// byte bound by the replay size so a >1 MiB capture cannot make the first
+// live Write trip the lagged path and disconnect a freshly attached
+// client. Must be called before the writer is registered in the fan-out
+// (i.e. before any concurrent Write) and before Run starts. This keeps the
+// drain goroutine the sole writer of conn — its per-write SetWriteDeadline
+// can never race a large initial replay written on a second goroutine
+// (issue #299). A zero-length replay is a no-op, leaving the default bound.
+func (s *subscriberWriter) seedReplay(b []byte) {
+	if len(b) == 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, _ = s.buf.Write(b)
+	// Preserve the original headroom for live output on top of the seeded
+	// replay; without this the first live Write would overflow the bound.
+	s.maxBytes += len(b)
+}
+
 // Close requests a graceful shutdown. It signals drain so any pending
 // bytes are flushed to the conn; drain itself closes the conn on exit.
 // Safe to call repeatedly.

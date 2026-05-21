@@ -107,10 +107,28 @@ func (sr *Exec) handleClient(client *ioClient) {
 		})
 	}
 
-	// WRITER: bounded ring + per-write deadline + lagged-detach. Adding
-	// the writer to multiOutW *before* starting Run is safe — Write just
-	// enqueues into the ring until Run starts draining.
+	// Snapshot the capture replay *before* wiring the fan-out so it can be
+	// seeded ahead of any live PTY output in the ring. Reading here (rather
+	// than writing it directly to client.conn after Add, as before) keeps
+	// the single drain goroutine the sole writer of client.conn: replay and
+	// live output are serialized through one ring, so the drain's per-write
+	// SetWriteDeadline can never race a large initial replay written on a
+	// second goroutine (issue #299). An unreadable capture is non-fatal —
+	// fall through with an empty replay rather than denying the live attach.
+	log, errLog := sr.readLogFile()
+	if errLog != nil {
+		sr.logger.Warn("failed to read log file for client attach", "err", errLog)
+		log = nil
+	}
+
+	// WRITER: bounded ring + per-write deadline + lagged-detach. Seed the
+	// replay into the ring (seedReplay grows the byte bound to fit it so a
+	// >1 MiB capture cannot trip the lagged path on the first live Write).
+	// Adding the writer to multiOutW *before* starting Run is safe — Write
+	// just enqueues into the ring until Run starts draining, and the seeded
+	// replay already sits ahead of any live bytes that arrive after Add.
 	aw := newSubscriberWriter(client.conn, defaultSubscriberBufferBytes, detach, sr.logger)
+	aw.seedReplay(log)
 	client.outWriter = aw
 	multiOutW.Add(aw)
 	go aw.Run()
@@ -135,17 +153,6 @@ func (sr *Exec) handleClient(client *ioClient) {
 
 	if errAttach := sr.updateTerminalAttachers(); errAttach != nil {
 		sr.logger.Warn("failed to update metadata on attach", "err", errAttach)
-		return
-	}
-
-	log, errLog := sr.readLogFile()
-	if errLog != nil {
-		sr.logger.Warn("failed to read log file for client attach", "err", errLog)
-		return
-	}
-
-	if _, errWrite := client.conn.Write(log); errWrite != nil {
-		sr.logger.Error("error in pty->conn initial write", "err", errWrite, "client", client.id)
 		return
 	}
 }
