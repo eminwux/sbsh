@@ -336,6 +336,27 @@ func (sr *Exec) Resize(args api.ResizeArgs) {
 		Cols: uint16(args.Cols),
 		Rows: uint16(args.Rows),
 	})
+	// Keep the screen model's grid in step with the PTY winsize so a
+	// Screenshot reflects the dimensions the child program is drawing for.
+	sr.ptyPipesMu.RLock()
+	screen := sr.ptyPipes.screen
+	sr.ptyPipesMu.RUnlock()
+	if screen != nil {
+		screen.resize(args.Cols, args.Rows)
+	}
+}
+
+// Screenshot returns a decoded snapshot of the terminal's current screen
+// from the warm-fed vt-parser model. It reads the live grid, not the raw
+// capture bytes.
+func (sr *Exec) Screenshot(_ *api.ScreenshotArgs) (*api.ScreenshotResult, error) {
+	sr.ptyPipesMu.RLock()
+	screen := sr.ptyPipes.screen
+	sr.ptyPipesMu.RUnlock()
+	if screen == nil {
+		return nil, errors.New("terminal not running")
+	}
+	return screen.snapshot(), nil
 }
 
 func (sr *Exec) Write(p []byte) (int, error) {

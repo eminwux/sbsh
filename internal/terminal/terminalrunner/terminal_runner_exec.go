@@ -110,6 +110,10 @@ type ptyPipes struct {
 	pipeInR   *os.File
 	pipeInW   *os.File
 	multiOutW *DynamicMultiWriter
+	// screen is the vt-parser screen model, fed warm as an additional
+	// sink on multiOutW. Created and registered in startPty alongside the
+	// multiwriter, read by Screenshot. Guarded by the same ptyPipesMu.
+	screen *screenModel
 }
 
 type ioClient struct {

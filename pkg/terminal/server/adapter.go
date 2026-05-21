@@ -117,3 +117,11 @@ func (a *rpcAdapter) Subscribe(req *api.SubscribeRequest, response *api.Response
 	}
 	return r.Subscribe(req, response)
 }
+
+func (a *rpcAdapter) Screenshot(args *api.ScreenshotArgs) (*api.ScreenshotResult, error) {
+	r := a.srv.getRunner()
+	if r == nil {
+		return nil, errors.New("server: terminal not running")
+	}
+	return r.Screenshot(args)
+}

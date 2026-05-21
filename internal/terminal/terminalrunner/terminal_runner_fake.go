@@ -44,6 +44,7 @@ type Test struct {
 	PostAttachShellFunc func() error
 	WritePTYFunc        func(data []byte) error
 	SubscribeFunc       func(req *api.SubscribeRequest, response *api.ResponseWithFD) error
+	ScreenshotFunc      func(args *api.ScreenshotArgs) (*api.ScreenshotResult, error)
 }
 
 func NewTerminalRunnerTest(_ context.Context) TerminalRunner {
@@ -167,4 +168,11 @@ func (sr *Test) Subscribe(req *api.SubscribeRequest, response *api.ResponseWithF
 		return sr.SubscribeFunc(req, response)
 	}
 	return errdefs.ErrFuncNotSet
+}
+
+func (sr *Test) Screenshot(args *api.ScreenshotArgs) (*api.ScreenshotResult, error) {
+	if sr.ScreenshotFunc != nil {
+		return sr.ScreenshotFunc(args)
+	}
+	return nil, errdefs.ErrFuncNotSet
 }

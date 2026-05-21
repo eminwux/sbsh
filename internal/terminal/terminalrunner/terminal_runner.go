@@ -54,4 +54,5 @@ type TerminalRunner interface {
 	Metadata() (*api.TerminalDoc, error)
 	WritePTY(data []byte) error
 	Subscribe(req *api.SubscribeRequest, response *api.ResponseWithFD) error
+	Screenshot(args *api.ScreenshotArgs) (*api.ScreenshotResult, error)
 }
