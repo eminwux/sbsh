@@ -206,19 +206,59 @@ func ReadAll(canonical string) ([]byte, error) {
 	return out, nil
 }
 
-// readSegment reads one segment fully into memory, decompressing transparently
-// when the path is a ".gz" closed segment. An absent path returns an
-// os.IsNotExist error so ReadAll can skip a segment pruned between listing and
-// read.
-func readSegment(path string) ([]byte, error) {
+// siblingPath returns the alternate on-disk representation of a closed
+// segment: the ".gz" form for a raw path, or the raw form for a ".gz" path.
+func siblingPath(path string) string {
+	if strings.HasSuffix(path, GzSuffix) {
+		return strings.TrimSuffix(path, GzSuffix)
+	}
+	return path + GzSuffix
+}
+
+// openSegment opens a closed segment for reading, recovering from the raw↔".gz"
+// rename race: a segment listed by OrderedPaths as raw can be swapped to ".gz"
+// by a concurrent CompressSegment (or vice-versa) in the microsecond window
+// before the reader opens it. On ENOENT for the listed path we re-resolve the
+// sibling representation — the same retained segment under its other name —
+// rather than dropping still-retained history (issue #316). It returns the
+// opened file and whether that file is gzip-compressed (dispatch follows the
+// path actually opened, not the one requested). Only when *neither*
+// representation exists is the original os.IsNotExist returned, so callers
+// keep skipping a segment genuinely pruned or rotated away.
+func openSegment(path string) (*os.File, bool, error) {
 	f, err := os.Open(path)
+	if err == nil {
+		return f, strings.HasSuffix(path, GzSuffix), nil
+	}
+	if !os.IsNotExist(err) {
+		return nil, false, err
+	}
+	sib := siblingPath(path)
+	sf, serr := os.Open(sib)
+	if serr != nil {
+		if os.IsNotExist(serr) {
+			// Both representations gone: genuinely pruned/rotated. Return the
+			// original ENOENT (on the listed path) so the caller skips.
+			return nil, false, err
+		}
+		return nil, false, serr
+	}
+	return sf, strings.HasSuffix(sib, GzSuffix), nil
+}
+
+// readSegment reads one segment fully into memory, decompressing transparently
+// when the opened file is a ".gz" closed segment. An absent path (with no
+// sibling representation either) returns an os.IsNotExist error so ReadAll can
+// skip a segment pruned between listing and read.
+func readSegment(path string) ([]byte, error) {
+	f, compressed, err := openSegment(path)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = f.Close() }()
 
 	var r io.Reader = f
-	if strings.HasSuffix(path, GzSuffix) {
+	if compressed {
 		gz, gerr := gzip.NewReader(f)
 		if gerr != nil {
 			return nil, fmt.Errorf("open gzip segment %q: %w", path, gerr)
@@ -251,10 +291,11 @@ func Dump(canonical string, w io.Writer) error {
 }
 
 func dumpOne(path string, w io.Writer) error {
-	f, err := os.Open(path)
+	f, compressed, err := openSegment(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Pruned or rotated away between listing and open; skip.
+			// Pruned or rotated away (neither raw nor ".gz" representation on
+			// disk) between listing and open; skip.
 			return nil
 		}
 		return fmt.Errorf("open capture segment %q: %w", path, err)
@@ -262,7 +303,7 @@ func dumpOne(path string, w io.Writer) error {
 	defer func() { _ = f.Close() }()
 
 	var r io.Reader = f
-	if strings.HasSuffix(path, GzSuffix) {
+	if compressed {
 		gz, gerr := gzip.NewReader(f)
 		if gerr != nil {
 			return fmt.Errorf("open gzip segment %q: %w", path, gerr)

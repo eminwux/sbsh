@@ -271,6 +271,91 @@ func TestCompressSegment_RoundTrip(t *testing.T) {
 	}
 }
 
+// TestReadSegment_ResolvesGzSiblingOnRawENOENT is the regression for issue
+// #316: a segment listed by OrderedPaths as raw can be swapped to ".gz" by a
+// concurrent CompressSegment in the window before the reader opens it. The old
+// readSegment returned os.IsNotExist on the vanished raw path and ReadAll
+// silently dropped the still-retained segment. readSegment must instead
+// recover the ".gz" sibling and read it back as the original bytes.
+func TestReadSegment_ResolvesGzSiblingOnRawENOENT(t *testing.T) {
+	dir := t.TempDir()
+	canonical := filepath.Join(dir, "capture")
+	raw := SegmentPath(canonical, 0)
+	original := bytes.Repeat([]byte("retained-history\n"), 512)
+	writeFile(t, raw, original)
+	if _, err := CompressSegment(raw); err != nil {
+		t.Fatalf("CompressSegment: %v", err)
+	}
+	// Raw is gone; only raw+".gz" remains — exactly the post-race on-disk state
+	// for the stale raw path OrderedPaths handed out.
+	if _, serr := os.Stat(raw); !os.IsNotExist(serr) {
+		t.Fatalf("raw segment unexpectedly present: %v", serr)
+	}
+
+	got, err := readSegment(raw)
+	if err != nil {
+		t.Fatalf("readSegment on raced raw path: %v", err)
+	}
+	if !bytes.Equal(got, original) {
+		t.Fatalf("recovered %d bytes, want %d", len(got), len(original))
+	}
+}
+
+// TestDumpOne_ResolvesGzSiblingOnRawENOENT is the Dump-path twin of the above:
+// dumpOne must also re-resolve the ".gz" sibling rather than skipping a
+// retained segment that was compressed out from under it.
+func TestDumpOne_ResolvesGzSiblingOnRawENOENT(t *testing.T) {
+	dir := t.TempDir()
+	canonical := filepath.Join(dir, "capture")
+	raw := SegmentPath(canonical, 0)
+	original := bytes.Repeat([]byte("retained-history\n"), 512)
+	writeFile(t, raw, original)
+	if _, err := CompressSegment(raw); err != nil {
+		t.Fatalf("CompressSegment: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if err := dumpOne(raw, &buf); err != nil {
+		t.Fatalf("dumpOne on raced raw path: %v", err)
+	}
+	if !bytes.Equal(buf.Bytes(), original) {
+		t.Fatalf("dumped %d bytes, want %d", buf.Len(), len(original))
+	}
+}
+
+// TestReadSegment_ResolvesRawSiblingOnGzENOENT covers the inverse direction the
+// fix is symmetric over: a ".gz" path that no longer exists falls back to the
+// raw sibling (strip GzSuffix) before giving up.
+func TestReadSegment_ResolvesRawSiblingOnGzENOENT(t *testing.T) {
+	dir := t.TempDir()
+	canonical := filepath.Join(dir, "capture")
+	raw := SegmentPath(canonical, 0)
+	original := []byte("raw-only-bytes")
+	writeFile(t, raw, original)
+
+	got, err := readSegment(raw + GzSuffix)
+	if err != nil {
+		t.Fatalf("readSegment on absent .gz with raw sibling: %v", err)
+	}
+	if !bytes.Equal(got, original) {
+		t.Fatalf("recovered %q, want %q", got, original)
+	}
+}
+
+// TestReadSegment_BothGoneReturnsIsNotExist locks in the skip path: when
+// neither the raw nor the ".gz" representation exists the segment is genuinely
+// pruned/rotated, so readSegment must surface os.IsNotExist for ReadAll to skip
+// it — the sibling retry must not mask a real prune as some other error.
+func TestReadSegment_BothGoneReturnsIsNotExist(t *testing.T) {
+	dir := t.TempDir()
+	raw := SegmentPath(filepath.Join(dir, "capture"), 0)
+
+	_, err := readSegment(raw)
+	if !os.IsNotExist(err) {
+		t.Fatalf("readSegment on fully-pruned segment: err = %v, want os.IsNotExist", err)
+	}
+}
+
 func TestReadAll_SpansGzClosedAndRawLive(t *testing.T) {
 	dir := t.TempDir()
 	canonical := filepath.Join(dir, "capture")
