@@ -30,24 +30,43 @@ import (
 )
 
 // mockTerminalClient is a mock implementation of terminal.Client for testing.
+// Each method consults its optional *Func field, falling back to a benign
+// default so callers only override the behaviour a given test exercises.
 type mockTerminalClient struct {
-	stateFunc func(ctx context.Context, state *api.TerminalStatusMode) error
-	closeFunc func() error
+	stateFunc    func(ctx context.Context, state *api.TerminalStatusMode) error
+	closeFunc    func() error
+	pingFunc     func(ctx context.Context, ping, pong *api.PingMessage) error
+	resizeFunc   func(ctx context.Context, args *api.ResizeArgs) error
+	detachFunc   func(ctx context.Context, id *api.ID) error
+	attachFunc   func(ctx context.Context, req *api.AttachRequest, response any) (net.Conn, error)
+	metadataFunc func(ctx context.Context, metadata *api.TerminalDoc) error
 }
 
-func (m *mockTerminalClient) Ping(_ context.Context, _ *api.PingMessage, _ *api.PingMessage) error {
+func (m *mockTerminalClient) Ping(ctx context.Context, ping *api.PingMessage, pong *api.PingMessage) error {
+	if m.pingFunc != nil {
+		return m.pingFunc(ctx, ping, pong)
+	}
 	return nil
 }
 
-func (m *mockTerminalClient) Resize(_ context.Context, _ *api.ResizeArgs) error {
+func (m *mockTerminalClient) Resize(ctx context.Context, args *api.ResizeArgs) error {
+	if m.resizeFunc != nil {
+		return m.resizeFunc(ctx, args)
+	}
 	return nil
 }
 
-func (m *mockTerminalClient) Detach(_ context.Context, _ *api.ID) error {
+func (m *mockTerminalClient) Detach(ctx context.Context, id *api.ID) error {
+	if m.detachFunc != nil {
+		return m.detachFunc(ctx, id)
+	}
 	return nil
 }
 
-func (m *mockTerminalClient) Attach(_ context.Context, _ *api.AttachRequest, _ any) (net.Conn, error) {
+func (m *mockTerminalClient) Attach(ctx context.Context, req *api.AttachRequest, response any) (net.Conn, error) {
+	if m.attachFunc != nil {
+		return m.attachFunc(ctx, req, response)
+	}
 	return nil, errors.New("not implemented in mock")
 }
 
@@ -58,7 +77,10 @@ func (m *mockTerminalClient) Close() error {
 	return nil
 }
 
-func (m *mockTerminalClient) Metadata(_ context.Context, _ *api.TerminalDoc) error {
+func (m *mockTerminalClient) Metadata(ctx context.Context, metadata *api.TerminalDoc) error {
+	if m.metadataFunc != nil {
+		return m.metadataFunc(ctx, metadata)
+	}
 	return nil
 }
 

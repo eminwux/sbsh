@@ -25,6 +25,52 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
+func TestClientControllerRPC_WaitReady(t *testing.T) {
+	t.Parallel()
+
+	called := false
+	core := &client.ControllerTest{
+		WaitReadyFunc: func() error { called = true; return nil },
+	}
+	rpc := &clientrpc.ClientControllerRPC{Core: core}
+	if err := rpc.WaitReady(&api.Empty{}, &api.Empty{}); err != nil {
+		t.Fatalf("WaitReady: %v", err)
+	}
+	if !called {
+		t.Fatal("WaitReady did not delegate to Core")
+	}
+
+	wantErr := errors.New("not ready")
+	errCore := &client.ControllerTest{WaitReadyFunc: func() error { return wantErr }}
+	errRPC := &clientrpc.ClientControllerRPC{Core: errCore}
+	if err := errRPC.WaitReady(&api.Empty{}, &api.Empty{}); !errors.Is(err, wantErr) {
+		t.Fatalf("WaitReady err = %v; want %v", err, wantErr)
+	}
+}
+
+func TestClientControllerRPC_Detach(t *testing.T) {
+	t.Parallel()
+
+	called := false
+	core := &client.ControllerTest{
+		DetachFunc: func() error { called = true; return nil },
+	}
+	rpc := &clientrpc.ClientControllerRPC{Core: core}
+	if err := rpc.Detach(&api.Empty{}, &api.Empty{}); err != nil {
+		t.Fatalf("Detach: %v", err)
+	}
+	if !called {
+		t.Fatal("Detach did not delegate to Core")
+	}
+
+	wantErr := errors.New("detach failed")
+	errCore := &client.ControllerTest{DetachFunc: func() error { return wantErr }}
+	errRPC := &clientrpc.ClientControllerRPC{Core: errCore}
+	if err := errRPC.Detach(&api.Empty{}, &api.Empty{}); !errors.Is(err, wantErr) {
+		t.Fatalf("Detach err = %v; want %v", err, wantErr)
+	}
+}
+
 func TestClientControllerRPC_Ping_Roundtrip(t *testing.T) {
 	t.Parallel()
 	core := &client.ControllerTest{
