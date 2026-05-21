@@ -30,9 +30,12 @@ import (
 // captureWriter is the always-on capture sink registered first in multiOutW.
 // It writes the live segment append-only at the canonical path and, once the
 // live segment crosses maxBytes, rotates: close → rename to a deterministic
-// sibling (capture.SegmentPath) → reopen a fresh canonical → prune oldest
-// closed segments by count and total bytes. Readers reassemble the full
-// transcript via the internal/capture helpers.
+// sibling (capture.SegmentPath) → gzip-compress the closed segment
+// (capture.CompressSegment) → reopen a fresh canonical → prune oldest closed
+// segments by count and total bytes. The live segment is never compressed (it
+// must stay raw and seekable); only closed segments are. Readers reassemble
+// and transparently decompress the full transcript via the internal/capture
+// helpers.
 //
 // Rotation failures never silently kill capture: the writer always restores a
 // writable live segment (reopening the canonical) and logs, so a transient
@@ -144,6 +147,20 @@ func (w *captureWriter) rotate() error {
 		return fmt.Errorf("rename live segment to %q: %w", target, rerr)
 	}
 	w.nextSeq++
+
+	// Compress the just-closed segment synchronously (gzip of a bounded
+	// segment is tens of ms). On failure the raw segment stays on disk —
+	// still spliceable by readers — so a compression error degrades to
+	// "kept raw this round", never lost capture.
+	if gzPath, cerr := capture.CompressSegment(target); cerr != nil {
+		w.logger.Warn("capture segment compression failed; keeping raw segment", "path", target, "err", cerr)
+	} else if w.applyPerms != nil {
+		if perr := w.applyPerms(gzPath); perr != nil {
+			// Perms are best-effort: a chmod/chown failure on the compressed
+			// segment must not stop rotation.
+			w.logger.Warn("capture perms reapply failed", "path", gzPath, "err", perr)
+		}
+	}
 
 	if oerr := w.reopenCanonical(); oerr != nil {
 		return oerr
