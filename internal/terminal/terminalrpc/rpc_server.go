@@ -22,6 +22,20 @@ type TerminalControllerRPC struct {
 	Core api.TerminalController
 }
 
+// ExtraHandler is a custom JSON-RPC service registered alongside the
+// built-in TerminalController on the same listener. Name is the
+// net/rpc service name (the part before the dot in a "Service.Method"
+// wire call); Receiver is any value whose exported methods follow
+// net/rpc's signature scheme: func(args T1, reply *T2) error. Custom
+// services are namespaced by Name, so their methods never collide with
+// the built-in TerminalController methods; a Name equal to an
+// already-registered service (including the built-in one) is rejected
+// at registration by net/rpc.
+type ExtraHandler struct {
+	Name     string
+	Receiver any
+}
+
 func (s *TerminalControllerRPC) Ping(in *api.PingMessage, out *api.PingMessage) error {
 	pong, err := s.Core.Ping(in)
 	if err != nil {
