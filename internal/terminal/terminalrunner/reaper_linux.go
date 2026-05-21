@@ -45,6 +45,14 @@ type reaper struct {
 	trackedOnce    sync.Once
 	trackedExitCh  chan int // buffered 1; receives exit code for trackedPid
 	trackedStopped bool
+	// pendingExits records exit codes of children reaped before RegisterChild
+	// set trackedPid. startPty (and the tests) call RegisterChild *after*
+	// cmd.Start, so a fast-exiting child can be reaped here before its pid is
+	// known. Recording the exit lets a late RegisterChild still resolve the
+	// tracked exit instead of silently treating the child as an orphan and
+	// timing out on TrackedExitCh. Only populated while trackedPid == 0, so it
+	// is bounded to the (microsecond) pre-registration window.
+	pendingExits map[int]int
 }
 
 // newReaper constructs a reaper but does not start it. Call Start to install
@@ -93,6 +101,15 @@ func (r *reaper) RegisterChild(pid int) {
 		return
 	}
 	r.trackedPid = pid
+	// If the child already exited before we learned its pid, the reaper
+	// recorded its exit code in pendingExits; resolve the tracked exit now.
+	if code, ok := r.pendingExits[pid]; ok && !r.trackedStopped {
+		r.deliverTrackedExitLocked(code)
+		r.logger.Info("reaper: tracked child exited before registration", "pid", pid, "exit", code)
+	}
+	// Past registration, an unmatched reaped pid is a genuine orphan, so the
+	// recording window is closed; drop the map.
+	r.pendingExits = nil
 }
 
 // TrackedExitCh returns a channel that receives the exit code of the
@@ -130,30 +147,47 @@ func (r *reaper) drainOnce() int {
 }
 
 func (r *reaper) handleReaped(pid int, status syscall.WaitStatus) {
-	r.mu.Lock()
-	tracked := r.trackedPid
-	stopped := r.trackedStopped
-	r.mu.Unlock()
-
-	if tracked != 0 && pid == tracked && !stopped {
-		exitCode := status.ExitStatus()
-		if status.Signaled() {
-			// 128 + signal number is the shell-conventional encoding.
-			//nolint:mnd // shell-conventional encoding of signal death
-			exitCode = 128 + int(status.Signal())
-		}
-		r.trackedOnce.Do(func() {
-			r.mu.Lock()
-			r.trackedStopped = true
-			r.mu.Unlock()
-			r.trackedExitCh <- exitCode
-			close(r.trackedExitCh)
-		})
-		r.logger.Info("reaper: tracked child exited", "pid", pid, "exit", exitCode)
-		return
+	exitCode := status.ExitStatus()
+	if status.Signaled() {
+		// 128 + signal number is the shell-conventional encoding.
+		//nolint:mnd // shell-conventional encoding of signal death
+		exitCode = 128 + int(status.Signal())
 	}
 
-	r.logger.Debug("reaper: reaped orphan", "pid", pid, "status", status)
+	// The match/record decision is taken under a single lock so it cannot race
+	// RegisterChild: either we observe trackedPid and deliver, or we observe
+	// the pre-registration window and record for RegisterChild to resolve.
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	switch {
+	case r.trackedPid != 0 && pid == r.trackedPid && !r.trackedStopped:
+		r.deliverTrackedExitLocked(exitCode)
+		r.logger.Info("reaper: tracked child exited", "pid", pid, "exit", exitCode)
+	case r.trackedPid == 0:
+		// RegisterChild has not run yet, so this could be the tracked child
+		// reaped before its pid was registered. Record the exit; a late
+		// RegisterChild will resolve it.
+		if r.pendingExits == nil {
+			r.pendingExits = make(map[int]int)
+		}
+		r.pendingExits[pid] = exitCode
+		r.logger.Debug("reaper: recorded pre-registration exit", "pid", pid, "exit", exitCode)
+	default:
+		r.logger.Debug("reaper: reaped orphan", "pid", pid, "status", status)
+	}
+}
+
+// deliverTrackedExitLocked sends the tracked child's exit code on
+// trackedExitCh exactly once and closes the channel. The caller must hold
+// r.mu; the channel is buffered(1) and trackedOnce guards the single send, so
+// the send never blocks and holding the lock across it cannot deadlock.
+func (r *reaper) deliverTrackedExitLocked(exitCode int) {
+	r.trackedOnce.Do(func() {
+		r.trackedStopped = true
+		r.trackedExitCh <- exitCode
+		close(r.trackedExitCh)
+	})
 }
 
 func (r *reaper) loop() {
