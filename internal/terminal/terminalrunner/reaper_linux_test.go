@@ -98,3 +98,60 @@ func TestReaper_TrackedExitResolvesRace(t *testing.T) {
 	// Release to drop the os.Process handle cleanly.
 	_ = cmd.Process.Release()
 }
+
+// TestReaper_ExitBeforeRegisterResolves exercises the pre-registration window
+// deterministically: the child is reaped (into pendingExits) *before*
+// RegisterChild runs, then RegisterChild must still resolve the tracked exit.
+// This is the race TestReaper_TrackedExitResolvesRace only hits intermittently
+// under -race; here we drive drainOnce by hand instead of the signal loop so
+// the reap-before-register ordering is guaranteed rather than timing-dependent.
+func TestReaper_ExitBeforeRegisterResolves(t *testing.T) {
+	r := newReaper(discardLogger())
+	// Intentionally do not Start() the signal loop; drainOnce is driven
+	// directly below so registration provably loses the race.
+
+	cmd := exec.Command("/bin/sh", "-c", "exit 7")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	pid := cmd.Process.Pid
+
+	// Reap the child before registering. drainOnce records the exit in
+	// pendingExits because trackedPid is still 0.
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		r.drainOnce()
+		r.mu.Lock()
+		_, ok := r.pendingExits[pid]
+		r.mu.Unlock()
+		if ok {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	r.mu.Lock()
+	_, recorded := r.pendingExits[pid]
+	r.mu.Unlock()
+	if !recorded {
+		t.Fatalf("child pid %d was not reaped into pendingExits before registration", pid)
+	}
+
+	// Late registration must resolve the recorded exit on TrackedExitCh.
+	r.RegisterChild(pid)
+
+	select {
+	case code, ok := <-r.TrackedExitCh():
+		if !ok {
+			t.Fatalf("TrackedExitCh closed without delivering a code")
+		}
+		if code != 7 {
+			t.Fatalf("tracked exit code = %d, want 7", code)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("RegisterChild after a pre-registration reap did not resolve the tracked exit")
+	}
+
+	_ = cmd.Process.Release()
+}
