@@ -65,7 +65,7 @@ func newCaptureFDExec(t *testing.T) (*Exec, *os.File) {
 		closePTY:      &sync.Once{},
 		closeCapture:  &sync.Once{},
 		closeClosedCh: &sync.Once{},
-		captureFile:   logf,
+		capture:       &captureWriter{f: logf, logger: logger},
 	}
 	return sr, logf
 }

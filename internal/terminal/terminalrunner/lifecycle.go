@@ -286,13 +286,13 @@ func (sr *Exec) Close(reason error) error {
 		}
 	}
 
-	// Close the capture file fd. Sequenced after closeAllSubscribers and
-	// ptmx teardown so the PTY reader has stopped writing to multiOutW
-	// (which holds captureFile as its always-on writer). closeCapture
-	// guards against double-Close per #229's idempotency AC.
-	if sr.captureFile != nil && sr.closeCapture != nil {
+	// Close the capture live-segment fd. Sequenced after closeAllSubscribers
+	// and ptmx teardown so the PTY reader has stopped writing to multiOutW
+	// (which holds the rotating capture writer as its always-on sink).
+	// closeCapture guards against double-Close per #229's idempotency AC.
+	if sr.capture != nil && sr.closeCapture != nil {
 		sr.closeCapture.Do(func() {
-			if err := sr.captureFile.Close(); err != nil {
+			if err := sr.capture.Close(); err != nil {
 				sr.logger.Warn("could not close capture file", "id", sr.id, "err", err)
 			}
 		})

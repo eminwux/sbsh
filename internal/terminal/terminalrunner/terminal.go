@@ -192,26 +192,26 @@ func (sr *Exec) startPty() error {
 		captureGID = &gv
 	}
 	sr.metadataMu.RUnlock()
-	// Open at the legacy 0o600 first; applyArtifactPerms re-chmods to
-	// the resolved mode (and optionally chowns the group). Doing the
-	// permissions step explicitly after Open mirrors the socket path and
-	// also covers reopens of a pre-existing inode (see issue #200).
-	logf, errO := os.OpenFile(captureFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	// The canonical path is the live, append-only segment. The rotating
+	// writer opens it at the legacy 0o600, then runs applyArtifactPerms to
+	// re-chmod to the resolved mode (and optionally chown the group) on the
+	// canonical and on every fresh segment it opens after a rotation. Doing
+	// the permissions step explicitly after Open mirrors the socket path and
+	// covers reopens of a pre-existing inode (see issue #200).
+	capWriter, errO := newCaptureWriter(captureFile, sr.logger, func(path string) error {
+		return sr.applyArtifactPerms("capture", path, captureMode, captureGID)
+	})
 	if errO != nil {
 		return fmt.Errorf("open log file: %w", errO)
-	}
-	if errPerm := sr.applyArtifactPerms("capture", captureFile, captureMode, captureGID); errPerm != nil {
-		_ = logf.Close()
-		return errPerm
 	}
 	// Hand fd ownership to the runner; Close closes it after PTY teardown
 	// so in-flight multiOutW.Write has settled. See #229. Error returns
 	// after this assignment must close the fd via closeCapture so the
 	// idempotency contract holds whether Close runs or not (see #241).
-	sr.captureFile = logf
+	sr.capture = capWriter
 
 	if errU := sr.updateMetadata(); errU != nil {
-		sr.closeCapture.Do(func() { _ = sr.captureFile.Close() })
+		sr.closeCapture.Do(func() { _ = sr.capture.Close() })
 		return fmt.Errorf("update metadata: %w", errU)
 	}
 
@@ -220,14 +220,14 @@ func (sr *Exec) startPty() error {
 	// conn writes to pipeInW
 	pipeInR, pipeInW, err := os.Pipe()
 	if err != nil {
-		sr.closeCapture.Do(func() { _ = sr.captureFile.Close() })
+		sr.closeCapture.Do(func() { _ = sr.capture.Close() })
 		sr.logger.Error("error opening IN pipe", "err", err)
 		return fmt.Errorf("error opening IN pipe: %w", err)
 	}
 
 	// StdOut
-	// ATTACHED: stream to client (pipeOutW) AND log file
-	multiOutW := NewDynamicMultiWriter(sr.logger, logf)
+	// ATTACHED: stream to client (pipeOutW) AND the rotating capture writer
+	multiOutW := NewDynamicMultiWriter(sr.logger, capWriter)
 
 	// Register the vt-parser screen model as an additional warm sink on
 	// the same fan-out. It decodes the byte stream into a live grid so
