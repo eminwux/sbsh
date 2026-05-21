@@ -129,7 +129,18 @@ func (sr *Exec) handleClient(client *ioClient) {
 	// Write). Adding the writer to multiOutW *before* starting Run is safe —
 	// Write just enqueues into the ring until Run starts draining, and the
 	// seeded paint already sits ahead of any live bytes that arrive after Add.
+	//
+	// Backpressure policy (issue #312): the interactive attacher is the
+	// session's primary terminal — its screen *is* the output device — so on
+	// ring overflow the producer is paced to this attacher's drain rate
+	// (flow-control, the pre-#217 PTY behavior) rather than dropping it with a
+	// lagged sentinel. enableBackpressure bounds that pacing so a paused or
+	// abandoned attacher still falls through to drop-on-lag and never
+	// head-of-line-blocks the capture sink or sibling attachers (the #217
+	// invariant). Passive Subscribe / `sb read` consumers (subscribe.go)
+	// deliberately stay on the unbounded drop-on-lag path — see subscriber.go.
 	aw := newSubscriberWriter(client.conn, defaultSubscriberBufferBytes, detach, sr.logger)
+	aw.enableBackpressure()
 	aw.seedReplay(initial)
 	client.outWriter = aw
 	multiOutW.Add(aw)
