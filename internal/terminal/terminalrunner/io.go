@@ -17,14 +17,18 @@
 package terminalrunner
 
 import (
-	"os"
+	"github.com/eminwux/sbsh/internal/capture"
 )
 
+// readCaptureFile reassembles the full transcript for a --full-capture attach:
+// closed rotated segments oldest-first, then the live segment. The canonical
+// path recorded in Status.CaptureFile is the live segment; capture.ReadAll
+// walks its closed siblings to reconstruct full history.
 func (sr *Exec) readCaptureFile() ([]byte, error) {
 	sr.metadataMu.RLock()
 	captureFile := sr.metadata.Status.CaptureFile
 	sr.metadataMu.RUnlock()
-	data, err := os.ReadFile(captureFile)
+	data, err := capture.ReadAll(captureFile)
 	if err != nil {
 		sr.logger.Warn("failed to read capture file", "err", err)
 		return nil, err

@@ -68,7 +68,12 @@ type TerminalSpec struct {
 	Prompt      string   `json:"prompt"`
 	SetPrompt   bool     `json:"setPrompt,omitempty"`
 
-	RunPath     string `json:"runPath"`
+	RunPath string `json:"runPath"`
+	// CaptureFile is the canonical capture path. It is the live, append-only
+	// segment: capture rotates into deterministic siblings to bound size, so
+	// a raw read of this path shows the live tail only. Full transcript
+	// reassembly (closed segments oldest-first, then live) is done by
+	// `sb read` and attach --full-capture; see internal/capture.
 	CaptureFile string `json:"captureFile"`
 	LogFile     string `json:"logFile"`
 	LogLevel    string `json:"logLevel"`

@@ -81,11 +81,12 @@ type Exec struct {
 
 	closePTY *sync.Once
 
-	// captureFile is the *os.File backing the always-on capture writer in
-	// multiOutW. The runner owns the fd from startPty onward; Close closes
-	// it via closeCapture so repeated New→Start→Close cycles in-process do
-	// not leak fds. See #229.
-	captureFile  *os.File
+	// capture is the always-on, segment-rotating capture sink registered
+	// first in multiOutW. It owns the live-segment fd from startPty onward;
+	// Close closes it via closeCapture so repeated New→Start→Close cycles
+	// in-process do not leak fds. See #229. Rotation/retention layout lives
+	// in internal/capture; see capture_writer.go.
+	capture      *captureWriter
 	closeCapture *sync.Once
 
 	// closeClosedCh guards close(closedCh) so a second Close call does not

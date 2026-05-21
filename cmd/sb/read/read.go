@@ -31,6 +31,7 @@ import (
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/eminwux/sbsh/cmd/sb/get"
 	"github.com/eminwux/sbsh/cmd/types"
+	"github.com/eminwux/sbsh/internal/capture"
 	"github.com/eminwux/sbsh/internal/discovery"
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
@@ -51,6 +52,11 @@ func NewReadCmd() *cobra.Command {
 		Use:   "read <name>",
 		Short: "Print a terminal's capture log; with -f, follow live output",
 		Long: `Print the full capture log for a terminal.
+
+The capture is rotated into segments to bound on-disk size, so the file at the
+recorded capture path holds only the live tail. This command reassembles the
+full transcript — closed segments oldest-first, then the live segment — so you
+see the complete history; a raw 'cat' of the path shows the live tail only.
 
 With -f/--follow, also stream live PTY output after replaying the file, like
 'tail -f'. The follower subscribes to live output BEFORE replaying the capture
@@ -145,21 +151,12 @@ func runRead(
 	return streamLive(conn, stdout, stderr)
 }
 
+// dumpCapture streams the full transcript to stdout. The recorded capture
+// path is the live segment; capture.Dump reassembles closed rotated segments
+// oldest-first, then the live segment, into one logical stream. An absent
+// capture (never written to) produces no output and no error.
 func dumpCapture(path string, stdout io.Writer) error {
-	f, err := os.Open(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			// Empty capture is indistinguishable from "never written to";
-			// treat absence as zero-byte output rather than an error.
-			return nil
-		}
-		return fmt.Errorf("open capture file %q: %w", path, err)
-	}
-	defer f.Close()
-	if _, err := io.Copy(stdout, f); err != nil {
-		return fmt.Errorf("read capture file %q: %w", path, err)
-	}
-	return nil
+	return capture.Dump(path, stdout)
 }
 
 // laggedNotice mirrors the bracketed core of the server sentinel (see
