@@ -26,6 +26,16 @@ import (
 
 const sgrReset = "\x1b[0m"
 
+// Escape sequences used to synthesize an attach repaint (see repaint).
+const (
+	escEnterAltScreen = "\x1b[?1049h" // switch to the alternate screen buffer
+	escClearScreen    = "\x1b[2J"     // erase the entire screen
+	escCursorHome     = "\x1b[H"      // move cursor to row 1, col 1
+	escCursorTo       = "\x1b[%d;%dH" // move cursor to row, col (1-based)
+	escShowCursor     = "\x1b[?25h"   // make the cursor visible
+	escHideCursor     = "\x1b[?25l"   // hide the cursor
+)
+
 // vt10x color encoding boundaries. The 16 ANSI colors occupy [0,16):
 // [0,8) are the basic colors and [8,16) their bright variants. [16,256)
 // is the xterm 256-color palette. 24-bit truecolor is packed as the
@@ -127,6 +137,59 @@ func (m *screenModel) snapshot() *api.ScreenshotResult {
 	}
 	res.Text, res.ANSI = renderGrid(m.vt, cols, rows)
 	return res
+}
+
+// repaint synthesizes a byte sequence that, written to a freshly attached
+// client's raw-mode terminal, reproduces the current screen: alt-screen
+// mode if active, a cleared grid, every visible cell with its SGR colors at
+// its absolute position, and the cursor's position and visibility. Unlike
+// the raw capture replay it is bounded to the viewport regardless of how
+// long the session has run, which is the whole point of repaint-on-attach.
+//
+// Absolute per-row cursor positioning (CSI row;1H) is used instead of
+// newlines so the paint is correct in raw mode, where a bare "\n" is a line
+// feed that does not return the carriage. It is taken under the vt10x state
+// lock so cells, cursor, and mode form one consistent frame.
+func (m *screenModel) repaint() []byte {
+	m.vt.Lock()
+	defer m.vt.Unlock()
+
+	cols, rows := m.vt.Size()
+	cur := m.vt.Cursor()
+	altScreen := m.vt.Mode()&vt10x.ModeAltScreen != 0
+	cursorVisible := m.vt.CursorVisible()
+
+	textLines := make([]string, rows)
+	ansiLines := make([]string, rows)
+	for y := range rows {
+		textLines[y], ansiLines[y] = renderLine(m.vt, cols, y)
+	}
+	// Trailing blank rows need no paint — the screen clear already blanked
+	// them. Stop at the last non-empty row (plain text is the canonical
+	// emptiness signal, mirroring renderGrid).
+	end := len(textLines)
+	for end > 0 && textLines[end-1] == "" {
+		end--
+	}
+
+	var b strings.Builder
+	if altScreen {
+		b.WriteString(escEnterAltScreen)
+	}
+	b.WriteString(escClearScreen)
+	b.WriteString(escCursorHome)
+	for y := range end {
+		fmt.Fprintf(&b, escCursorTo, y+1, 1)
+		b.WriteString(ansiLines[y])
+	}
+	// vt10x cursor coordinates are 0-based; CSI row;colH is 1-based.
+	fmt.Fprintf(&b, escCursorTo, cur.Y+1, cur.X+1)
+	if cursorVisible {
+		b.WriteString(escShowCursor)
+	} else {
+		b.WriteString(escHideCursor)
+	}
+	return []byte(b.String())
 }
 
 // renderGrid walks the grid row by row and produces both the plain-text

@@ -47,7 +47,7 @@ type TerminalRunner interface {
 	Resize(args api.ResizeArgs)
 	CreateMetadata() error
 	Detach(id *api.ID) error
-	Attach(id *api.ID, response *api.ResponseWithFD) error
+	Attach(req *api.AttachRequest, response *api.ResponseWithFD) error
 	SetupShell() error
 	OnInitShell() error
 	PostAttachShell() error

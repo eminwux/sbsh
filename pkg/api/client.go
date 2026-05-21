@@ -41,6 +41,12 @@ type ClientSpec struct {
 	// When true, users can detach by pressing ^] twice. When false, detach keystroke is disabled.
 	DetachKeystroke bool `json:"detachKeystroke,omitempty"`
 
+	// FullCapture, when true, makes attach replay the entire raw capture
+	// buffer (the legacy behavior) instead of the default bounded repaint
+	// of the current screen. It is forwarded to the terminal server via the
+	// Attach RPC; the server owns the replay. Set by the --full-capture flag.
+	FullCapture bool `json:"fullCapture,omitempty"`
+
 	// ClientMode determines whether the client runs a new terminal or attaches to an existing one.
 	ClientMode ClientMode `json:"clientMode,omitempty"`
 }

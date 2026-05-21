@@ -72,7 +72,7 @@ func (f *fakeTerminalController) State(_ *api.Empty, out *api.TerminalStatusMode
 	return nil
 }
 
-func (f *fakeTerminalController) Attach(_ *api.ID, _ *api.Empty) error {
+func (f *fakeTerminalController) Attach(_ *api.AttachRequest, _ *api.Empty) error {
 	f.attachCalls.Add(1)
 	if f.attachBlock != nil {
 		<-f.attachBlock

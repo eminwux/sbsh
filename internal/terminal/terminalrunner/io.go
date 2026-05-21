@@ -20,13 +20,13 @@ import (
 	"os"
 )
 
-func (sr *Exec) readLogFile() ([]byte, error) {
+func (sr *Exec) readCaptureFile() ([]byte, error) {
 	sr.metadataMu.RLock()
 	captureFile := sr.metadata.Status.CaptureFile
 	sr.metadataMu.RUnlock()
 	data, err := os.ReadFile(captureFile)
 	if err != nil {
-		sr.logger.Warn("failed to read log file", "err", err)
+		sr.logger.Warn("failed to read capture file", "err", err)
 		return nil, err
 	}
 	return data, nil

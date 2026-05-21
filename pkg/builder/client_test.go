@@ -64,6 +64,9 @@ func TestBuildClientDoc_Defaults(t *testing.T) {
 	if !doc.Spec.DetachKeystroke {
 		t.Fatal("expected DetachKeystroke to default true")
 	}
+	if doc.Spec.FullCapture {
+		t.Fatal("expected FullCapture to default false (repaint)")
+	}
 	if doc.Spec.ClientMode != api.RunNewTerminal {
 		t.Fatalf("mode: want RunNewTerminal, got %v", doc.Spec.ClientMode)
 	}
@@ -85,6 +88,7 @@ func TestBuildClientDoc_Overrides(t *testing.T) {
 		builder.WithClientLogFile("/tmp/custom.log"),
 		builder.WithClientMode(api.AttachToTerminal),
 		builder.WithClientDetachKeystroke(false),
+		builder.WithClientFullCapture(true),
 		builder.WithClientTerminalSpec(embed),
 	)
 	if err != nil {
@@ -107,6 +111,9 @@ func TestBuildClientDoc_Overrides(t *testing.T) {
 	}
 	if doc.Spec.DetachKeystroke {
 		t.Fatal("expected DetachKeystroke=false after WithClientDetachKeystroke(false)")
+	}
+	if !doc.Spec.FullCapture {
+		t.Fatal("expected FullCapture=true after WithClientFullCapture(true)")
 	}
 	if doc.Spec.TerminalSpec != embed {
 		t.Fatal("expected embedded TerminalSpec to be the same pointer")

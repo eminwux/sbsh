@@ -107,28 +107,30 @@ func (sr *Exec) handleClient(client *ioClient) {
 		})
 	}
 
-	// Snapshot the capture replay *before* wiring the fan-out so it can be
-	// seeded ahead of any live PTY output in the ring. Reading here (rather
-	// than writing it directly to client.conn after Add, as before) keeps
-	// the single drain goroutine the sole writer of client.conn: replay and
-	// live output are serialized through one ring, so the drain's per-write
-	// SetWriteDeadline can never race a large initial replay written on a
-	// second goroutine (issue #299). An unreadable capture is non-fatal —
-	// fall through with an empty replay rather than denying the live attach.
-	log, errLog := sr.readLogFile()
-	if errLog != nil {
-		sr.logger.Warn("failed to read log file for client attach", "err", errLog)
-		log = nil
-	}
+	// Snapshot the initial attach paint *before* wiring the fan-out so it can
+	// be seeded ahead of any live PTY output in the ring. Seeding here (rather
+	// than writing it directly to client.conn after Add) keeps the single
+	// drain goroutine the sole writer of client.conn: paint and live output
+	// are serialized through one ring, so the drain's per-write
+	// SetWriteDeadline can never race a large initial paint written on a
+	// second goroutine (issue #299).
+	//
+	// Default: a bounded repaint of the current screen from the vt-parser
+	// model, so a long-lived terminal no longer floods every newly attached
+	// client with its whole history. --full-capture (client.fullCapture) opts
+	// back into replaying the entire raw capture buffer. An empty paint (no
+	// screen model, or an unreadable capture) is non-fatal — the live attach
+	// proceeds with no seed rather than being denied.
+	initial := sr.initialAttachPaint(client)
 
 	// WRITER: bounded ring + per-write deadline + lagged-detach. Seed the
-	// replay into the ring (seedReplay grows the byte bound to fit it so a
-	// >1 MiB capture cannot trip the lagged path on the first live Write).
-	// Adding the writer to multiOutW *before* starting Run is safe — Write
-	// just enqueues into the ring until Run starts draining, and the seeded
-	// replay already sits ahead of any live bytes that arrive after Add.
+	// initial paint into the ring (seedReplay grows the byte bound to fit it
+	// so a >1 MiB full capture cannot trip the lagged path on the first live
+	// Write). Adding the writer to multiOutW *before* starting Run is safe —
+	// Write just enqueues into the ring until Run starts draining, and the
+	// seeded paint already sits ahead of any live bytes that arrive after Add.
 	aw := newSubscriberWriter(client.conn, defaultSubscriberBufferBytes, detach, sr.logger)
-	aw.seedReplay(log)
+	aw.seedReplay(initial)
 	client.outWriter = aw
 	multiOutW.Add(aw)
 	go aw.Run()
@@ -155,6 +157,32 @@ func (sr *Exec) handleClient(client *ioClient) {
 		sr.logger.Warn("failed to update metadata on attach", "err", errAttach)
 		return
 	}
+}
+
+// initialAttachPaint returns the bytes written to a newly attached client
+// before live PTY output begins. For a full-capture client it is the entire
+// raw capture buffer (legacy behavior); otherwise it is a repaint of the
+// current screen from the vt-parser model. A nil/empty result means "write
+// nothing" — a missing capture or an absent screen model never denies the
+// attach, which proceeds with live output only.
+func (sr *Exec) initialAttachPaint(client *ioClient) []byte {
+	if client.fullCapture {
+		log, errLog := sr.readCaptureFile()
+		if errLog != nil {
+			sr.logger.Warn("failed to read capture file for client attach", "err", errLog)
+			return nil
+		}
+		return log
+	}
+
+	sr.ptyPipesMu.RLock()
+	screen := sr.ptyPipes.screen
+	sr.ptyPipesMu.RUnlock()
+	if screen == nil {
+		sr.logger.Warn("no screen model for client attach repaint", "client", client.id)
+		return nil
+	}
+	return screen.repaint()
 }
 
 func (sr *Exec) addClient(c *ioClient) {

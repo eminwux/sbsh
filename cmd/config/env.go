@@ -113,6 +113,8 @@ var (
 		"sb/attach/disableDetachKeystroke",
 	)
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_ATTACH_FULL_CAPTURE = DefineKV("SB_ATTACH_FULL_CAPTURE", "sb/attach/fullCapture")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_DETACH_NAME = DefineKV("SB_DETACH_NAME", "sb/detach/name")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_DETACH_ID = DefineKV("SB_DETACH_ID", "sb/detach/id")
