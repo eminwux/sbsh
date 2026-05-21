@@ -264,6 +264,18 @@ func (c *client) Stop(ctx context.Context, args *api.StopArgs) error {
 	return c.call(ctx, c.logger, api.TerminalMethodStop, args, &api.Empty{})
 }
 
+func (c *client) Screenshot(ctx context.Context, args *api.ScreenshotArgs, result *api.ScreenshotResult) error {
+	if args == nil {
+		args = &api.ScreenshotArgs{}
+	}
+	err := c.call(ctx, c.logger, api.TerminalMethodScreenshot, args, result)
+	if err != nil {
+		c.logger.ErrorContext(ctx, "Screenshot call failed", "error", err)
+		return fmt.Errorf("Screenshot call failed: %w", err)
+	}
+	return nil
+}
+
 func (c *client) Write(ctx context.Context, req *api.WriteRequest) error {
 	if req == nil {
 		req = &api.WriteRequest{}

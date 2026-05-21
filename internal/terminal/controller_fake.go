@@ -26,19 +26,20 @@ type ControllerTest struct {
 
 	AddedSpec *api.TerminalSpec
 
-	RunFunc       func(spec *api.TerminalSpec) error
-	WaitReadyFunc func() error
-	WaitCloseFunc func() error
-	PingFunc      func(in *api.PingMessage) (*api.PingMessage, error)
-	CloseFunc     func(reason error) error
-	ResizeFunc    func()
-	AttachFunc    func(id *api.ID, response *api.ResponseWithFD) error
-	DetachFunc    func(id *api.ID) error
-	MetadataFunc  func() (*api.TerminalDoc, error)
-	StateFunc     func() (*api.TerminalStatusMode, error)
-	StopFunc      func(args *api.StopArgs) error
-	WriteFunc     func(req *api.WriteRequest) error
-	SubscribeFunc func(req *api.SubscribeRequest, response *api.ResponseWithFD) error
+	RunFunc        func(spec *api.TerminalSpec) error
+	WaitReadyFunc  func() error
+	WaitCloseFunc  func() error
+	PingFunc       func(in *api.PingMessage) (*api.PingMessage, error)
+	CloseFunc      func(reason error) error
+	ResizeFunc     func()
+	AttachFunc     func(id *api.ID, response *api.ResponseWithFD) error
+	DetachFunc     func(id *api.ID) error
+	MetadataFunc   func() (*api.TerminalDoc, error)
+	StateFunc      func() (*api.TerminalStatusMode, error)
+	StopFunc       func(args *api.StopArgs) error
+	WriteFunc      func(req *api.WriteRequest) error
+	SubscribeFunc  func(req *api.SubscribeRequest, response *api.ResponseWithFD) error
+	ScreenshotFunc func(args *api.ScreenshotArgs) (*api.ScreenshotResult, error)
 }
 
 func (f *ControllerTest) Run(spec *api.TerminalSpec) error {
@@ -130,4 +131,11 @@ func (f *ControllerTest) Subscribe(req *api.SubscribeRequest, response *api.Resp
 		return f.SubscribeFunc(req, response)
 	}
 	return errdefs.ErrFuncNotSet
+}
+
+func (f *ControllerTest) Screenshot(args *api.ScreenshotArgs) (*api.ScreenshotResult, error) {
+	if f.ScreenshotFunc != nil {
+		return f.ScreenshotFunc(args)
+	}
+	return nil, errdefs.ErrFuncNotSet
 }

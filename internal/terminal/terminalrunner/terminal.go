@@ -229,10 +229,18 @@ func (sr *Exec) startPty() error {
 	// ATTACHED: stream to client (pipeOutW) AND log file
 	multiOutW := NewDynamicMultiWriter(sr.logger, logf)
 
+	// Register the vt-parser screen model as an additional warm sink on
+	// the same fan-out. It decodes the byte stream into a live grid so
+	// Screenshot can answer "what is on screen now" without re-reading the
+	// capture file. The capture writer (logf) is unchanged.
+	screen := newScreenModel()
+	multiOutW.Add(screen)
+
 	sr.ptyPipesMu.Lock()
 	sr.ptyPipes.pipeInR = pipeInR
 	sr.ptyPipes.pipeInW = pipeInW
 	sr.ptyPipes.multiOutW = multiOutW
+	sr.ptyPipes.screen = screen
 	sr.ptyPipesMu.Unlock()
 
 	go sr.terminalManager(pipeInR, multiOutW)

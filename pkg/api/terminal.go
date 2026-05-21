@@ -35,6 +35,7 @@ type TerminalController interface {
 	Stop(args *StopArgs) error
 	Write(req *WriteRequest) error
 	Subscribe(req *SubscribeRequest, reply *ResponseWithFD) error
+	Screenshot(args *ScreenshotArgs) (*ScreenshotResult, error)
 }
 
 type TerminalDoc struct {
@@ -204,15 +205,16 @@ func (s TerminalStatusMode) String() string {
 const TerminalService = "TerminalController"
 
 const (
-	TerminalMethodResize    = TerminalService + ".Resize"
-	TerminalMethodPing      = TerminalService + ".Ping"
-	TerminalMethodAttach    = TerminalService + ".Attach"
-	TerminalMethodDetach    = TerminalService + ".Detach"
-	TerminalMethodMetadata  = TerminalService + ".Metadata"
-	TerminalMethodState     = TerminalService + ".State"
-	TerminalMethodStop      = TerminalService + ".Stop"
-	TerminalMethodWrite     = TerminalService + ".Write"
-	TerminalMethodSubscribe = TerminalService + ".Subscribe"
+	TerminalMethodResize     = TerminalService + ".Resize"
+	TerminalMethodPing       = TerminalService + ".Ping"
+	TerminalMethodAttach     = TerminalService + ".Attach"
+	TerminalMethodDetach     = TerminalService + ".Detach"
+	TerminalMethodMetadata   = TerminalService + ".Metadata"
+	TerminalMethodState      = TerminalService + ".State"
+	TerminalMethodStop       = TerminalService + ".Stop"
+	TerminalMethodWrite      = TerminalService + ".Write"
+	TerminalMethodSubscribe  = TerminalService + ".Subscribe"
+	TerminalMethodScreenshot = TerminalService + ".Screenshot"
 )
 
 type PingMessage struct {
@@ -246,4 +248,24 @@ type SubscribeRequest struct {
 type ResponseWithFD struct {
 	JSON any   // what to JSON-encode into "result"
 	FDs  []int // file descriptors to pass via SCM_RIGHTS
+}
+
+// ScreenshotArgs is the request for a Screenshot RPC. It carries no
+// fields today; it exists so the wire shape can grow (e.g. a format
+// selector) without breaking the method signature.
+type ScreenshotArgs struct{}
+
+// ScreenshotResult is a decoded snapshot of a terminal's current screen,
+// produced by the in-server vt-parser rather than from the raw capture
+// bytes. Text is the plain rendered grid; ANSI is the same grid with SGR
+// foreground/background color sequences so colors survive the round trip.
+type ScreenshotResult struct {
+	Cols          int    `json:"cols"`
+	Rows          int    `json:"rows"`
+	CursorX       int    `json:"cursorX"`
+	CursorY       int    `json:"cursorY"`
+	CursorVisible bool   `json:"cursorVisible"`
+	AltScreen     bool   `json:"altScreen"`
+	Text          string `json:"text"`
+	ANSI          string `json:"ansi"`
 }
