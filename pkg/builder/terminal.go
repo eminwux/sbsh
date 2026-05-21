@@ -44,6 +44,7 @@ type terminalConfig struct {
 	captureFile       string
 	captureMode       string
 	captureGID        *int
+	captureFormat     string
 	logFile           string
 	logFileMode       string
 	logFileGID        *int
@@ -207,6 +208,14 @@ func WithCaptureGID(gid int) TerminalOption {
 		g := gid
 		c.captureGID = &g
 	}
+}
+
+// WithCaptureFormat selects the on-disk capture format: "raw" (default,
+// byte-exact PTY bytes) or "asciicast" (asciicast v2 — header + timed output
+// events, for replay/seek/portability). Empty means raw. An invalid value is
+// rejected at spec-build time (BuildTerminalSpec / BuildTerminalSpecFromProfile).
+func WithCaptureFormat(format string) TerminalOption {
+	return func(c *terminalConfig) { c.captureFormat = format }
 }
 
 // WithLogFileMode sets the chmod mode applied to the log file
@@ -400,6 +409,7 @@ func paramsFromConfig(cfg *terminalConfig, runPath string) *profile.BuildTermina
 		SocketGID:         cfg.socketGID,
 		CaptureMode:       cfg.captureMode,
 		CaptureGID:        cfg.captureGID,
+		CaptureFormat:     cfg.captureFormat,
 		LogFileMode:       cfg.logFileMode,
 		LogFileGID:        cfg.logFileGID,
 		EnvVars:           cfg.envVars,

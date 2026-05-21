@@ -151,12 +151,24 @@ func runRead(
 	return streamLive(conn, stdout, stderr)
 }
 
-// dumpCapture streams the full transcript to stdout. The recorded capture
-// path is the live segment; capture.Dump reassembles closed rotated segments
-// oldest-first, then the live segment, into one logical stream. An absent
-// capture (never written to) produces no output and no error.
+// dumpCapture writes the full transcript to stdout. The recorded capture path
+// is the live segment; capture.Replay reassembles closed rotated segments
+// oldest-first, then the live segment, into one logical stream and sniffs the
+// format — a raw capture passes through byte-for-byte, an asciicast capture is
+// decoded to its output bytes so `sb read` (and the parser feed behind it)
+// always sees terminal output, matching the live stream that follows. An
+// absent capture (never written to) produces no output and no error. Total
+// transcript size is bounded by capture retention, so buffering it to sniff
+// the format is acceptable for a CLI read.
 func dumpCapture(path string, stdout io.Writer) error {
-	return capture.Dump(path, stdout)
+	data, err := capture.Replay(path)
+	if err != nil {
+		return err
+	}
+	if _, werr := stdout.Write(data); werr != nil {
+		return fmt.Errorf("write capture transcript: %w", werr)
+	}
+	return nil
 }
 
 // laggedNotice mirrors the bracketed core of the server sentinel (see

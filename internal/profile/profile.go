@@ -213,6 +213,10 @@ type BuildTerminalSpecParams struct {
 	// CaptureGID is the numeric GID flag value for the capture file, or
 	// nil to fall through to the profile / leave the group unchanged.
 	CaptureGID *int
+	// CaptureFormat selects the on-disk capture format ("raw" default, or
+	// "asciicast"). Empty means raw; an invalid value is rejected at
+	// spec-build time. See pkg/api.NormalizeCaptureFormat.
+	CaptureFormat string
 	// LogFileMode is the raw octal flag value applied to the log file.
 	// Empty means "no override; fall through to the profile or the runner
 	// default".
@@ -404,6 +408,9 @@ func BuildTerminalSpecFromProfile(
 	if errOv := applyPermOverrides(terminalSpec, input); errOv != nil {
 		return nil, errOv
 	}
+	if errFmt := applyCaptureFormat(terminalSpec, input); errFmt != nil {
+		return nil, errFmt
+	}
 
 	return terminalSpec, nil
 }
@@ -445,8 +452,26 @@ func BuildTerminalSpecInline(
 	if errOv := applyPermOverrides(terminalSpec, input); errOv != nil {
 		return nil, errOv
 	}
+	if errFmt := applyCaptureFormat(terminalSpec, input); errFmt != nil {
+		return nil, errFmt
+	}
 
 	return terminalSpec, nil
+}
+
+// applyCaptureFormat validates an explicit capture-format override and copies
+// it onto the spec. Empty is left untouched so the zero value (raw, with no
+// serialized field) is preserved; a non-empty value must be raw or asciicast.
+func applyCaptureFormat(spec *api.TerminalSpec, input *BuildTerminalSpecParams) error {
+	if input.CaptureFormat == "" {
+		return nil
+	}
+	cf, err := api.NormalizeCaptureFormat(input.CaptureFormat)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errdefs.ErrInvalidFlag, err)
+	}
+	spec.CaptureFormat = cf
+	return nil
 }
 
 // applyPermOverrides resolves the mode/gid precedence for the socket,

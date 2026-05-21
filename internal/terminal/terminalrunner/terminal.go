@@ -29,6 +29,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/eminwux/sbsh/cmd/config"
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
 const (
@@ -186,6 +187,7 @@ func (sr *Exec) startPty() error {
 	sr.metadataMu.RLock()
 	captureFile := sr.metadata.Spec.CaptureFile
 	captureMode := sr.metadata.Spec.CaptureMode
+	captureFormat := sr.metadata.Spec.CaptureFormat
 	var captureGID *int
 	if g := sr.metadata.Spec.CaptureGID; g != nil {
 		gv := *g
@@ -200,6 +202,13 @@ func (sr *Exec) startPty() error {
 	// covers reopens of a pre-existing inode (see issue #200).
 	capWriter, errO := newCaptureWriter(captureFile, sr.logger, func(path string) error {
 		return sr.applyArtifactPerms("capture", path, captureMode, captureGID)
+	}, captureFormatOpts{
+		// The initial PTY geometry is the VT100 standard set above; resizes
+		// after launch do not rewrite the asciicast header (the recorded
+		// geometry is the session's starting size, per asciicast v2).
+		Asciicast: captureFormat == api.CaptureFormatAsciicast,
+		Cols:      vt100Cols,
+		Rows:      vt100Rows,
 	})
 	if errO != nil {
 		return fmt.Errorf("open log file: %w", errO)

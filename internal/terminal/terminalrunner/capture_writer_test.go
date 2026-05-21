@@ -40,7 +40,7 @@ func newTestCaptureWriter(
 ) *captureWriter {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	w, err := newCaptureWriter(canonical, logger, nil)
+	w, err := newCaptureWriter(canonical, logger, nil, captureFormatOpts{})
 	if err != nil {
 		t.Fatalf("newCaptureWriter: %v", err)
 	}
@@ -300,5 +300,113 @@ func TestCaptureWriter_SeqResumesAcrossRestart(t *testing.T) {
 	}
 	if want := []byte("AAAABBBBCCCC"); !bytes.Equal(got, want) {
 		t.Fatalf("after restart ReadAll = %q, want %q", got, want)
+	}
+}
+
+// newTestAsciicastWriter mirrors newTestCaptureWriter but selects the
+// asciicast format, so rotation/header-survival is exercisable with small
+// thresholds.
+func newTestAsciicastWriter(
+	t *testing.T,
+	canonical string,
+	maxBytes int64,
+	retainSegments int,
+	retainBytes int64,
+) *captureWriter {
+	t.Helper()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	w, err := newCaptureWriter(canonical, logger, nil, captureFormatOpts{
+		Asciicast: true,
+		Cols:      80,
+		Rows:      24,
+	})
+	if err != nil {
+		t.Fatalf("newCaptureWriter: %v", err)
+	}
+	w.maxBytes = maxBytes
+	w.retainSegments = retainSegments
+	w.retainBytes = retainBytes
+	return w
+}
+
+// In asciicast mode the live file is valid asciicast v2 (header line + one
+// timed "o" record per Write) and decodes back to exactly the bytes written.
+func TestCaptureWriter_AsciicastLiveFileValid(t *testing.T) {
+	dir := t.TempDir()
+	canonical := filepath.Join(dir, "capture")
+	w := newTestAsciicastWriter(t, canonical, 1<<20, 8, 1<<30)
+
+	mustWrite(t, w, []byte("hello "))
+	mustWrite(t, w, []byte("world\r\n"))
+	if err := w.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	data, err := os.ReadFile(canonical)
+	if err != nil {
+		t.Fatalf("read canonical: %v", err)
+	}
+	if !capture.IsAsciicast(data) {
+		t.Fatalf("live file not valid asciicast v2: %q", data)
+	}
+	// One header line + one record per write = 3 lines.
+	if got := bytes.Count(data, []byte("\n")); got != 3 {
+		t.Fatalf("line count = %d, want 3 (header + 2 records)", got)
+	}
+	if got, want := capture.DecodeAsciicast(data), []byte("hello world\r\n"); !bytes.Equal(got, want) {
+		t.Fatalf("decoded live file = %q, want %q", got, want)
+	}
+}
+
+// Asciicast rotation writes a header at the top of every segment, so the
+// reassembled transcript decodes correctly across a rotation boundary and
+// stays valid even after the oldest segment (segment 0) is pruned.
+func TestCaptureWriter_AsciicastRotationHeaderPerSegment(t *testing.T) {
+	dir := t.TempDir()
+	canonical := filepath.Join(dir, "capture")
+	// Tiny threshold so each write rotates, producing several closed segments.
+	w := newTestAsciicastWriter(t, canonical, 1, 8, 1<<30)
+
+	for _, p := range [][]byte{[]byte("AAA"), []byte("BBB"), []byte("CCC")} {
+		mustWrite(t, w, p)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	segs, err := capture.ClosedSegments(canonical)
+	if err != nil {
+		t.Fatalf("ClosedSegments: %v", err)
+	}
+	if len(segs) == 0 {
+		t.Fatalf("expected rotation to produce closed segments")
+	}
+
+	// Full reassembly decodes to all payloads in order across rotations.
+	full, err := capture.Replay(canonical)
+	if err != nil {
+		t.Fatalf("Replay: %v", err)
+	}
+	if want := []byte("AAABBBCCC"); !bytes.Equal(full, want) {
+		t.Fatalf("reassembled+decoded = %q, want %q", full, want)
+	}
+
+	// Header survives pruning: drop the oldest closed segment (segment 0) and
+	// the reassembled stream is still sniffed as asciicast and still decodes.
+	if rmErr := os.Remove(segs[0].Path); rmErr != nil {
+		t.Fatalf("prune segment 0: %v", rmErr)
+	}
+	reassembled, err := capture.ReadAll(canonical)
+	if err != nil {
+		t.Fatalf("ReadAll after prune: %v", err)
+	}
+	if !capture.IsAsciicast(reassembled) {
+		t.Fatalf("stream not asciicast after pruning segment 0: %q", reassembled)
+	}
+	decoded := capture.DecodeAsciicast(reassembled)
+	// The first payload ("AAA") was in segment 0 and is gone; the remainder
+	// survives and still decodes.
+	if !bytes.Contains(decoded, []byte("CCC")) {
+		t.Fatalf("post-prune decode lost the live tail: %q", decoded)
 	}
 }
