@@ -170,6 +170,7 @@ You can also use sbsh with parameters. For example:
 					SocketGID:        readRootSocketGID(cmd),
 					CaptureMode:      viper.GetString(config.SBSH_ROOT_TERM_CAPTURE_MODE.ViperKey),
 					CaptureGID:       readRootCaptureGID(cmd),
+					CaptureFormat:    viper.GetString(config.SBSH_ROOT_TERM_CAPTURE_FORMAT.ViperKey),
 					LogFileMode:      viper.GetString(config.SBSH_ROOT_TERM_LOG_FILE_MODE.ViperKey),
 					LogFileGID:       readRootLogFileGID(cmd),
 					DisableSetPrompt: viper.GetBool(config.SBSH_ROOT_TERM_DISABLE_SET_PROMPT.ViperKey),
@@ -401,6 +402,18 @@ func setTerminalFlags(rootCmd *cobra.Command) error {
 		return err
 	}
 	if err := viper.BindEnv(config.SBSH_ROOT_TERM_CAPTURE_GID.ViperKey, config.SBSH_ROOT_TERM_CAPTURE_GID.EnvVar()); err != nil {
+		return err
+	}
+
+	rootCmd.Flags().String(
+		"terminal-capture-format",
+		"",
+		`On-disk capture format: "raw" (default, byte-exact PTY bytes) or "asciicast" (asciicast v2 for replay/seek/portability)`,
+	)
+	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_CAPTURE_FORMAT.ViperKey, rootCmd.Flags().Lookup("terminal-capture-format")); err != nil {
+		return err
+	}
+	if err := viper.BindEnv(config.SBSH_ROOT_TERM_CAPTURE_FORMAT.ViperKey, config.SBSH_ROOT_TERM_CAPTURE_FORMAT.EnvVar()); err != nil {
 		return err
 	}
 

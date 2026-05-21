@@ -22,13 +22,15 @@ import (
 
 // readCaptureFile reassembles the full transcript for a --full-capture attach:
 // closed rotated segments oldest-first, then the live segment. The canonical
-// path recorded in Status.CaptureFile is the live segment; capture.ReadAll
-// walks its closed siblings to reconstruct full history.
+// path recorded in Status.CaptureFile is the live segment; capture.Replay
+// walks its closed siblings to reconstruct full history and sniffs the format
+// — a raw capture passes through byte-for-byte, an asciicast capture is decoded
+// to its output bytes so the client PTY receives the same bytes either way.
 func (sr *Exec) readCaptureFile() ([]byte, error) {
 	sr.metadataMu.RLock()
 	captureFile := sr.metadata.Status.CaptureFile
 	sr.metadataMu.RUnlock()
-	data, err := capture.ReadAll(captureFile)
+	data, err := capture.Replay(captureFile)
 	if err != nil {
 		sr.logger.Warn("failed to read capture file", "err", err)
 		return nil, err

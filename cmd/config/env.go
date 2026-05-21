@@ -170,6 +170,8 @@ var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_ROOT_TERM_CAPTURE_GID = DefineKV("SBSH_ROOT_TERM_CAPTURE_GID", "sbsh.root.terminal.captureGid")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_ROOT_TERM_CAPTURE_FORMAT = DefineKV("SBSH_ROOT_TERM_CAPTURE_FORMAT", "sbsh.root.terminal.captureFormat")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_ROOT_TERM_LOG_FILE_MODE = DefineKV("SBSH_ROOT_TERM_LOG_FILE_MODE", "sbsh.root.terminal.logFileMode")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_ROOT_TERM_LOG_FILE_GID = DefineKV("SBSH_ROOT_TERM_LOG_FILE_GID", "sbsh.root.terminal.logFileGid")
@@ -206,6 +208,8 @@ var (
 	SBSH_TERM_CAPTURE_MODE = DefineKV("SBSH_TERM_CAPTURE_MODE", "sbsh.terminal.captureMode")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_TERM_CAPTURE_GID = DefineKV("SBSH_TERM_CAPTURE_GID", "sbsh.terminal.captureGid")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_TERM_CAPTURE_FORMAT = DefineKV("SBSH_TERM_CAPTURE_FORMAT", "sbsh.terminal.captureFormat")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SBSH_TERM_LOG_FILE_MODE = DefineKV("SBSH_TERM_LOG_FILE_MODE", "sbsh.terminal.logFileMode")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable

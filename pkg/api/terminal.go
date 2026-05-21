@@ -17,6 +17,7 @@
 package api
 
 import (
+	"fmt"
 	"os"
 	"time"
 )
@@ -106,6 +107,15 @@ type TerminalSpec struct {
 	// after Open. nil leaves the group unchanged.
 	CaptureGID *int `json:"captureGid,omitempty"`
 
+	// CaptureFormat selects the on-disk capture format. "" / "raw" (default)
+	// records raw PTY bytes append-only — byte-exact, zero-overhead, but no
+	// timing. "asciicast" records asciicast v2 (a JSON header line, then one
+	// timed `[t,"o",data]` event per write) so the capture replays at speed,
+	// seeks by time, and feeds standard tooling (asciinema player, agg).
+	// Mutually exclusive per terminal: one capture file, one format. This is
+	// orthogonal to CaptureMode, which is the capture file's chmod.
+	CaptureFormat string `json:"captureFormat,omitempty"`
+
 	// LogFileMode is the chmod applied to the per-terminal log file after
 	// it is opened. Zero means "use the runner default" (0600), preserving
 	// owner-only behavior for callers that never set the field.
@@ -121,6 +131,34 @@ type TerminalSpec struct {
 	// exit after SIGTERM before escalating to SIGKILL. Zero means "use the
 	// runner's default" (30s, matching Kubernetes terminationGracePeriodSeconds).
 	ShutdownGrace time.Duration `json:"shutdownGrace,omitempty"`
+}
+
+// Capture format selectors for TerminalSpec.CaptureFormat. The empty string
+// is treated as CaptureFormatRaw so a spec that never sets the field keeps the
+// legacy raw-bytes behavior and the zero-overhead path.
+const (
+	CaptureFormatRaw       = "raw"
+	CaptureFormatAsciicast = "asciicast"
+)
+
+// NormalizeCaptureFormat resolves a (possibly empty) capture-format string to
+// its canonical value and rejects anything that is neither raw nor asciicast.
+// "" and "raw" both normalize to CaptureFormatRaw. Validate at spec-build time
+// so a typo surfaces before the terminal launches rather than mid-session.
+func NormalizeCaptureFormat(s string) (string, error) {
+	switch s {
+	case "", CaptureFormatRaw:
+		return CaptureFormatRaw, nil
+	case CaptureFormatAsciicast:
+		return CaptureFormatAsciicast, nil
+	default:
+		return "", fmt.Errorf(
+			"invalid capture format %q: must be %q or %q",
+			s,
+			CaptureFormatRaw,
+			CaptureFormatAsciicast,
+		)
+	}
 }
 
 type TerminalStatus struct {

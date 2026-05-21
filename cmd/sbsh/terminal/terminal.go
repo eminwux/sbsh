@@ -159,6 +159,7 @@ func buildTerminalSpecFromFlags(
 			SocketGID:        readSocketGID(cmd),
 			CaptureMode:      viper.GetString(config.SBSH_TERM_CAPTURE_MODE.ViperKey),
 			CaptureGID:       readCaptureGID(cmd),
+			CaptureFormat:    viper.GetString(config.SBSH_TERM_CAPTURE_FORMAT.ViperKey),
 			LogFileMode:      viper.GetString(config.SBSH_TERM_LOG_FILE_MODE.ViperKey),
 			LogFileGID:       readLogFileGID(cmd),
 			DisableSetPrompt: viper.GetBool(config.SBSH_TERM_DISABLE_SET_PROMPT.ViperKey),
@@ -488,6 +489,14 @@ func setupTerminalCmdFlags(terminalCmd *cobra.Command) {
 	)
 	_ = viper.BindPFlag(config.SBSH_TERM_CAPTURE_GID.ViperKey, terminalCmd.Flags().Lookup("capture-gid"))
 	_ = viper.BindEnv(config.SBSH_TERM_CAPTURE_GID.ViperKey, config.SBSH_TERM_CAPTURE_GID.EnvVar())
+
+	terminalCmd.Flags().String(
+		"capture-format",
+		"",
+		`On-disk capture format: "raw" (default, byte-exact PTY bytes) or "asciicast" (asciicast v2 for replay/seek/portability)`,
+	)
+	_ = viper.BindPFlag(config.SBSH_TERM_CAPTURE_FORMAT.ViperKey, terminalCmd.Flags().Lookup("capture-format"))
+	_ = viper.BindEnv(config.SBSH_TERM_CAPTURE_FORMAT.ViperKey, config.SBSH_TERM_CAPTURE_FORMAT.EnvVar())
 
 	terminalCmd.Flags().String(
 		"log-file-mode",

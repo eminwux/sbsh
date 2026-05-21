@@ -22,10 +22,22 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/eminwux/sbsh/internal/capture"
 	"github.com/eminwux/sbsh/internal/defaults"
 )
+
+// captureFormatOpts configures the on-disk capture format for a captureWriter.
+// The zero value is raw (append-only PTY bytes — byte-exact, no per-write
+// overhead). When Asciicast is true the writer emits asciicast v2: a header
+// line at the top of every segment plus one timed `[t,"o",data]` event per
+// Write. Cols/Rows seed the asciicast header's initial geometry.
+type captureFormatOpts struct {
+	Asciicast bool
+	Cols      int
+	Rows      int
+}
 
 // captureWriter is the always-on capture sink registered first in multiOutW.
 // It writes the live segment append-only at the canonical path and, once the
@@ -53,6 +65,15 @@ type captureWriter struct {
 	retainSegments int
 	retainBytes    int64
 
+	// asciicast records the asciicast v2 format instead of raw bytes. When
+	// set, every freshly opened (empty) segment gets a header line and each
+	// Write is emitted as one timed output event. cols/rows seed the header
+	// geometry; start anchors the t=0 origin and seeds the header timestamp.
+	asciicast bool
+	cols      int
+	rows      int
+	start     time.Time
+
 	// applyPerms re-applies the resolved capture mode/group to a freshly
 	// opened segment path. nil leaves perms at the open default.
 	applyPerms func(path string) error
@@ -68,6 +89,7 @@ func newCaptureWriter(
 	canonical string,
 	logger *slog.Logger,
 	applyPerms func(path string) error,
+	format captureFormatOpts,
 ) (*captureWriter, error) {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -82,27 +104,63 @@ func newCaptureWriter(
 			return nil, perr
 		}
 	}
-	info, err := f.Stat()
-	if err != nil {
-		_ = f.Close()
-		return nil, fmt.Errorf("stat capture file: %w", err)
-	}
 	nextSeq, err := capture.NextSeq(canonical)
 	if err != nil {
 		_ = f.Close()
 		return nil, fmt.Errorf("seed capture sequence: %w", err)
 	}
-	return &captureWriter{
+	w := &captureWriter{
 		canonical:      canonical,
 		f:              f,
-		size:           info.Size(),
 		nextSeq:        nextSeq,
 		maxBytes:       defaults.CaptureSegmentMaxBytes,
 		retainSegments: defaults.CaptureRetentionMaxSegments,
 		retainBytes:    defaults.CaptureRetentionMaxBytes,
+		asciicast:      format.Asciicast,
+		cols:           format.Cols,
+		rows:           format.Rows,
+		start:          time.Now(),
 		applyPerms:     applyPerms,
 		logger:         logger,
-	}, nil
+	}
+	// Seed size from the opened inode and, in asciicast mode, write the header
+	// when the segment is empty (a fresh capture, or a fresh canonical after a
+	// restart that pruned everything). A resumed non-empty segment already
+	// carries its header, so we must not prepend a second one.
+	if oerr := w.onSegmentOpened(); oerr != nil {
+		_ = f.Close()
+		return nil, oerr
+	}
+	return w, nil
+}
+
+// onSegmentOpened syncs w.size to the just-opened segment's on-disk size and,
+// in asciicast mode, writes the format header when that segment is empty. It
+// runs at construction and after every reopenCanonical so each segment is
+// self-describing — the header-survives-pruning mechanism: even once retention
+// drops segment 0, the new oldest segment still starts with a header, so the
+// reassembled stream stays decodable. A non-empty segment (resumed canonical,
+// or a rename-failed rotation that left the old bytes in place) keeps its
+// existing header and is not re-prepended.
+func (w *captureWriter) onSegmentOpened() error {
+	info, err := w.f.Stat()
+	if err != nil {
+		return fmt.Errorf("stat capture file: %w", err)
+	}
+	w.size = info.Size()
+	if !w.asciicast || w.size > 0 {
+		return nil
+	}
+	hdr, herr := capture.EncodeHeader(w.cols, w.rows, w.start.Unix())
+	if herr != nil {
+		return herr
+	}
+	n, werr := w.f.Write(hdr)
+	w.size += int64(n)
+	if werr != nil {
+		return fmt.Errorf("write asciicast header: %w", werr)
+	}
+	return nil
 }
 
 // Write appends to the live segment and rotates once it crosses maxBytes. A
@@ -114,9 +172,25 @@ func (w *captureWriter) Write(p []byte) (int, error) {
 	if w.f == nil {
 		return 0, os.ErrClosed
 	}
-	n, err := w.f.Write(p)
+	// In asciicast mode each Write becomes exactly one timed output record, so
+	// rotation (which checks size after the write) never bisects a record line
+	// — the whole-event-writes guarantee the decoder relies on.
+	rec := p
+	if w.asciicast {
+		ev, eerr := capture.EncodeOutputEvent(time.Since(w.start).Seconds(), p)
+		if eerr != nil {
+			return 0, eerr
+		}
+		rec = ev
+	}
+	n, err := w.f.Write(rec)
 	w.size += int64(n)
 	if err != nil {
+		// Raw: n is the count of p actually written. Asciicast: a partial
+		// event line is unusable, so report nothing of p durably recorded.
+		if w.asciicast {
+			return 0, err
+		}
 		return n, err
 	}
 	if w.maxBytes > 0 && w.size >= w.maxBytes {
@@ -124,7 +198,9 @@ func (w *captureWriter) Write(p []byte) (int, error) {
 			w.logger.Warn("capture rotation failed; continuing on current segment", "err", rerr)
 		}
 	}
-	return n, nil
+	// io.Writer contract: report bytes consumed from p, not bytes written to
+	// disk — an asciicast event line is longer than its payload.
+	return len(p), nil
 }
 
 // rotate closes the live segment, renames it to its deterministic sibling,
@@ -186,7 +262,13 @@ func (w *captureWriter) reopenCanonical() error {
 		}
 	}
 	w.f = f
-	w.size = 0
+	// Sync size to the (normally empty) fresh segment and, in asciicast mode,
+	// write its header so the segment is self-describing. A header failure is
+	// non-fatal: the fd is writable, so degrade to "no header this segment"
+	// rather than stopping capture.
+	if herr := w.onSegmentOpened(); herr != nil {
+		w.logger.Warn("capture segment header init failed", "path", w.canonical, "err", herr)
+	}
 	return nil
 }
 
