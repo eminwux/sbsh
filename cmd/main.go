@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -48,14 +49,15 @@ func runWithFactory(ctx context.Context, factory rootFactory) int {
 	return execRoot(root)
 }
 
-func main() {
-	logger := logging.NewNoopLogger()
-	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
-
-	// Select which subtree to run based on the executable name
-	exe := filepath.Base(os.Args[0])
-
-	// Decide which subtree to run by prepending the name as the first arg
+// dispatch selects the subtree to run based on the executable name (exe),
+// falling back to the SBSH_DEBUG_MODE value (debug) when exe is unrecognized.
+//
+// The debug fallback is useful for development and debugging purposes: it
+// allows running sbsh/sb even when the executable is not named sbsh or sb,
+// e.g. when launched from an IDE or a debugger. SBSH_DEBUG_MODE can be set to
+// "sbsh" or "sb" to run the corresponding subtree. The bool is false when
+// neither exe nor debug names a known subtree.
+func dispatch(exe, debug string) (rootFactory, bool) {
 	factories := map[string]rootFactory{
 		"sb":    sb.NewSbRootCmd,
 		"sbsh":  sbsh.NewSbshRootCmd,
@@ -63,22 +65,29 @@ func main() {
 	}
 
 	if factory, ok := factories[exe]; ok {
-		os.Exit(runWithFactory(ctx, factory))
+		return factory, true
 	}
-
-	// Fallback to sbsh if SBSH_DEBUG_MODE is set
-	// This is useful for development and debugging purposes
-	// as it allows to run sbsh even if the executable is not named sbsh
-	// or sb. For example, when running from an IDE or a debugger.
-	// In this case, SBSH_DEBUG_MODE can be set to "sbsh" or "sb"
-	// to run the corresponding subtree.
-	// If SBSH_DEBUG_MODE is not set, an error is printed and the program exits.
-	// This avoids confusion and ensures that the user is aware of the correct usage.
-	debug := os.Getenv("SBSH_DEBUG_MODE")
 	if factory, ok := factories[debug]; ok {
-		os.Exit(runWithFactory(ctx, factory))
+		return factory, true
 	}
+	return nil, false
+}
 
-	fmt.Fprintf(os.Stderr, "unknown entry command: %s\n", exe)
-	os.Exit(1)
+func run(args []string, getenv func(string) string, stderr io.Writer) int {
+	logger := logging.NewNoopLogger()
+	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
+
+	exe := filepath.Base(args[0])
+	debug := getenv("SBSH_DEBUG_MODE")
+
+	factory, ok := dispatch(exe, debug)
+	if !ok {
+		fmt.Fprintf(stderr, "unknown entry command: %s\n", exe)
+		return 1
+	}
+	return runWithFactory(ctx, factory)
+}
+
+func main() {
+	os.Exit(run(os.Args, os.Getenv, os.Stderr))
 }
