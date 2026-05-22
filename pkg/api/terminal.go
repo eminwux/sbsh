@@ -69,6 +69,20 @@ type TerminalSpec struct {
 	Prompt      string   `json:"prompt"`
 	SetPrompt   bool     `json:"setPrompt,omitempty"`
 
+	// RunPath is the base directory under which the runner writes the
+	// per-terminal layout RunPath/terminals/<id>/ (holding metadata.json,
+	// the control socket, etc.) when MetadataDir is empty.
+	//
+	// Ownership/mode contract: the runner writes metadata.json via an atomic
+	// create-temp-then-rename, so RunPath/terminals/<id> must stay write+exec
+	// for every uid that runs the terminal lifecycle — create AND close — not
+	// just the creating uid. The legacy layout creates the dir 0o700 owned by
+	// the creating uid. Embedders that span uids (e.g. setup as root, the
+	// in-cell process as a non-root container uid) must instead set
+	// MetadataDir to a directory they pre-own and keep writable across those
+	// uids (e.g. group-writable under a shared gid). If the contract is not
+	// met, close-time metadata updates do not persist; the runner surfaces
+	// this as a single actionable warning rather than per-hook spam.
 	RunPath string `json:"runPath"`
 	// CaptureFile is the canonical capture path. It is the live, append-only
 	// segment: capture rotates into deterministic siblings to bound size, so
