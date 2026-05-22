@@ -455,7 +455,31 @@ func TestUseListener(t *testing.T) {
 }
 
 func TestAttachDetach(t *testing.T) {
-	spec := &api.TerminalSpec{ID: "ad", Name: "ad", RunPath: t.TempDir()}
+	// Client teardown is asynchronous: Detach spawns a 100ms grace goroutine
+	// that closes the server conn, whose reader-EOF path runs cleanupClient ->
+	// updateTerminalAttachers -> WriteMetadata after the test body has already
+	// returned. WriteMetadata recreates files under <runPath>/terminals/ad, so
+	// t.TempDir()'s single-shot RemoveAll can race that late write and fail
+	// with "directory not empty" under full-package parallel load (issue
+	// #351). This cleanup runs before t.TempDir's (LIFO) and drains the writers
+	// via a bounded retry, so t.TempDir's own RemoveAll then finds the tree
+	// already gone (a no-op on a missing path).
+	runPath := t.TempDir()
+	t.Cleanup(func() {
+		deadline := time.Now().Add(2 * time.Second)
+		for {
+			if rmErr := os.RemoveAll(runPath); rmErr == nil {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Errorf("draining run dir %s did not settle within deadline", runPath)
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+
+	spec := &api.TerminalSpec{ID: "ad", Name: "ad", RunPath: runPath}
 	sr := NewTerminalRunnerExec(context.Background(), newDiscardLogger(), spec).(*Exec)
 	if err := sr.CreateMetadata(); err != nil {
 		t.Fatalf("CreateMetadata: %v", err)
@@ -477,7 +501,14 @@ func TestAttachDetach(t *testing.T) {
 	if len(resp.FDs) != 1 {
 		t.Fatalf("expected 1 returned fd, got %d", len(resp.FDs))
 	}
-	_ = syscall.Close(resp.FDs[0]) // release the client-side fd we won't use
+	// Release the client-side fd at the end of the test, not now. Closing it
+	// makes the server-side reader observe EOF, tripping the handleClient
+	// auto-detach path (cleanupClient -> removeClient); closing it before the
+	// assertion below lets that cleanup race the read and remove the client
+	// first under parallel load (issue #351). Attach already registered the
+	// client synchronously (CreateNewClient -> addClient), so the assertion is
+	// deterministic while this fd stays open.
+	defer func() { _ = syscall.Close(resp.FDs[0]) }()
 
 	if _, ok := sr.getClient(clientID); !ok {
 		t.Fatal("client should be registered after Attach")
