@@ -58,6 +58,26 @@ func writeProfileDir(t *testing.T) string {
 	return dir
 }
 
+const captureFormatProfileYAML = `apiVersion: sbsh/v1beta1
+kind: TerminalProfile
+metadata:
+  name: capprof
+spec:
+  runTarget: local
+  shell:
+    cmd: /bin/zsh
+  captureFormat: asciicast
+`
+
+func writeCaptureFormatProfileDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "p.yaml"), []byte(captureFormatProfileYAML), 0o644); err != nil {
+		t.Fatalf("write profile: %v", err)
+	}
+	return dir
+}
+
 func TestBuildTerminalSpecFromProfile_LoadsNamedProfile(t *testing.T) {
 	ctx := context.Background()
 	logger := testLogger()
@@ -174,6 +194,48 @@ func TestBuildTerminalSpecFromProfile_InvalidCaptureFormatErrors(t *testing.T) {
 	})
 	if !errors.Is(err, errdefs.ErrInvalidFlag) {
 		t.Fatalf("expected ErrInvalidFlag, got %v", err)
+	}
+}
+
+// A profile YAML that pins captureFormat must reach the spec end-to-end when
+// no launch-time override is supplied — the profile-only surface that #321
+// closes the gap on.
+func TestBuildTerminalSpecFromProfile_CaptureFormatFromYAML(t *testing.T) {
+	ctx := context.Background()
+	logger := testLogger()
+	profilesDir := writeCaptureFormatProfileDir(t)
+
+	spec, err := BuildTerminalSpecFromProfile(ctx, logger, &BuildTerminalSpecParams{
+		RunPath:     t.TempDir(),
+		ProfilesDir: profilesDir,
+		ProfileName: "capprof",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.CaptureFormat != api.CaptureFormatAsciicast {
+		t.Fatalf("expected asciicast from profile YAML, got %q", spec.CaptureFormat)
+	}
+}
+
+// Explicit override > profile: a launch-time CaptureFormat must win over the
+// profile's captureFormat, matching the precedence used for CaptureMode.
+func TestBuildTerminalSpecFromProfile_CaptureFormatOverrideBeatsProfile(t *testing.T) {
+	ctx := context.Background()
+	logger := testLogger()
+	profilesDir := writeCaptureFormatProfileDir(t)
+
+	spec, err := BuildTerminalSpecFromProfile(ctx, logger, &BuildTerminalSpecParams{
+		RunPath:       t.TempDir(),
+		ProfilesDir:   profilesDir,
+		ProfileName:   "capprof",
+		CaptureFormat: api.CaptureFormatRaw,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.CaptureFormat != api.CaptureFormatRaw {
+		t.Fatalf("expected explicit raw override to win, got %q", spec.CaptureFormat)
 	}
 }
 

@@ -261,6 +261,68 @@ func TestCreateTerminalFromProfile_OmittedArtifactBlocksLeaveDefaults(t *testing
 	}
 }
 
+// A profile that pins spec.captureFormat must thread the normalized value
+// into the produced TerminalSpec, giving profile-only users parity with the
+// --capture-format flag / SBSH_*_TERM_CAPTURE_FORMAT env / builder surfaces.
+func TestCreateTerminalFromProfile_AppliesCaptureFormat(t *testing.T) {
+	p := &api.TerminalProfileDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindTerminalProfile,
+		Metadata:   api.TerminalProfileMetadata{Name: "tprof"},
+		Spec: api.TerminalProfileSpec{
+			RunTarget:     api.RunTargetLocal,
+			Shell:         api.ShellSpec{Cmd: "/bin/bash"},
+			CaptureFormat: "asciicast",
+		},
+	}
+	spec, err := CreateTerminalFromProfile(p)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.CaptureFormat != api.CaptureFormatAsciicast {
+		t.Fatalf("CaptureFormat: want %q, got %q", api.CaptureFormatAsciicast, spec.CaptureFormat)
+	}
+}
+
+// An omitted spec.captureFormat leaves the spec field empty so the runner
+// falls back to the raw default — matching the omitted-perm-block behavior.
+func TestCreateTerminalFromProfile_OmittedCaptureFormatLeavesDefault(t *testing.T) {
+	p := &api.TerminalProfileDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindTerminalProfile,
+		Metadata:   api.TerminalProfileMetadata{Name: "tprof"},
+		Spec: api.TerminalProfileSpec{
+			RunTarget: api.RunTargetLocal,
+			Shell:     api.ShellSpec{Cmd: "/bin/bash"},
+		},
+	}
+	spec, err := CreateTerminalFromProfile(p)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spec.CaptureFormat != "" {
+		t.Fatalf("CaptureFormat: want \"\" (runner default raw), got %q", spec.CaptureFormat)
+	}
+}
+
+// An invalid spec.captureFormat is rejected at spec-build time, mirroring how
+// an out-of-range capture mode fails — the error names the YAML field path.
+func TestCreateTerminalFromProfile_InvalidCaptureFormatRejected(t *testing.T) {
+	p := &api.TerminalProfileDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindTerminalProfile,
+		Metadata:   api.TerminalProfileMetadata{Name: "tprof"},
+		Spec: api.TerminalProfileSpec{
+			RunTarget:     api.RunTargetLocal,
+			Shell:         api.ShellSpec{Cmd: "/bin/bash"},
+			CaptureFormat: "bogus",
+		},
+	}
+	if _, err := CreateTerminalFromProfile(p); err == nil {
+		t.Fatal("want error for invalid spec.captureFormat, got nil")
+	}
+}
+
 // applyOnePermOverride: an empty rawMode and nil gid leave prior values
 // untouched, so profile-resolved values survive when the caller passes
 // nothing.

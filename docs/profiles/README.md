@@ -91,6 +91,7 @@ spec:
   logFile: # Per-terminal log-file permissions (optional)
     mode: "0640" # Octal string; defaults to 0600 if omitted
     gid: 986 # Numeric host GID; omit to leave the group unchanged
+  captureFormat: asciicast # On-disk capture format: "raw" (default) or "asciicast"
 ```
 
 ## Field Reference
@@ -334,6 +335,34 @@ their own flag:
 Widening the mode and setting a host group is opt-in for callers that share a
 log viewer across uids in the same group; the default (no `logFile` block, no
 flag) preserves owner-only access exactly as in earlier releases.
+
+#### `captureFormat` (optional)
+
+Selects the on-disk serialization of the terminal's capture transcript. It is
+orthogonal to the `capture` block above, which sets the file's chmod/gid — this
+picks how the bytes are written.
+
+```yaml
+spec:
+  # ...
+  captureFormat: asciicast # "raw" (default) or "asciicast"
+```
+
+- **`raw`** (default): the verbatim PTY output stream, replayed by
+  `sb log <terminal>`. Omitting the field keeps this behavior.
+- **`asciicast`**: the [asciinema](https://docs.asciinema.org/manual/asciicast/v2/)
+  v2 format, suitable for sharing or replaying with asciinema tooling.
+
+The same configuration can also be supplied at launch time and overrides the
+profile when set. The root command and the `terminal` subcommand each take
+their own flag:
+
+- `sbsh --terminal-capture-format asciicast`
+  (or `SBSH_ROOT_TERM_CAPTURE_FORMAT=asciicast`)
+- `sbsh terminal --capture-format asciicast`
+  (or `SBSH_TERM_CAPTURE_FORMAT=asciicast`)
+
+An unrecognized value is rejected at spec-build time.
 
 ## Example Profiles
 
