@@ -672,9 +672,27 @@ func Test_setLoggingVarsFromFlags_Defaults(t *testing.T) {
 	}
 }
 
+// scrubProfileEnv neutralizes ambient SBSH_TERM_*/SBSH_ROOT_* environment
+// variables that viper.AutomaticEnv/BindEnv would otherwise leak into
+// profile-resolution tests. viper.Reset() clears prior viper.Set calls but
+// does not stop the rebound env bindings from re-reading the live process
+// environment, so a developer running the suite from inside an sbsh session
+// (which exports SBSH_TERM_PROFILE) would see the default-profile fallback
+// tests fail. Clearing the prefix surface keeps those tests hermetic. See #350.
+func scrubProfileEnv(t *testing.T) {
+	t.Helper()
+	for _, e := range os.Environ() {
+		k, _, _ := strings.Cut(e, "=")
+		if strings.HasPrefix(k, "SBSH_TERM_") || strings.HasPrefix(k, "SBSH_ROOT_") {
+			t.Setenv(k, "")
+		}
+	}
+}
+
 func Test_buildTerminalSpecFromFlags_DefaultProfile(t *testing.T) {
 	viper.Reset()
 	t.Cleanup(viper.Reset)
+	scrubProfileEnv(t)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, t.TempDir())
@@ -700,6 +718,7 @@ func Test_buildTerminalSpecFromFlags_DefaultProfile(t *testing.T) {
 func Test_processSpec_BuildsFromFlags(t *testing.T) {
 	viper.Reset()
 	t.Cleanup(viper.Reset)
+	scrubProfileEnv(t)
 
 	runPath := t.TempDir()
 	viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
@@ -725,6 +744,7 @@ func Test_processSpec_BuildsFromFlags(t *testing.T) {
 func Test_TerminalCmd_PreRunE_BuildsSpecFromFlags(t *testing.T) {
 	viper.Reset()
 	t.Cleanup(viper.Reset)
+	scrubProfileEnv(t)
 
 	viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, t.TempDir())
 	viper.Set(config.SBSH_ROOT_PROFILES_DIR.ViperKey, t.TempDir())
