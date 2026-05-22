@@ -35,9 +35,12 @@ const (
 	sb   = "sb"
 )
 
-// runReturningBinary runs the provided binary with args, fails the test on non-zero exit or empty output.
-// If the binary file does not exist, the test is skipped.
-func runReturningBinary(t *testing.T, env []string, command string, args ...string) []byte {
+// resolveBinary returns the absolute path to the named binary under
+// E2E_BIN_DIR (defaulting to the repo root). When the binary has not been
+// built it skips the calling test rather than failing it: a clean checkout
+// has no binaries, and `go test ./...` must stay green there. Build with
+// `make sbsh-sb` (produces sbsh and hardlinks sb) to run the suite for real.
+func resolveBinary(t *testing.T, command string) string {
 	t.Helper()
 
 	dir := os.Getenv("E2E_BIN_DIR")
@@ -47,8 +50,27 @@ func runReturningBinary(t *testing.T, env []string, command string, args ...stri
 	bin := filepath.Join(dir, command)
 
 	if _, err := os.Stat(bin); os.IsNotExist(err) {
-		t.Fatalf("binary %s not found, skipping", bin)
+		t.Skipf("binary %s not built; run `make sbsh-sb` to enable e2e (skipping)", bin)
 	}
+	return bin
+}
+
+// requireBinaries skips the calling test unless every named binary is built.
+// Call it before registering cleanups that shell out to a binary, so a clean
+// checkout skips up front instead of triggering a skip from within a cleanup.
+func requireBinaries(t *testing.T, commands ...string) {
+	t.Helper()
+	for _, command := range commands {
+		_ = resolveBinary(t, command)
+	}
+}
+
+// runReturningBinary runs the provided binary with args, fails the test on non-zero exit or empty output.
+// If the binary file does not exist, the test is skipped.
+func runReturningBinary(t *testing.T, env []string, command string, args ...string) []byte {
+	t.Helper()
+
+	bin := resolveBinary(t, command)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -79,15 +101,7 @@ func runPersistentBinaryPty(
 ) {
 	t.Helper()
 
-	dir := os.Getenv("E2E_BIN_DIR")
-	if dir == "" {
-		dir = ".." // or detect repo root
-	}
-	bin := filepath.Join(dir, command)
-
-	if _, err := os.Stat(bin); os.IsNotExist(err) {
-		t.Fatalf("binary %s not found, skipping", bin)
-	}
+	bin := resolveBinary(t, command)
 
 	env = append(env,
 		`PS1="__P__ "`,
