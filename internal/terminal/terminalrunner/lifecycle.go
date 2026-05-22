@@ -410,13 +410,22 @@ func (sr *Exec) Detach(id *api.ID) error {
 	sr.ptyPipesMu.RLock()
 	multiOutW := sr.ptyPipes.multiOutW
 	sr.ptyPipesMu.RUnlock()
-	if ioClient.outWriter != nil {
-		multiOutW.Remove(ioClient.outWriter)
+
+	// Snapshot outWriter under clientsMu — handleClient publishes it under
+	// the same lock, so a Detach arriving immediately after Attach (before
+	// handleClient finished wiring the writer) would otherwise race the
+	// field write (issue #355).
+	sr.clientsMu.RLock()
+	outWriter := ioClient.outWriter
+	sr.clientsMu.RUnlock()
+
+	if outWriter != nil {
+		multiOutW.Remove(outWriter)
 		// Close signals the drain goroutine to flush any pending bytes
 		// and exit. The drain's deferred conn.Close releases the
 		// socketpair fd. The async block below force-closes the conn
 		// after a short grace so a stuck drain can't pin the fd.
-		_ = ioClient.outWriter.Close()
+		_ = outWriter.Close()
 	}
 
 	// 3) Drop from the registry so it’s no longer discoverable
