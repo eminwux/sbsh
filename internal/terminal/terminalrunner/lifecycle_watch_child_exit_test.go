@@ -90,7 +90,13 @@ func TestWatchChildExit_NonInitMode_PropagatesSignal(t *testing.T) {
 	// Using "kill -SEGV $$" from inside the shell is also possible but the
 	// shell can intercept the SIGSEGV in some implementations; signaling the
 	// process from outside is more deterministic.
-	cmd := exec.Command("/bin/sh", "-c", "sleep 30 & wait")
+	//
+	// `ulimit -c 0` makes the shell drop its own core-dump limit before the
+	// SIGSEGV lands, so a host running the suite under `ulimit -c unlimited`
+	// does not get a stray core.<pid> written into the package working tree.
+	// It does not change the death: WaitStatus still reports Signaled()==true
+	// with Signal()==SIGSEGV, which is all this test asserts.
+	cmd := exec.Command("/bin/sh", "-c", "ulimit -c 0; sleep 30 & wait")
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start: %v", err)
 	}

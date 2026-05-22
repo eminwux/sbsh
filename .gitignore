@@ -7,3 +7,5 @@
 /node_modules/**
 /sb-*
 /sbsh-*
+core
+core.*
