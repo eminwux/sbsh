@@ -19,6 +19,7 @@ package terminalrunner
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"path/filepath"
@@ -205,7 +206,14 @@ func (sr *Exec) Close(reason error) error {
 	sr.logger.Info("closing terminal", "id", sr.id, "reason", reason)
 
 	if err := sr.updateTerminalState(api.Exited); err != nil {
-		sr.logger.Error("failed to update terminal state", "id", sr.id, "err", err)
+		// The permission-denied case is already surfaced once, actionably, by
+		// updateTerminalState -> noteMetadataWriteErr; demote here so close
+		// does not pair a redundant ERROR with that single WARN. See #345.
+		if errors.Is(err, fs.ErrPermission) {
+			sr.logger.Debug("terminal state not persisted on close (dir not writable)", "id", sr.id, "err", err)
+		} else {
+			sr.logger.Error("failed to update terminal state", "id", sr.id, "err", err)
+		}
 	}
 
 	// Graceful shutdown of the child before tearing anything else down:

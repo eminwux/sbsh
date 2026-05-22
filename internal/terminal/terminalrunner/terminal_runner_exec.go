@@ -39,6 +39,15 @@ type Exec struct {
 	metadata   api.TerminalDoc
 	metadataMu sync.RWMutex // protects metadata field
 
+	// metadataWriteDeniedOnce dedups the actionable permission-denied warning
+	// emitted when the terminal dir is not writable by the uid running the
+	// close/cleanup path. In an embedded runtime (create-as-root,
+	// close-as-nonroot) every close and client-cleanup hook would otherwise
+	// re-fire the same permission-denied WARN/ERROR; this collapses it to one
+	// actionable message pointing at the RunPath/terminals/<id> ownership
+	// contract. See #345.
+	metadataWriteDeniedOnce sync.Once
+
 	// runtime (owned by Terminal)
 	cmd   *exec.Cmd
 	ptmx  *os.File // master

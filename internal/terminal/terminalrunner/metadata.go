@@ -17,7 +17,9 @@
 package terminalrunner
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -27,6 +29,27 @@ import (
 	"github.com/eminwux/sbsh/internal/shared"
 	"github.com/eminwux/sbsh/pkg/api"
 )
+
+// metadataWriteDeniedMsg is the single actionable warning logged (once per
+// runner) when a metadata write is denied because the terminal dir is not
+// writable by the closing uid. It names the ownership contract embedders must
+// satisfy so the message is self-diagnosing rather than a bare errno.
+//
+// Ownership/mode contract for RunPath/terminals/<id> (the dir that holds
+// metadata.json): sbsh writes metadata.json via an atomic
+// create-temp-then-rename, which needs write+exec on the directory at every
+// point in the terminal's lifecycle — not just at create. The legacy layout
+// creates the dir 0o700, owned by the creating uid. When an embedder runs
+// create and close under different uids (e.g. setup as root, the in-cell
+// process as a non-root container uid), the closing uid cannot create the
+// temp file and the write is denied. Embedders that span uids must either set
+// TerminalSpec.MetadataDir to a directory they pre-own and keep writable by
+// every uid in the terminal's lifecycle (e.g. group-writable under a shared
+// gid), or accept that close-time metadata updates will not persist — in which
+// case this single warning, not repeated spam, is the surfaced signal.
+const metadataWriteDeniedMsg = "metadata write denied: terminal dir is not writable by the closing uid; " +
+	"the embedder must keep RunPath/terminals/<id> (or TerminalSpec.MetadataDir) writable by every uid " +
+	"that runs the terminal lifecycle (create and close) — see TerminalSpec docs"
 
 func (sr *Exec) CreateMetadata() error {
 	sr.metadataMu.Lock()
@@ -114,13 +137,34 @@ func resolveMetadataDir(runPath, metadataDirOverride string, id api.ID) (string,
 	return filepath.Join(runPath, defaults.TerminalsRunPath, string(id)), false
 }
 
+// noteMetadataWriteErr logs a metadata-write failure with permission-denied
+// spam suppression. A permission error (the terminal dir is not writable by
+// the closing uid — typically an embedded runtime where create and close run
+// under different uids) is logged once at WARN with the actionable
+// ownership-contract message; subsequent permission failures drop to Debug so
+// the close and client-cleanup hooks do not re-spam the same condition.
+// Non-permission errors always log at WARN. See #345.
+func (sr *Exec) noteMetadataWriteErr(where string, err error) {
+	if errors.Is(err, fs.ErrPermission) {
+		first := false
+		sr.metadataWriteDeniedOnce.Do(func() { first = true })
+		if first {
+			sr.logger.Warn(metadataWriteDeniedMsg, "id", sr.id, "dir", sr.getTerminalDir(), "where", where, "err", err)
+		} else {
+			sr.logger.Debug("metadata write still denied", "id", sr.id, "where", where, "err", err)
+		}
+		return
+	}
+	sr.logger.Warn("failed to update metadata on close", "id", sr.id, "where", where, "err", err)
+}
+
 func (sr *Exec) updateTerminalState(status api.TerminalStatusMode) error {
 	sr.metadataMu.Lock()
 	sr.metadata.Status.State = status
 	sr.metadataMu.Unlock()
 
 	if err := sr.updateMetadata(); err != nil {
-		sr.logger.Warn("failed to update metadata on close", "id", sr.id, "err", err)
+		sr.noteMetadataWriteErr("updateTerminalState", err)
 		return err
 	}
 	return nil
@@ -143,7 +187,7 @@ func (sr *Exec) updateTerminalAttachers() error {
 	sr.metadataMu.Unlock()
 
 	if err := sr.updateMetadata(); err != nil {
-		sr.logger.Warn("failed to update metadata on close", "id", sr.id, "err", err)
+		sr.noteMetadataWriteErr("updateTerminalAttachers", err)
 		return err
 	}
 	return nil

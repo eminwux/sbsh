@@ -17,12 +17,14 @@
 package terminalrunner
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -224,6 +226,51 @@ func TestUpdateTerminalState_WriteFailure(t *testing.T) {
 
 	if err := sr.updateTerminalState(api.Ready); err == nil {
 		t.Fatal("updateTerminalState: want write error on missing dir, got nil")
+	}
+}
+
+// When create and close run under different uids the terminal dir is not
+// writable by the closing uid, so every close/cleanup hook's metadata write is
+// denied. The close path must surface this once, actionably, instead of
+// re-spamming the same permission-denied WARN/ERROR on every hook. This drives
+// the close-state and attacher-update hooks repeatedly against an un-writable
+// dir and asserts the actionable warning fires exactly once. See #345.
+func TestUpdateMetadata_PermissionDeniedLoggedOnce(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses directory DAC, so a non-writable dir cannot deny the write")
+	}
+
+	runPath := t.TempDir()
+	id := api.ID("term-perm")
+	dir := filepath.Join(runPath, defaults.TerminalsRunPath, string(id))
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("mkdir terminal dir: %v", err)
+	}
+	// Drop write (and exec) so the closing uid cannot create the temp file the
+	// atomic write needs — the embedded create-as-root/close-as-nonroot case.
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatalf("chmod terminal dir: %v", err)
+	}
+	// Restore so t.TempDir's recursive cleanup can remove the tree.
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+
+	var buf bytes.Buffer
+	sr := newMetadataExec(t, runPath, "", id)
+	sr.logger = slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	// Drive both close-path hooks several times, mirroring close + repeated
+	// client-cleanup. Each write must fail; the actionable WARN must fire once.
+	for range 3 {
+		if err := sr.updateTerminalState(api.Exited); err == nil {
+			t.Fatal("updateTerminalState: want permission error on un-writable dir, got nil")
+		}
+		if err := sr.updateTerminalAttachers(); err == nil {
+			t.Fatal("updateTerminalAttachers: want permission error on un-writable dir, got nil")
+		}
+	}
+
+	if got := strings.Count(buf.String(), metadataWriteDeniedMsg); got != 1 {
+		t.Fatalf("actionable permission-denied warning logged %d times, want exactly 1\nlog:\n%s", got, buf.String())
 	}
 }
 
