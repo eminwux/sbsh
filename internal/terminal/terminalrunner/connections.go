@@ -39,8 +39,16 @@ func (sr *Exec) cleanupClient(client *ioClient) {
 	sr.ptyPipesMu.RLock()
 	multiOutW := sr.ptyPipes.multiOutW
 	sr.ptyPipesMu.RUnlock()
-	if multiOutW != nil && client.outWriter != nil {
-		multiOutW.Remove(client.outWriter)
+
+	// Snapshot outWriter under clientsMu — handleClient publishes it under
+	// the same lock, so reading it unsynchronized here races the writer
+	// (issue #355).
+	sr.clientsMu.RLock()
+	outWriter := client.outWriter
+	sr.clientsMu.RUnlock()
+
+	if multiOutW != nil && outWriter != nil {
+		multiOutW.Remove(outWriter)
 	}
 
 	// Closing outWriter signals its drain goroutine to flush any pending
@@ -49,8 +57,8 @@ func (sr *Exec) cleanupClient(client *ioClient) {
 	// remains the sole owner of the lifecycle — double-close on a
 	// *net.UnixConn just logs and is harmless, but a single owner keeps
 	// the path easy to reason about.
-	if client.outWriter != nil {
-		_ = client.outWriter.Close()
+	if outWriter != nil {
+		_ = outWriter.Close()
 	} else if client.conn != nil {
 		// Early-failure fallback: handleClient never wired the writer,
 		// so there is no drain goroutine to take the conn with it.
@@ -142,7 +150,14 @@ func (sr *Exec) handleClient(client *ioClient) {
 	aw := newSubscriberWriter(client.conn, defaultSubscriberBufferBytes, detach, sr.logger)
 	aw.enableBackpressure()
 	aw.seedReplay(initial)
+	// outWriter is read by the Detach RPC, cleanupClient, and Close on
+	// other goroutines, so publish it under clientsMu — the same lock those
+	// readers take — rather than racing the unsynchronized field write a
+	// just-launched handleClient would otherwise expose to a concurrent
+	// Detach (issue #355).
+	sr.clientsMu.Lock()
 	client.outWriter = aw
+	sr.clientsMu.Unlock()
 	multiOutW.Add(aw)
 	go aw.Run()
 
