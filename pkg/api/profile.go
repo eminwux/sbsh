@@ -65,6 +65,13 @@ type TerminalProfileSpec struct {
 	Socket        *FilePermSpec `json:"socket,omitempty"  yaml:"socket,omitempty"`
 	Capture       *FilePermSpec `json:"capture,omitempty" yaml:"capture,omitempty"`
 	LogFile       *FilePermSpec `json:"logFile,omitempty" yaml:"logFile,omitempty"`
+	// CaptureFormat selects the on-disk capture format ("raw" default, or
+	// "asciicast"). It is orthogonal to the spec.capture block, which sets
+	// the capture file's chmod/gid — this picks the serialization. Empty
+	// leaves the runner default (raw); an invalid value is rejected at
+	// spec-build time. The launch-time --capture-format flag /
+	// SBSH_*_TERM_CAPTURE_FORMAT env var override it when set.
+	CaptureFormat string `json:"captureFormat,omitempty" yaml:"captureFormat,omitempty"`
 }
 
 // FilePermSpec configures the filesystem permissions of a per-terminal

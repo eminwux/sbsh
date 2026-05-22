@@ -118,6 +118,17 @@ func CreateTerminalFromProfile(profile *api.TerminalProfileDoc) (*api.TerminalSp
 		return nil, errPerm
 	}
 
+	if profile.Spec.CaptureFormat != "" {
+		cf, err := api.NormalizeCaptureFormat(profile.Spec.CaptureFormat)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"invalid spec.captureFormat in profile %q: %w",
+				profile.Metadata.Name, err,
+			)
+		}
+		spec.CaptureFormat = cf
+	}
+
 	return spec, nil
 }
 
