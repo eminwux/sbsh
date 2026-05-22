@@ -24,7 +24,6 @@ import (
 	"log/slog"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -113,7 +112,6 @@ func TestSubscribe_NoOrphanDrainOnConcurrentClose(t *testing.T) {
 	goroutinesBefore := runtime.NumGoroutine()
 
 	var wg sync.WaitGroup
-	var subscribeErrCount atomic.Int32
 	start := make(chan struct{})
 
 	for i := range concurrentSubscribers {
@@ -127,13 +125,10 @@ func TestSubscribe_NoOrphanDrainOnConcurrentClose(t *testing.T) {
 			if err != nil {
 				// Post-Close rejection is the expected outcome for the
 				// late-arriving half; the cliFD was already closed by
-				// Subscribe's error path. Count the rejection so the
-				// post-wg.Wait() assertion can fail if every single
-				// subscriber was rejected (race window never opened).
+				// Subscribe's error path.
 				if !errors.Is(err, errTerminalClosing) {
 					t.Errorf("subscribe (idx=%d): unexpected error: %v", idx, err)
 				}
-				subscribeErrCount.Add(1)
 				return
 			}
 			for _, fd := range resp.FDs {
@@ -143,21 +138,35 @@ func TestSubscribe_NoOrphanDrainOnConcurrentClose(t *testing.T) {
 	}
 
 	close(start)
-	// Brief window so a chunk of Subscribe calls land before Close acquires
-	// subsMu and a chunk arrive after — the bug window is the post-Close
-	// arrivals, where the pre-fix drain goroutine parked forever.
-	time.Sleep(2 * time.Millisecond)
+
+	// Deterministically gate Close on the race window opening rather than a
+	// fixed pre-Close sleep. The meaningful #226 window is a subscriber that
+	// passed Subscribe's early ctx-check and ran addSubscriber (observable as
+	// a non-empty registry) — its drain goroutine is what Close's
+	// closeAllSubscribers (or Subscribe's own late ctx-check) must reap. A
+	// fixed sleep raced scheduler jitter under full-package parallel load:
+	// Close could cancel ctx before any goroutine reached addSubscriber, so
+	// every subscriber took the early rejection and the old
+	// subscribeErrCount==concurrentSubscribers guard fired spuriously (#356).
+	// Nothing drains the registry before Close, so once non-empty it stays
+	// non-empty until Close — no TOCTOU. With 100 concurrent subscribers,
+	// firing Close right after the first registration still leaves the bulk
+	// of the burst arriving post-Close, so the post-snapshot arrival path the
+	// test exists to cover stays well exercised.
+	windowOpened := func() bool {
+		sr.subsMu.Lock()
+		defer sr.subsMu.Unlock()
+		return len(sr.subscribers) > 0
+	}
+	waitFor(2*time.Second, windowOpened)
+	if !windowOpened() {
+		t.Fatal("race window never opened — no subscriber registered before Close")
+	}
+
 	if err := sr.Close(nil); err != nil {
 		t.Fatalf("Close returned error: %v", err)
 	}
 	wg.Wait()
-
-	// If every subscriber took the early-rejection path the race window the
-	// test exists to cover never opened — a future change to Subscribe that
-	// fires the ctx-check more aggressively would silently still pass.
-	if subscribeErrCount.Load() == concurrentSubscribers {
-		t.Fatal("race window never opened — every subscriber was early-rejected")
-	}
 
 	// Invariant 1 (eventually): every registered subscriber was detached.
 	// The drain goroutine runs onDetach in its defer, so the registry
