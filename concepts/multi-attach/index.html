@@ -1027,6 +1027,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#output-flow-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Flow Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#detachment" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1965,6 +1976,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#output-flow-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Flow Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#detachment" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2077,6 +2099,34 @@
 <p>Input from any attached client is forwarded to the terminal. If multiple clients send input simultaneously, it's interleaved.</p>
 <h3 id="output-broadcasting">Output Broadcasting<a class="headerlink" href="#output-broadcasting" title="Permanent link">&para;</a></h3>
 <p>Terminal output is broadcast to all attached clients. Each client receives a copy of all output.</p>
+<h3 id="output-flow-control">Output Flow Control<a class="headerlink" href="#output-flow-control" title="Permanent link">&para;</a></h3>
+<p>sbsh fans a terminal's PTY output to several consumers at once: every
+attached interactive client, the on-disk capture file, the live screen
+model (used for screenshots and attach repaint), and any passive
+<code>sb read</code> / <code>Subscribe</code> streams. These consumers drain at different
+speeds, so the fan-out applies two deliberately different policies when a
+consumer cannot keep up:</p>
+<ul>
+<li><strong>Interactive attachers are flow-controlled (backpressure).</strong> When an
+  attached terminal cannot render output as fast as the shell produces
+  it, sbsh slows the <em>producer</em> — the shell's <code>write()</code> blocks until the
+  terminal catches up, exactly as a process is paced by a real PTY. A
+  high-throughput command such as <code>cat /dev/urandom | hexdump</code> therefore
+  scrolls at the terminal's speed and is <strong>never</strong> disconnected for being
+  slow.</li>
+<li><strong>Passive observers are dropped on lag.</strong> A <code>sb read</code> / <code>Subscribe</code>
+  consumer must never be able to stall the live session. If it falls more
+  than a bounded amount behind, it is disconnected with a
+  <code>[sbsh: subscriber lagged, disconnecting]</code> sentinel rather than being
+  allowed to apply backpressure.</li>
+</ul>
+<p>This split is intentional. The interactive terminal <em>is</em> the session's
+output device and should pace the shell; a passive reader is an optional
+bystander whose slowness must not freeze the session for everyone else. A
+single paused or abandoned attacher likewise must not head-of-line-block
+the fan-out and freeze sibling attachers or the capture file. <strong>Do not
+collapse interactive attachers onto the drop-on-lag path</strong> — doing so
+disconnects a healthy interactive session the moment it runs a firehose.</p>
 <h3 id="detachment">Detachment<a class="headerlink" href="#detachment" title="Permanent link">&para;</a></h3>
 <p>When a client detaches, other clients remain attached. The terminal continues running independently.</p>
 <h2 id="discovery-across-machines">Discovery Across Machines<a class="headerlink" href="#discovery-across-machines" title="Permanent link">&para;</a></h2>
@@ -2121,7 +2171,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 18, 2026 17:15:20 UTC">April 18, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="May 22, 2026 11:48:37 UTC">May 22, 2026</span>
   </span>
 
     
