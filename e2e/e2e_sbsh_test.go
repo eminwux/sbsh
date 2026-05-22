@@ -33,6 +33,7 @@ func TestSbsh_Help(t *testing.T) {
 }
 
 func TestSbsh_Default(t *testing.T) {
+	requireBinaries(t, sb, sbsh)
 	runPath := newRunPath(t)
 
 	t.Cleanup(func() {
@@ -110,6 +111,7 @@ func TestSbsh_Default(t *testing.T) {
 }
 
 func TestSbsh_CustomId(t *testing.T) {
+	requireBinaries(t, sb, sbsh)
 	runPath := newRunPath(t)
 
 	t.Cleanup(func() {
@@ -187,6 +189,7 @@ func TestSbsh_CustomId(t *testing.T) {
 }
 
 func TestSbsh_Detach(t *testing.T) {
+	requireBinaries(t, sb, sbsh)
 	runPath := newRunPath(t)
 
 	t.Cleanup(func() {

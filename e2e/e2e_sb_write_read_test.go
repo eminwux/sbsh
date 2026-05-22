@@ -21,7 +21,6 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"testing"
 	"time"
@@ -32,6 +31,7 @@ import (
 // command's output appears in both the capture file (`sb read`) and the
 // live stream (`sb read -f`).
 func TestSb_WriteRead_Roundtrip(t *testing.T) {
+	requireBinaries(t, sb, sbsh)
 	runPath := newRunPath(t)
 
 	termName := "e2e-writeread"
@@ -128,14 +128,7 @@ func TestSb_Write_CaretParsingErrors(t *testing.T) {
 // output (e.g. `sb write`, which is quiet on success).
 func runSilentBinary(t *testing.T, env []string, command string, args ...string) {
 	t.Helper()
-	dir := os.Getenv("E2E_BIN_DIR")
-	if dir == "" {
-		dir = ".."
-	}
-	bin := filepath.Join(dir, command)
-	if _, err := os.Stat(bin); os.IsNotExist(err) {
-		t.Fatalf("binary %s not found", bin)
-	}
+	bin := resolveBinary(t, command)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, args...)
@@ -152,14 +145,7 @@ func runSilentBinary(t *testing.T, env []string, command string, args ...string)
 // instead of failing the test when the binary exits non-zero.
 func runExpectingFailure(t *testing.T, env []string, command string, args ...string) error {
 	t.Helper()
-	dir := os.Getenv("E2E_BIN_DIR")
-	if dir == "" {
-		dir = ".."
-	}
-	bin := filepath.Join(dir, command)
-	if _, err := os.Stat(bin); os.IsNotExist(err) {
-		t.Fatalf("binary %s not found", bin)
-	}
+	bin := resolveBinary(t, command)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, args...)
