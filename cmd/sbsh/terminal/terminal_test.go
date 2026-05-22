@@ -511,3 +511,349 @@ func Test_processSpec_RejectsWorkloadWithSpec(t *testing.T) {
 		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInvalidArgument, err)
 	}
 }
+
+func TestRunTerminal_ChildExitError(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctrl := &terminal.ControllerTest{
+		RunFunc:       func(_ *api.TerminalSpec) error { return errdefs.ErrChildExit },
+		WaitReadyFunc: func() error { return nil },
+		WaitCloseFunc: func() error { return errors.New("close failed") },
+	}
+
+	spec := api.TerminalSpec{
+		ID:      api.ID(naming.RandomID()),
+		Kind:    api.TerminalLocal,
+		Name:    naming.RandomName(),
+		Command: "/bin/bash",
+	}
+
+	done := make(chan error, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { done <- runTerminal(ctx, cancel, logger, ctrl, &spec) }()
+
+	select {
+	case err := <-done:
+		// runTerminal swallows child-exit errors to avoid polluting the
+		// terminal; it returns nil after exercising the WaitClose branch.
+		if err != nil {
+			t.Fatalf("expected nil (child-exit is swallowed); got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for runTerminal to return")
+	}
+}
+
+func Test_buildTerminalSpecFromFlags_RunPathRequired(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	// No run path set -> BuildTerminalSpecFromProfile rejects with ErrRunPathRequired.
+	cmd := NewTerminalCmd()
+	cmd.SetContext(context.Background())
+
+	spec, err := buildTerminalSpecFromFlags(cmd, logger, nil)
+	if err == nil {
+		t.Fatal("expected error when run path is empty")
+	}
+	if spec != nil {
+		t.Fatal("expected nil spec on error")
+	}
+}
+
+func Test_checkStdInUsage_RejectsConflictingFlags(t *testing.T) {
+	cmd := NewTerminalCmd()
+	if err := cmd.Flags().Set("name", "foo"); err != nil {
+		t.Fatalf("set name flag: %v", err)
+	}
+
+	err := checkStdInUsage(cmd, []string{"-"})
+	if err == nil {
+		t.Fatal("expected error when --name is used alongside stdin '-'")
+	}
+	if !errors.Is(err, errdefs.ErrInvalidFlag) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInvalidFlag, err)
+	}
+}
+
+func Test_checkStdInUsage_NoFlagsOK(t *testing.T) {
+	cmd := NewTerminalCmd()
+	if err := checkStdInUsage(cmd, []string{"-"}); err != nil {
+		t.Fatalf("expected nil when no conflicting flags set; got %v", err)
+	}
+}
+
+func Test_readGIDFlag(t *testing.T) {
+	const flagName = "socket-gid"
+	const envName = "SBSH_TEST_GID"
+
+	t.Run("flag changed wins", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		cmd.Flags().Int(flagName, -1, "")
+		if err := cmd.Flags().Set(flagName, "42"); err != nil {
+			t.Fatalf("set flag: %v", err)
+		}
+		got := readGIDFlag(cmd, flagName, envName)
+		if got == nil || *got != 42 {
+			t.Fatalf("expected 42; got %v", got)
+		}
+	})
+
+	t.Run("env used when flag unchanged", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		cmd.Flags().Int(flagName, -1, "")
+		t.Setenv(envName, "7")
+		got := readGIDFlag(cmd, flagName, envName)
+		if got == nil || *got != 7 {
+			t.Fatalf("expected 7; got %v", got)
+		}
+	})
+
+	t.Run("nil when neither set", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		cmd.Flags().Int(flagName, -1, "")
+		t.Setenv(envName, "")
+		if got := readGIDFlag(cmd, flagName, envName); got != nil {
+			t.Fatalf("expected nil; got %v", got)
+		}
+	})
+
+	t.Run("nil when env not parseable", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		cmd.Flags().Int(flagName, -1, "")
+		t.Setenv(envName, "not-a-number")
+		if got := readGIDFlag(cmd, flagName, envName); got != nil {
+			t.Fatalf("expected nil; got %v", got)
+		}
+	})
+}
+
+func Test_readGIDWrappers(t *testing.T) {
+	cmd := NewTerminalCmd()
+	if err := cmd.Flags().Set("socket-gid", "11"); err != nil {
+		t.Fatalf("set socket-gid: %v", err)
+	}
+	if err := cmd.Flags().Set("capture-gid", "12"); err != nil {
+		t.Fatalf("set capture-gid: %v", err)
+	}
+	if err := cmd.Flags().Set("log-file-gid", "13"); err != nil {
+		t.Fatalf("set log-file-gid: %v", err)
+	}
+
+	if got := readSocketGID(cmd); got == nil || *got != 11 {
+		t.Fatalf("readSocketGID: expected 11; got %v", got)
+	}
+	if got := readCaptureGID(cmd); got == nil || *got != 12 {
+		t.Fatalf("readCaptureGID: expected 12; got %v", got)
+	}
+	if got := readLogFileGID(cmd); got == nil || *got != 13 {
+		t.Fatalf("readLogFileGID: expected 13; got %v", got)
+	}
+}
+
+func Test_setLoggingVarsFromFlags_Defaults(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	runPath := t.TempDir()
+	viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
+
+	setLoggingVarsFromFlags()
+
+	if got := viper.GetString(config.SBSH_TERM_ID.ViperKey); got == "" {
+		t.Fatal("expected a generated terminal ID")
+	}
+	if got := viper.GetString(config.SBSH_TERM_LOG_LEVEL.ViperKey); got != "info" {
+		t.Fatalf("expected log level info; got %q", got)
+	}
+	if got := viper.GetString(config.SBSH_TERM_LOG_FILE.ViperKey); got == "" {
+		t.Fatal("expected a derived log file path")
+	}
+}
+
+func Test_buildTerminalSpecFromFlags_DefaultProfile(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, t.TempDir())
+	// Point profiles dir at an empty dir so the loader falls back to the
+	// hardcoded default profile rather than reading the caller's $HOME.
+	viper.Set(config.SBSH_ROOT_PROFILES_DIR.ViperKey, t.TempDir())
+
+	cmd := NewTerminalCmd()
+	cmd.SetContext(context.Background())
+
+	spec, err := buildTerminalSpecFromFlags(cmd, logger, []string{"/bin/echo", "hi"})
+	if err != nil {
+		t.Fatalf("buildTerminalSpecFromFlags() error = %v", err)
+	}
+	if spec == nil {
+		t.Fatal("expected non-nil spec")
+	}
+	if spec.Command != "/bin/echo" {
+		t.Fatalf("expected command /bin/echo from workload; got %q", spec.Command)
+	}
+}
+
+func Test_processSpec_BuildsFromFlags(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	runPath := t.TempDir()
+	viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
+	viper.Set(config.SBSH_ROOT_PROFILES_DIR.ViperKey, t.TempDir())
+	viper.Set(config.SBSH_TERM_LOG_FILE.ViperKey, filepath.Join(t.TempDir(), "term.log"))
+	viper.Set(config.SBSH_TERM_LOG_LEVEL.ViperKey, "info")
+
+	cmd := NewTerminalCmd()
+	cmd.SetContext(context.Background())
+
+	var spec *api.TerminalSpec
+	if err := processSpec(cmd, &spec, []string{"/bin/echo"}); err != nil {
+		t.Fatalf("processSpec() error = %v", err)
+	}
+	if spec == nil {
+		t.Fatal("expected spec to be built from flags")
+	}
+	if spec.Command != "/bin/echo" {
+		t.Fatalf("expected command /bin/echo; got %q", spec.Command)
+	}
+}
+
+func Test_TerminalCmd_PreRunE_BuildsSpecFromFlags(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, t.TempDir())
+	viper.Set(config.SBSH_ROOT_PROFILES_DIR.ViperKey, t.TempDir())
+	viper.Set(config.SBSH_TERM_LOG_FILE.ViperKey, filepath.Join(t.TempDir(), "term.log"))
+
+	cmd := NewTerminalCmd()
+	cmd.SetContext(context.Background())
+
+	if err := cmd.PreRunE(cmd, []string{}); err != nil {
+		t.Fatalf("PreRunE() error = %v", err)
+	}
+
+	spec, ok := cmd.Context().Value(types.CtxTerminalSpec).(*api.TerminalSpec)
+	if !ok || spec == nil {
+		t.Fatal("expected terminal spec to be stored in context after PreRunE")
+	}
+}
+
+func Test_TerminalCmd_PreRunE_FromFileSpec(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	logFile := filepath.Join(t.TempDir(), "term.log")
+	fileSpec := api.TerminalSpec{
+		ID:       api.ID("file-id"),
+		Kind:     api.TerminalLocal,
+		Name:     "file-name",
+		Command:  "/bin/bash",
+		LogFile:  logFile,
+		LogLevel: "info",
+	}
+	jsonData, err := json.Marshal(fileSpec)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	specFile := filepath.Join(t.TempDir(), "spec.json")
+	if err := os.WriteFile(specFile, jsonData, 0o600); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+	viper.Set(config.SBSH_TERM_SPEC.ViperKey, specFile)
+
+	cmd := NewTerminalCmd()
+	cmd.SetContext(context.Background())
+
+	if err := cmd.PreRunE(cmd, []string{}); err != nil {
+		t.Fatalf("PreRunE() error = %v", err)
+	}
+
+	spec, ok := cmd.Context().Value(types.CtxTerminalSpec).(*api.TerminalSpec)
+	if !ok || spec == nil {
+		t.Fatal("expected terminal spec from file in context")
+	}
+	if spec.ID != fileSpec.ID {
+		t.Fatalf("expected ID %q; got %q", fileSpec.ID, spec.ID)
+	}
+}
+
+func Test_TerminalCmd_PreRunE_InvalidArgErrors(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	cmd := NewTerminalCmd()
+	cmd.SetContext(context.Background())
+
+	err := cmd.PreRunE(cmd, []string{"bogus"})
+	if err == nil {
+		t.Fatal("expected error for invalid positional argument")
+	}
+	if !errors.Is(err, errdefs.ErrInvalidArgument) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrInvalidArgument, err)
+	}
+}
+
+func Test_TerminalCmd_PostRunE(t *testing.T) {
+	t.Run("nil closer is a no-op", func(t *testing.T) {
+		cmd := NewTerminalCmd()
+		cmd.SetContext(context.Background())
+		if err := cmd.PostRunE(cmd, []string{}); err != nil {
+			t.Fatalf("PostRunE() error = %v", err)
+		}
+	})
+
+	t.Run("closer is closed", func(t *testing.T) {
+		cmd := NewTerminalCmd()
+		c := &recordingCloser{}
+		ctx := context.WithValue(context.Background(), types.CtxCloser, io.Closer(c))
+		cmd.SetContext(ctx)
+		if err := cmd.PostRunE(cmd, []string{}); err != nil {
+			t.Fatalf("PostRunE() error = %v", err)
+		}
+		if !c.closed {
+			t.Fatal("expected closer to be closed")
+		}
+	})
+}
+
+type recordingCloser struct{ closed bool }
+
+func (r *recordingCloser) Close() error {
+	r.closed = true
+	return nil
+}
+
+func Test_setupTerminalCmdFlags_BindsFlags(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	cmd := &cobra.Command{Use: "terminal"}
+	setupTerminalCmdFlags(cmd)
+
+	cases := []struct {
+		flagName string
+		value    string
+		viperKey string
+	}{
+		{"id", "tid", config.SBSH_TERM_ID.ViperKey},
+		{"name", "tname", config.SBSH_TERM_NAME.ViperKey},
+		{"log-file", "/tmp/t.log", config.SBSH_TERM_LOG_FILE.ViperKey},
+		{"capture-file", "/tmp/c.log", config.SBSH_TERM_CAPTURE_FILE.ViperKey},
+		{"socket", "/tmp/t.sock", config.SBSH_TERM_SOCKET.ViperKey},
+	}
+	for _, tc := range cases {
+		t.Run(tc.flagName, func(t *testing.T) {
+			if err := cmd.Flags().Set(tc.flagName, tc.value); err != nil {
+				t.Fatalf("set %s: %v", tc.flagName, err)
+			}
+			if got := viper.GetString(tc.viperKey); got != tc.value {
+				t.Fatalf("viper key %s: expected %s, got %s", tc.viperKey, tc.value, got)
+			}
+		})
+	}
+}
