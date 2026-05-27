@@ -17,9 +17,12 @@
 package terminalrunner
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
+	"runtime"
+	"sync"
 	"time"
 
 	"github.com/eminwux/sbsh/pkg/api"
@@ -45,6 +48,50 @@ const defaultSocketMode os.FileMode = 0o600
 // flags, env vars, or profile blocks. Same contract shape as
 // defaultSocketMode for the control socket.
 const defaultArtifactMode os.FileMode = 0o600
+
+// listenerUmaskMu serializes the umask save/set/Listen/restore sequence
+// in listenUnixWithMode against in-package concurrent callers. umask(2)
+// is process-wide (it lives in the kernel's shared fs_struct on Linux),
+// so two concurrent OpenSocketCtrl callers without this mutex could
+// observe each other's temporary umask. The mutex does not isolate the
+// brief Listen window from file creations in *other* packages that
+// share this process — that's an inherent cost of using umask to plug
+// the bind-then-chmod EACCES window. The alternative (bind-on-side-path
+// then rename(2)) relies on a kernel quirk for AF_UNIX sockets and is
+// worse on portability and on the ENOENT-vs-EACCES dial-error story.
+//
+//nolint:gochecknoglobals // process-wide invariant guard, like the umask it serializes
+var listenerUmaskMu sync.Mutex
+
+// listenUnixWithMode binds an AF_UNIX listener with the process umask
+// temporarily set so the socket inode is born at the configured mode,
+// not at (0o666 & ~daemonUmask). This closes the bind-then-chmod
+// EACCES window in OpenSocketCtrl: pre-fix, the socket was briefly
+// reachable at the daemon's restrictive default (typically 0o600 under
+// a 0o077 umask), so a group-member client that dialed before
+// applySocketPerms landed hit EACCES even though the final post-chmod
+// state would have admitted it.
+//
+// runtime.LockOSThread pins the goroutine so the save/restore sequence
+// runs on a single OS thread; listenerUmaskMu serializes the temporary
+// umask against in-package concurrent callers. Callers should still
+// run applySocketPerms after this returns — the chmod becomes
+// idempotent at that point, but the chown still needs to apply when
+// SocketGID is set and the parent directory does not propagate gid.
+func listenUnixWithMode(ctx context.Context, socketFile string, mode os.FileMode) (net.Listener, error) {
+	if mode == 0 {
+		mode = defaultSocketMode
+	}
+	listenerUmaskMu.Lock()
+	defer listenerUmaskMu.Unlock()
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	//nolint:mnd // 0o777 is the standard permission-bit mask for umask(2)
+	prev := unix.Umask(int(^mode & 0o777))
+	defer unix.Umask(prev)
+	var lc net.ListenConfig
+	return lc.Listen(ctx, "unix", socketFile)
+}
 
 // applySocketPerms chmods (and optionally chowns the group of) the
 // control-socket inode after a listener has been bound to it. Called
@@ -169,9 +216,12 @@ func (sr *Exec) OpenSocketCtrl() error {
 		)
 	}
 
-	// Listen to CONTROL SOCKET
-	var lc net.ListenConfig
-	ctrlLn, errListen := lc.Listen(sr.ctx, "unix", socketFile)
+	// Listen to CONTROL SOCKET — bind with the umask set so the
+	// inode is born at socketMode and there is no window during
+	// which a group-member client dialing the socket hits EACCES
+	// because the daemon's umask masked off group access. See #361
+	// and listenUnixWithMode for the full rationale.
+	ctrlLn, errListen := listenUnixWithMode(sr.ctx, socketFile, socketMode)
 	if errListen != nil {
 		sr.logger.Error("OpenSocketCtrl: failed to listen", "socket", socketFile, "error", errListen)
 		return fmt.Errorf("listen ctrl: %w", errListen)
