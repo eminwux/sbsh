@@ -19,8 +19,10 @@ package clientrunner
 import (
 	"log/slog"
 	"os"
+	"syscall"
 	"time"
 
+	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
 
@@ -32,7 +34,6 @@ func (sr *Exec) toBashUIMode() error {
 		sr.logger.Error("toBashUIMode: failed to set raw mode", "error", err)
 		return err
 	}
-	// defer func() { _ = term.Restore(int(sr.stdin.Fd()), oldState) }()
 
 	sr.uiMode = UIBash
 	sr.lastTermState = lastTermState
@@ -40,12 +41,20 @@ func (sr *Exec) toBashUIMode() error {
 	return nil
 }
 
-// toClientUIMode: set terminal to COOKED for your REPL.
+// toExitShell: restore the terminal to its pre-attach (cooked) state.
+//
+// The restore ioctl is issued through SyscallConn().Control rather than
+// term.Restore(int(stdin.Fd()), …) on purpose: os.File.Fd() pulls the
+// descriptor out of the runtime poller and flips it to blocking mode, which
+// would defeat the deadline-based unblock of the stdin copier in
+// restoreParentTerminal. Control hands us the fd without disturbing the
+// poller registration. See issue #364.
 func (sr *Exec) toExitShell() error {
 	sr.logger.Debug("toExitShell: switching to cooked mode")
-	if sr.lastTermState != nil {
-		err := term.Restore(int(sr.stdin.Fd()), sr.lastTermState)
-		if err != nil {
+	if sr.lastTermState != nil && sr.stdin != nil {
+		if err := withRawFd(sr.stdin, func(fd int) error {
+			return term.Restore(fd, sr.lastTermState)
+		}); err != nil {
 			sr.logger.Error("toExitShell: failed to restore terminal state", "error", err)
 			return err
 		}
@@ -54,6 +63,53 @@ func (sr *Exec) toExitShell() error {
 	sr.uiMode = UIExitShell
 	sr.logger.Info("toExitShell: switched to exit shell UI mode")
 	return nil
+}
+
+// restoreParentTerminal performs a single, idempotent "unblock stdin + restore
+// tty" at the session boundary so the parent shell is always handed back a
+// usable terminal — on user detach, remote process exit, peer hangup, and
+// ctx cancellation alike. It is safe to call from every teardown path; the
+// sync.Once guarantees the body runs exactly once. See issue #364.
+func (sr *Exec) restoreParentTerminal() {
+	sr.restoreOnce.Do(func() {
+		sr.logger.Debug("restoreParentTerminal: beginning terminal restore")
+
+		// Cancel the context so the socket-side copier is unblocked by
+		// CopierManager (it sets read/write deadlines on the UnixConn on
+		// ctx.Done) and the copier loops observe shutdown.
+		sr.ctxCancel()
+
+		// Unblock the stdin->socket copier parked in sr.stdin.Read(). The
+		// descriptor is still registered with the runtime poller (raw mode was
+		// set via SyscallConn, never .Fd()), so a past read deadline interrupts
+		// the blocked read instead of leaking it until process exit.
+		if sr.stdin != nil {
+			if err := sr.stdin.SetReadDeadline(time.Now()); err != nil {
+				sr.logger.Debug("restoreParentTerminal: SetReadDeadline failed", "error", err)
+			}
+		}
+
+		// Wait for both copier goroutines to finish so nobody is mid-read when
+		// we hand the descriptor back to blocking mode.
+		if sr.copier != nil {
+			_ = sr.copier.Wait()
+		}
+
+		// Restore termios raw->cooked (still via SyscallConn, no .Fd()).
+		_ = sr.toExitShell()
+
+		// Return the descriptor to blocking mode, clearing the O_NONBLOCK leak
+		// that otherwise breaks the parent shell's read loop (golang/go#29137).
+		// .Fd() additionally removes it from the poller, which is the correct
+		// final state for a descriptor shared with the parent shell.
+		if sr.stdin != nil {
+			if err := syscall.SetNonblock(int(sr.stdin.Fd()), false); err != nil {
+				sr.logger.Debug("restoreParentTerminal: SetNonblock failed", "error", err)
+			}
+		}
+
+		sr.logger.Info("restoreParentTerminal: parent terminal restored")
+	})
 }
 
 func (sr *Exec) initTerminal() error {
@@ -89,11 +145,49 @@ func (sr *Exec) writeTerminal(input string) error {
 }
 
 func toRawMode(logger *slog.Logger, stdin *os.File) (*term.State, error) {
-	state, err := term.MakeRaw(int(stdin.Fd()))
+	var state *term.State
+	err := withRawFd(stdin, func(fd int) error {
+		var merr error
+		state, merr = term.MakeRaw(fd)
+		return merr
+	})
 	if err != nil {
 		logger.Error("toRawMode: failed to set raw mode", "error", err)
 		return nil, err
 	}
 	logger.Info("toRawMode: terminal set to raw mode")
 	return state, nil
+}
+
+// withRawFd invokes fn with stdin's underlying descriptor obtained through
+// SyscallConn().Control, which — unlike os.File.Fd() — leaves the descriptor
+// registered with the runtime poller and in non-blocking mode. Keeping the
+// descriptor pollable is what lets restoreParentTerminal interrupt the parked
+// stdin read via SetReadDeadline. See issue #364.
+func withRawFd(f *os.File, fn func(fd int) error) error {
+	rc, err := f.SyscallConn()
+	if err != nil {
+		return err
+	}
+	var inner error
+	if cerr := rc.Control(func(fd uintptr) { inner = fn(int(fd)) }); cerr != nil {
+		return cerr
+	}
+	return inner
+}
+
+// ttyGetsize reports the terminal window size for f without calling
+// os.File.Fd() (which would drop the descriptor from the runtime poller); see
+// withRawFd. It mirrors pty.Getsize's (rows, cols) result shape.
+func ttyGetsize(f *os.File) (int, int, error) {
+	var rows, cols int
+	gerr := withRawFd(f, func(fd int) error {
+		ws, ierr := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ)
+		if ierr != nil {
+			return ierr
+		}
+		rows, cols = int(ws.Row), int(ws.Col)
+		return nil
+	})
+	return rows, cols, gerr
 }
