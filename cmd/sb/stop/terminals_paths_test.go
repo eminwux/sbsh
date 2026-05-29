@@ -20,10 +20,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
+	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -86,6 +90,53 @@ func spawnSessionProc(t *testing.T, script string) (pid int, pidStart uint64, do
 		t.Fatalf("StartTime(%d): %v", pid, err)
 	}
 	return pid, pidStart, d
+}
+
+// waitForSignalIgnored blocks until the process at pid has installed SIG_IGN
+// for sig, as reported by the SigIgn bitmask in /proc/<pid>/status.
+//
+// A shell running `trap "" <SIG>` does not install that disposition
+// synchronously with fork: there is a startup window (fork → exec /bin/sh →
+// run the trap builtin) during which the process still carries the default
+// disposition. spawnSessionProc returns as soon as the PID exists, so a test
+// that hands the PID straight to stopOneTerminal races that window — if the
+// SIGTERM fallback lands before `trap "" TERM` is in place, the "stubborn"
+// process is killed and miscounted as stopped instead of failed. Gating on
+// the installed disposition closes the race deterministically without
+// perturbing the production stop contract.
+func waitForSignalIgnored(t *testing.T, pid int, sig syscall.Signal) {
+	t.Helper()
+	mask := uint64(1) << (uint(sig) - 1)
+	deadline := time.Now().Add(2 * time.Second)
+	var last uint64
+	for {
+		ign, err := readSigIgnMask(pid)
+		if err == nil {
+			last = ign
+			if ign&mask != 0 {
+				return
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for pid %d to ignore signal %d (SigIgn=%#016x)", pid, sig, last)
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+}
+
+// readSigIgnMask parses the SigIgn bitmask (ignored-signal set, hex) from
+// /proc/<pid>/status.
+func readSigIgnMask(pid int) (uint64, error) {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
+	if err != nil {
+		return 0, err
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if v, ok := strings.CutPrefix(line, "SigIgn:"); ok {
+			return strconv.ParseUint(strings.TrimSpace(v), 16, 64)
+		}
+	}
+	return 0, fmt.Errorf("SigIgn not found in /proc/%d/status", pid)
 }
 
 // Test_StopOneTerminal_RPCGraceful covers the graceful path: the controller
@@ -176,8 +227,14 @@ func Test_RunStopTerminals_AllAggregation(t *testing.T) {
 	writeStopTestTerminal(t, runPath, "id-dead", "dead", api.Ready, 0x7fffffff)
 
 	// Failing: traps SIGTERM and --kill-after is off, so it never exits within
-	// the short timeout → resultFailed.
+	// the short timeout → resultFailed. Wait until the shell has actually
+	// installed `trap "" TERM` before proceeding: spawnSessionProc returns as
+	// soon as the PID exists, but the SIGTERM-ignore disposition lands a beat
+	// later. Without this gate the SIGTERM fallback races the trap and
+	// occasionally kills the process, miscounting it as stopped (the flake in
+	// #363 — fast ~0.21s return, nil aggregated error).
 	failPid, _, _ := spawnSessionProc(t, `trap "" TERM; sleep 60`)
+	waitForSignalIgnored(t, failPid, syscall.SIGTERM)
 	writeStopTestTerminal(t, runPath, "id-fail", "stubborn", api.Ready, failPid)
 
 	opts := stopOpts{
