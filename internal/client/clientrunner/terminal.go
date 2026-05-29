@@ -65,6 +65,12 @@ func (sr *Exec) toExitShell() error {
 	return nil
 }
 
+// copierWaitTimeout bounds how long restoreParentTerminal waits for the copier
+// goroutines to drain. The socket->stdout copier unblocks near-instantly via
+// the ctx-cancel deadline on the UnixConn; the ceiling exists only so an
+// uninterruptible stdin read (see restoreParentTerminal) cannot wedge teardown.
+const copierWaitTimeout = 500 * time.Millisecond
+
 // restoreParentTerminal performs a single, idempotent "unblock stdin + restore
 // tty" at the session boundary so the parent shell is always handed back a
 // usable terminal — on user detach, remote process exit, peer hangup, and
@@ -79,20 +85,38 @@ func (sr *Exec) restoreParentTerminal() {
 		// ctx.Done) and the copier loops observe shutdown.
 		sr.ctxCancel()
 
-		// Unblock the stdin->socket copier parked in sr.stdin.Read(). The
-		// descriptor is still registered with the runtime poller (raw mode was
-		// set via SyscallConn, never .Fd()), so a past read deadline interrupts
-		// the blocked read instead of leaking it until process exit.
+		// Best-effort unblock of the stdin->socket copier parked in
+		// sr.stdin.Read(). This works only when the descriptor is pollable — a
+		// freshly-opened *os.File over the tty. The real attach path reads
+		// os.Stdin, which the Go runtime constructs non-pollable (it is not
+		// registered with the runtime poller regardless of how the fd is later
+		// accessed), so SetReadDeadline is a no-op there and the parked read
+		// cannot be interrupted. The bounded wait below is what keeps that case
+		// from wedging teardown.
 		if sr.stdin != nil {
 			if err := sr.stdin.SetReadDeadline(time.Now()); err != nil {
 				sr.logger.Debug("restoreParentTerminal: SetReadDeadline failed", "error", err)
 			}
 		}
 
-		// Wait for both copier goroutines to finish so nobody is mid-read when
-		// we hand the descriptor back to blocking mode.
+		// Wait for the copier goroutines to drain so nobody is mid-read when we
+		// hand the descriptor back to blocking mode — but bound it. The
+		// socket->stdout copier exits promptly on ctx-cancel; the stdin->socket
+		// copier may be parked in an uninterruptible os.Stdin.Read() (see above)
+		// that only process exit reaps. Blocking unconditionally on it hangs
+		// every teardown path (#364 e2e detach/exit timeouts). The leaked reader
+		// is harmless: the process exits immediately after restore.
 		if sr.copier != nil {
-			_ = sr.copier.Wait()
+			done := make(chan struct{})
+			go func() {
+				_ = sr.copier.Wait()
+				close(done)
+			}()
+			select {
+			case <-done:
+			case <-time.After(copierWaitTimeout):
+				sr.logger.Debug("restoreParentTerminal: copier wait timed out; proceeding with restore")
+			}
 		}
 
 		// Restore termios raw->cooked (still via SyscallConn, no .Fd()).
