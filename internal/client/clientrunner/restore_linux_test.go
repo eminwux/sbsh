@@ -18,8 +18,10 @@ package clientrunner
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -158,6 +160,72 @@ func TestRestore_OnDetach(t *testing.T) {
 		t.Fatalf("Detach: %v", err)
 	}
 	assertRestored(t, tty)
+}
+
+// assertNormalizeEmitted reads everything still in r and checks that the
+// output-side normalization escape (leave alt-screen, show cursor, reset
+// cursor style) was written by restoreParentTerminal. The caller closes the
+// pipe writer before calling so ReadAll terminates on EOF.
+func assertNormalizeEmitted(t *testing.T, r *os.File) {
+	t.Helper()
+	buf, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	out := string(buf)
+	for _, want := range []string{"\x1b[?1049l", "\x1b[?25h", "\x1b[0 q"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing normalization escape %q in stdout %q", want, out)
+		}
+	}
+}
+
+// TestRestore_EmitsOutputNormalize_OnProcessExit asserts that the
+// spawned-process-exit teardown path writes the output-side normalization
+// escape to the parent terminal: leave alt-screen, show cursor, reset cursor
+// style. Regression for issue #365.
+func TestRestore_EmitsOutputNormalize_OnProcessExit(t *testing.T) {
+	sr, _ := newAttachedExec(t)
+
+	r, w, errPipe := os.Pipe()
+	if errPipe != nil {
+		t.Fatalf("Pipe: %v", errPipe)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+	sr.stdout = w
+
+	sockPath := filepath.Join(t.TempDir(), "ctrl.sock")
+	if errSeed := os.WriteFile(sockPath, []byte{}, 0o600); errSeed != nil {
+		t.Fatalf("seed socket file: %v", errSeed)
+	}
+	sr.metadata.Spec.SockerCtrl = sockPath
+
+	if errClose := sr.Close(nil); errClose != nil {
+		t.Fatalf("Close: %v", errClose)
+	}
+	_ = w.Close()
+	assertNormalizeEmitted(t, r)
+}
+
+// TestRestore_EmitsOutputNormalize_OnDetach asserts the user-detach teardown
+// path writes the output-side normalization escape, independently of the
+// Close()/EvError path. Regression for issue #365.
+func TestRestore_EmitsOutputNormalize_OnDetach(t *testing.T) {
+	sr, _ := newAttachedExec(t)
+	sr.terminalClient = &mockTerminalClient{}
+
+	r, w, errPipe := os.Pipe()
+	if errPipe != nil {
+		t.Fatalf("Pipe: %v", errPipe)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+	sr.stdout = w
+
+	if errDetach := sr.Detach(); errDetach != nil {
+		t.Fatalf("Detach: %v", errDetach)
+	}
+	_ = w.Close()
+	assertNormalizeEmitted(t, r)
 }
 
 // TestRestore_Idempotent asserts the restore runs exactly once even when both

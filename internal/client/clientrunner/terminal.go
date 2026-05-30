@@ -71,6 +71,18 @@ func (sr *Exec) toExitShell() error {
 // uninterruptible stdin read (see restoreParentTerminal) cannot wedge teardown.
 const copierWaitTimeout = 500 * time.Millisecond
 
+// escRestoreParentTerm normalizes the parent terminal's output-side DEC private
+// mode state on session teardown: leave the alternate-screen buffer, show the
+// cursor, and reset the cursor style to the terminal default. Symmetric with
+// the modes the server-side attach repaint may set (escEnterAltScreen /
+// escHideCursor in internal/terminal/terminalrunner/terminal_screen.go) and
+// with anything a TUI/shell on the remote side wrote through to the parent
+// terminal without a matching reset. Emitted unconditionally per #365 — the
+// client cannot rely on the remote side emitting a matching reset on its own.
+const escRestoreParentTerm = "\x1b[?1049l" + // leave the alternate screen buffer
+	"\x1b[?25h" + // make the cursor visible
+	"\x1b[0 q" // reset cursor style (DECSCUSR) to terminal default
+
 // restoreParentTerminal performs a single, idempotent "unblock stdin + restore
 // tty" at the session boundary so the parent shell is always handed back a
 // usable terminal — on user detach, remote process exit, peer hangup, and
@@ -116,6 +128,19 @@ func (sr *Exec) restoreParentTerminal() {
 			case <-done:
 			case <-time.After(copierWaitTimeout):
 				sr.logger.Debug("restoreParentTerminal: copier wait timed out; proceeding with restore")
+			}
+		}
+
+		// Normalize the parent terminal's output-side DEC private mode state
+		// (alt-screen, cursor visibility, cursor style) before handing the
+		// terminal back. Runs after the copier wait so we do not race the
+		// socket->stdout copier still draining remote bytes, and before the
+		// termios restore — these are escape bytes interpreted by the parent
+		// terminal emulator, not line-discipline input, so the active termios
+		// mode does not affect them. See issue #365.
+		if sr.stdout != nil {
+			if _, err := sr.stdout.WriteString(escRestoreParentTerm); err != nil {
+				sr.logger.Debug("restoreParentTerminal: write normalize sequence failed", "error", err)
 			}
 		}
 
