@@ -130,6 +130,15 @@ func (sr *Copier) readWriteBytes(r io.Reader, w io.Writer, f filter.Filter) erro
 	return nil
 }
 
+// Wait blocks until both copier goroutines started via RunCopier have
+// returned, yielding the first non-nil error (if any). It is safe to call
+// concurrently with CopierManager, which waits on the same errgroup; callers
+// use it at teardown to ensure no goroutine is mid-read before reclaiming the
+// underlying descriptors.
+func (sr *Copier) Wait() error {
+	return sr.errGroup.Wait()
+}
+
 func (sr *Copier) CopierManager(uc *net.UnixConn, finish func()) {
 	errGroup := make(chan error, 1)
 	go func() {

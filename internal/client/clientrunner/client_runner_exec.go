@@ -23,6 +23,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/eminwux/sbsh/internal/dualcopier"
 	"github.com/eminwux/sbsh/pkg/api"
 	"github.com/eminwux/sbsh/pkg/rpcclient/terminal"
 	"golang.org/x/term"
@@ -39,6 +40,14 @@ type Exec struct {
 
 	uiMode        UIMode
 	lastTermState *term.State
+
+	// copier drives the stdin<->socket I/O for the attached session; it is
+	// retained so restoreParentTerminal can wait for both copier goroutines to
+	// exit before returning the stdin descriptor to blocking mode.
+	copier *dualcopier.Copier
+	// restoreOnce guarantees the parent-terminal restore runs exactly once
+	// across the detach, process-exit, peer-hangup, and ctx-cancel paths.
+	restoreOnce sync.Once
 
 	// stdin/stdout/stderr are the user-facing terminal handles. They
 	// default to os.Stdin/Stdout/Stderr but can be overridden by

@@ -27,7 +27,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/creack/pty"
 	"github.com/eminwux/sbsh/internal/dualcopier"
 	"github.com/eminwux/sbsh/internal/filter"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -75,6 +74,7 @@ func (sr *Exec) startConnectionManager() error {
 	}
 
 	dc := dualcopier.NewCopier(sr.ctx, sr.logger)
+	sr.copier = dc
 
 	// Only create escape filter if detach keystroke is enabled
 	var escapeFilter filter.Filter
@@ -174,7 +174,7 @@ func (sr *Exec) attach() error {
 
 func (sr *Exec) forwardResize() error {
 	// Send initial size once (use the client's TTY: sr.stdin)
-	if rows, cols, errSize := pty.Getsize(sr.stdin); errSize == nil {
+	if rows, cols, errSize := ttyGetsize(sr.stdin); errSize == nil {
 		const resizeTimeout = 100 * time.Millisecond
 		ctx, cancel := context.WithTimeout(sr.ctx, resizeTimeout)
 		defer cancel()
@@ -200,7 +200,7 @@ func (sr *Exec) forwardResize() error {
 				return
 			case <-ch:
 				// Query current terminal size again on every WINCH
-				rows, cols, err := pty.Getsize(sr.stdin)
+				rows, cols, err := ttyGetsize(sr.stdin)
 				if err != nil {
 					sr.logger.WarnContext(sr.ctx, "forwardResize: Getsize failed", "error", err)
 					continue

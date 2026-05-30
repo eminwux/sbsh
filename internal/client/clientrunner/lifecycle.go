@@ -189,7 +189,7 @@ func (sr *Exec) Close(_ error) error {
 		}
 	}
 
-	_ = sr.toExitShell()
+	sr.restoreParentTerminal()
 	sr.logger.Debug("Close: cleanup complete")
 
 	sr.metadataMu.Lock()
@@ -216,9 +216,14 @@ func (sr *Exec) Detach() error {
 	}
 
 	sr.logger.Info("Client detached", "client_id", sr.id)
-	if _, err := sr.stdout.WriteString("\x1b[93m\r\nDetached\x1b[0m\r\n"); err != nil {
-		sr.logger.Warn("Failed to write detach message to stdout", "error", err)
-		return err
+	// Write the confirmation while still in raw mode (explicit \r\n), then
+	// restore the parent terminal unconditionally — the detach path must not
+	// rely on Close() being driven later via the conn-close EvError. See #364.
+	_, werr := sr.stdout.WriteString("\x1b[93m\r\nDetached\x1b[0m\r\n")
+	sr.restoreParentTerminal()
+	if werr != nil {
+		sr.logger.Warn("Failed to write detach message to stdout", "error", werr)
+		return werr
 	}
 
 	return nil
