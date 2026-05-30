@@ -71,11 +71,25 @@ func (sr *Exec) toExitShell() error {
 // uninterruptible stdin read (see restoreParentTerminal) cannot wedge teardown.
 const copierWaitTimeout = 500 * time.Millisecond
 
-// restoreParentTerminal performs a single, idempotent "unblock stdin + restore
-// tty" at the session boundary so the parent shell is always handed back a
-// usable terminal — on user detach, remote process exit, peer hangup, and
-// ctx cancellation alike. It is safe to call from every teardown path; the
-// sync.Once guarantees the body runs exactly once. See issue #364.
+// parentTerminalReset is the output-side normalization the client writes to
+// the parent terminal on every teardown path so a TUI's hide-cursor /
+// alt-screen / cursor-style mutations do not survive the session. The bytes
+// are pure DEC private-mode resets and are interpreted by the user's terminal
+// emulator independent of termios cooked/raw state, so the write can happen
+// before the termios restore. Symmetric with the modes the server-side
+// repaint can enter (see escEnterAltScreen / escShowCursor in
+// internal/terminal/terminalrunner/terminal_screen.go). See issue #365.
+const parentTerminalReset = "\x1b[?25h" + // show the cursor (DECTCEM)
+	"\x1b[0 q" + // reset cursor style to terminal default (DECSCUSR 0)
+	"\x1b[?1049l" // leave the alternate-screen buffer
+
+// restoreParentTerminal performs a single, idempotent "unblock stdin + reset
+// output-side modes + restore tty" at the session boundary so the parent
+// shell is always handed back a usable terminal — on user detach, remote
+// process exit, peer hangup, and ctx cancellation alike. It is safe to call
+// from every teardown path; the sync.Once guarantees the body runs exactly
+// once. See issues #364 (input-side stdin/termios) and #365 (output-side
+// cursor / alt-screen).
 func (sr *Exec) restoreParentTerminal() {
 	sr.restoreOnce.Do(func() {
 		sr.logger.Debug("restoreParentTerminal: beginning terminal restore")
@@ -116,6 +130,18 @@ func (sr *Exec) restoreParentTerminal() {
 			case <-done:
 			case <-time.After(copierWaitTimeout):
 				sr.logger.Debug("restoreParentTerminal: copier wait timed out; proceeding with restore")
+			}
+		}
+
+		// Write the output-side reset before the termios restore so the parent
+		// terminal is normalized even if the remote side never emitted a matching
+		// show-cursor / leave-alt-screen (TUI hides cursor, attach repaint may
+		// have entered the alt-screen, DECSCUSR may have changed the cursor
+		// style). Best-effort: a closed/unreachable parent tty is no worse than
+		// the pre-fix behavior.
+		if sr.stdout != nil {
+			if _, err := sr.stdout.WriteString(parentTerminalReset); err != nil {
+				sr.logger.Debug("restoreParentTerminal: parent terminal reset write failed", "error", err)
 			}
 		}
 
