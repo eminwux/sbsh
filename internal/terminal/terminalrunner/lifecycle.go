@@ -527,9 +527,15 @@ func (sr *Exec) PostAttachShell() error {
 
 	sr.logger.Info("PostAttachShell: updating terminal state to post attach", "id", sr.id)
 
+	// Attach-time metadata writes are best-effort: metadata.json is an
+	// observability/reconnect artifact, not the source of truth for the
+	// live PTY, and aborting attach on a persistence failure (ENOSPC,
+	// perm-denied) leaves a healthy terminal unreachable. The error is
+	// already actionably logged by noteMetadataWriteErr; demote the
+	// return so the attach proceeds. updateTerminalState's write-first
+	// commit guarantees no strand on in-memory state. See #345, #373.
 	if err := sr.updateTerminalState(api.PostAttach); err != nil {
-		sr.logger.Error("failed to update terminal state on post attach", "id", sr.id, "err", err)
-		return fmt.Errorf("failed to update terminal state on post attach: %w", err)
+		sr.logger.Warn("PostAttachShell: state write failed, continuing", "id", sr.id, "err", err)
 	}
 
 	if err := sr.writeStage(&sr.metadata.Spec.Stages.PostAttach); err != nil {
@@ -537,8 +543,7 @@ func (sr *Exec) PostAttachShell() error {
 	}
 
 	if err := sr.updateTerminalState(api.Ready); err != nil {
-		sr.logger.Error("failed to update terminal state on ready", "id", sr.id, "err", err)
-		return fmt.Errorf("failed to update terminal state on ready: %w", err)
+		sr.logger.Warn("PostAttachShell: state write failed, continuing", "id", sr.id, "err", err)
 	}
 	return nil
 }

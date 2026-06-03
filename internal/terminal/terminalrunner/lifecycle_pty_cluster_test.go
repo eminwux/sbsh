@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eminwux/sbsh/internal/defaults"
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
@@ -392,6 +393,61 @@ func TestPostAttachShellCtxCancelled(t *testing.T) {
 
 	if err := sr.PostAttachShell(); err == nil {
 		t.Fatal("expected PostAttachShell to return the context error")
+	}
+}
+
+// PostAttachShell must remain best-effort against transient metadata-write
+// failures: after a write fails mid-flow (e.g. ENOSPC on the embedder's
+// terminal dir), a subsequent attach with the failure cleared must still
+// reach Ready. Pre-fix, the in-memory state stranded at PostAttach made
+// `for State != Ready` spin until the client's context deadline on every
+// future attach. See #373.
+func TestPostAttachShell_RecoversAfterTransientWriteFailure(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses directory DAC, so a non-writable dir cannot deny the write")
+	}
+
+	runPath := t.TempDir()
+	id := api.ID("term-postattach-recover")
+	dir := filepath.Join(runPath, defaults.TerminalsRunPath, string(id))
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("mkdir terminal dir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+
+	sr := newBareExec(t)
+	sr.id = id
+	sr.metadata.Spec.ID = id
+	sr.metadata.Spec.RunPath = runPath
+	if err := sr.updateTerminalState(api.Ready); err != nil {
+		t.Fatalf("updateTerminalState(Ready) preflight: %v", err)
+	}
+
+	// Trigger the ENOSPC-equivalent: dir not writable.
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatalf("chmod terminal dir: %v", err)
+	}
+
+	// Attach-time metadata writes are best-effort: PostAttachShell returns
+	// nil despite the inner write failures.
+	if err := sr.PostAttachShell(); err != nil {
+		t.Fatalf("PostAttachShell during write failure = %v, want nil (best-effort)", err)
+	}
+	// In-memory state must remain Ready — not stranded at PostAttach.
+	if doc, _ := sr.Metadata(); doc.Status.State != api.Ready {
+		t.Fatalf("State after failing PostAttachShell = %v, want unchanged Ready", doc.Status.State)
+	}
+
+	// Restore writability; a subsequent PostAttachShell must reach Ready
+	// (pre-fix it would spin forever because State was stuck at PostAttach).
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatalf("restore chmod: %v", err)
+	}
+	if err := sr.PostAttachShell(); err != nil {
+		t.Fatalf("PostAttachShell after restore: %v", err)
+	}
+	if doc, _ := sr.Metadata(); doc.Status.State != api.Ready {
+		t.Fatalf("Final State = %v, want Ready", doc.Status.State)
 	}
 }
 
