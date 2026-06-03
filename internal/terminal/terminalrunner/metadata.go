@@ -158,15 +158,29 @@ func (sr *Exec) noteMetadataWriteErr(where string, err error) {
 	sr.logger.Warn("failed to update metadata on close", "id", sr.id, "where", where, "err", err)
 }
 
+// updateTerminalState advances the persisted Status.State by writing the new
+// state to disk first and committing it in-memory only on a successful
+// persist. The in-memory commit is gated on the write so a transient
+// persistence failure (ENOSPC, perm-denied — #345, #373) cannot strand
+// Status.State at an intermediate value (e.g. PostAttach) that no future
+// caller can advance past — `PostAttachShell`'s `for State != Ready` spin
+// would then deadlock every subsequent attach until the runner is
+// recreated. See #373.
 func (sr *Exec) updateTerminalState(status api.TerminalStatusMode) error {
-	sr.metadataMu.Lock()
-	sr.metadata.Status.State = status
-	sr.metadataMu.Unlock()
+	sr.metadataMu.RLock()
+	metadataCopy := sr.metadata
+	dir, _ := resolveMetadataDir(sr.metadata.Spec.RunPath, sr.metadata.Spec.MetadataDir, sr.id)
+	sr.metadataMu.RUnlock()
+	metadataCopy.Status.State = status
 
-	if err := sr.updateMetadata(); err != nil {
+	if err := shared.WriteMetadata(sr.ctx, metadataCopy, dir); err != nil {
 		sr.noteMetadataWriteErr("updateTerminalState", err)
 		return err
 	}
+
+	sr.metadataMu.Lock()
+	sr.metadata.Status.State = status
+	sr.metadataMu.Unlock()
 	return nil
 }
 

@@ -229,6 +229,54 @@ func TestUpdateTerminalState_WriteFailure(t *testing.T) {
 	}
 }
 
+// updateTerminalState's write-first-then-commit ordering must not strand
+// Status.State at an intermediate value when the disk write fails: a
+// stranded PostAttach value would deadlock PostAttachShell's
+// `for State != Ready` spin on every subsequent attach until the runner
+// is recreated. See #373.
+func TestUpdateTerminalState_WriteFailure_DoesNotStrandInMemory(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses directory DAC, so a non-writable dir cannot deny the write")
+	}
+
+	runPath := t.TempDir()
+	id := api.ID("term-strand")
+	dir := filepath.Join(runPath, defaults.TerminalsRunPath, string(id))
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("mkdir terminal dir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+
+	sr := newMetadataExec(t, runPath, "", id)
+	// Reach Ready while the dir is still writable.
+	if err := sr.updateTerminalState(api.Ready); err != nil {
+		t.Fatalf("updateTerminalState(Ready) preflight: %v", err)
+	}
+
+	// Now make the next write fail.
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatalf("chmod terminal dir: %v", err)
+	}
+
+	if err := sr.updateTerminalState(api.PostAttach); err == nil {
+		t.Fatal("updateTerminalState(PostAttach): want write error on un-writable dir, got nil")
+	}
+	if doc, _ := sr.Metadata(); doc.Status.State != api.Ready {
+		t.Fatalf("in-memory state stranded at %v on write failure; want unchanged Ready", doc.Status.State)
+	}
+
+	// Restore writability — subsequent updates must still advance.
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatalf("restore chmod: %v", err)
+	}
+	if err := sr.updateTerminalState(api.PostAttach); err != nil {
+		t.Fatalf("updateTerminalState(PostAttach) after restore: %v", err)
+	}
+	if doc, _ := sr.Metadata(); doc.Status.State != api.PostAttach {
+		t.Fatalf("state after successful retry = %v, want PostAttach", doc.Status.State)
+	}
+}
+
 // When create and close run under different uids the terminal dir is not
 // writable by the closing uid, so every close/cleanup hook's metadata write is
 // denied. The close path must surface this once, actionably, instead of
