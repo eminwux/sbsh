@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -35,17 +36,36 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-// sleeperBinary writes an executable shell script that sleeps regardless of
-// the argv the handle constructs (NewClient/NewTerminal append their own
-// attach/terminal args, so a real /bin/sleep would reject them and exit). It
-// stands in for a long-lived sb child whose control socket never appears.
+// sharedSleeperPath is the package-shared path to a sleeper.sh script that
+// sleeps regardless of the argv the handle constructs (NewClient/NewTerminal
+// append their own attach/terminal args, so a real /bin/sleep would reject
+// them and exit). Written once in TestMain before any test runs; see #376 —
+// per-test os.WriteFile of an executable then fork+exec from sibling parallel
+// goroutines races on the kernel's writer-FD check and surfaces as ETXTBSY.
+var sharedSleeperPath string
+
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "spawn-test-sleeper-")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "spawn tests: create sleeper tempdir: %v\n", err)
+		os.Exit(1)
+	}
+	sharedSleeperPath = filepath.Join(dir, "sleeper.sh")
+	if err := os.WriteFile(sharedSleeperPath, []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "spawn tests: write sleeper: %v\n", err)
+		_ = os.RemoveAll(dir)
+		os.Exit(1)
+	}
+	code := m.Run()
+	_ = os.RemoveAll(dir)
+	os.Exit(code)
+}
+
+// sleeperBinary returns the package-shared sleeper.sh path written once in
+// TestMain. See sharedSleeperPath's docstring for the rationale.
 func sleeperBinary(t *testing.T) string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "sleeper.sh")
-	if err := os.WriteFile(path, []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); err != nil {
-		t.Fatalf("write sleeper: %v", err)
-	}
-	return path
+	return sharedSleeperPath
 }
 
 // TestClientHandle_Close_NoSocketEscalates spawns a long-lived child whose
