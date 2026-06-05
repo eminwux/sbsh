@@ -19,6 +19,7 @@ package sbsh
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -437,6 +438,123 @@ func TestRunTerminal_SuccessWithNilError(t *testing.T) {
 	case err := <-done:
 		if err != nil {
 			t.Fatalf("expected nil error; got: '%v'", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for runClient to return")
+	}
+}
+
+// TestRunTerminal_CleanDetach asserts runClient swallows the error chain
+// Controller.Run produces on operator-initiated detach (ErrCloseReq wrapping
+// ErrClientDetached wrapping the dual-copier exit cause) — without this,
+// cobra prints "Error: child routine exited: close requested: client detached: …"
+// to stderr immediately after the yellow "Detached" line. See issue #380.
+func TestRunTerminal_CleanDetach(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	runErr := fmt.Errorf("%w: %w: %w",
+		errdefs.ErrCloseReq,
+		errdefs.ErrClientDetached,
+		errors.New("read/write routines exited"),
+	)
+	newClientController := func(_ context.Context) api.ClientController {
+		return &client.ControllerTest{
+			RunFunc:       func(_ *api.ClientDoc) error { return runErr },
+			WaitReadyFunc: func() error { return nil },
+			WaitCloseFunc: func() error { return nil },
+			StartFunc:     func() error { return nil },
+		}
+	}
+
+	ctrl := newClientController(context.Background())
+	t.Cleanup(func() {})
+
+	doc := &api.ClientDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
+			Name:        naming.RandomName(),
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.ClientSpec{
+			ID:           api.ID(naming.RandomID()),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+			TerminalSpec: nil,
+		},
+	}
+
+	done := make(chan error)
+	defer close(done)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		done <- runClient(ctx, cancel, logger, ctrl, doc)
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("expected nil on clean detach; got: '%v'", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for runClient to return")
+	}
+}
+
+// TestRunTerminal_CleanPeerClosed asserts runClient swallows the chain
+// Controller.Run produces on a clean remote-side workload exit (ErrCloseReq
+// wrapping ErrPeerClosed) — symmetric to the detach path, so a normal
+// `exit 0` from the shell does not print "Error: …" either. See issue #380.
+func TestRunTerminal_CleanPeerClosed(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	runErr := fmt.Errorf("%w: %w: %w",
+		errdefs.ErrCloseReq,
+		errdefs.ErrPeerClosed,
+		errors.New("read/write routines exited"),
+	)
+	newClientController := func(_ context.Context) api.ClientController {
+		return &client.ControllerTest{
+			RunFunc:       func(_ *api.ClientDoc) error { return runErr },
+			WaitReadyFunc: func() error { return nil },
+			WaitCloseFunc: func() error { return nil },
+			StartFunc:     func() error { return nil },
+		}
+	}
+
+	ctrl := newClientController(context.Background())
+	t.Cleanup(func() {})
+
+	doc := &api.ClientDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
+			Name:        naming.RandomName(),
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.ClientSpec{
+			ID:           api.ID(naming.RandomID()),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+			TerminalSpec: nil,
+		},
+	}
+
+	done := make(chan error)
+	defer close(done)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		done <- runClient(ctx, cancel, logger, ctrl, doc)
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("expected nil on clean peer-close; got: '%v'", err)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for runClient to return")

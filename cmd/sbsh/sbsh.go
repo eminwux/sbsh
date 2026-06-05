@@ -524,7 +524,7 @@ func runClient(
 
 	case err := <-errCh:
 		logger.DebugContext(ctx, "controller stopped", "error", err)
-		if err != nil && !errors.Is(err, context.Canceled) {
+		if err != nil && !isCleanSessionEnd(err) {
 			err = fmt.Errorf("%w: %w", errdefs.ErrChildExit, err)
 			if errC := ctrl.WaitClose(); errC != nil {
 				err = fmt.Errorf("%w: %w: %w", err, errdefs.ErrWaitOnClose, errC)
@@ -534,6 +534,21 @@ func runClient(
 		}
 	}
 	return nil
+}
+
+// isCleanSessionEnd reports whether err signals an end-of-session that
+// runClient must swallow rather than surface to cobra as `Error: …`:
+// context cancellation, an operator-initiated detach (errdefs.ErrClientDetached
+// — chained on the close cause by Controller.classifySessionEnd when
+// detachRequested is set), or the remote workload closing the IO
+// connection on a clean exit (errdefs.ErrPeerClosed). Mirrors pkg/attach.Run's
+// classifySessionEnd remap and cmd/sb/attach's nil-return on those
+// public sentinels; sbsh consumes the controller directly so the swallow
+// has to live here. See issue #380.
+func isCleanSessionEnd(err error) bool {
+	return errors.Is(err, context.Canceled) ||
+		errors.Is(err, errdefs.ErrClientDetached) ||
+		errors.Is(err, errdefs.ErrPeerClosed)
 }
 
 // readRootSocketGID resolves --terminal-socket-gid: explicit flag wins,
