@@ -2,7 +2,9 @@ apiVersion: kuketeams.io/v1
 kind: ProjectTeam
 metadata: { name: sbsh }
 spec:
-  source: eminwux/agents@v0.2.0
+  source:
+    repo: github.com/eminwux/agents
+    branch: main
   defaults: { harnesses: [claude, opencode] }
   roles:
     - { ref: dev, needs: { image: [go] } }
