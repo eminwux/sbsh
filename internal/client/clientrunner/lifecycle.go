@@ -189,7 +189,7 @@ func (sr *Exec) Close(_ error) error {
 		}
 	}
 
-	sr.restoreParentTerminal()
+	sr.restoreParentTerminal("")
 	sr.logger.Debug("Close: cleanup complete")
 
 	sr.metadataMu.Lock()
@@ -211,20 +211,26 @@ func (sr *Exec) Resize(_ api.ResizeArgs) {
 }
 
 func (sr *Exec) Detach() error {
+	// The user has committed to leaving by pressing ^]^]; the local parent-terminal
+	// restore is non-negotiable once we are here. Restore on every exit path —
+	// including a failed Detach RPC (broken control socket, server crash mid-RPC,
+	// RPC timeout) — rather than relying on Close() being driven later via the
+	// conn-close EvError, which is not guaranteed to fire on the same tick. See
+	// issues #364 and #383.
 	if err := sr.terminalClient.Detach(sr.ctx, &sr.id); err != nil {
+		sr.logger.Warn("Detach RPC failed; restoring parent terminal anyway", "client_id", sr.id, "error", err)
+		// Suppress the "Detached" banner — it would be misleading when the RPC
+		// failed — but the restore still runs. See #383.
+		sr.restoreParentTerminal("")
 		return err
 	}
 
 	sr.logger.Info("Client detached", "client_id", sr.id)
-	// Write the confirmation while still in raw mode (explicit \r\n), then
-	// restore the parent terminal unconditionally — the detach path must not
-	// rely on Close() being driven later via the conn-close EvError. See #364.
-	_, werr := sr.stdout.WriteString("\x1b[93m\r\nDetached\x1b[0m\r\n")
-	sr.restoreParentTerminal()
-	if werr != nil {
-		sr.logger.Warn("Failed to write detach message to stdout", "error", werr)
-		return werr
-	}
+	// Hand the confirmation banner to restoreParentTerminal as a post-drain
+	// message so it is written after the inbound copier has drained (no
+	// interleave with mid-flush remote bytes) but while raw mode is still active
+	// so the embedded \r\n behaves. See issues #364 and #383.
+	sr.restoreParentTerminal("\x1b[93m\r\nDetached\x1b[0m\r\n")
 
 	return nil
 }
