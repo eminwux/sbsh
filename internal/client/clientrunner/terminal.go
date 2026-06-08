@@ -73,15 +73,23 @@ const copierWaitTimeout = 500 * time.Millisecond
 
 // escRestoreParentTerm normalizes the parent terminal's output-side DEC private
 // mode state on session teardown: leave the alternate-screen buffer, show the
-// cursor, and reset the cursor style to the terminal default. Symmetric with
-// the modes the server-side attach repaint may set (escEnterAltScreen /
+// cursor, reset the cursor style to the terminal default, disable mouse
+// tracking under every common encoding, and disable bracketed paste. Symmetric
+// with the modes the server-side attach repaint may set (escEnterAltScreen /
 // escHideCursor in internal/terminal/terminalrunner/terminal_screen.go) and
 // with anything a TUI/shell on the remote side wrote through to the parent
 // terminal without a matching reset. Emitted unconditionally per #365 — the
-// client cannot rely on the remote side emitting a matching reset on its own.
+// client cannot rely on the remote side emitting a matching reset on its own;
+// resetting a mode that wasn't set is a no-op on every terminal.
 const escRestoreParentTerm = "\x1b[?1049l" + // leave the alternate screen buffer
 	"\x1b[?25h" + // make the cursor visible
-	"\x1b[0 q" // reset cursor style (DECSCUSR) to terminal default
+	"\x1b[0 q" + // reset cursor style (DECSCUSR) to terminal default
+	"\x1b[?1000l" + // disable X11 mouse reporting (basic)
+	"\x1b[?1002l" + // disable cell-motion mouse tracking
+	"\x1b[?1003l" + // disable all-motion mouse tracking
+	"\x1b[?1006l" + // disable SGR mouse encoding
+	"\x1b[?1015l" + // disable urxvt mouse encoding
+	"\x1b[?2004l" // disable bracketed paste
 
 // restoreParentTerminal performs a single, idempotent "unblock stdin + restore
 // tty" at the session boundary so the parent shell is always handed back a

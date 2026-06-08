@@ -173,7 +173,11 @@ func assertNormalizeEmitted(t *testing.T, r *os.File) {
 		t.Fatalf("ReadAll: %v", err)
 	}
 	out := string(buf)
-	for _, want := range []string{"\x1b[?1049l", "\x1b[?25h", "\x1b[0 q"} {
+	for _, want := range []string{
+		"\x1b[?1049l", "\x1b[?25h", "\x1b[0 q",
+		"\x1b[?1000l", "\x1b[?1002l", "\x1b[?1003l",
+		"\x1b[?1006l", "\x1b[?1015l", "\x1b[?2004l",
+	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing normalization escape %q in stdout %q", want, out)
 		}
