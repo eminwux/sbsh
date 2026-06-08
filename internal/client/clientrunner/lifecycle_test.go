@@ -196,7 +196,10 @@ func TestDetach_RPCError(t *testing.T) {
 }
 
 // TestDetach_StdoutWriteError covers the branch where the detach succeeds at
-// the RPC layer but writing the confirmation to stdout fails.
+// the RPC layer but writing the confirmation banner to stdout fails. As of #383
+// the banner is a best-effort post-drain message inside restoreParentTerminal,
+// not Detach's return value — the parent-terminal restore is non-negotiable and
+// a failed banner write must not turn a successful detach into an error.
 func TestDetach_StdoutWriteError(t *testing.T) {
 	sr, _ := newLifecycleExec(t)
 	r, w, err := os.Pipe()
@@ -204,12 +207,12 @@ func TestDetach_StdoutWriteError(t *testing.T) {
 		t.Fatalf("pipe: %v", err)
 	}
 	_ = r.Close()
-	_ = w.Close() // closed write end -> WriteString fails
+	_ = w.Close() // closed write end -> banner WriteString fails (best-effort, logged)
 	sr.stdout = w
 	sr.terminalClient = &mockTerminalClient{} // detach succeeds by default
 
-	if errDetach := sr.Detach(); errDetach == nil {
-		t.Fatal("Detach returned nil error when stdout write failed")
+	if errDetach := sr.Detach(); errDetach != nil {
+		t.Fatalf("Detach returned %v on banner-write failure; want nil (RPC succeeded, banner is best-effort)", errDetach)
 	}
 }
 

@@ -96,7 +96,14 @@ const escRestoreParentTerm = "\x1b[?1049l" + // leave the alternate screen buffe
 // usable terminal — on user detach, remote process exit, peer hangup, and
 // ctx cancellation alike. It is safe to call from every teardown path; the
 // sync.Once guarantees the body runs exactly once. See issue #364.
-func (sr *Exec) restoreParentTerminal() {
+//
+// postDrainMsg, when non-empty, is written to stdout after the inbound
+// socket->stdout copier has drained but before the termios raw->cooked restore
+// — the safe point at which a teardown-confirmation banner (e.g. the detach
+// "Detached" notice) cannot interleave with mid-flush remote bytes yet raw mode
+// is still active so its embedded \r\n behaves correctly. The Close()/exit
+// paths pass "". See issues #364 and #383.
+func (sr *Exec) restoreParentTerminal(postDrainMsg string) {
 	sr.restoreOnce.Do(func() {
 		sr.logger.Debug("restoreParentTerminal: beginning terminal restore")
 
@@ -136,6 +143,18 @@ func (sr *Exec) restoreParentTerminal() {
 			case <-done:
 			case <-time.After(copierWaitTimeout):
 				sr.logger.Debug("restoreParentTerminal: copier wait timed out; proceeding with restore")
+			}
+		}
+
+		// Write any teardown-confirmation banner now: the inbound copier has
+		// drained (so this cannot interleave with mid-flush remote bytes) and the
+		// termios restore below has not yet run (so raw mode is still active and
+		// the banner's embedded \r\n behaves). Emitted before the normalize
+		// sequence so it lands while any alt-screen the remote set is still
+		// active, matching the pre-#383 relative ordering. See issue #383.
+		if postDrainMsg != "" && sr.stdout != nil {
+			if _, err := sr.stdout.WriteString(postDrainMsg); err != nil {
+				sr.logger.Debug("restoreParentTerminal: write post-drain message failed", "error", err)
 			}
 		}
 

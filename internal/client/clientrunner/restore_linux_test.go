@@ -18,6 +18,7 @@ package clientrunner
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -29,6 +30,10 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 	"golang.org/x/sys/unix"
 )
+
+// errMockDetach is the sentinel a Detach-RPC-failure mock returns so a test can
+// assert Exec.Detach propagates it while still restoring the parent terminal.
+var errMockDetach = errors.New("detach rpc failed")
 
 // ttyState reports the descriptor's blocking flag and the ECHO/ICANON termios
 // line-discipline flags. It reads them through SyscallConn().Control so the
@@ -230,6 +235,90 @@ func TestRestore_EmitsOutputNormalize_OnDetach(t *testing.T) {
 	}
 	_ = w.Close()
 	assertNormalizeEmitted(t, r)
+}
+
+// TestRestore_OnDetach_RPCFailure asserts that when the Detach control-socket
+// RPC fails, Exec.Detach still restores the parent terminal (cooked line
+// discipline + blocking descriptor) and still emits the output normalization
+// sequence, rather than returning early and stranding the terminal in raw mode.
+// The user has committed to leaving via ^]^]; a server-side RPC failure is not a
+// reason to keep the parent terminal broken. The "Detached" banner is suppressed
+// on this path because it would be misleading. Regression for #383 Gap 1.
+func TestRestore_OnDetach_RPCFailure(t *testing.T) {
+	sr, tty := newAttachedExec(t)
+	sr.terminalClient = &mockTerminalClient{
+		detachFunc: func(_ context.Context, _ *api.ID) error { return errMockDetach },
+	}
+
+	r, w, errPipe := os.Pipe()
+	if errPipe != nil {
+		t.Fatalf("Pipe: %v", errPipe)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+	sr.stdout = w
+
+	err := sr.Detach()
+	if !errors.Is(err, errMockDetach) {
+		t.Fatalf("Detach: want errMockDetach, got %v", err)
+	}
+	_ = w.Close()
+
+	// Termios cooked + blocking descriptor restored despite the RPC failure.
+	assertRestored(t, tty)
+
+	buf, errRead := io.ReadAll(r)
+	if errRead != nil {
+		t.Fatalf("ReadAll: %v", errRead)
+	}
+	out := string(buf)
+	for _, want := range []string{"\x1b[?1049l", "\x1b[?25h", "\x1b[0 q"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing normalization escape %q in stdout %q on RPC-failure path", want, out)
+		}
+	}
+	if strings.Contains(out, "Detached") {
+		t.Errorf("Detached banner should be suppressed on RPC-failure path, got %q", out)
+	}
+}
+
+// TestDetach_BannerWrittenBeforeNormalize asserts that on the successful detach
+// path the "Detached" banner is emitted from within restoreParentTerminal — at
+// the post-drain, pre-termios-restore point — and precedes the output
+// normalization sequence. This is the same relative order as before #383, but
+// now downstream of the copier drain so the banner cannot interleave with
+// mid-flush remote bytes. Regression for #383 Gap 2.
+func TestDetach_BannerWrittenBeforeNormalize(t *testing.T) {
+	sr, _ := newAttachedExec(t)
+	sr.terminalClient = &mockTerminalClient{}
+
+	r, w, errPipe := os.Pipe()
+	if errPipe != nil {
+		t.Fatalf("Pipe: %v", errPipe)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+	sr.stdout = w
+
+	if err := sr.Detach(); err != nil {
+		t.Fatalf("Detach: %v", err)
+	}
+	_ = w.Close()
+
+	buf, errRead := io.ReadAll(r)
+	if errRead != nil {
+		t.Fatalf("ReadAll: %v", errRead)
+	}
+	out := string(buf)
+	bannerIdx := strings.Index(out, "Detached")
+	normIdx := strings.Index(out, "\x1b[?1049l")
+	if bannerIdx < 0 {
+		t.Errorf("Detached banner missing on successful detach in stdout %q", out)
+	}
+	if normIdx < 0 {
+		t.Errorf("normalization sequence missing on successful detach in stdout %q", out)
+	}
+	if bannerIdx >= 0 && normIdx >= 0 && bannerIdx > normIdx {
+		t.Errorf("banner should precede normalize sequence; banner@%d normalize@%d in %q", bannerIdx, normIdx, out)
+	}
 }
 
 // TestRestore_Idempotent asserts the restore runs exactly once even when both
