@@ -57,6 +57,15 @@ func isProcessAlive(pid int) bool {
 	return false
 }
 
+// IsInstanceAlive reports whether the process instance identified by
+// (pid, pidStart) is still running, using the same liveness+PID-reuse rules
+// reconcile and prune rely on. Exported so the terminal runner can refuse to
+// clobber a live owner's metadata before it overwrites the ID-derived path,
+// keeping the runner's notion of "live" identical to reconcile's. See #386.
+func IsInstanceAlive(pid int, pidStart uint64) bool {
+	return isInstanceAlive(pid, pidStart)
+}
+
 // isInstanceAlive extends isProcessAlive with PID-reuse rejection: if a
 // start-time token was recorded, the live PID must still belong to the same
 // process instance that produced it. A zero token degrades to liveness-only,

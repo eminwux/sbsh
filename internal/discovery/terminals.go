@@ -314,6 +314,40 @@ func VerifyTerminalNameAvailable(
 	return nil
 }
 
+// VerifyTerminalIDAvailable returns errdefs.ErrTerminalIDInUse if an active
+// (non-Exited) terminal under runPath already carries id. It mirrors
+// VerifyTerminalNameAvailable: a different --name sails past the name check, so
+// the ID needs its own pre-launch guard to fail fast before the runner would
+// otherwise clobber the live owner's metadata (the runner-level backstop lives
+// in CreateMetadata). Stale metadata whose owner is gone is reconciled to
+// Exited and does not block reuse, so an exited terminal's ID can be recycled.
+// An empty id or runPath is treated as unconditionally available. See #386.
+func VerifyTerminalIDAvailable(
+	ctx context.Context,
+	logger *slog.Logger,
+	runPath string,
+	id string,
+) error {
+	if id == "" || runPath == "" {
+		return nil
+	}
+	terminals, err := ScanTerminals(ctx, logger, runPath)
+	if err != nil {
+		return err
+	}
+	ReconcileTerminals(ctx, logger, runPath, terminals)
+	for _, t := range terminals {
+		if t.Status.State == api.Exited {
+			continue
+		}
+		if pkgdiscovery.TerminalID(t) != id {
+			continue
+		}
+		return fmt.Errorf("%w: %q (name %s)", errdefs.ErrTerminalIDInUse, id, pkgdiscovery.TerminalName(t))
+	}
+	return nil
+}
+
 func PrintTerminalSpec(s *api.TerminalSpec, logger *slog.Logger) error {
 	if s == nil {
 		logger.Info("nil terminal spec")
