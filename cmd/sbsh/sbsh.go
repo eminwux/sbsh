@@ -510,17 +510,22 @@ func runClient(
 	logger.DebugContext(ctx, "controller ready, entering client event loop")
 	select {
 	case <-ctx.Done():
-		var err error
 		logger.DebugContext(ctx, "context canceled, waiting for controller to exit")
+		// ctx is signal.NotifyContext(...), so ctx.Err() is context.Canceled
+		// on a SIGTERM/SIGINT. Route it through the same isCleanSessionEnd
+		// filter the errCh arm uses so a handled signal exits 0 with no
+		// spurious `Error: context has been cancelled` line — matching the
+		// clean-session-end contract from #380/#381. A real WaitClose failure
+		// during teardown is not clean and still surfaces.
+		err := ctx.Err()
 		if errC := ctrl.WaitClose(); errC != nil {
 			err = fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, errC)
 		}
 		logger.DebugContext(ctx, "context canceled, controller exited")
-		if err != nil {
+		if err != nil && !isCleanSessionEnd(err) {
 			return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
 		}
-		// return fmt.Errorf("%w: %w", errdefs.ErrContextDone, err)
-		return errdefs.ErrContextDone
+		return nil
 
 	case err := <-errCh:
 		logger.DebugContext(ctx, "controller stopped", "error", err)
