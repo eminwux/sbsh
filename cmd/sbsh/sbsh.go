@@ -503,8 +503,26 @@ func runClient(
 
 	logger.DebugContext(ctx, "waiting for controller to signal ready")
 	if err := ctrl.WaitReady(); err != nil {
-		logger.DebugContext(ctx, "controller not ready", "error", err)
-		return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
+		// A signal that cancels ctx during the attach window makes WaitReady
+		// return ctx.Err() before readiness. By this point the controller's
+		// Attach has already put the parent terminal into raw mode (the IO
+		// copiers are relaying the prompt), so returning straight away strands
+		// the parent shell in raw mode — the failure #392 fixes for the
+		// steady-state path, surfacing here on an earlier window. Drive the
+		// same WaitClose/isCleanSessionEnd teardown the ctx.Done arm below
+		// uses: the controller's Run goroutine runs Close once Attach unblocks
+		// on the cancelled ctx, and Close restores the parent terminal before
+		// closing the channel WaitClose blocks on. A handled signal
+		// (context.Canceled) then exits 0 like the steady-state arm; a genuine
+		// readiness failure still surfaces wrapped in ErrWaitOnReady. See #419.
+		logger.DebugContext(ctx, "controller not ready, draining teardown", "error", err)
+		if errC := ctrl.WaitClose(); errC != nil {
+			err = fmt.Errorf("%w: %w", errdefs.ErrWaitOnClose, errC)
+		}
+		if !isCleanSessionEnd(err) {
+			return fmt.Errorf("%w: %w", errdefs.ErrWaitOnReady, err)
+		}
+		return nil
 	}
 
 	logger.DebugContext(ctx, "controller ready, entering client event loop")

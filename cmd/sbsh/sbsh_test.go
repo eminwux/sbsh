@@ -168,6 +168,80 @@ func TestRunTerminal_ErrWaitOnReady(t *testing.T) {
 	}
 }
 
+// TestRunTerminal_WaitReadyContextCanceledDrivesTeardown covers issue #419:
+// when a signal cancels ctx during the attach window, WaitReady returns
+// context.Canceled before readiness. runClient must drive the WaitClose
+// teardown (which restores the parent terminal) and exit 0 rather than
+// returning the spurious ErrWaitOnReady that left the terminal in raw mode.
+func TestRunTerminal_WaitReadyContextCanceledDrivesTeardown(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	waitCloseCalled := make(chan struct{}, 1)
+	newClientController := func(_ context.Context) api.ClientController {
+		return &client.ControllerTest{
+			RunFunc: func(_ *api.ClientDoc) error {
+				return nil
+			},
+			WaitReadyFunc: func() error {
+				// The real Controller.WaitReady only returns non-nil via its
+				// ctx.Done arm, i.e. context.Canceled on a signal landing in
+				// the attach window.
+				return context.Canceled
+			},
+			WaitCloseFunc: func() error {
+				waitCloseCalled <- struct{}{}
+				return nil
+			},
+			StartFunc: func() error {
+				return nil
+			},
+		}
+	}
+
+	ctrl := newClientController(context.Background())
+
+	t.Cleanup(func() {})
+
+	doc := &api.ClientDoc{
+		APIVersion: api.APIVersionV1Beta1,
+		Kind:       api.KindClient,
+		Metadata: api.ClientMetadata{
+			Name:        naming.RandomName(),
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		},
+		Spec: api.ClientSpec{
+			ID:           api.ID(naming.RandomID()),
+			LogFile:      "/tmp/sbsh-logs/s0",
+			RunPath:      viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+			TerminalSpec: nil,
+		},
+	}
+	done := make(chan error)
+	defer close(done)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		done <- runClient(ctx, cancel, logger, ctrl, doc)
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("expected nil (clean signal-during-window exit); got: '%v'", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for runClient to return")
+	}
+
+	select {
+	case <-waitCloseCalled:
+		// WaitClose drove the teardown that restores the parent terminal.
+	default:
+		t.Fatal("expected WaitClose to be called on the WaitReady-cancel path")
+	}
+}
+
 func TestRunTerminal_ErrContextDoneWithWaitCloseError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
