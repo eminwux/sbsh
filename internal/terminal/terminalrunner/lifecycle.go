@@ -34,6 +34,17 @@ import (
 const (
 	deleteTerminalsDir bool = false
 	waitReadyPeriod         = 10 * time.Millisecond
+	// reapAfterKillGrace bounds how long shutdownChild waits for the tracked
+	// child to actually be reaped after the SIGKILL escalation. SIGKILL only
+	// queues the signal; the kernel still has to schedule the child, turn it
+	// into a zombie, and the harvester (the PID-1 reaper in init mode, or
+	// watchChildExit's cmd.Wait otherwise) still has to reap it. Close tears
+	// the reaper down via reaper.Stop right after shutdownChild returns, so
+	// without this wait the reaper's final drain races the kill-to-zombie
+	// window: a late zombie is never reaped and watchChildExit parks forever on
+	// TrackedExitCh. Bounded so an unkillable (D-state) child cannot wedge
+	// Close. See #398.
+	reapAfterKillGrace = 5 * time.Second
 )
 
 func (sr *Exec) StartTerminal(evCh chan<- Event) error {
@@ -127,18 +138,34 @@ func (sr *Exec) watchChildExit() {
 
 	var exitErr error
 	if sr.initMode && sr.reaper != nil {
-		code, ok := <-sr.reaper.TrackedExitCh()
-		if ok {
-			exitErr = fmt.Errorf("shell process exited: code=%d", code)
-		} else {
-			exitErr = errors.New("shell process exited")
+		select {
+		case code, ok := <-sr.reaper.TrackedExitCh():
+			if ok {
+				exitErr = fmt.Errorf("shell process exited: code=%d", code)
+			} else {
+				exitErr = errors.New("shell process exited")
+			}
+		case <-sr.ctx.Done():
+			// Close cancelled the context before the reaper delivered the
+			// tracked exit — e.g. the child became a zombie only after the
+			// post-SIGKILL reap window (reapAfterKillGrace) elapsed. Escape
+			// rather than park forever on TrackedExitCh; the closeReqCh send
+			// below is itself ctx-guarded, so this goroutine always
+			// terminates regardless. See #398.
+			exitErr = errors.New("shell process exited (close cancelled tracked-exit wait)")
 		}
 		// Release the os.Process handle so Go doesn't hold on to the
 		// kernel reference now that the reaper has already reaped the
 		// PID. A subsequent cmd.Wait() would return ECHILD — we skip it.
+		// Take runtimeMu around the Release: it mutates the shared
+		// *os.Process, and shutdownChild reads cmd.Process.Pid under the
+		// same lock, so without it the two race once Close's post-SIGKILL
+		// wait lets this goroutine proceed. See #398.
+		sr.runtimeMu.Lock()
 		if sr.cmd != nil && sr.cmd.Process != nil {
 			_ = sr.cmd.Process.Release()
 		}
+		sr.runtimeMu.Unlock()
 	} else {
 		// cmd.Wait()'s *exec.ExitError carries the real exit code (and signal
 		// info on signaled deaths) — propagate it so EvCmdExited consumers can
@@ -166,15 +193,25 @@ func (sr *Exec) watchChildExit() {
 //  2. Send SIGTERM to the child's process group.
 //  3. Wait up to grace for child exit.
 //  4. If still alive, send SIGKILL to the process group.
+//  5. After SIGKILL, wait (bounded by reapAfterKillGrace) for the child to be
+//     reaped so Close does not tear the reaper down before the zombie forms.
 //
 // Grace <= 0 falls back to the package default. Must only be called after
 // startPty has run (cmd and cmd.Process are set).
 func (sr *Exec) shutdownChild(grace time.Duration) {
-	// Snapshot cmd under runtimeMu: a concurrent startPty publishes it (and
-	// its Process) under the same lock, so this read is otherwise a data
-	// race against a Stop-during-startup Close. See #396.
+	// Snapshot cmd and the child's pid under runtimeMu. startPty publishes cmd
+	// (and its Process) under the same lock, so this is otherwise a data race
+	// against a Stop-during-startup Close (#396). Reading cmd.Process.Pid under
+	// the lock also serializes it against watchChildExit's cmd.Process.Release
+	// (also taken under runtimeMu): once the post-SIGKILL reap wait below lets
+	// watchChildExit run to completion, an unlocked pid read here would race
+	// that Release write on the shared *os.Process. See #398.
 	sr.runtimeMu.Lock()
 	cmd := sr.cmd
+	var pid int
+	if cmd != nil && cmd.Process != nil {
+		pid = cmd.Process.Pid
+	}
 	sr.runtimeMu.Unlock()
 	if cmd == nil || cmd.Process == nil {
 		return
@@ -186,7 +223,6 @@ func (sr *Exec) shutdownChild(grace time.Duration) {
 		grace = profile.DefaultShutdownGrace
 	}
 
-	pid := cmd.Process.Pid
 	// Setsid: true ensures pgid == pid for the child.
 	if err := syscall.Kill(-pid, syscall.SIGTERM); err != nil && !errors.Is(err, syscall.ESRCH) {
 		sr.logger.Warn("could not SIGTERM child process group", "id", sr.id, "pid", pid, "err", err)
@@ -205,6 +241,24 @@ func (sr *Exec) shutdownChild(grace time.Duration) {
 
 	if err := syscall.Kill(-pid, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
 		sr.logger.Warn("could not SIGKILL child process group", "id", sr.id, "pid", pid, "err", err)
+	}
+
+	// SIGKILL is asynchronous: it only queues the signal. The child still has
+	// to be scheduled, die, transition to a zombie, and be harvested — by the
+	// PID-1 reaper in init mode, or by watchChildExit's cmd.Wait otherwise —
+	// before childDoneCh closes. Block (bounded) until that happens so Close
+	// does not call reaper.Stop while the zombie has not formed yet:
+	// reaper.Stop's final drain would otherwise miss it and the child would
+	// leak as a permanent zombie with watchChildExit parked on TrackedExitCh.
+	// See #398.
+	killTimer := time.NewTimer(reapAfterKillGrace)
+	defer killTimer.Stop()
+	select {
+	case <-sr.childDoneCh:
+		sr.logger.Debug("child reaped after SIGKILL escalation", "id", sr.id, "pid", pid)
+	case <-killTimer.C:
+		sr.logger.Warn("child not reaped within grace after SIGKILL; reaper teardown may leak a zombie",
+			"id", sr.id, "pid", pid, "grace", reapAfterKillGrace)
 	}
 }
 
