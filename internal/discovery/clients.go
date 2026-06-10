@@ -163,14 +163,14 @@ func printClients(w io.Writer, clients []api.ClientDoc, printAll, wide bool) err
 		}
 		if wide {
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
-				pkgdiscovery.ClientID(s),
-				pkgdiscovery.ClientName(s),
+				sanitizeField(pkgdiscovery.ClientID(s)),
+				sanitizeField(pkgdiscovery.ClientName(s)),
 				s.Status.State.String(),
-				joinLabels(clientLabels(s)),
+				sanitizeField(joinLabels(clientLabels(s))),
 			)
 		} else {
 			fmt.Fprintf(tw, "%s\t%s\n",
-				pkgdiscovery.ClientName(s),
+				sanitizeField(pkgdiscovery.ClientName(s)),
 				s.Status.State.String(),
 			)
 		}

@@ -123,13 +123,13 @@ func PrintProfilesTable(w io.Writer, profiles []api.TerminalProfileDoc, wide boo
 				envCount = len(p.Spec.Shell.Env)
 			}
 			fmt.Fprintf(tw, "%s\t%s\t%d vars\t%s\n",
-				p.Metadata.Name,
-				p.Spec.RunTarget,
+				sanitizeField(p.Metadata.Name),
+				sanitizeField(string(p.Spec.RunTarget)),
 				envCount,
-				cmd,
+				sanitizeField(cmd),
 			)
 		} else {
-			fmt.Fprintf(tw, "%s\t%s\n", p.Metadata.Name, cmd)
+			fmt.Fprintf(tw, "%s\t%s\n", sanitizeField(p.Metadata.Name), sanitizeField(cmd))
 		}
 	}
 
