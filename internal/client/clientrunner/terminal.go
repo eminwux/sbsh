@@ -45,10 +45,11 @@ func (sr *Exec) toBashUIMode() error {
 //
 // The restore ioctl is issued through SyscallConn().Control rather than
 // term.Restore(int(stdin.Fd()), …) on purpose: os.File.Fd() pulls the
-// descriptor out of the runtime poller and flips it to blocking mode, which
-// would defeat the deadline-based unblock of the stdin copier in
-// restoreParentTerminal. Control hands us the fd without disturbing the
-// poller registration. See issue #364.
+// descriptor out of the runtime poller and flips it to blocking mode. Keeping
+// the descriptor pollable until the final SetNonblock in restoreParentTerminal
+// lets the persistent stdin pump read it efficiently without mode flapping.
+// Control hands us the fd without disturbing the poller registration. See
+// issues #364 and #399.
 func (sr *Exec) toExitShell() error {
 	sr.logger.Debug("toExitShell: switching to cooked mode")
 	if sr.lastTermState != nil && sr.stdin != nil {
@@ -107,32 +108,21 @@ func (sr *Exec) restoreParentTerminal(postDrainMsg string) {
 	sr.restoreOnce.Do(func() {
 		sr.logger.Debug("restoreParentTerminal: beginning terminal restore")
 
-		// Cancel the context so the socket-side copier is unblocked by
-		// CopierManager (it sets read/write deadlines on the UnixConn on
-		// ctx.Done) and the copier loops observe shutdown.
+		// Cancel the context so both copiers observe shutdown: the socket-side
+		// copier is unblocked by CopierManager (it sets read/write deadlines on
+		// the UnixConn on ctx.Done), and the stdin->socket copier reads through
+		// the persistent pump's context-bound pumpReader, whose Read returns
+		// promptly on cancellation regardless of the descriptor's pollability.
+		// The pump goroutine itself keeps owning sr.stdin so a byte it already
+		// read is handed to the next session, not lost. See issues #364 and #399.
 		sr.ctxCancel()
 
-		// Best-effort unblock of the stdin->socket copier parked in
-		// sr.stdin.Read(). This works only when the descriptor is pollable — a
-		// freshly-opened *os.File over the tty. The real attach path reads
-		// os.Stdin, which the Go runtime constructs non-pollable (it is not
-		// registered with the runtime poller regardless of how the fd is later
-		// accessed), so SetReadDeadline is a no-op there and the parked read
-		// cannot be interrupted. The bounded wait below is what keeps that case
-		// from wedging teardown.
-		if sr.stdin != nil {
-			if err := sr.stdin.SetReadDeadline(time.Now()); err != nil {
-				sr.logger.Debug("restoreParentTerminal: SetReadDeadline failed", "error", err)
-			}
-		}
-
 		// Wait for the copier goroutines to drain so nobody is mid-read when we
-		// hand the descriptor back to blocking mode — but bound it. The
-		// socket->stdout copier exits promptly on ctx-cancel; the stdin->socket
-		// copier may be parked in an uninterruptible os.Stdin.Read() (see above)
-		// that only process exit reaps. Blocking unconditionally on it hangs
-		// every teardown path (#364 e2e detach/exit timeouts). The leaked reader
-		// is harmless: the process exits immediately after restore.
+		// hand the descriptor back to blocking mode — but bound it. Both copiers
+		// now exit on ctx-cancel (the stdin->socket copier via pumpReader, the
+		// socket->stdout copier via the UnixConn deadline), so this returns
+		// promptly on every path. The bound remains a safety net against a
+		// wedged socket read so teardown can never hang (#364 e2e timeouts).
 		if sr.copier != nil {
 			done := make(chan struct{})
 			go func() {
@@ -238,8 +228,8 @@ func toRawMode(logger *slog.Logger, stdin *os.File) (*term.State, error) {
 // withRawFd invokes fn with stdin's underlying descriptor obtained through
 // SyscallConn().Control, which — unlike os.File.Fd() — leaves the descriptor
 // registered with the runtime poller and in non-blocking mode. Keeping the
-// descriptor pollable is what lets restoreParentTerminal interrupt the parked
-// stdin read via SetReadDeadline. See issue #364.
+// descriptor pollable across MakeRaw/Restore/getsize avoids prematurely
+// dropping the persistent stdin pump's poller registration. See issue #364.
 func withRawFd(f *os.File, fn func(fd int) error) error {
 	rc, err := f.SyscallConn()
 	if err != nil {
