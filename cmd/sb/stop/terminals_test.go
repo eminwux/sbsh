@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -392,5 +393,34 @@ func Test_SendPgroupKill_GoneGroupIsNoOp(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	if err := sendPgroupKill(pgid); err != nil {
 		t.Fatalf("sendPgroupKill(drained pgid=%d) = %v; want nil (ESRCH suppressed)", pgid, err)
+	}
+}
+
+// Test_IsProcessGoneErr covers the error classification at the heart of #411:
+// a SIGKILL escalation that races a process exiting on its own must treat the
+// "already gone" signals as success. ESRCH comes from the raw syscall path;
+// os.ErrProcessDone ("os: process already finished") comes from the pidfd-backed
+// os.Process.Signal path (Go 1.23+) — the latter is what regressed, since the
+// pre-fix check only matched ESRCH.
+func Test_IsProcessGoneErr(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"esrch", syscall.ESRCH, true},
+		{"esrch wrapped", fmt.Errorf("kill: %w", syscall.ESRCH), true},
+		{"process done", os.ErrProcessDone, true},
+		{"process done wrapped", fmt.Errorf("signal: %w", os.ErrProcessDone), true},
+		{"nil", nil, false},
+		{"unrelated", syscall.EPERM, false},
+		{"unrelated wrapped", fmt.Errorf("signal: %w", syscall.EPERM), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isProcessGoneErr(tc.err); got != tc.want {
+				t.Fatalf("isProcessGoneErr(%v) = %v; want %v", tc.err, got, tc.want)
+			}
+		})
 	}
 }

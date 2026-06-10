@@ -396,13 +396,25 @@ func sendSignal(pid int, pidStart uint64, sig syscall.Signal) error {
 		return fmt.Errorf("%w: %w", errdefs.ErrSignalProcess, err)
 	}
 	if err := proc.Signal(sig); err != nil {
-		if errors.Is(err, syscall.ESRCH) {
+		if isProcessGoneErr(err) {
 			// Process is already gone — not an error for our purposes.
 			return nil
 		}
 		return fmt.Errorf("%w: %w", errdefs.ErrSignalProcess, err)
 	}
 	return nil
+}
+
+// isProcessGoneErr reports whether err from a signal delivery means the target
+// process has already exited. The raw syscall path (syscall.Kill) surfaces this
+// as ESRCH; the pidfd-backed os.Process.Signal path (Go 1.23+) surfaces it as
+// os.ErrProcessDone ("os: process already finished"). Either way the process is
+// gone, which is exactly the goal of a stop — so callers escalating to SIGKILL
+// must classify it as success, not failure. Without the os.ErrProcessDone arm a
+// child that exits on its own in the window between the grace deadline and the
+// SIGKILL syscall is misreported as resultFailed (a TOCTOU race).
+func isProcessGoneErr(err error) bool {
+	return errors.Is(err, syscall.ESRCH) || errors.Is(err, os.ErrProcessDone)
 }
 
 // processIsOurs reports whether pid is alive AND matches the recorded
