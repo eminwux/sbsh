@@ -164,22 +164,22 @@ func printTerminals(w io.Writer, terminals []api.TerminalDoc, printAll, wide boo
 		}
 		if wide {
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-				pkgdiscovery.TerminalID(s),
-				pkgdiscovery.TerminalName(s),
-				terminalProfile(s),
-				terminalCmd(s),
-				terminalPty(s),
+				sanitizeField(pkgdiscovery.TerminalID(s)),
+				sanitizeField(pkgdiscovery.TerminalName(s)),
+				sanitizeField(terminalProfile(s)),
+				sanitizeField(terminalCmd(s)),
+				sanitizeField(terminalPty(s)),
 				s.Status.State.String(),
-				terminalAttachers(s),
+				sanitizeField(terminalAttachers(s)),
 				formatAge(s.Metadata.CreatedAt),
 				formatAge(s.Status.LastAttachedAt),
-				joinLabels(terminalLabels(s)),
+				sanitizeField(joinLabels(terminalLabels(s))),
 			)
 		} else {
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
-				pkgdiscovery.TerminalName(s),
-				terminalProfile(s),
-				terminalPty(s),
+				sanitizeField(pkgdiscovery.TerminalName(s)),
+				sanitizeField(terminalProfile(s)),
+				sanitizeField(terminalPty(s)),
 				formatAge(s.Metadata.CreatedAt),
 			)
 		}
