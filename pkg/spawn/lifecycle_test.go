@@ -44,15 +44,30 @@ import (
 // goroutines races on the kernel's writer-FD check and surfaces as ETXTBSY.
 var sharedSleeperPath string
 
+// sharedTrapPath is the package-shared path to a trap.sh script that traps and
+// ignores SIGTERM (so gracefulShutdown must escalate to SIGKILL). Written once
+// in TestMain before any test runs for the same reason as sharedSleeperPath
+// (see #377): a per-test os.WriteFile of an executable then fork+exec from
+// sibling parallel goroutines races on the kernel's writer-FD check and
+// surfaces as ETXTBSY. The script body is static, so a single shared copy
+// suffices.
+var sharedTrapPath string
+
 func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "spawn-test-sleeper-")
+	dir, err := os.MkdirTemp("", "spawn-test-scripts-")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "spawn tests: create sleeper tempdir: %v\n", err)
+		fmt.Fprintf(os.Stderr, "spawn tests: create script tempdir: %v\n", err)
 		os.Exit(1)
 	}
 	sharedSleeperPath = filepath.Join(dir, "sleeper.sh")
 	if err := os.WriteFile(sharedSleeperPath, []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "spawn tests: write sleeper: %v\n", err)
+		_ = os.RemoveAll(dir)
+		os.Exit(1)
+	}
+	sharedTrapPath = filepath.Join(dir, "trap.sh")
+	if err := os.WriteFile(sharedTrapPath, []byte("#!/bin/sh\ntrap '' TERM\nwhile true; do sleep 1; done\n"), 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "spawn tests: write trap script: %v\n", err)
 		_ = os.RemoveAll(dir)
 		os.Exit(1)
 	}
@@ -66,6 +81,13 @@ func TestMain(m *testing.M) {
 func sleeperBinary(t *testing.T) string {
 	t.Helper()
 	return sharedSleeperPath
+}
+
+// trapBinary returns the package-shared trap.sh path written once in TestMain.
+// See sharedTrapPath's docstring for the rationale.
+func trapBinary(t *testing.T) string {
+	t.Helper()
+	return sharedTrapPath
 }
 
 // TestClientHandle_Close_NoSocketEscalates spawns a long-lived child whose
@@ -267,13 +289,10 @@ func TestResolveStdio_ExplicitStreamsNotRedirected(t *testing.T) {
 // SIGKILL to reap it.
 func TestGracefulShutdown_SIGKILLEscalation(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join(t.TempDir(), "trap.sh")
-	// Trap SIGTERM so the SIGTERM step times out and SIGKILL is required.
-	script := "#!/bin/sh\ntrap '' TERM\nwhile true; do sleep 1; done\n"
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
-		t.Fatalf("write trap script: %v", err)
-	}
-	cmd := exec.Command(path)
+	// trap.sh traps SIGTERM so the SIGTERM step times out and SIGKILL is
+	// required. Written once in TestMain (not per-test) to avoid the ETXTBSY
+	// fork/exec race under t.Parallel(); see sharedTrapPath.
+	cmd := exec.Command(trapBinary(t))
 	proc, err := startProcess(cmd, nil)
 	if err != nil {
 		t.Fatalf("startProcess: %v", err)
