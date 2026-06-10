@@ -93,9 +93,14 @@ func (sr *Exec) startConnectionManager() error {
 		})
 	}
 
-	// WRITER: stdin -> socket
+	// WRITER: stdin -> socket. Read through the process-wide persistent pump
+	// rather than sr.stdin directly so this session's teardown (ctx-cancel)
+	// unblocks the copier without abandoning a blocking read on the descriptor;
+	// the pump survives to hand any already-read byte to the next session. See
+	// issue #399.
+	stdinSrc := &pumpReader{ctx: sr.ctx, pump: pumpForStdin(sr.stdin)}
 	readyWriter := make(chan struct{})
-	go dc.RunCopier(sr.stdin, sr.ioConn, readyWriter, func() {
+	go dc.RunCopier(stdinSrc, sr.ioConn, readyWriter, func() {
 		if uc != nil {
 			sr.logger.DebugContext(sr.ctx, "stdin->socket: closing write side of UnixConn")
 			_ = uc.CloseWrite()
