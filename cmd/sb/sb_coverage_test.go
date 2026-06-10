@@ -125,6 +125,34 @@ func Test_PersistentPreRunE_Verbose_ConfigError(t *testing.T) {
 	}
 }
 
+func Test_PersistentPreRunE_NonVerbose_ConfigError(t *testing.T) {
+	t.Cleanup(viper.Reset)
+	viper.Reset()
+
+	bad := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(bad, []byte("\tnot: [valid yaml"), 0o600); err != nil {
+		t.Fatalf("write bad config: %v", err)
+	}
+	t.Setenv(config.SBSH_ROOT_CONFIG_FILE.EnvVar(), bad)
+	_ = config.SBSH_ROOT_CONFIG_FILE.BindEnv()
+	viper.Set(config.SB_ROOT_VERBOSE.ViperKey, false)
+
+	cmd, err := NewSbRootCmd()
+	if err != nil {
+		t.Fatalf("NewSbRootCmd() error = %v", err)
+	}
+	cmd.SetContext(context.Background())
+
+	// With --verbose off the logger is nil; the error path must not panic.
+	err = cmd.PersistentPreRunE(cmd, nil)
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+	if !errors.Is(err, errdefs.ErrConfig) {
+		t.Fatalf("expected '%v'; got: '%v'", errdefs.ErrConfig, err)
+	}
+}
+
 func Test_RunE_LoggerNotFound(t *testing.T) {
 	t.Cleanup(viper.Reset)
 
