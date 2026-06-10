@@ -410,6 +410,22 @@ func (sr *Exec) Write(p []byte) (int, error) {
 }
 
 func (sr *Exec) Attach(req *api.AttachRequest, response *api.ResponseWithFD) error {
+	// Reject an Attach that lands in the window between the control RPC
+	// server becoming ready and startPty publishing ptyPipes. multiOutW
+	// (and pipeInW) are published together at terminal.go's
+	// ptyPipes.multiOutW assignment, so a nil multiOutW means the PTY
+	// fan-out is not wired yet. Without this guard handleClient would call
+	// multiOutW.Add on a nil *DynamicMultiWriter and panic on a bare
+	// goroutine with no recover, killing the daemon. Failing here surfaces
+	// a clean RPC error to the caller and avoids allocating the socketpair
+	// at all. Mirrors the sibling Subscribe guard (subscribe.go). See #395.
+	sr.ptyPipesMu.RLock()
+	multiOutW := sr.ptyPipes.multiOutW
+	sr.ptyPipesMu.RUnlock()
+	if multiOutW == nil {
+		return fmt.Errorf("Attach: terminal not running")
+	}
+
 	cliFD, err := sr.CreateNewClient(&req.ClientID, req.FullCapture)
 	if err != nil {
 		return err

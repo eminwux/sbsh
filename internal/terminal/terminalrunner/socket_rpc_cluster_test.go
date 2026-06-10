@@ -423,6 +423,35 @@ func TestSubscribe_NotRunning(t *testing.T) {
 	}
 }
 
+// Attach rejects the attach when the PTY fan-out is not wired (an Attach RPC
+// that lands before startPty publishes ptyPipes) and returns a clean
+// "terminal not running" error instead of panicking the daemon on a bare
+// handleClient goroutine. Same shape as TestSubscribe_NotRunning. See #395.
+func TestAttach_NotRunning(t *testing.T) {
+	sr := newWiredExec(t)
+	// Clear the fan-out so Attach's "terminal not running" guard fires —
+	// exactly the pre-startPty state (ptyPipes published but multiOutW nil).
+	sr.ptyPipesMu.Lock()
+	sr.ptyPipes.multiOutW = nil
+	sr.ptyPipesMu.Unlock()
+
+	var resp api.ResponseWithFD
+	err := sr.Attach(&api.AttachRequest{ClientID: api.ID("att-1")}, &resp)
+	if err == nil {
+		t.Fatal("Attach with nil multiOutW returned nil; want terminal-not-running error")
+	}
+	if len(resp.FDs) != 0 {
+		t.Errorf("Attach returned FDs on the not-running path: %v", resp.FDs)
+	}
+	// No client should have been registered (socketpair never allocated).
+	sr.clientsMu.RLock()
+	n := len(sr.clients)
+	sr.clientsMu.RUnlock()
+	if n != 0 {
+		t.Errorf("Attach registered %d clients on the not-running path; want 0", n)
+	}
+}
+
 // Subscribe's early-shutdown guard rejects a registration that arrives after
 // the runner's context has been canceled, returning errTerminalClosing and
 // registering no subscriber.
