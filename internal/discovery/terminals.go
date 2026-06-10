@@ -100,7 +100,13 @@ func ScanAndPruneTerminals(ctx context.Context, logger *slog.Logger, runPath str
 		pkgdiscovery.TerminalID,
 		pkgdiscovery.TerminalName,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	// Metadata-driven pruning above can only reap directories ScanTerminals
+	// returns; directories whose metadata.json is missing or corrupt never
+	// appear there and would leak forever without this pass. See #391.
+	return pruneOrphanTerminalDirs(ctx, logger, runPath, w)
 }
 
 func PruneTerminal(logger *slog.Logger, metadata *api.TerminalDoc) error {

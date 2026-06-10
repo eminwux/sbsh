@@ -94,10 +94,11 @@ func listTerminals(cmd *cobra.Command, _ []string) error {
 		"args", cmd.Flags().Args(),
 	)
 
+	runPath := viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey)
 	err := discovery.ScanAndPrintTerminals(
 		cmd.Context(),
 		logger,
-		viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
+		runPath,
 		os.Stdout,
 		viper.GetBool(listAllInput),
 		format,
@@ -106,6 +107,12 @@ func listTerminals(cmd *cobra.Command, _ []string) error {
 		logger.Debug("error scanning and printing terminals", "error", err)
 		fmt.Fprintln(os.Stderr, "Could not scan terminals")
 		return err
+	}
+	// Orphan dirs (missing/corrupt metadata.json) are invisible to the scan
+	// above; warn on stderr so the leak is observable without --verbose and
+	// without disturbing parseable stdout output. See #391.
+	if _, errOrphans := discovery.ReportOrphanTerminalDirs(cmd.Context(), logger, runPath, os.Stderr); errOrphans != nil {
+		logger.Debug("error reporting orphan terminal directories", "error", errOrphans)
 	}
 	logger.Debug("terminals list completed successfully")
 	return nil
