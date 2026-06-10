@@ -156,6 +156,150 @@ func TestScanAndPruneTerminals_ShieldsFreshOrphanDir(t *testing.T) {
 	}
 }
 
+// TestScanAndPruneClients_ReapsCorruptMetadataDir asserts a client directory
+// whose metadata.json is truncated mid-write is removed by prune even though
+// ScanClients can never return it. See #422.
+func TestScanAndPruneClients_ReapsCorruptMetadataDir(t *testing.T) {
+	runPath := t.TempDir()
+	writeClientDoc(t, runPath, "id-corrupt", api.ClientExited, deadPid)
+	clientDir := filepath.Join(runPath, defaults.ClientsRunPath, "id-corrupt")
+	truncateMetadata(t, clientDir)
+	backdateDir(t, clientDir)
+
+	if err := discovery.ScanAndPruneClients(context.Background(), discardLogger(), runPath, io.Discard); err != nil {
+		t.Fatalf("ScanAndPruneClients: unexpected error: %v", err)
+	}
+
+	if _, err := os.Stat(clientDir); !os.IsNotExist(err) {
+		t.Fatalf("expected corrupt-metadata client dir to be pruned, stat err=%v", err)
+	}
+}
+
+// TestScanAndPruneClients_ReapsMissingMetadataDir asserts a client directory
+// with no metadata.json at all (client killed before the first write) is
+// removed by prune.
+func TestScanAndPruneClients_ReapsMissingMetadataDir(t *testing.T) {
+	runPath := t.TempDir()
+	clientDir := filepath.Join(runPath, defaults.ClientsRunPath, "id-missing")
+	if err := os.MkdirAll(clientDir, 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(clientDir, "log"), []byte("x"), 0o644); err != nil {
+		t.Fatalf("write log: %v", err)
+	}
+	backdateDir(t, clientDir)
+
+	var out bytes.Buffer
+	if err := discovery.ScanAndPruneClients(context.Background(), discardLogger(), runPath, &out); err != nil {
+		t.Fatalf("ScanAndPruneClients: unexpected error: %v", err)
+	}
+
+	if _, err := os.Stat(clientDir); !os.IsNotExist(err) {
+		t.Fatalf("expected missing-metadata client dir to be pruned, stat err=%v", err)
+	}
+	if !strings.Contains(out.String(), clientDir) {
+		t.Fatalf("expected prune output to name the reaped dir, got %q", out.String())
+	}
+}
+
+// TestScanAndPruneClients_SkipsOrphanWithLiveSocket asserts an orphan client
+// directory hosting a unix socket with a live listener is never removed —
+// corrupt metadata does not prove the client process is gone.
+func TestScanAndPruneClients_SkipsOrphanWithLiveSocket(t *testing.T) {
+	runPath := t.TempDir()
+	clientDir := filepath.Join(runPath, defaults.ClientsRunPath, "id-live-sock")
+	if err := os.MkdirAll(clientDir, 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	ln, err := net.Listen("unix", filepath.Join(clientDir, "client.sock"))
+	if err != nil {
+		t.Fatalf("listen unix: %v", err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			conn, errAccept := ln.Accept()
+			if errAccept != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
+	backdateDir(t, clientDir)
+
+	if err := discovery.ScanAndPruneClients(context.Background(), discardLogger(), runPath, io.Discard); err != nil {
+		t.Fatalf("ScanAndPruneClients: unexpected error: %v", err)
+	}
+
+	if _, err := os.Stat(clientDir); err != nil {
+		t.Fatalf("expected orphan dir with live socket to survive prune, stat err=%v", err)
+	}
+}
+
+// TestScanAndPruneClients_ShieldsFreshOrphanDir asserts a just-created
+// metadata-less client directory survives prune: the client MkdirAlls the
+// dir before the first metadata.json write lands, so reaping inside the
+// grace window would race client startup.
+func TestScanAndPruneClients_ShieldsFreshOrphanDir(t *testing.T) {
+	runPath := t.TempDir()
+	clientDir := filepath.Join(runPath, defaults.ClientsRunPath, "id-fresh")
+	if err := os.MkdirAll(clientDir, 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	if err := discovery.ScanAndPruneClients(context.Background(), discardLogger(), runPath, io.Discard); err != nil {
+		t.Fatalf("ScanAndPruneClients: unexpected error: %v", err)
+	}
+
+	if _, err := os.Stat(clientDir); err != nil {
+		t.Fatalf("expected fresh dir to survive prune, stat err=%v", err)
+	}
+}
+
+// TestReportOrphanClientDirs asserts the `sb get clients` warning channel: a
+// one-line, non-verbose signal when orphan client dirs exist, silence when
+// none do.
+func TestReportOrphanClientDirs(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("warns when orphans exist", func(t *testing.T) {
+		runPath := t.TempDir()
+		writeClientDoc(t, runPath, "id-corrupt", api.ClientExited, deadPid)
+		clientDir := filepath.Join(runPath, defaults.ClientsRunPath, "id-corrupt")
+		truncateMetadata(t, clientDir)
+		backdateDir(t, clientDir)
+
+		var out bytes.Buffer
+		n, err := discovery.ReportOrphanClientDirs(ctx, discardLogger(), runPath, &out)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if n != 1 {
+			t.Fatalf("expected 1 orphan, got %d", n)
+		}
+		if !strings.Contains(out.String(), "sb prune clients") {
+			t.Fatalf("expected warning to name the cleanup command, got %q", out.String())
+		}
+	})
+
+	t.Run("silent when no orphans", func(t *testing.T) {
+		runPath := t.TempDir()
+		writeClientDoc(t, runPath, "id-ok", api.ClientReady, os.Getpid())
+
+		var out bytes.Buffer
+		n, err := discovery.ReportOrphanClientDirs(ctx, discardLogger(), runPath, &out)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if n != 0 {
+			t.Fatalf("expected 0 orphans, got %d", n)
+		}
+		if out.Len() != 0 {
+			t.Fatalf("expected no output, got %q", out.String())
+		}
+	})
+}
+
 // TestReportOrphanTerminalDirs asserts the `sb get` warning channel: a
 // one-line, non-verbose signal when orphans exist, silence when none do.
 func TestReportOrphanTerminalDirs(t *testing.T) {

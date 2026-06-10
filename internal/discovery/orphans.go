@@ -31,9 +31,10 @@ import (
 )
 
 // liveSocketProbeTimeout bounds the dial used to decide whether an orphan
-// terminal directory still hosts a live control socket. Mirrors the probe
-// in terminalrunner.OpenSocketCtrl: a successful dial means a live peer is
-// serving the path; ENOENT/ECONNREFUSED/timeout means nobody is accepting.
+// terminal or client directory still hosts a live control socket. Mirrors
+// the probe in terminalrunner.OpenSocketCtrl: a successful dial means a live
+// peer is serving the path; ENOENT/ECONNREFUSED/timeout means nobody is
+// accepting.
 const liveSocketProbeTimeout = 100 * time.Millisecond
 
 // pruneOrphanTerminalDirs removes terminal directories whose metadata.json
@@ -47,30 +48,51 @@ func pruneOrphanTerminalDirs(ctx context.Context, logger *slog.Logger, runPath s
 	if err != nil {
 		return err
 	}
+	return pruneOrphanDirs(ctx, logger, w, orphans, "terminal")
+}
+
+// pruneOrphanClientDirs removes client directories whose metadata.json is
+// missing or unparseable — the clients-side counterpart of
+// pruneOrphanTerminalDirs (see #422). The live-socket guard covers the
+// client control socket (clients/<id>/client.sock — see pkg/attach).
+func pruneOrphanClientDirs(ctx context.Context, logger *slog.Logger, runPath string, w io.Writer) error {
+	orphans, err := pkgdiscovery.OrphanClientDirs(ctx, logger, runPath)
+	if err != nil {
+		return err
+	}
+	return pruneOrphanDirs(ctx, logger, w, orphans, "client")
+}
+
+// pruneOrphanDirs removes the given orphan directories, skipping any that
+// still host a live unix socket. noun ("terminal", "client") labels logs and
+// the per-directory lines written to w.
+func pruneOrphanDirs(ctx context.Context, logger *slog.Logger, w io.Writer, orphans []string, noun string) error {
 	for _, dir := range orphans {
 		if hasLiveSocket(ctx, dir) {
 			logger.WarnContext(
 				ctx,
-				"pruneOrphanTerminalDirs: skipping orphan dir with live socket",
+				"pruneOrphanDirs: skipping orphan dir with live socket",
+				"kind", noun,
 				"dir", dir,
 			)
 			if w != nil {
-				fmt.Fprintf(w, "Skipped orphan terminal directory %s (live socket)\n", dir)
+				fmt.Fprintf(w, "Skipped orphan %s directory %s (live socket)\n", noun, dir)
 			}
 			continue
 		}
 		if errRemove := os.RemoveAll(dir); errRemove != nil {
 			logger.ErrorContext(
 				ctx,
-				"pruneOrphanTerminalDirs: failed to remove orphan dir",
+				"pruneOrphanDirs: failed to remove orphan dir",
+				"kind", noun,
 				"dir", dir,
 				"error", errRemove,
 			)
-			return fmt.Errorf("prune orphan terminal dir %s: %w", dir, errRemove)
+			return fmt.Errorf("prune orphan %s dir %s: %w", noun, dir, errRemove)
 		}
-		logger.InfoContext(ctx, "pruneOrphanTerminalDirs: orphan terminal dir removed", "dir", dir)
+		logger.InfoContext(ctx, "pruneOrphanDirs: orphan dir removed", "kind", noun, "dir", dir)
 		if w != nil {
-			fmt.Fprintf(w, "Pruned orphan terminal directory %s (missing or corrupt metadata.json)\n", dir)
+			fmt.Fprintf(w, "Pruned orphan %s directory %s (missing or corrupt metadata.json)\n", noun, dir)
 		}
 	}
 	return nil
@@ -79,7 +101,8 @@ func pruneOrphanTerminalDirs(ctx context.Context, logger *slog.Logger, runPath s
 // hasLiveSocket reports whether any unix socket directly inside dir accepts
 // a connection. Best-effort: a terminal whose control socket was placed
 // outside its run dir (custom Spec.SocketFile) is not detected, but the
-// default layout (runPath/terminals/<id>/socket) is covered.
+// default layouts (runPath/terminals/<id>/socket,
+// runPath/clients/<id>/client.sock) are covered.
 func hasLiveSocket(ctx context.Context, dir string) bool {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -110,8 +133,25 @@ func ReportOrphanTerminalDirs(ctx context.Context, logger *slog.Logger, runPath 
 	if err != nil {
 		return 0, err
 	}
+	return reportOrphanDirs(w, orphans, "terminal", "sb prune terminals"), nil
+}
+
+// ReportOrphanClientDirs is the clients-side counterpart of
+// ReportOrphanTerminalDirs: a one-line warning channel for `sb get clients`
+// when orphan client directories exist; `sb prune clients` does the reaping.
+func ReportOrphanClientDirs(ctx context.Context, logger *slog.Logger, runPath string, w io.Writer) (int, error) {
+	orphans, err := pkgdiscovery.OrphanClientDirs(ctx, logger, runPath)
+	if err != nil {
+		return 0, err
+	}
+	return reportOrphanDirs(w, orphans, "client", "sb prune clients"), nil
+}
+
+// reportOrphanDirs writes the one-line orphan warning to w and returns the
+// orphan count. Silent when there are no orphans.
+func reportOrphanDirs(w io.Writer, orphans []string, noun, pruneCmd string) int {
 	if len(orphans) == 0 {
-		return 0, nil
+		return 0
 	}
 	plural := "y"
 	if len(orphans) > 1 {
@@ -119,8 +159,8 @@ func ReportOrphanTerminalDirs(ctx context.Context, logger *slog.Logger, runPath 
 	}
 	fmt.Fprintf(
 		w,
-		"warning: %d terminal director%s with missing or corrupt metadata.json; run 'sb prune terminals' to clean up\n",
-		len(orphans), plural,
+		"warning: %d %s director%s with missing or corrupt metadata.json; run '%s' to clean up\n",
+		len(orphans), noun, plural, pruneCmd,
 	)
-	return len(orphans), nil
+	return len(orphans)
 }

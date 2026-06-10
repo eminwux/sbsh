@@ -133,3 +133,100 @@ func TestOrphanTerminalDirs(t *testing.T) {
 		}
 	})
 }
+
+func TestOrphanClientDirs(t *testing.T) {
+	ctx := context.Background()
+	logger := testLogger()
+
+	t.Run("missing clients root yields no orphans", func(t *testing.T) {
+		got, err := discovery.OrphanClientDirs(ctx, logger, t.TempDir())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("expected no orphans, got %v", got)
+		}
+	})
+
+	t.Run("healthy dirs are not orphans", func(t *testing.T) {
+		runPath := t.TempDir()
+		writeClientDoc(t, runPath, "id-ok", "alpha")
+		backdateDir(t, filepath.Join(runPath, defaults.ClientsRunPath, "id-ok"))
+
+		got, err := discovery.OrphanClientDirs(ctx, logger, runPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("expected no orphans, got %v", got)
+		}
+	})
+
+	t.Run("missing and corrupt metadata classify as orphans", func(t *testing.T) {
+		runPath := t.TempDir()
+		writeClientDoc(t, runPath, "id-ok", "alpha")
+		writeInvalidClientJSON(t, runPath, "id-corrupt")
+		missingDir := filepath.Join(runPath, defaults.ClientsRunPath, "id-missing")
+		if err := os.MkdirAll(missingDir, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(missingDir, "log"), []byte("x"), 0o644); err != nil {
+			t.Fatalf("write log: %v", err)
+		}
+		for _, id := range []string{"id-ok", "id-corrupt", "id-missing"} {
+			backdateDir(t, filepath.Join(runPath, defaults.ClientsRunPath, id))
+		}
+
+		got, err := discovery.OrphanClientDirs(ctx, logger, runPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := map[string]bool{
+			filepath.Join(runPath, defaults.ClientsRunPath, "id-corrupt"): true,
+			filepath.Join(runPath, defaults.ClientsRunPath, "id-missing"): true,
+		}
+		if len(got) != len(want) {
+			t.Fatalf("expected %d orphans, got %v", len(want), got)
+		}
+		for _, dir := range got {
+			if !want[dir] {
+				t.Fatalf("unexpected orphan %s (got %v)", dir, got)
+			}
+		}
+	})
+
+	t.Run("recently modified dirs are shielded by the grace period", func(t *testing.T) {
+		runPath := t.TempDir()
+		freshDir := filepath.Join(runPath, defaults.ClientsRunPath, "id-fresh")
+		if err := os.MkdirAll(freshDir, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+
+		got, err := discovery.OrphanClientDirs(ctx, logger, runPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("expected fresh dir to be shielded, got %v", got)
+		}
+	})
+
+	t.Run("stray files under clients root are ignored", func(t *testing.T) {
+		runPath := t.TempDir()
+		root := filepath.Join(runPath, defaults.ClientsRunPath)
+		if err := os.MkdirAll(root, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "stray"), []byte("x"), 0o644); err != nil {
+			t.Fatalf("write stray: %v", err)
+		}
+
+		got, err := discovery.OrphanClientDirs(ctx, logger, runPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("expected stray file to be ignored, got %v", got)
+		}
+	})
+}

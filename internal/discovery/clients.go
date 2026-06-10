@@ -94,7 +94,13 @@ func ScanAndPruneClients(ctx context.Context, logger *slog.Logger, runPath strin
 		pkgdiscovery.ClientID,
 		pkgdiscovery.ClientName,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	// Metadata-driven pruning above can only reap directories ScanClients
+	// returns; directories whose metadata.json is missing or corrupt never
+	// appear there and would leak forever without this pass. See #422.
+	return pruneOrphanClientDirs(ctx, logger, runPath, w)
 }
 
 // ScanClients is a thin wrapper around [pkgdiscovery.ScanClients].
