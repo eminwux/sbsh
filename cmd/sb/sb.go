@@ -88,7 +88,9 @@ You can see available options and commands with:
 
 			err := LoadConfig()
 			if err != nil {
-				logger.DebugContext(cmd.Context(), "config error", "error", err)
+				if logger != nil {
+					logger.DebugContext(cmd.Context(), "config error", "error", err)
+				}
 				return fmt.Errorf("%w: %w", errdefs.ErrConfig, err)
 			}
 			return nil
