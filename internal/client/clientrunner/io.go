@@ -194,8 +194,6 @@ func (sr *Exec) forwardResize() error {
 		for {
 			select {
 			case <-sr.ctx.Done():
-				signal.Stop(ch)
-				defer close(ch)
 				sr.logger.WarnContext(sr.ctx, "forwardResize: context done")
 				return
 			case <-ch:
@@ -206,12 +204,15 @@ func (sr *Exec) forwardResize() error {
 					continue
 				}
 				ctx, cancel := context.WithTimeout(sr.ctx, resizeTimeout*time.Millisecond)
-				defer cancel()
 				if errResize := sr.terminalClient.Resize(ctx, &api.ResizeArgs{Cols: cols, Rows: rows}); errResize != nil {
 					sr.logger.ErrorContext(sr.ctx, "forwardResize: resize RPC failed", "error", errResize)
 				} else {
 					sr.logger.DebugContext(sr.ctx, "forwardResize: resize sent", "rows", rows, "cols", cols)
 				}
+				// Cancel inline (not via defer) so each per-resize context is
+				// released promptly instead of accumulating on the goroutine's
+				// defer stack for the whole session lifetime.
+				cancel()
 			}
 		}
 	}()
