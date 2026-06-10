@@ -297,6 +297,18 @@ func (s *Controller) Run(doc *api.ClientDoc) error {
 			s.handleEvent(ev)
 
 		case errRPC := <-s.rpcDoneCh:
+			// The accept loop delivers nil on ctx-cancel (a graceful RPC
+			// server exit); wrapping it with %w would render
+			// `rpc server exited: %!w(<nil>)`. Mirror the nil-aware branch
+			// in internal/terminal/controller.go.
+			if errRPC == nil {
+				s.logger.Info("rpc server exited gracefully")
+				if errC := s.Close(nil); errC != nil {
+					s.logger.Error("error during Close after rpc server graceful exit", "error", errC)
+					return fmt.Errorf("%w: %w", errdefs.ErrRPCServerExited, errC)
+				}
+				return errdefs.ErrRPCServerExited
+			}
 			s.logger.Error("rpc server exited", "error", errRPC)
 			if errC := s.Close(errRPC); errC != nil {
 				s.logger.Error("error during Close after rpc server failure", "error", errC)
