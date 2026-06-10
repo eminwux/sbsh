@@ -47,13 +47,13 @@ func NewAttachCmd() *cobra.Command {
 	attachCmd := &cobra.Command{
 		Use:     Command,
 		Aliases: []string{CommandAlias},
-		Short:   "A brief description of your command",
-		Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+		Short:   "Attach to a running terminal",
+		Long: `Attach to a running terminal by its ID or name.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Identify the target with --id or --name (the two are mutually exclusive).
+Once attached, your terminal is connected to the remote session; press the
+detach keystroke (^] twice) to detach and leave it running, or use
+--disable-detach to turn the keystroke off.`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
