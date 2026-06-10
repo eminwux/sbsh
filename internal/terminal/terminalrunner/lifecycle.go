@@ -170,7 +170,13 @@ func (sr *Exec) watchChildExit() {
 // Grace <= 0 falls back to the package default. Must only be called after
 // startPty has run (cmd and cmd.Process are set).
 func (sr *Exec) shutdownChild(grace time.Duration) {
-	if sr.cmd == nil || sr.cmd.Process == nil {
+	// Snapshot cmd under runtimeMu: a concurrent startPty publishes it (and
+	// its Process) under the same lock, so this read is otherwise a data
+	// race against a Stop-during-startup Close. See #396.
+	sr.runtimeMu.Lock()
+	cmd := sr.cmd
+	sr.runtimeMu.Unlock()
+	if cmd == nil || cmd.Process == nil {
 		return
 	}
 	if sr.childDone() {
@@ -180,7 +186,7 @@ func (sr *Exec) shutdownChild(grace time.Duration) {
 		grace = profile.DefaultShutdownGrace
 	}
 
-	pid := sr.cmd.Process.Pid
+	pid := cmd.Process.Pid
 	// Setsid: true ensures pgid == pid for the child.
 	if err := syscall.Kill(-pid, syscall.SIGTERM); err != nil && !errors.Is(err, syscall.ESRCH) {
 		sr.logger.Warn("could not SIGTERM child process group", "id", sr.id, "pid", pid, "err", err)
@@ -216,6 +222,16 @@ func (sr *Exec) Close(reason error) error {
 		}
 	}
 
+	// Latch `closing` before the graceful child shutdown so a startPty
+	// racing this Close (Stop RPC during startup) observes it under
+	// runtimeMu and aborts before cmd.Start. This closes the orphaned-child
+	// hole: a child forked after shutdownChild's early return (cmd.Process
+	// still nil) would never be signalled, since cmd.Cancel is a deliberate
+	// no-op and Close has already passed its only kill site. See #396.
+	sr.runtimeMu.Lock()
+	sr.closing = true
+	sr.runtimeMu.Unlock()
+
 	// Graceful shutdown of the child before tearing anything else down:
 	// SIGTERM -> wait up to ShutdownGrace -> SIGKILL. This runs regardless
 	// of PID-1 status; removing the always-hard-kill default is correct in
@@ -226,10 +242,14 @@ func (sr *Exec) Close(reason error) error {
 
 	sr.logger.Debug("terminal closed", "id", sr.id)
 
-	// Tear down PID-1 helpers (no-ops outside init mode).
-	if sr.stopSignalForwarder != nil {
-		sr.stopSignalForwarder()
-		sr.stopSignalForwarder = nil
+	// Tear down PID-1 helpers (no-ops outside init mode). Read/clear under
+	// runtimeMu: startPty publishes stopSignalForwarder concurrently. See #396.
+	sr.runtimeMu.Lock()
+	stopForwarder := sr.stopSignalForwarder
+	sr.stopSignalForwarder = nil
+	sr.runtimeMu.Unlock()
+	if stopForwarder != nil {
+		stopForwarder()
 	}
 	if sr.reaper != nil {
 		sr.reaper.Stop()
@@ -284,10 +304,16 @@ func (sr *Exec) Close(reason error) error {
 	// close all output subscribers
 	sr.closeAllSubscribers()
 
-	if sr.ptmx != nil {
+	// Snapshot ptmx under runtimeMu: startPty publishes it concurrently. The
+	// closePTY sync.Once still serializes the actual close against the
+	// terminalManager goroutines' own ctx-cancel close. See #396.
+	sr.runtimeMu.Lock()
+	ptmx := sr.ptmx
+	sr.runtimeMu.Unlock()
+	if ptmx != nil {
 		var err error
 		sr.closePTY.Do(func() {
-			err = sr.ptmx.Close()
+			err = ptmx.Close()
 		})
 		if err != nil {
 			sr.logger.Warn("could not close pty", "id", sr.id, "err", err)
@@ -298,9 +324,14 @@ func (sr *Exec) Close(reason error) error {
 	// and ptmx teardown so the PTY reader has stopped writing to multiOutW
 	// (which holds the rotating capture writer as its always-on sink).
 	// closeCapture guards against double-Close per #229's idempotency AC.
-	if sr.capture != nil && sr.closeCapture != nil {
+	// Snapshot capture under runtimeMu: startPty publishes it concurrently.
+	// closeCapture guards against double-Close per #229's idempotency AC.
+	sr.runtimeMu.Lock()
+	capture := sr.capture
+	sr.runtimeMu.Unlock()
+	if capture != nil && sr.closeCapture != nil {
 		sr.closeCapture.Do(func() {
-			if err := sr.capture.Close(); err != nil {
+			if err := capture.Close(); err != nil {
 				sr.logger.Warn("could not close capture file", "id", sr.id, "err", err)
 			}
 		})

@@ -107,7 +107,11 @@ func (sr *Exec) prepareTerminalCommand() error {
 		cmd.Env = append(cmd.Env, "TERM=xterm-256color", "COLORTERM=truecolor")
 	}
 
+	// Publish under runtimeMu: a Stop RPC during startup runs Close on
+	// another goroutine, which reads sr.cmd in shutdownChild. See #396.
+	sr.runtimeMu.Lock()
 	sr.cmd = cmd
+	sr.runtimeMu.Unlock()
 
 	return nil
 }
@@ -139,6 +143,22 @@ func (sr *Exec) startPty() error {
 		return fmt.Errorf("error opening pty: %w", errOpen)
 	}
 
+	// Publish the PTY handles and fork the child under runtimeMu so a
+	// concurrent Close (Stop RPC -> go c.Close during startup) observes a
+	// consistent snapshot and can never miss a child we are about to fork.
+	// If Close has already latched `closing`, abort before cmd.Start so the
+	// child is never created — otherwise Close, serialized behind us on
+	// runtimeMu, sees cmd.Process once we publish it and shuts it down
+	// gracefully. cmd.Cancel is a deliberate no-op, so a child forked after
+	// Close passed its only kill site would otherwise be orphaned. See #396.
+	sr.runtimeMu.Lock()
+	if sr.closing {
+		sr.runtimeMu.Unlock()
+		_ = ptmx.Close()
+		_ = pts.Close()
+		return errors.New("terminal is closing; aborting PTY start")
+	}
+
 	sr.ptmx = ptmx
 	sr.pts = pts
 
@@ -147,6 +167,7 @@ func (sr *Exec) startPty() error {
 	sr.cmd.Stderr = sr.pts
 
 	errStart := sr.cmd.Start()
+	sr.runtimeMu.Unlock()
 	if errStart != nil {
 		return fmt.Errorf("error starting command in pty: %w", errStart)
 	}
@@ -179,7 +200,11 @@ func (sr *Exec) startPty() error {
 
 	if sr.initMode && sr.reaper != nil {
 		sr.reaper.RegisterChild(sr.cmd.Process.Pid)
-		sr.stopSignalForwarder = startSignalForwarder(sr.logger, sr.cmd.Process.Pid)
+		forwarder := startSignalForwarder(sr.logger, sr.cmd.Process.Pid)
+		// Publish under runtimeMu: Close reads stopSignalForwarder. See #396.
+		sr.runtimeMu.Lock()
+		sr.stopSignalForwarder = forwarder
+		sr.runtimeMu.Unlock()
 	}
 
 	go sr.watchChildExit()
@@ -217,7 +242,12 @@ func (sr *Exec) startPty() error {
 	// so in-flight multiOutW.Write has settled. See #229. Error returns
 	// after this assignment must close the fd via closeCapture so the
 	// idempotency contract holds whether Close runs or not (see #241).
+	// Publish under runtimeMu: Close reads sr.capture during teardown. See
+	// #396. Subsequent reads of sr.capture below run on this same startup
+	// goroutine (after the write), so they need no further locking.
+	sr.runtimeMu.Lock()
 	sr.capture = capWriter
+	sr.runtimeMu.Unlock()
 
 	if errU := sr.updateMetadata(); errU != nil {
 		sr.closeCapture.Do(func() { _ = sr.capture.Close() })
