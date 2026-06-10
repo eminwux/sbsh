@@ -402,6 +402,15 @@ that have exited can be reused.
 				return errAvail
 			}
 
+			if errIDAvail := discovery.VerifyTerminalIDAvailable(
+				cmd.Context(),
+				logger,
+				terminalSpec.RunPath,
+				string(terminalSpec.ID),
+			); errIDAvail != nil {
+				return errIDAvail
+			}
+
 			logger.Debug("Built terminal spec", "terminalSpec", fmt.Sprintf("%+v", terminalSpec))
 
 			if logger.Enabled(context.Background(), slog.LevelDebug) {

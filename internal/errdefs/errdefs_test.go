@@ -35,7 +35,7 @@ func TestSentinels_NonNilWithMessage(t *testing.T) {
 		ErrClientMode, ErrRPCServerExited, ErrOnClose, ErrCloseReq, ErrTerminalCmdStart,
 		ErrWriteMetadata, ErrStartCmd, ErrDetachTerminal, ErrSetupShell, ErrInitShell,
 		ErrProgramExited, ErrNoSpecDefined, ErrAttachNoTerminalSpec, ErrTerminalNotFoundByID,
-		ErrTerminalNotFoundByName, ErrTerminalNameInUse, ErrTerminalMetadataNotFound,
+		ErrTerminalNotFoundByName, ErrTerminalNameInUse, ErrTerminalIDInUse, ErrTerminalMetadataNotFound,
 		ErrNoTerminalSpec, ErrConfig, ErrLoggerNotFound, ErrInvalidFlag, ErrInvalidOption,
 		ErrStdinStat, ErrStdinEmpty, ErrInvalidArgument, ErrOpenSpecFile, ErrInvalidJSONSpec,
 		ErrTerminalSpecNotFound, ErrBuildTerminalSpec, ErrNoTerminalIdentifier,

@@ -17,6 +17,7 @@
 package terminalrunner
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -25,6 +26,8 @@ import (
 	"time"
 
 	"github.com/eminwux/sbsh/internal/defaults"
+	"github.com/eminwux/sbsh/internal/discovery"
+	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/pidutil"
 	"github.com/eminwux/sbsh/internal/shared"
 	"github.com/eminwux/sbsh/pkg/api"
@@ -58,6 +61,25 @@ func (sr *Exec) CreateMetadata() error {
 	sr.metadataMu.Unlock()
 
 	dir, embedderOwnsDir := resolveMetadataDir(runPath, metadataDirOverride, sr.id)
+
+	// Refuse to overwrite metadata.json at a path whose current owner is still
+	// alive. CreateMetadata writes the ID-derived path unconditionally; without
+	// this guard a second start reusing a live terminal's --id (which a
+	// different --name sails past the CLI name check) clobbers the live
+	// terminal's pid/name/state, making it invisible and letting prune
+	// os.RemoveAll a still-running terminal's run dir. The socket probe in
+	// OpenSocketCtrl runs only after this write, so detection has to happen
+	// here, before the overwrite. See #386.
+	if owner := liveMetadataOwner(dir); owner != nil {
+		sr.logger.Error(
+			"CreateMetadata: refusing to overwrite metadata owned by a live terminal",
+			"dir", dir,
+			"owner_id", owner.Spec.ID,
+			"owner_name", owner.Spec.Name,
+			"owner_pid", owner.Status.Pid,
+		)
+		return fmt.Errorf("%w: %q (pid %d)", errdefs.ErrTerminalIDInUse, owner.Spec.ID, owner.Status.Pid)
+	}
 
 	if embedderOwnsDir {
 		// MetadataDir is set: the embedder pre-allocated this directory
@@ -106,6 +128,41 @@ func (sr *Exec) CreateMetadata() error {
 	}
 	sr.logger.Info("CreateMetadata: metadata created successfully")
 	return nil
+}
+
+// liveMetadataOwner reads an existing metadata.json under dir and returns the
+// decoded doc when it represents an active owner — recorded state is not Exited
+// and the owner process instance is still alive — or nil when no metadata
+// exists, it is unreadable/corrupt, the prior owner already exited, or its
+// process is gone. This is the reconcile/prune notion of "active": a terminal
+// is live iff State != Exited and IsInstanceAlive(pid, pidStart), so a recycled
+// ID whose prior owner exited cleanly (State==Exited) or died (pid gone) is
+// correctly treated as free for reuse — matching the name-recycling semantics
+// of VerifyTerminalNameAvailable. CreateMetadata is called once per runner
+// lifecycle before the runner writes any metadata of its own, so a fresh start
+// never matches itself here.
+func liveMetadataOwner(dir string) *api.TerminalDoc {
+	if dir == "" {
+		return nil
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "metadata.json"))
+	if err != nil {
+		// ENOENT (fresh ID) or any read error: no live owner to protect.
+		return nil
+	}
+	var doc api.TerminalDoc
+	if err := json.Unmarshal(b, &doc); err != nil {
+		// Corrupt metadata cannot identify a live owner; do not block the start.
+		return nil
+	}
+	if doc.Status.State == api.Exited {
+		// Prior owner exited cleanly; the ID is free to recycle.
+		return nil
+	}
+	if !discovery.IsInstanceAlive(doc.Status.Pid, doc.Status.PidStart) {
+		return nil
+	}
+	return &doc
 }
 
 func (sr *Exec) getTerminalDir() string {

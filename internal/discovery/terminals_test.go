@@ -146,3 +146,75 @@ func TestVerifyTerminalNameAvailable(t *testing.T) {
 		}
 	})
 }
+
+// TestVerifyTerminalIDAvailable mirrors the name-availability checks for the
+// ID pre-launch guard added in #386: a same-ID start (which a different --name
+// slips past VerifyTerminalNameAvailable) must be rejected before the runner
+// would clobber the live owner's metadata.
+func TestVerifyTerminalIDAvailable(t *testing.T) {
+	ctx := context.Background()
+	logger := discardLogger()
+	livePid := os.Getpid()
+	// PID 0 is reserved on Unix; isProcessAlive treats it as "unknown / alive",
+	// so a defunct PID like a very high number signals a dead process.
+	const deadPid = 0x7fffffff
+
+	t.Run("empty id is always available", func(t *testing.T) {
+		runPath := t.TempDir()
+		writeTerminalDoc(t, runPath, "id-1", "alpha", api.Ready, livePid)
+		if err := discovery.VerifyTerminalIDAvailable(ctx, logger, runPath, ""); err != nil {
+			t.Fatalf("expected nil for empty id, got: %v", err)
+		}
+	})
+
+	t.Run("empty runPath is always available", func(t *testing.T) {
+		if err := discovery.VerifyTerminalIDAvailable(ctx, logger, "", "id-1"); err != nil {
+			t.Fatalf("expected nil for empty runPath, got: %v", err)
+		}
+	})
+
+	t.Run("no terminals", func(t *testing.T) {
+		runPath := t.TempDir()
+		if err := discovery.VerifyTerminalIDAvailable(ctx, logger, runPath, "id-1"); err != nil {
+			t.Fatalf("expected nil, got: %v", err)
+		}
+	})
+
+	t.Run("active id blocks reuse even with a different name", func(t *testing.T) {
+		runPath := t.TempDir()
+		writeTerminalDoc(t, runPath, "id-1", "alpha", api.Ready, livePid)
+		// Same ID, the launcher's name (beta) differs — this is exactly the
+		// gap VerifyTerminalNameAvailable misses.
+		err := discovery.VerifyTerminalIDAvailable(ctx, logger, runPath, "id-1")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !errors.Is(err, errdefs.ErrTerminalIDInUse) {
+			t.Fatalf("expected ErrTerminalIDInUse, got: %v", err)
+		}
+	})
+
+	t.Run("active terminal does not block a different id", func(t *testing.T) {
+		runPath := t.TempDir()
+		writeTerminalDoc(t, runPath, "id-1", "alpha", api.Ready, livePid)
+		if err := discovery.VerifyTerminalIDAvailable(ctx, logger, runPath, "id-2"); err != nil {
+			t.Fatalf("expected nil for non-colliding id, got: %v", err)
+		}
+	})
+
+	t.Run("exited terminal allows id reuse", func(t *testing.T) {
+		runPath := t.TempDir()
+		writeTerminalDoc(t, runPath, "id-1", "alpha", api.Exited, livePid)
+		if err := discovery.VerifyTerminalIDAvailable(ctx, logger, runPath, "id-1"); err != nil {
+			t.Fatalf("expected nil for exited terminal, got: %v", err)
+		}
+	})
+
+	t.Run("stale active terminal is reconciled to exited and allows id reuse", func(t *testing.T) {
+		runPath := t.TempDir()
+		writeTerminalDoc(t, runPath, "id-1", "alpha", api.Ready, deadPid)
+		if err := discovery.VerifyTerminalIDAvailable(ctx, logger, runPath, "id-1"); err != nil {
+			t.Fatalf("expected nil after stale-state reconciliation, got: %v", err)
+		}
+	})
+}
