@@ -17,6 +17,7 @@
 package clientrunner
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -109,13 +110,18 @@ func (sr *Exec) getTerminalMetadata() (*api.TerminalDoc, error) {
 	return &metadata, nil
 }
 
-func (sr *Exec) getTerminalState() (*api.TerminalStatusMode, error) {
+// getTerminalState fetches the terminal's lifecycle state over the control
+// socket. The caller supplies the context so the State RPC honors the caller's
+// deadline — waitReady passes its bounded context so a wedged server (one that
+// accepts the connection but never replies) cannot block the readiness loop and
+// trap the client in raw mode. See issue #389.
+func (sr *Exec) getTerminalState(ctx context.Context) (*api.TerminalStatusMode, error) {
 	if sr.terminalClient == nil {
 		return nil, errors.New("getTerminalState: terminal client is nil")
 	}
 
 	var state api.TerminalStatusMode
-	if err := sr.terminalClient.State(sr.ctx, &state); err != nil {
+	if err := sr.terminalClient.State(ctx, &state); err != nil {
 		sr.logger.ErrorContext(sr.ctx, "getTerminalState: failed to get state", "error", err)
 		return nil, fmt.Errorf("get state RPC failed: %w", err)
 	}

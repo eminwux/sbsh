@@ -248,8 +248,9 @@ func (sr *Exec) waitReady(states ...api.TerminalStatusMode) error {
 			sr.logger.ErrorContext(sr.ctx, "waitReady: context done before ready", "error", ctx.Err())
 			return fmt.Errorf("context done before ready: %w", ctx.Err())
 		case <-ticker.C:
-			// refresh curState
-			curState, err := sr.getTerminalState()
+			// refresh curState — pass the bounded ctx so a wedged State RPC
+			// cannot outlive the readiness deadline (issue #389).
+			curState, err := sr.getTerminalState(ctx)
 			if err != nil {
 				sr.logger.ErrorContext(sr.ctx, "waitReady: getTerminalState failed during wait", "error", err)
 				return fmt.Errorf("get terminal state failed during wait: %w", err)
