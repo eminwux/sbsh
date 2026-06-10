@@ -186,9 +186,12 @@ func run(
 		return errdefs.ErrLoggerNotFound
 	}
 
-	// Top-level context also reacts to SIGINT/SIGTERM (nice UX). pkg/attach
-	// deliberately does not trap signals itself; the CLI owns that policy.
-	ctx, cancel := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+	// Top-level context also reacts to SIGINT/SIGTERM/SIGHUP/SIGQUIT (nice UX).
+	// pkg/attach deliberately does not trap signals itself; the CLI owns that
+	// policy. Trapping HUP/QUIT drives the same ctx-cancel → restoreParentTerminal
+	// path as INT/TERM, so a HUP/QUIT whose tty survives doesn't leave the parent
+	// shell in raw mode with DEC private modes still active.
+	ctx, cancel := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 	defer cancel()
 
 	socketPath, err := resolveTerminalSocket(cmd, logger, args)

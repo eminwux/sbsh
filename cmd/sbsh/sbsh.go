@@ -230,7 +230,10 @@ You can also use sbsh with parameters. For example:
 				}
 			}
 
-			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			// Trap HUP/QUIT alongside INT/TERM so they drive the same ctx-cancel →
+			// restoreParentTerminal path; otherwise a HUP/QUIT whose tty survives
+			// leaves the parent shell in raw mode with DEC private modes active.
+			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 			ctrl := client.NewClientController(ctx, logger)
 
 			return runClient(ctx, cancel, logger, ctrl, doc)
