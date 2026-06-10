@@ -54,6 +54,25 @@ type Exec struct {
 	pts   *os.File // slave
 	state api.TerminalState
 
+	// runtimeMu guards the runtime fields published during StartTerminal
+	// (cmd, ptmx, pts, capture, stopSignalForwarder) against the concurrent
+	// reads in Close. A Stop RPC arriving during startup runs Close on its
+	// own goroutine (controller.go's Stop -> go c.Close), so the RPC server
+	// is answering before StartTerminal completes and Close can interleave
+	// anywhere inside prepareTerminalCommand/startPty. Without this mutex
+	// `go test -race` flags those write/read pairs immediately. See #396.
+	//
+	// closing is the orphan-prevention latch: Close sets it under
+	// runtimeMu before its graceful child-shutdown sweep, and startPty
+	// checks it under the same lock in the critical section that forks the
+	// child (cmd.Start). Either startPty observes closing and aborts before
+	// the fork, or it has already published cmd.Process for Close to shut
+	// down — never both miss. This closes the hole where a child forked
+	// after shutdownChild's early return would never be signalled, since
+	// cmd.Cancel is a deliberate no-op (terminal.go). See #396.
+	runtimeMu sync.Mutex
+	closing   bool
+
 	gates struct {
 		StdinOpen bool
 		OutputOn  bool
