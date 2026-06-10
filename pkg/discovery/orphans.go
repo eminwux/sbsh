@@ -31,11 +31,11 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-// orphanGracePeriod shields a just-created terminal directory from being
-// classified as orphaned. The terminal runner MkdirAlls the directory
-// before the first atomic metadata.json write lands, so a scan racing that
-// window would otherwise see a metadata-less directory that is about to
-// become a live terminal and let prune remove it mid-startup.
+// orphanGracePeriod shields a just-created terminal or client directory from
+// being classified as orphaned. The runner MkdirAlls the directory before
+// the first atomic metadata.json write lands, so a scan racing that window
+// would otherwise see a metadata-less directory that is about to become a
+// live entity and let prune remove it mid-startup.
 const orphanGracePeriod = 30 * time.Second
 
 // OrphanTerminalDirs returns the directories under runPath/terminals whose
@@ -51,13 +51,37 @@ const orphanGracePeriod = 30 * time.Second
 // remove the directory anyway. Directories modified within the last
 // orphanGracePeriod are also skipped — see the constant's doc.
 func OrphanTerminalDirs(ctx context.Context, logger *slog.Logger, runPath string) ([]string, error) {
-	root := filepath.Join(runPath, defaults.TerminalsRunPath)
+	return orphanDirs[api.TerminalDoc](ctx, logger, runPath, defaults.TerminalsRunPath, "OrphanTerminalDirs", "terminal")
+}
+
+// OrphanClientDirs returns the directories under runPath/clients whose
+// metadata.json is missing or unparseable. The same leak exists for clients
+// as for terminals: ScanClients shares the metadata glob and the
+// skip-on-decode-failure design, so such directories can never be listed or
+// reaped without this enumeration. Classification rules (unreadable files,
+// grace window) match OrphanTerminalDirs.
+func OrphanClientDirs(ctx context.Context, logger *slog.Logger, runPath string) ([]string, error) {
+	return orphanDirs[api.ClientDoc](ctx, logger, runPath, defaults.ClientsRunPath, "OrphanClientDirs", "client")
+}
+
+// orphanDirs enumerates the directories under runPath/subDir whose
+// metadata.json is missing or does not decode into T. See the exported
+// wrappers for the classification contract.
+func orphanDirs[T any](
+	ctx context.Context,
+	logger *slog.Logger,
+	runPath string,
+	subDir string,
+	logPrefix string,
+	noun string,
+) ([]string, error) {
+	root := filepath.Join(runPath, subDir)
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
 		}
-		logger.ErrorContext(ctx, "OrphanTerminalDirs: failed to read terminals root", "dir", root, "error", err)
+		logger.ErrorContext(ctx, fmt.Sprintf("%s: failed to read %ss root", logPrefix, noun), "dir", root, "error", err)
 		return nil, fmt.Errorf("read dir %q: %w", root, err)
 	}
 
@@ -74,26 +98,26 @@ func OrphanTerminalDirs(ctx context.Context, logger *slog.Logger, runPath string
 		dir := filepath.Join(root, e.Name())
 		b, errRead := os.ReadFile(filepath.Join(dir, "metadata.json"))
 		if errRead == nil {
-			var doc api.TerminalDoc
+			var doc T
 			if json.Unmarshal(b, &doc) == nil {
 				continue
 			}
 		} else if !errors.Is(errRead, fs.ErrNotExist) {
 			logger.WarnContext(
 				ctx,
-				"OrphanTerminalDirs: metadata.json unreadable, not classifying as orphan",
+				fmt.Sprintf("%s: metadata.json unreadable, not classifying as orphan", logPrefix),
 				"dir", dir,
 				"error", errRead,
 			)
 			continue
 		}
 		if info, errInfo := e.Info(); errInfo == nil && time.Since(info.ModTime()) < orphanGracePeriod {
-			logger.DebugContext(ctx, "OrphanTerminalDirs: skipping recently modified dir", "dir", dir)
+			logger.DebugContext(ctx, fmt.Sprintf("%s: skipping recently modified dir", logPrefix), "dir", dir)
 			continue
 		}
 		logger.WarnContext(
 			ctx,
-			"OrphanTerminalDirs: terminal dir has missing or unparseable metadata.json",
+			fmt.Sprintf("%s: %s dir has missing or unparseable metadata.json", logPrefix, noun),
 			"dir", dir,
 		)
 		orphans = append(orphans, dir)

@@ -87,10 +87,11 @@ func listClients(cmd *cobra.Command, _ []string) error {
 		"args", cmd.Flags().Args(),
 	)
 
+	runPath := viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey)
 	err := discovery.ScanAndPrintClients(
 		cmd.Context(),
 		logger,
-		viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
+		runPath,
 		os.Stdout,
 		viper.GetBool(config.SB_GET_CLIENTS_ALL.ViperKey),
 		format,
@@ -99,6 +100,12 @@ func listClients(cmd *cobra.Command, _ []string) error {
 		logger.Debug("error scanning and printing clients", "error", err)
 		fmt.Fprintln(os.Stderr, "Could not scan clients")
 		return err
+	}
+	// Orphan dirs (missing/corrupt metadata.json) are invisible to the scan
+	// above; warn on stderr so the leak is observable without --verbose and
+	// without disturbing parseable stdout output. See #422.
+	if _, errOrphans := discovery.ReportOrphanClientDirs(cmd.Context(), logger, runPath, os.Stderr); errOrphans != nil {
+		logger.Debug("error reporting orphan client directories", "error", errOrphans)
 	}
 	logger.Debug("clients list completed successfully")
 	return nil
