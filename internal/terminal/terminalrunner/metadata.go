@@ -264,6 +264,16 @@ func (sr *Exec) updateTerminalAttachers() error {
 	return nil
 }
 
+// currentState returns the current Status.State under the metadata read lock.
+// It gives PostAttachShell's readiness spin a locked accessor so it neither
+// reads Status.State while updateTerminalState writes it under metadataMu nor
+// relies on a lock-free read having acquire semantics. See #388.
+func (sr *Exec) currentState() api.TerminalStatusMode {
+	sr.metadataMu.RLock()
+	defer sr.metadataMu.RUnlock()
+	return sr.metadata.Status.State
+}
+
 func (sr *Exec) Metadata() (*api.TerminalDoc, error) {
 	sr.metadataMu.RLock()
 	defer sr.metadataMu.RUnlock()

@@ -468,11 +468,21 @@ func (sr *Exec) SetupShell() error {
 	// 	sr.logger.Error("failed to send CTRL-L", "id", sr.id, "err", err)
 	// 	return fmt.Errorf("failed to send CTRL-L: %w", err)
 	// }
-	if sr.metadata.Spec.SetPrompt {
-		if sr.metadata.Spec.Prompt == "" {
-			sr.metadata.Spec.Prompt = "(sbsh-" + string(sr.metadata.Spec.ID) + ")"
-		}
-		promptCmd := `export PS1=` + sr.metadata.Spec.Prompt + "\n"
+	// Take metadataMu around the Spec.Prompt read-modify-write: an attaching
+	// client polls the State RPC (which copies sr.metadata under metadataMu)
+	// every ~50ms during setup, and an RLock'd reader does not exclude a
+	// lock-free writer. Snapshot the resolved prompt under the lock and write
+	// it to the PTY outside the critical section. See #388.
+	sr.metadataMu.Lock()
+	setPrompt := sr.metadata.Spec.SetPrompt
+	if setPrompt && sr.metadata.Spec.Prompt == "" {
+		sr.metadata.Spec.Prompt = "(sbsh-" + string(sr.metadata.Spec.ID) + ")"
+	}
+	prompt := sr.metadata.Spec.Prompt
+	sr.metadataMu.Unlock()
+
+	if setPrompt {
+		promptCmd := `export PS1=` + prompt + "\n"
 
 		sr.logger.Debug("setupShell: setting prompt", "cmd", promptCmd)
 		if _, err := sr.Write([]byte(promptCmd)); err != nil {
@@ -515,7 +525,7 @@ func (sr *Exec) writeStage(stage *[]api.ExecStep) error {
 func (sr *Exec) PostAttachShell() error {
 	sr.logger.Info("PostAttachShell: waiting for terminal to be ready", "id", sr.id)
 
-	for sr.metadata.Status.State != api.Ready {
+	for sr.currentState() != api.Ready {
 		select {
 		case <-sr.ctx.Done():
 			sr.logger.Error("PostAttachShell: context done", "id", sr.id)
@@ -538,7 +548,13 @@ func (sr *Exec) PostAttachShell() error {
 		sr.logger.Warn("PostAttachShell: state write failed, continuing", "id", sr.id, "err", err)
 	}
 
-	if err := sr.writeStage(&sr.metadata.Spec.Stages.PostAttach); err != nil {
+	// Snapshot the PostAttach stage slice under the read lock: SetupShell
+	// writes Spec.Prompt under metadataMu, so Spec is not immutable and a
+	// lock-free read here would not be excluded by that writer. See #388.
+	sr.metadataMu.RLock()
+	postAttachStages := sr.metadata.Spec.Stages.PostAttach
+	sr.metadataMu.RUnlock()
+	if err := sr.writeStage(&postAttachStages); err != nil {
 		return err
 	}
 
