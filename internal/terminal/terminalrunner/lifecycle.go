@@ -118,7 +118,23 @@ func (sr *Exec) applyLogFilePerms() error {
 }
 
 func (sr *Exec) waitOnTerminal() {
-	err := <-sr.closeReqCh
+	// Mirror the ctx escape watchChildExit's send select already has
+	// (lifecycle.go's closeReqCh send below). closeReqCh is unbuffered and
+	// watchChildExit is its sole sender; on an externally-driven Close that
+	// escalates to SIGKILL, ctxCancel can already be done when the sender
+	// selects, so the sender takes its ctx.Done() arm and drops the value.
+	// Without a symmetric escape here this sole receiver parks on the bare
+	// receive forever, leaking one goroutine (plus its Exec) per affected
+	// Close. The receive and the ctx guard race like the send does; on a
+	// clean exit the value arrives and we publish EvCmdExited as before. See
+	// #397.
+	var err error
+	select {
+	case err = <-sr.closeReqCh:
+	case <-sr.ctx.Done():
+		sr.logger.Debug("waitOnTerminal: ctx cancelled before close request; exiting", "id", sr.id)
+		return
+	}
 	sr.logger.Info("terminal close requested", "id", sr.id, "err", err)
 	sr.logger.Debug("sending EvCmdExited event", "id", sr.id)
 	trySendEvent(sr.logger, sr.evCh, Event{ID: sr.id, Type: EvCmdExited, Err: err, When: time.Now()})
