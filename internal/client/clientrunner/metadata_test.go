@@ -142,7 +142,7 @@ func TestState_ReturnsCurrentState(t *testing.T) {
 // terminal client has been dialled yet.
 func TestGetTerminalState_NilClient(t *testing.T) {
 	sr, _ := newMetadataExec(t)
-	if _, err := sr.getTerminalState(); err == nil {
+	if _, err := sr.getTerminalState(context.Background()); err == nil {
 		t.Fatal("getTerminalState with nil client returned nil error")
 	}
 }
@@ -154,7 +154,7 @@ func TestGetTerminalState_PropagatesRPCError(t *testing.T) {
 	sr.terminalClient = &mockTerminalClient{
 		stateFunc: func(_ context.Context, _ *api.TerminalStatusMode) error { return wantErr },
 	}
-	if _, err := sr.getTerminalState(); err == nil {
+	if _, err := sr.getTerminalState(context.Background()); err == nil {
 		t.Fatal("getTerminalState returned nil error on RPC failure")
 	}
 }

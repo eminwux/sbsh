@@ -18,6 +18,7 @@ package clientrunner
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,6 +34,12 @@ import (
 
 const (
 	deleteClientDir bool = false
+
+	// detachTimeout bounds the Detach RPC so a wedged daemon (one that accepts
+	// the connection and request-write but never replies) cannot block the
+	// controller event loop indefinitely and leave the parent terminal stuck in
+	// raw mode. Matches the Ping deadline in io.go. See issue #389.
+	detachTimeout = 3 * time.Second
 )
 
 func (sr *Exec) StartTerminalCmd(terminal *api.AttachedTerminal) error {
@@ -217,7 +224,14 @@ func (sr *Exec) Detach() error {
 	// RPC timeout) — rather than relying on Close() being driven later via the
 	// conn-close EvError, which is not guaranteed to fire on the same tick. See
 	// issues #364 and #383.
-	if err := sr.terminalClient.Detach(sr.ctx, &sr.id); err != nil {
+	//
+	// Bound the RPC so a daemon that accepts the connection but never replies
+	// cannot block here forever — on timeout the ctx-cancel branch in
+	// callWithCodec returns, and we fall through to the restore path exactly as
+	// the Detach-RPC-failure case from #385 does. See issue #389.
+	ctx, cancel := context.WithTimeout(sr.ctx, detachTimeout)
+	defer cancel()
+	if err := sr.terminalClient.Detach(ctx, &sr.id); err != nil {
 		sr.logger.Warn("Detach RPC failed; restoring parent terminal anyway", "client_id", sr.id, "error", err)
 		// Suppress the "Detached" banner — it would be misleading when the RPC
 		// failed — but the restore still runs. See #383.

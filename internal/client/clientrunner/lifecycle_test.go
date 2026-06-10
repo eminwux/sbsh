@@ -195,6 +195,44 @@ func TestDetach_RPCError(t *testing.T) {
 	}
 }
 
+// TestDetach_RPCBounded covers issue #389: the Detach RPC must carry a bounded
+// context so a wedged daemon cannot block the controller event loop forever. We
+// assert the context handed to the terminal client carries a deadline derived
+// from sr.ctx, and that a Detach RPC which blocks until that deadline still
+// returns (falling through to the restore path) rather than hanging.
+func TestDetach_RPCBounded(t *testing.T) {
+	sr, _ := newLifecycleExec(t)
+
+	var gotDeadline bool
+	sr.terminalClient = &mockTerminalClient{
+		detachFunc: func(ctx context.Context, _ *api.ID) error {
+			_, gotDeadline = ctx.Deadline()
+			// Emulate a wedged daemon: block until the bounded context fires,
+			// then surface its error exactly as callWithCodec's ctx-done branch
+			// does. Without the bound this would block until the test's parent
+			// ctx is cancelled and hang the controller event loop.
+			<-ctx.Done()
+			return ctx.Err()
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- sr.Detach() }()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("Detach returned nil error when the RPC timed out; want the bounded-ctx error")
+		}
+	case <-time.After(detachTimeout + 2*time.Second):
+		t.Fatal("Detach did not return within the bounded timeout; the Detach RPC is not bounded")
+	}
+
+	if !gotDeadline {
+		t.Fatal("Detach RPC context carried no deadline; the controller event loop can wedge indefinitely")
+	}
+}
+
 // TestDetach_StdoutWriteError covers the branch where the detach succeeds at
 // the RPC layer but writing the confirmation banner to stdout fails. As of #383
 // the banner is a best-effort post-drain message inside restoreParentTerminal,

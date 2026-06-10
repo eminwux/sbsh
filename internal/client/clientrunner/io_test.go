@@ -329,6 +329,60 @@ func Test_WaitReady_Timeout(t *testing.T) {
 	}
 }
 
+// Test_WaitReady_WedgedStateRPC covers issue #389: a State RPC that never
+// replies (daemon wedged with the socket still in the kernel backlog) must not
+// trap the readiness loop. Because waitReady passes its bounded context to the
+// State RPC, a blocking RPC is cancelled at the readiness deadline and waitReady
+// returns an error instead of hanging the caller in raw mode forever.
+func Test_WaitReady_WedgedStateRPC(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sr := &Exec{
+		ctx:    ctx,
+		logger: logger,
+		terminal: &api.AttachedTerminal{
+			Spec: &api.TerminalSpec{
+				ID:   api.ID("test-terminal"),
+				Name: "test",
+			},
+		},
+		metadata: api.ClientDoc{
+			APIVersion: api.APIVersionV1Beta1,
+			Kind:       api.KindClient,
+			Metadata: api.ClientMetadata{
+				Name:        "test-client",
+				Labels:      make(map[string]string),
+				Annotations: make(map[string]string),
+			},
+			Spec: api.ClientSpec{},
+		},
+	}
+
+	// Wedged daemon: the State RPC blocks until its context is cancelled.
+	sr.terminalClient = &mockTerminalClient{
+		stateFunc: func(rpcCtx context.Context, _ *api.TerminalStatusMode) error {
+			<-rpcCtx.Done()
+			return rpcCtx.Err()
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- sr.waitReady(api.Ready)
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("waitReady returned nil against a wedged State RPC; want an error so the caller can restore the terminal")
+		}
+	case <-time.After(waitReadyTimeoutSeconds*time.Second + 3*time.Second):
+		t.Fatal("waitReady hung on a wedged State RPC; the readiness wait did not bound the RPC (issue #389)")
+	}
+}
+
 func Test_WaitReady_StateTransition(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	ctx, cancel := context.WithCancel(context.Background())
