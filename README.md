@@ -17,6 +17,17 @@ Get sbsh up and running in minutes.
 
 ### Install
 
+One-liner — auto-detects OS/arch, resolves the latest release, installs `sbsh` and the `sb` hardlink:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eminwux/sbsh/main/scripts/install.sh | bash
+```
+
+Override defaults via env vars: `SBSH_VERSION=vX.Y.Z` (pin a tag), `SBSH_INSTALL_PREFIX=/path/bin` (default `/usr/local/bin`), `SBSH_REPO=owner/repo` (forks), `SBSH_SKIP_CHECKSUM=1`.
+
+<details>
+<summary>Or install manually</summary>
+
 ```bash
 # Set your platform (defaults shown)
 export OS=linux        # Options: linux, darwin, freebsd
@@ -28,6 +39,8 @@ chmod +x sbsh && \
 sudo install -m 0755 sbsh /usr/local/bin/sbsh && \
 sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
 ```
+
+</details>
 
 ### Autocomplete
 
