@@ -155,7 +155,8 @@ func validateClientInputs(doc *api.ClientDoc, opts ClientOptions) error {
 }
 
 // buildClientAttachArgs translates a ClientDoc into the CLI argv for
-// `sb [--run-path X] attach --socket S [--id I | <name>] [--disable-detach]`.
+// `sb [--run-path X] attach --socket S [--id I | <name>] [--disable-detach]
+// [--full-capture] [--clear-screen] [--clear-screen-on-detach]`.
 //
 // The `--socket` flag is documented on `sb attach` as "for the
 // terminal" but at runtime it sets the *client's* control socket
@@ -167,7 +168,9 @@ func validateClientInputs(doc *api.ClientDoc, opts ClientOptions) error {
 // If --id and --name are both set the CLI rejects the combination,
 // so spawn deterministically prefers ID (matches CLI precedence).
 func buildClientAttachArgs(doc *api.ClientDoc, opts ClientOptions) []string {
-	const maxAttachArgs = 9 // --run-path X attach --socket S --id I --disable-detach --full-capture
+	// --run-path X attach --socket S --id I --disable-detach --full-capture
+	// --clear-screen --clear-screen-on-detach
+	const maxAttachArgs = 11
 	args := make([]string, 0, maxAttachArgs+len(opts.ExtraArgs))
 
 	if doc.Spec.RunPath != "" {
@@ -182,6 +185,14 @@ func buildClientAttachArgs(doc *api.ClientDoc, opts ClientOptions) []string {
 
 	if doc.Spec.FullCapture {
 		args = append(args, "--full-capture")
+	}
+
+	if doc.Spec.ClearScreen {
+		args = append(args, "--clear-screen")
+	}
+
+	if doc.Spec.ClearScreenOnDetach {
+		args = append(args, "--clear-screen-on-detach")
 	}
 
 	term := doc.Spec.TerminalSpec

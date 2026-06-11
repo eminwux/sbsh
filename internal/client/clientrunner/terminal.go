@@ -80,9 +80,19 @@ const copierWaitTimeout = 500 * time.Millisecond
 // escHideCursor in internal/terminal/terminalrunner/terminal_screen.go) and
 // with anything a TUI/shell on the remote side wrote through to the parent
 // terminal without a matching reset. Emitted unconditionally per #365 — the
-// client cannot rely on the remote side emitting a matching reset on its own;
-// resetting a mode that wasn't set is a no-op on every terminal.
-const escRestoreParentTerm = "\x1b[?1049l" + // leave the alternate screen buffer
+// client cannot rely on the remote side emitting a matching reset on its own.
+//
+// "Resetting a mode that wasn't set is a no-op" does not hold for ?1049l:
+// xterm documents DECRST 1049 as "Use Normal Screen Buffer and restore cursor
+// as in DECRC", and DECRC with no prior save restores the *default* cursor —
+// home — so a bare ?1049l on a session that never entered the alt screen
+// yanks the prompt to row 1 over stale content. The DECSC (\x1b7) prefix
+// makes the DECRC component restore the just-saved position instead.
+// xterm/VTE keep per-buffer saved cursors, so when a TUI is exiting the alt
+// screen the DECSC lands in the alt buffer's slot and the ?1049l still
+// restores the normal buffer's pre-attach cursor. See issue #425.
+const escRestoreParentTerm = "\x1b7" + // save cursor (DECSC) so ?1049l's DECRC restores it
+	"\x1b[?1049l" + // leave the alternate screen buffer
 	"\x1b[?25h" + // make the cursor visible
 	"\x1b[0 q" + // reset cursor style (DECSCUSR) to terminal default
 	"\x1b[?1000l" + // disable X11 mouse reporting (basic)
@@ -91,6 +101,11 @@ const escRestoreParentTerm = "\x1b[?1049l" + // leave the alternate screen buffe
 	"\x1b[?1006l" + // disable SGR mouse encoding
 	"\x1b[?1015l" + // disable urxvt mouse encoding
 	"\x1b[?2004l" // disable bracketed paste
+
+// escClearScreenHome is the full screen erase + cursor home the opt-in
+// --clear-screen-on-detach flag emits after escRestoreParentTerm — a real
+// erase, not merely a cursor-home. See issue #425.
+const escClearScreenHome = "\x1b[2J\x1b[H"
 
 // restoreParentTerminal performs a single, idempotent "unblock stdin + restore
 // tty" at the session boundary so the parent shell is always handed back a
@@ -104,7 +119,12 @@ const escRestoreParentTerm = "\x1b[?1049l" + // leave the alternate screen buffe
 // "Detached" notice) cannot interleave with mid-flush remote bytes yet raw mode
 // is still active so its embedded \r\n behaves correctly. The Close()/exit
 // paths pass "". See issues #364 and #383.
-func (sr *Exec) restoreParentTerminal(postDrainMsg string) {
+//
+// clearScreen, when true, emits a full screen erase + home immediately after
+// the normalize sequence — the user-detach paths pass the opt-in
+// ClearScreenOnDetach spec value; the Close()/process-exit paths pass false
+// so they keep the screen content untouched. See issue #425.
+func (sr *Exec) restoreParentTerminal(postDrainMsg string, clearScreen bool) {
 	sr.restoreOnce.Do(func() {
 		sr.logger.Debug("restoreParentTerminal: beginning terminal restore")
 
@@ -136,30 +156,11 @@ func (sr *Exec) restoreParentTerminal(postDrainMsg string) {
 			}
 		}
 
-		// Write any teardown-confirmation banner now: the inbound copier has
-		// drained (so this cannot interleave with mid-flush remote bytes) and the
-		// termios restore below has not yet run (so raw mode is still active and
-		// the banner's embedded \r\n behaves). Emitted before the normalize
-		// sequence so it lands while any alt-screen the remote set is still
-		// active, matching the pre-#383 relative ordering. See issue #383.
-		if postDrainMsg != "" && sr.stdout != nil {
-			if _, err := sr.stdout.WriteString(postDrainMsg); err != nil {
-				sr.logger.Debug("restoreParentTerminal: write post-drain message failed", "error", err)
-			}
-		}
-
-		// Normalize the parent terminal's output-side DEC private mode state
-		// (alt-screen, cursor visibility, cursor style) before handing the
-		// terminal back. Runs after the copier wait so we do not race the
-		// socket->stdout copier still draining remote bytes, and before the
-		// termios restore — these are escape bytes interpreted by the parent
-		// terminal emulator, not line-discipline input, so the active termios
-		// mode does not affect them. See issue #365.
-		if sr.stdout != nil {
-			if _, err := sr.stdout.WriteString(escRestoreParentTerm); err != nil {
-				sr.logger.Debug("restoreParentTerminal: write normalize sequence failed", "error", err)
-			}
-		}
+		// The inbound copier has drained (so output cannot interleave with
+		// mid-flush remote bytes) and the termios restore below has not yet
+		// run (so raw mode is still active and embedded \r\n behaves) —
+		// the safe point for the banner + normalize + opt-in clear writes.
+		sr.writeTeardownOutput(postDrainMsg, clearScreen)
 
 		// Restore termios raw->cooked (still via SyscallConn, no .Fd()).
 		_ = sr.toExitShell()
@@ -176,6 +177,34 @@ func (sr *Exec) restoreParentTerminal(postDrainMsg string) {
 
 		sr.logger.Info("restoreParentTerminal: parent terminal restored")
 	})
+}
+
+// writeTeardownOutput writes the teardown byte sequences to the parent
+// terminal in order: the optional post-drain confirmation banner (emitted
+// before the normalize sequence so it lands while any alt-screen the remote
+// set is still active, matching the pre-#383 relative ordering — see issue
+// #383), the output-side normalize sequence (escape bytes interpreted by
+// the parent terminal emulator, not line-discipline input, so the active
+// termios mode does not affect them — see issue #365), and the opt-in
+// detach clear (a real screen erase after the normalize so it applies to
+// the normal buffer the ?1049l just guaranteed is active — see issue #425).
+func (sr *Exec) writeTeardownOutput(postDrainMsg string, clearScreen bool) {
+	if sr.stdout == nil {
+		return
+	}
+	if postDrainMsg != "" {
+		if _, err := sr.stdout.WriteString(postDrainMsg); err != nil {
+			sr.logger.Debug("restoreParentTerminal: write post-drain message failed", "error", err)
+		}
+	}
+	if _, err := sr.stdout.WriteString(escRestoreParentTerm); err != nil {
+		sr.logger.Debug("restoreParentTerminal: write normalize sequence failed", "error", err)
+	}
+	if clearScreen {
+		if _, err := sr.stdout.WriteString(escClearScreenHome); err != nil {
+			sr.logger.Debug("restoreParentTerminal: write clear screen failed", "error", err)
+		}
+	}
 }
 
 func (sr *Exec) initTerminal() error {

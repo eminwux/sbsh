@@ -196,7 +196,7 @@ func (sr *Exec) Close(_ error) error {
 		}
 	}
 
-	sr.restoreParentTerminal("")
+	sr.restoreParentTerminal("", false)
 	sr.logger.Debug("Close: cleanup complete")
 
 	sr.metadataMu.Lock()
@@ -231,11 +231,20 @@ func (sr *Exec) Detach() error {
 	// the Detach-RPC-failure case from #385 does. See issue #389.
 	ctx, cancel := context.WithTimeout(sr.ctx, detachTimeout)
 	defer cancel()
+
+	// Both user-detach triggers (^]^] keystroke and a remote `sb detach`)
+	// funnel through here, so this is the only place the opt-in detach
+	// clear applies; the Close()/process-exit paths always pass false.
+	sr.metadataMu.RLock()
+	clearScreen := sr.metadata.Spec.ClearScreenOnDetach
+	sr.metadataMu.RUnlock()
+
 	if err := sr.terminalClient.Detach(ctx, &sr.id); err != nil {
 		sr.logger.Warn("Detach RPC failed; restoring parent terminal anyway", "client_id", sr.id, "error", err)
 		// Suppress the "Detached" banner — it would be misleading when the RPC
-		// failed — but the restore still runs. See #383.
-		sr.restoreParentTerminal("")
+		// failed — but the restore still runs. See #383. The opt-in clear still
+		// applies: the user committed to detaching either way.
+		sr.restoreParentTerminal("", clearScreen)
 		return err
 	}
 
@@ -244,7 +253,7 @@ func (sr *Exec) Detach() error {
 	// message so it is written after the inbound copier has drained (no
 	// interleave with mid-flush remote bytes) but while raw mode is still active
 	// so the embedded \r\n behaves. See issues #364 and #383.
-	sr.restoreParentTerminal("\x1b[93m\r\nDetached\x1b[0m\r\n")
+	sr.restoreParentTerminal("\x1b[93m\r\nDetached\x1b[0m\r\n", clearScreen)
 
 	return nil
 }

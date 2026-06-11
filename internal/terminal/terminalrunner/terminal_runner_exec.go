@@ -153,6 +153,12 @@ type ioClient struct {
 	// the full raw capture buffer is replayed, otherwise a bounded repaint
 	// of the current screen is synthesized from the screen model.
 	fullCapture bool
+	// clearScreen opts the repaint into the legacy clear-and-repaint
+	// (erase screen + home + absolute positioning) instead of the default
+	// relative paint that preserves the client's prior terminal content.
+	// Set by the --clear-screen flag; ignored on the fullCapture path,
+	// whose replay is raw history.
+	clearScreen bool
 }
 
 func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.TerminalSpec) TerminalRunner {

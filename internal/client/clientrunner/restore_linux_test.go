@@ -28,6 +28,7 @@ import (
 	"testing"
 
 	"github.com/eminwux/sbsh/pkg/api"
+	"github.com/hinshun/vt10x"
 	"golang.org/x/sys/unix"
 )
 
@@ -318,6 +319,150 @@ func TestDetach_BannerWrittenBeforeNormalize(t *testing.T) {
 	}
 	if bannerIdx >= 0 && normIdx >= 0 && bannerIdx > normIdx {
 		t.Errorf("banner should precede normalize sequence; banner@%d normalize@%d in %q", bannerIdx, normIdx, out)
+	}
+}
+
+// captureDetachOutput swaps stdout for a pipe, runs Detach, and returns every
+// byte the teardown wrote — the banner plus the restore sequence.
+func captureDetachOutput(t *testing.T, sr *Exec) string {
+	t.Helper()
+	r, w, errPipe := os.Pipe()
+	if errPipe != nil {
+		t.Fatalf("Pipe: %v", errPipe)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+	sr.stdout = w
+
+	if err := sr.Detach(); err != nil {
+		t.Fatalf("Detach: %v", err)
+	}
+	_ = w.Close()
+
+	buf, errRead := io.ReadAll(r)
+	if errRead != nil {
+		t.Fatalf("ReadAll: %v", errRead)
+	}
+	return string(buf)
+}
+
+// TestDetach_CursorStaysAfterBanner asserts the default detach restore leaves
+// the cursor on the line after the "Detached" banner instead of yanking it to
+// row 1, on a session that never entered the alt screen. The bare ?1049l of
+// #365 performed an implicit DECRC with no prior save, which xterm documents
+// as restoring the default (home) cursor; the DECSC prefix pins the restore
+// to the banner position. Verified by feeding the teardown bytes into a vt10x
+// terminal seeded mid-screen — the same parser the repro in #425 used.
+func TestDetach_CursorStaysAfterBanner(t *testing.T) {
+	sr, _ := newAttachedExec(t)
+	sr.terminalClient = &mockTerminalClient{}
+
+	out := captureDetachOutput(t, sr)
+
+	if strings.Contains(out, "\x1b[2J") {
+		t.Errorf("default detach must not erase the screen; got %q", out)
+	}
+
+	// Parent terminal mid-screen: four lines written, prompt on row 3.
+	vt := vt10x.New(vt10x.WithSize(80, 24))
+	_, _ = vt.Write([]byte("$ ls\r\nfile1\r\nfile2\r\n$ "))
+	_, _ = vt.Write([]byte(out))
+
+	// The banner's two \r\n frames put "Detached" on row 4 and the cursor on
+	// row 5 col 0; the restore sequence must keep it there. (vt10x keeps a
+	// single saved-cursor slot and swaps buffers on a normal-buffer ?1049l —
+	// quirks that do not affect the cursor assertion.)
+	cur := vt.Cursor()
+	if cur.Y == 0 {
+		t.Fatalf("detach restored the cursor to row 1 — the #425 jump; output %q", out)
+	}
+	if cur.X != 0 || cur.Y != 5 {
+		t.Errorf("cursor after detach = (%d,%d), want (0,5) — the line after the banner", cur.X, cur.Y)
+	}
+}
+
+// TestDetach_OptInClearScreen asserts --clear-screen-on-detach performs a real
+// screen erase — the \x1b[2J\x1b[H bytes on client stdout after the normalize
+// sequence — not merely a cursor-home.
+func TestDetach_OptInClearScreen(t *testing.T) {
+	sr, _ := newAttachedExec(t)
+	sr.terminalClient = &mockTerminalClient{}
+	sr.metadata.Spec.ClearScreenOnDetach = true
+
+	out := captureDetachOutput(t, sr)
+
+	clearIdx := strings.Index(out, "\x1b[2J\x1b[H")
+	normIdx := strings.Index(out, "\x1b[?1049l")
+	if clearIdx < 0 {
+		t.Fatalf("opt-in detach clear must write \\x1b[2J\\x1b[H to stdout; got %q", out)
+	}
+	if normIdx < 0 || clearIdx < normIdx {
+		t.Errorf("clear must follow the normalize sequence; clear@%d normalize@%d in %q", clearIdx, normIdx, out)
+	}
+
+	vt := vt10x.New(vt10x.WithSize(80, 24))
+	_, _ = vt.Write([]byte("$ ls\r\nfile1\r\nfile2\r\n$ "))
+	_, _ = vt.Write([]byte(out))
+	if cur := vt.Cursor(); cur.X != 0 || cur.Y != 0 {
+		t.Errorf("cursor after opt-in clear = (%d,%d), want home (0,0)", cur.X, cur.Y)
+	}
+}
+
+// TestDetach_OptInClearScreen_RPCFailure asserts the opt-in clear still runs
+// when the Detach RPC fails — the user committed to detaching either way.
+func TestDetach_OptInClearScreen_RPCFailure(t *testing.T) {
+	sr, _ := newAttachedExec(t)
+	sr.terminalClient = &mockTerminalClient{
+		detachFunc: func(_ context.Context, _ *api.ID) error { return errMockDetach },
+	}
+	sr.metadata.Spec.ClearScreenOnDetach = true
+
+	r, w, errPipe := os.Pipe()
+	if errPipe != nil {
+		t.Fatalf("Pipe: %v", errPipe)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+	sr.stdout = w
+
+	if err := sr.Detach(); !errors.Is(err, errMockDetach) {
+		t.Fatalf("Detach: want errMockDetach, got %v", err)
+	}
+	_ = w.Close()
+
+	buf, errRead := io.ReadAll(r)
+	if errRead != nil {
+		t.Fatalf("ReadAll: %v", errRead)
+	}
+	if !strings.Contains(string(buf), "\x1b[2J\x1b[H") {
+		t.Errorf("opt-in clear missing on RPC-failure detach; got %q", string(buf))
+	}
+}
+
+// TestDetach_AltScreenSessionReturnsToNormalBuffer asserts a detach while the
+// parent terminal sits in the alternate screen (a TUI session) still returns
+// to the normal buffer with its content intact — the DECSC prefix must not
+// break the ?1049l buffer switch. The pre-attach cursor restore itself cannot
+// be asserted under vt10x: it keeps a single saved-cursor slot where
+// xterm/VTE keep one per buffer, so the prefix's save lands in the wrong slot
+// only in the emulator. See the escRestoreParentTerm comment.
+func TestDetach_AltScreenSessionReturnsToNormalBuffer(t *testing.T) {
+	sr, _ := newAttachedExec(t)
+	sr.terminalClient = &mockTerminalClient{}
+
+	out := captureDetachOutput(t, sr)
+
+	vt := vt10x.New(vt10x.WithSize(80, 24))
+	_, _ = vt.Write([]byte("before-tui\r\n"))
+	_, _ = vt.Write([]byte("\x1b[?1049h\x1b[2J\x1b[HTUI APP"))
+	_, _ = vt.Write([]byte(out))
+
+	if vt.Mode()&vt10x.ModeAltScreen != 0 {
+		t.Errorf("detach left the terminal in the alt screen; output %q", out)
+	}
+	if !strings.Contains(vt.String(), "before-tui") {
+		t.Errorf("normal-buffer content lost across detach; screen %q", vt.String())
+	}
+	if strings.Contains(vt.String(), "TUI APP") {
+		t.Errorf("alt-screen content leaked into the normal buffer; screen %q", vt.String())
 	}
 }
 

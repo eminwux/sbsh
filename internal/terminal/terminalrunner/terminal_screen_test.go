@@ -212,74 +212,176 @@ func TestScreenModelConcurrentWriteAndSnapshot(t *testing.T) {
 	}
 }
 
-// An empty screen (no output yet, the "empty capture" case) repaints to a
-// bare clear-screen + home, no alt-screen switch, cursor home and visible.
+// An empty screen (no output yet, the brand-new `sbsh` session case) paints
+// nothing destructive by default: no clear, no home, no alt-screen switch —
+// the invoking terminal's content survives. Only carriage/cursor-visibility
+// normalization remains.
 func TestRepaintEmptyScreen(t *testing.T) {
 	m := newScreenModel()
-	got := string(m.repaint())
+	got := string(m.repaint(false))
+
+	if strings.Contains(got, escEnterAltScreen) {
+		t.Errorf("empty primary screen must not enter alt screen; got %q", got)
+	}
+	if strings.Contains(got, escClearScreen) || strings.Contains(got, escCursorHome) {
+		t.Errorf("default repaint must not clear or home; got %q", got)
+	}
+	if !strings.HasSuffix(got, escShowCursor) {
+		t.Errorf("empty repaint should leave the cursor visible; got %q", got)
+	}
+}
+
+// --clear-screen restores the legacy behavior on an empty screen: clear +
+// home, cursor at row 1 col 1, visible.
+func TestRepaintEmptyScreenClearScreen(t *testing.T) {
+	m := newScreenModel()
+	got := string(m.repaint(true))
 
 	if strings.Contains(got, escEnterAltScreen) {
 		t.Errorf("empty primary screen must not enter alt screen; got %q", got)
 	}
 	if !strings.Contains(got, escClearScreen) || !strings.Contains(got, escCursorHome) {
-		t.Errorf("repaint must clear and home; got %q", got)
+		t.Errorf("clear-screen repaint must clear and home; got %q", got)
 	}
-	// Cursor lands at row 1, col 1 and stays visible.
 	if !strings.HasSuffix(got, "\x1b[1;1H"+escShowCursor) {
-		t.Errorf("empty repaint should end at home with a visible cursor; got %q", got)
+		t.Errorf("clear-screen empty repaint should end at home with a visible cursor; got %q", got)
 	}
 }
 
-// A plain line of output repaints by positioning at row 1 and writing the
-// glyphs — no newlines, which would stairstep in raw mode.
+// A plain line of output paints relatively by default: carriage return then
+// the glyphs, no screen erase and no absolute positioning, so the client's
+// prior terminal content is preserved.
 func TestRepaintPlainOutput(t *testing.T) {
 	m := newScreenModel()
 	feed(m, "hello world")
-	got := string(m.repaint())
+	got := string(m.repaint(false))
 
+	if !strings.Contains(got, "\rhello world") {
+		t.Errorf("repaint should carriage-return then write the line; got %q", got)
+	}
+	if strings.Contains(got, escClearScreen) {
+		t.Errorf("default repaint must not erase the screen; got %q", got)
+	}
+	if strings.Contains(got, "\x1b[1;1H") {
+		t.Errorf("default repaint must not position absolutely; got %q", got)
+	}
+}
+
+// --clear-screen restores the legacy paint: clear + home + absolute per-row
+// positioning, no newlines (which would stairstep in raw mode).
+func TestRepaintPlainOutputClearScreen(t *testing.T) {
+	m := newScreenModel()
+	feed(m, "hello world")
+	got := string(m.repaint(true))
+
+	if !strings.Contains(got, escClearScreen) {
+		t.Errorf("clear-screen repaint should erase the screen; got %q", got)
+	}
 	if !strings.Contains(got, "\x1b[1;1Hhello world") {
-		t.Errorf("repaint should position row 1 then write the line; got %q", got)
+		t.Errorf("clear-screen repaint should position row 1 then write the line; got %q", got)
 	}
 	if strings.Contains(got, "\n") {
-		t.Errorf("repaint must not use newlines (raw mode); got %q", got)
+		t.Errorf("clear-screen repaint must not use newlines (raw mode); got %q", got)
+	}
+}
+
+// The default relative paint reproduces the session screen below existing
+// client content instead of erasing it: feeding the paint into a simulated
+// client terminal that already holds two lines leaves those lines intact,
+// paints the session rows after them, and lands the cursor at the session's
+// cursor column on the right row.
+func TestRepaintRelativePreservesClientContent(t *testing.T) {
+	session := newScreenModel()
+	feed(session, "one\r\ntwo\r\nthree")
+
+	// Simulated client terminal with prior content; its cursor sits at
+	// col 0 of row 2, the line attach paints from.
+	client := newScreenModel()
+	feed(client, "prior-a\r\nprior-b\r\n")
+
+	feed(client, string(session.repaint(false)))
+
+	snap := client.snapshot()
+	for i, want := range []string{"prior-a", "prior-b", "one", "two", "three"} {
+		lines := strings.Split(snap.Text, "\n")
+		if i >= len(lines) || lines[i] != want {
+			t.Fatalf("client screen row %d = %q, want %q (screen %q)", i, lines[min(i, len(lines)-1)], want, snap.Text)
+		}
+	}
+	// Session cursor was at the end of "three" (col 5, row 2); painted
+	// from client row 2 it must land at col 5, row 4.
+	if snap.CursorX != 5 || snap.CursorY != 4 {
+		t.Errorf("client cursor = (%d,%d), want (5,4)", snap.CursorX, snap.CursorY)
+	}
+}
+
+// A session cursor above the last painted row (e.g. a TUI-less app that
+// moved the cursor up) is reached with a relative CUU, not an absolute CUP.
+func TestRepaintRelativeCursorAboveLastRow(t *testing.T) {
+	session := newScreenModel()
+	feed(session, "aa\r\nbb\r\ncc", "\x1b[1;2H") // cursor to row 1 col 2 (0-based: 1,0... CUP is 1-based)
+
+	client := newScreenModel()
+	feed(client, string(session.repaint(false)))
+
+	snap := client.snapshot()
+	// Session cursor: CUP 1;2 → row 0, col 1 (0-based). Painted from
+	// client row 0, the cursor must land there too.
+	if snap.CursorX != 1 || snap.CursorY != 0 {
+		t.Errorf("client cursor = (%d,%d), want (1,0)", snap.CursorX, snap.CursorY)
+	}
+	if !strings.Contains(string(session.repaint(false)), "\x1b[2A") {
+		t.Errorf("paint should move up relatively (CUU); got %q", string(session.repaint(false)))
 	}
 }
 
 // Reattaching to an alt-screen app (vim/htop) must re-enter the alternate
-// buffer and paint its current contents, not the primary screen's history.
+// buffer and paint its current contents with absolute positioning — clearing
+// inside the alt buffer never destroys the client's normal-buffer content —
+// regardless of the clear-screen opt-in.
 func TestRepaintAltScreen(t *testing.T) {
-	m := newScreenModel()
-	feed(m, "primary content")
-	feed(m, "\x1b[?1049h", "\x1b[2J\x1b[H", "ALT SCREEN APP")
+	for _, clearScreen := range []bool{false, true} {
+		m := newScreenModel()
+		feed(m, "primary content")
+		feed(m, "\x1b[?1049h", "\x1b[2J\x1b[H", "ALT SCREEN APP")
 
-	got := string(m.repaint())
-	if !strings.HasPrefix(got, escEnterAltScreen) {
-		t.Errorf("alt-screen repaint must switch to the alt buffer first; got %q", got)
-	}
-	if !strings.Contains(got, "ALT SCREEN APP") {
-		t.Errorf("repaint should paint the alt-screen contents; got %q", got)
-	}
-	if strings.Contains(got, "primary content") {
-		t.Errorf("alt-screen repaint must not leak primary content; got %q", got)
+		got := string(m.repaint(clearScreen))
+		if !strings.HasPrefix(got, escEnterAltScreen) {
+			t.Errorf("clearScreen=%v: alt-screen repaint must switch to the alt buffer first; got %q", clearScreen, got)
+		}
+		if !strings.Contains(got, escClearScreen) {
+			t.Errorf("clearScreen=%v: alt-screen repaint clears inside the alt buffer; got %q", clearScreen, got)
+		}
+		if !strings.Contains(got, "ALT SCREEN APP") {
+			t.Errorf("clearScreen=%v: repaint should paint the alt-screen contents; got %q", clearScreen, got)
+		}
+		if strings.Contains(got, "primary content") {
+			t.Errorf("clearScreen=%v: alt-screen repaint must not leak primary content; got %q", clearScreen, got)
+		}
 	}
 }
 
-// The cursor's position and hidden state survive the repaint.
+// The cursor's hidden state survives the repaint in both modes, and the
+// legacy mode restores the absolute position.
 func TestRepaintCursorPositionAndVisibility(t *testing.T) {
 	m := newScreenModel()
 	feed(m, "\x1b[5;10H", "\x1b[?25l") // CUP row 5 col 10, then hide cursor
 
-	got := string(m.repaint())
+	got := string(m.repaint(true))
 	if !strings.Contains(got, "\x1b[5;10H") {
-		t.Errorf("repaint should restore the cursor to row 5 col 10; got %q", got)
+		t.Errorf("clear-screen repaint should restore the cursor to row 5 col 10; got %q", got)
 	}
 	if !strings.HasSuffix(got, escHideCursor) {
 		t.Errorf("repaint should end with the cursor hidden; got %q", got)
 	}
+
+	if rel := string(m.repaint(false)); !strings.HasSuffix(rel, escHideCursor) {
+		t.Errorf("default repaint should end with the cursor hidden; got %q", rel)
+	}
 }
 
-// Repaint is bounded to the viewport regardless of session length: feeding
-// far more lines than the grid has rows still paints at most one positioned
+// Repaint is bounded to the viewport regardless of session length in both
+// modes: feeding far more lines than the grid has rows paints at most one
 // row per grid row, never the whole scrollback history.
 func TestRepaintBoundedToViewport(t *testing.T) {
 	m := newScreenModel()
@@ -287,15 +389,20 @@ func TestRepaintBoundedToViewport(t *testing.T) {
 		feed(m, "line\r\n")
 		_ = i
 	}
-	got := string(m.repaint())
 
+	got := string(m.repaint(true))
 	if n := strings.Count(got, "\x1b[1;1H"); n != 1 {
-		t.Errorf("repaint should home exactly once; got %d in %q", n, got)
+		t.Errorf("clear-screen repaint should home exactly once; got %d in %q", n, got)
 	}
 	// At most rows positioned writes (CSI <row>;1H) — one per grid row.
 	positioned := strings.Count(got, ";1H")
 	if positioned > vt100Rows+1 { // +1 for the final cursor-restore CUP
-		t.Errorf("repaint painted %d positioned rows, exceeds viewport %d", positioned, vt100Rows)
+		t.Errorf("clear-screen repaint painted %d positioned rows, exceeds viewport %d", positioned, vt100Rows)
+	}
+
+	rel := string(m.repaint(false))
+	if rows := strings.Count(rel, "\r\n") + 1; rows > vt100Rows {
+		t.Errorf("default repaint framed %d rows, exceeds viewport %d", rows, vt100Rows)
 	}
 }
 

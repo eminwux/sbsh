@@ -247,7 +247,7 @@ func TestCreateNewClient_RegistersAndCleansUp(t *testing.T) {
 	sr := newWiredExec(t)
 
 	id := api.ID("attach-1")
-	cliFD, err := sr.CreateNewClient(&id, false)
+	cliFD, err := sr.CreateNewClient(&id, false, false)
 	if err != nil {
 		t.Fatalf("CreateNewClient: %v", err)
 	}

@@ -496,7 +496,7 @@ func (sr *Exec) Attach(req *api.AttachRequest, response *api.ResponseWithFD) err
 		return fmt.Errorf("Attach: terminal not running")
 	}
 
-	cliFD, err := sr.CreateNewClient(&req.ClientID, req.FullCapture)
+	cliFD, err := sr.CreateNewClient(&req.ClientID, req.FullCapture, req.ClearScreen)
 	if err != nil {
 		return err
 	}
@@ -507,7 +507,14 @@ func (sr *Exec) Attach(req *api.AttachRequest, response *api.ResponseWithFD) err
 
 	fds := []int{cliFD}
 
-	sr.logger.Debug("Attach response", "id", req.ClientID, "fullCapture", req.FullCapture, "ok", payload.OK, "fds", fds)
+	sr.logger.Debug(
+		"Attach response",
+		"id", req.ClientID,
+		"fullCapture", req.FullCapture,
+		"clearScreen", req.ClearScreen,
+		"ok", payload.OK,
+		"fds", fds,
+	)
 
 	response.JSON = payload
 	response.FDs = fds

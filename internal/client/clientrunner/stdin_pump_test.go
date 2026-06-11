@@ -176,7 +176,7 @@ func TestStdinPump_SequentialAttachReuse(t *testing.T) {
 	_ = server1 // session 1 sends nothing; the connection is torn down below.
 
 	// Tear session 1 down. No copier goroutine from it may survive.
-	sr1.restoreParentTerminal("")
+	sr1.restoreParentTerminal("", false)
 	if got := waitCopierGoroutines(baseline, 2*time.Second); got != baseline {
 		t.Fatalf("after session 1 teardown: %d copier goroutines survived; want %d", got, baseline)
 	}
@@ -206,5 +206,5 @@ func TestStdinPump_SequentialAttachReuse(t *testing.T) {
 		t.Fatalf("session 2 received n=%d %q; want the between-sessions byte %q", n, rb[:n], "Z")
 	}
 
-	sr2.restoreParentTerminal("")
+	sr2.restoreParentTerminal("", false)
 }

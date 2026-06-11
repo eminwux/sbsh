@@ -115,6 +115,13 @@ var (
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_ATTACH_FULL_CAPTURE = DefineKV("SB_ATTACH_FULL_CAPTURE", "sb/attach/fullCapture")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_ATTACH_CLEAR_SCREEN = DefineKV("SB_ATTACH_CLEAR_SCREEN", "sb/attach/clearScreen")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SB_ATTACH_CLEAR_SCREEN_ON_DETACH = DefineKV(
+		"SB_ATTACH_CLEAR_SCREEN_ON_DETACH",
+		"sb/attach/clearScreenOnDetach",
+	)
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_DETACH_NAME = DefineKV("SB_DETACH_NAME", "sb/detach/name")
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
 	SB_DETACH_ID = DefineKV("SB_DETACH_ID", "sb/detach/id")
@@ -196,6 +203,13 @@ var (
 	SBSH_CLIENT_DISABLE_DETACH_KEYSTROKE = DefineKV(
 		"SBSH_CLIENT_DISABLE_DETACH_KEYSTROKE",
 		"sbsh.client.disableDetachKeystroke",
+	)
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_CLIENT_CLEAR_SCREEN = DefineKV("SBSH_CLIENT_CLEAR_SCREEN", "sbsh.client.clearScreen")
+	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
+	SBSH_CLIENT_CLEAR_SCREEN_ON_DETACH = DefineKV(
+		"SBSH_CLIENT_CLEAR_SCREEN_ON_DETACH",
+		"sbsh.client.clearScreenOnDetach",
 	)
 
 	//nolint:revive,gochecknoglobals,staticcheck // ignore linter warning about this variable
