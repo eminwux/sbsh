@@ -25,8 +25,9 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
-// Default attach (fullCapture=false) synthesizes a bounded repaint from the
-// live screen model — the current screen, not the raw capture file.
+// Default attach (fullCapture=false, clearScreen=false) synthesizes a
+// bounded repaint from the live screen model — the current screen, not the
+// raw capture file — and never erases the client's terminal.
 func TestInitialAttachPaintRepaintsScreen(t *testing.T) {
 	sr := newScreenExec()
 	screen := newScreenModel()
@@ -38,8 +39,29 @@ func TestInitialAttachPaintRepaintsScreen(t *testing.T) {
 	id := api.ID("c1")
 	got := string(sr.initialAttachPaint(&ioClient{id: &id, fullCapture: false}))
 
+	if strings.Contains(got, escClearScreen) {
+		t.Errorf("default repaint paint must not clear the screen; got %q", got)
+	}
+	if !strings.Contains(got, "current screen state") {
+		t.Errorf("repaint paint should contain the live screen; got %q", got)
+	}
+}
+
+// --clear-screen (clearScreen=true) restores the legacy clear-and-repaint
+// seed paint.
+func TestInitialAttachPaintClearScreen(t *testing.T) {
+	sr := newScreenExec()
+	screen := newScreenModel()
+	feed(screen, "current screen state")
+	sr.ptyPipesMu.Lock()
+	sr.ptyPipes.screen = screen
+	sr.ptyPipesMu.Unlock()
+
+	id := api.ID("c1c")
+	got := string(sr.initialAttachPaint(&ioClient{id: &id, fullCapture: false, clearScreen: true}))
+
 	if !strings.Contains(got, escClearScreen) {
-		t.Errorf("repaint paint should clear the screen; got %q", got)
+		t.Errorf("clear-screen repaint paint should clear the screen; got %q", got)
 	}
 	if !strings.Contains(got, "current screen state") {
 		t.Errorf("repaint paint should contain the live screen; got %q", got)

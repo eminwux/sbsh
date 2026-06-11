@@ -34,6 +34,9 @@ const (
 	escCursorTo       = "\x1b[%d;%dH" // move cursor to row, col (1-based)
 	escShowCursor     = "\x1b[?25h"   // make the cursor visible
 	escHideCursor     = "\x1b[?25l"   // hide the cursor
+	escEraseToEOL     = "\x1b[K"      // erase from cursor to end of line
+	escCursorUpN      = "\x1b[%dA"    // move cursor up n rows (CUU)
+	escCursorRightN   = "\x1b[%dC"    // move cursor right n cols (CUF)
 )
 
 // vt10x color encoding boundaries. The 16 ANSI colors occupy [0,16):
@@ -140,17 +143,29 @@ func (m *screenModel) snapshot() *api.ScreenshotResult {
 }
 
 // repaint synthesizes a byte sequence that, written to a freshly attached
-// client's raw-mode terminal, reproduces the current screen: alt-screen
-// mode if active, a cleared grid, every visible cell with its SGR colors at
-// its absolute position, and the cursor's position and visibility. Unlike
-// the raw capture replay it is bounded to the viewport regardless of how
-// long the session has run, which is the whole point of repaint-on-attach.
+// client's raw-mode terminal, reproduces the current screen. Unlike the raw
+// capture replay it is bounded to the viewport regardless of how long the
+// session has run, which is the whole point of repaint-on-attach.
 //
-// Absolute per-row cursor positioning (CSI row;1H) is used instead of
-// newlines so the paint is correct in raw mode, where a bare "\n" is a line
-// feed that does not return the carriage. It is taken under the vt10x state
-// lock so cells, cursor, and mode form one consistent frame.
-func (m *screenModel) repaint() []byte {
+// By default the paint never destroys the client's existing terminal
+// content: rows are framed relatively from the cursor's current line
+// ("\r\n" between rows, since in raw mode a bare "\n" is a line feed that
+// does not return the carriage) so prior content scrolls up intact, and the
+// final cursor lands via relative moves (LF/CUU for rows, CR+CUF for the
+// column — relative because the client's absolute cursor row is unknown to
+// the server). Each painted row ends with an erase-to-EOL so stale client
+// content cannot bleed through shorter rows. An empty screen model paints
+// no rows at all.
+//
+// clearScreen opts back into the legacy clear-and-repaint: erase the whole
+// screen, home, then absolute per-row positioning (CSI row;1H). Alt-screen
+// sessions always take the absolute path inside the alt buffer — entering
+// the alt screen never destroys the client's normal-buffer content, and
+// TUIs need absolute coordinates to render correctly.
+//
+// It is taken under the vt10x state lock so cells, cursor, and mode form
+// one consistent frame.
+func (m *screenModel) repaint(clearScreen bool) []byte {
 	m.vt.Lock()
 	defer m.vt.Unlock()
 
@@ -164,32 +179,76 @@ func (m *screenModel) repaint() []byte {
 	for y := range rows {
 		textLines[y], ansiLines[y] = renderLine(m.vt, cols, y)
 	}
-	// Trailing blank rows need no paint — the screen clear already blanked
-	// them. Stop at the last non-empty row (plain text is the canonical
-	// emptiness signal, mirroring renderGrid).
+	// Trailing blank rows need no paint. Stop at the last non-empty row
+	// (plain text is the canonical emptiness signal, mirroring renderGrid).
 	end := len(textLines)
 	for end > 0 && textLines[end-1] == "" {
 		end--
 	}
 
 	var b strings.Builder
-	if altScreen {
-		b.WriteString(escEnterAltScreen)
+	if altScreen || clearScreen {
+		writeAbsolutePaint(&b, ansiLines[:end], cur, altScreen)
+	} else {
+		writeRelativePaint(&b, ansiLines[:end], cur)
 	}
-	b.WriteString(escClearScreen)
-	b.WriteString(escCursorHome)
-	for y := range end {
-		fmt.Fprintf(&b, escCursorTo, y+1, 1)
-		b.WriteString(ansiLines[y])
-	}
-	// vt10x cursor coordinates are 0-based; CSI row;colH is 1-based.
-	fmt.Fprintf(&b, escCursorTo, cur.Y+1, cur.X+1)
 	if cursorVisible {
 		b.WriteString(escShowCursor)
 	} else {
 		b.WriteString(escHideCursor)
 	}
 	return []byte(b.String())
+}
+
+// writeAbsolutePaint emits the legacy clear-and-repaint: erase the whole
+// screen, home, one absolutely positioned write per row, absolute final
+// cursor. Used for alt-screen sessions (entering the alt buffer first) and
+// for the --clear-screen opt-in on the normal buffer.
+func writeAbsolutePaint(b *strings.Builder, lines []string, cur vt10x.Cursor, altScreen bool) {
+	if altScreen {
+		b.WriteString(escEnterAltScreen)
+	}
+	b.WriteString(escClearScreen)
+	b.WriteString(escCursorHome)
+	for y, line := range lines {
+		fmt.Fprintf(b, escCursorTo, y+1, 1)
+		b.WriteString(line)
+	}
+	// vt10x cursor coordinates are 0-based; CSI row;colH is 1-based.
+	fmt.Fprintf(b, escCursorTo, cur.Y+1, cur.X+1)
+}
+
+// writeRelativePaint emits the default non-destructive paint: rows framed
+// from the client cursor's current line with "\r\n", each erased to EOL so
+// stale client content cannot bleed through, then the final cursor placed
+// with relative moves only.
+func writeRelativePaint(b *strings.Builder, lines []string, cur vt10x.Cursor) {
+	for y, line := range lines {
+		if y == 0 {
+			b.WriteString("\r")
+		} else {
+			b.WriteString("\r\n")
+		}
+		b.WriteString(line)
+		b.WriteString(escEraseToEOL)
+	}
+	// The physical line now under the cursor corresponds to the last
+	// painted screen row (or the starting line when nothing painted).
+	// Walk to the cursor's row relatively: LF scrolls at the bottom
+	// margin where CUD would not, CUU for upward moves.
+	lastRow := 0
+	if len(lines) > 0 {
+		lastRow = len(lines) - 1
+	}
+	if d := cur.Y - lastRow; d > 0 {
+		b.WriteString(strings.Repeat("\n", d))
+	} else if d < 0 {
+		fmt.Fprintf(b, escCursorUpN, -d)
+	}
+	b.WriteString("\r")
+	if cur.X > 0 {
+		fmt.Fprintf(b, escCursorRightN, cur.X)
+	}
 }
 
 // renderGrid walks the grid row by row and produces both the plain-text

@@ -34,15 +34,17 @@ type ClientOption func(*clientConfig)
 // clientConfig accumulates ClientOption values. Nil-able fields
 // distinguish "not set" from zero values (e.g. detachKeystroke).
 type clientConfig struct {
-	id              string
-	name            string
-	logFile         string
-	socketFile      string
-	mode            api.ClientMode
-	modeSet         bool
-	detachKeystroke *bool
-	fullCapture     bool
-	terminalSpec    *api.TerminalSpec
+	id                  string
+	name                string
+	logFile             string
+	socketFile          string
+	mode                api.ClientMode
+	modeSet             bool
+	detachKeystroke     *bool
+	fullCapture         bool
+	clearScreen         bool
+	clearScreenOnDetach bool
+	terminalSpec        *api.TerminalSpec
 }
 
 // WithClientID sets the client ID. Empty means "generate a random
@@ -95,6 +97,23 @@ func WithClientDetachKeystroke(enable bool) ClientOption {
 // default is false (repaint). Mirrors the CLI's --full-capture flag.
 func WithClientFullCapture(enable bool) ClientOption {
 	return func(c *clientConfig) { c.fullCapture = enable }
+}
+
+// WithClientClearScreen opts the attach repaint into clearing the
+// terminal and painting with absolute positioning (the legacy behavior)
+// instead of the default relative paint that preserves prior terminal
+// content. The default is false (no clear). Mirrors the CLI's
+// --clear-screen flag; the full-capture replay is unaffected by it.
+func WithClientClearScreen(enable bool) ClientOption {
+	return func(c *clientConfig) { c.clearScreen = enable }
+}
+
+// WithClientClearScreenOnDetach opts into erasing the whole screen after
+// the parent-terminal restore on the user-detach path (^]^] or `sb
+// detach`). The default is false (screen content untouched). Mirrors the
+// CLI's --clear-screen-on-detach flag.
+func WithClientClearScreenOnDetach(enable bool) ClientOption {
+	return func(c *clientConfig) { c.clearScreenOnDetach = enable }
 }
 
 // WithClientTerminalSpec embeds a pre-built TerminalSpec into the
@@ -168,14 +187,16 @@ func BuildClientDoc(
 			Annotations: map[string]string{},
 		},
 		Spec: api.ClientSpec{
-			ID:              api.ID(cfg.id),
-			RunPath:         runPath,
-			LogFile:         cfg.logFile,
-			SockerCtrl:      cfg.socketFile,
-			TerminalSpec:    cfg.terminalSpec,
-			DetachKeystroke: detach,
-			FullCapture:     cfg.fullCapture,
-			ClientMode:      mode,
+			ID:                  api.ID(cfg.id),
+			RunPath:             runPath,
+			LogFile:             cfg.logFile,
+			SockerCtrl:          cfg.socketFile,
+			TerminalSpec:        cfg.terminalSpec,
+			DetachKeystroke:     detach,
+			FullCapture:         cfg.fullCapture,
+			ClearScreen:         cfg.clearScreen,
+			ClearScreenOnDetach: cfg.clearScreenOnDetach,
+			ClientMode:          mode,
 		},
 	}
 	return doc, nil

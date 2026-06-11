@@ -68,12 +68,13 @@ func TestAttach_Success(t *testing.T) {
 		},
 	}
 	sr.metadata.Spec.FullCapture = true
+	sr.metadata.Spec.ClearScreen = true
 
 	if err := sr.attach(); err != nil {
 		t.Fatalf("attach: %v", err)
 	}
-	if gotReq == nil || gotReq.ClientID != sr.id || !gotReq.FullCapture {
-		t.Fatalf("attach request = %+v; want ClientID=%q FullCapture=true", gotReq, sr.id)
+	if gotReq == nil || gotReq.ClientID != sr.id || !gotReq.FullCapture || !gotReq.ClearScreen {
+		t.Fatalf("attach request = %+v; want ClientID=%q FullCapture=true ClearScreen=true", gotReq, sr.id)
 	}
 	if sr.ioConn != clientConn {
 		t.Fatal("attach did not store the returned connection in ioConn")

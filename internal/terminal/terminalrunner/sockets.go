@@ -249,7 +249,7 @@ func (sr *Exec) OpenSocketCtrl() error {
 	return nil
 }
 
-func (sr *Exec) CreateNewClient(clientID *api.ID, fullCapture bool) (int, error) {
+func (sr *Exec) CreateNewClient(clientID *api.ID, fullCapture, clearScreen bool) (int, error) {
 	sr.logger.Debug("CreateNewClient: creating socketpair", "id", clientID)
 	sv, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|sockCloexec, 0)
 	if err != nil {
@@ -269,7 +269,7 @@ func (sr *Exec) CreateNewClient(clientID *api.ID, fullCapture bool) (int, error)
 	}
 	_ = f.Close() // release the duplicate, keep using ioConn
 
-	cl := &ioClient{id: clientID, conn: ioConn, fullCapture: fullCapture}
+	cl := &ioClient{id: clientID, conn: ioConn, fullCapture: fullCapture, clearScreen: clearScreen}
 
 	sr.addClient(cl)
 	sr.logger.Info("CreateNewClient: client added", "id", clientID)

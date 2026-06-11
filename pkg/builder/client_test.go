@@ -67,6 +67,12 @@ func TestBuildClientDoc_Defaults(t *testing.T) {
 	if doc.Spec.FullCapture {
 		t.Fatal("expected FullCapture to default false (repaint)")
 	}
+	if doc.Spec.ClearScreen {
+		t.Fatal("expected ClearScreen to default false (no clear)")
+	}
+	if doc.Spec.ClearScreenOnDetach {
+		t.Fatal("expected ClearScreenOnDetach to default false (no clear)")
+	}
 	if doc.Spec.ClientMode != api.RunNewTerminal {
 		t.Fatalf("mode: want RunNewTerminal, got %v", doc.Spec.ClientMode)
 	}
@@ -89,6 +95,8 @@ func TestBuildClientDoc_Overrides(t *testing.T) {
 		builder.WithClientMode(api.AttachToTerminal),
 		builder.WithClientDetachKeystroke(false),
 		builder.WithClientFullCapture(true),
+		builder.WithClientClearScreen(true),
+		builder.WithClientClearScreenOnDetach(true),
 		builder.WithClientTerminalSpec(embed),
 	)
 	if err != nil {
@@ -114,6 +122,12 @@ func TestBuildClientDoc_Overrides(t *testing.T) {
 	}
 	if !doc.Spec.FullCapture {
 		t.Fatal("expected FullCapture=true after WithClientFullCapture(true)")
+	}
+	if !doc.Spec.ClearScreen {
+		t.Fatal("expected ClearScreen=true after WithClientClearScreen(true)")
+	}
+	if !doc.Spec.ClearScreenOnDetach {
+		t.Fatal("expected ClearScreenOnDetach=true after WithClientClearScreenOnDetach(true)")
 	}
 	if doc.Spec.TerminalSpec != embed {
 		t.Fatal("expected embedded TerminalSpec to be the same pointer")

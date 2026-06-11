@@ -185,6 +185,37 @@ func TestBuildClientAttachArgs_FullCapture(t *testing.T) {
 	}
 }
 
+// TestBuildClientAttachArgs_ClearScreenFlags covers the --clear-screen and
+// --clear-screen-on-detach legs: each ClientSpec boolean appends its flag
+// (after --full-capture, before the terminal selector), mirroring the
+// --full-capture precedent.
+func TestBuildClientAttachArgs_ClearScreenFlags(t *testing.T) {
+	t.Parallel()
+	doc := &api.ClientDoc{
+		Spec: api.ClientSpec{
+			RunPath:             "/run/sbsh",
+			SockerCtrl:          "/run/sbsh/clients/c-5/socket",
+			ClientMode:          api.AttachToTerminal,
+			DetachKeystroke:     true, // no --disable-detach
+			ClearScreen:         true,
+			ClearScreenOnDetach: true,
+			TerminalSpec:        &api.TerminalSpec{ID: "t-5"},
+		},
+	}
+	got := buildClientAttachArgs(doc, ClientOptions{})
+	want := []string{
+		"--run-path", "/run/sbsh",
+		"attach",
+		"--socket", "/run/sbsh/clients/c-5/socket",
+		"--clear-screen",
+		"--clear-screen-on-detach",
+		"--id", "t-5",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("buildClientAttachArgs = %q; want %q", got, want)
+	}
+}
+
 // TestBuildClientAttachArgs_IDWinsOverName locks down the tie-break
 // rule: when a TerminalSpec carries both ID and Name, spawn emits
 // --id only (no positional name arg). This matches `sb attach`, which

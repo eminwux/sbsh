@@ -208,7 +208,7 @@ func (sr *Exec) initialAttachPaint(client *ioClient) []byte {
 		sr.logger.Warn("no screen model for client attach repaint", "client", client.id)
 		return nil
 	}
-	return screen.repaint()
+	return screen.repaint(client.clearScreen)
 }
 
 func (sr *Exec) addClient(c *ioClient) {
