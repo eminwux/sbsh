@@ -74,9 +74,14 @@ jobs:
           # Resolve the latest tag once, then re-install pinned to it via
           # SBSH_VERSION to exercise the pin path. Skip-checksum is set so the
           # absent-checksum-asset case is acknowledged rather than warned.
-          tag="$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" \
-            https://api.github.com/repos/eminwux/sbsh/releases/latest \
-            | grep -m1 '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')"
+          # Capture the API response in full before piping to `grep -m1`:
+          # piping curl directly into `grep -m1` makes grep close the pipe
+          # after the first match, so curl aborts mid-write with `curl: (23)`
+          # under `pipefail` (the install.sh resolver captures first for the
+          # same reason).
+          resp="$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" \
+            https://api.github.com/repos/eminwux/sbsh/releases/latest)"
+          tag="$(printf '%s\n' "$resp" | grep -m1 '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')"
           echo "pinning to $tag"
           SBSH_VERSION="$tag" bash scripts/install.sh
           test -x "$SBSH_INSTALL_PREFIX/sbsh"
