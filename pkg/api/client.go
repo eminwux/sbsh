@@ -47,22 +47,22 @@ type ClientSpec struct {
 	// Attach RPC; the server owns the replay. Set by the --full-capture flag.
 	FullCapture bool `json:"fullCapture,omitempty"`
 
-	// ClearScreen, when true, makes the attach repaint clear the client's
+	// ClearOnAttach, when true, makes the attach repaint clear the client's
 	// terminal and paint with absolute positioning (the legacy behavior)
 	// instead of the default relative paint that preserves prior terminal
 	// content. Forwarded to the terminal server via the Attach RPC. Set by
-	// the --clear-screen flag; the full-capture replay is raw history and
+	// the --clear-on-attach flag; the full-capture replay is raw history and
 	// is unaffected by it.
-	ClearScreen bool `json:"clearScreen,omitempty"`
+	ClearOnAttach bool `json:"clearOnAttach,omitempty"`
 
-	// ClearScreenOnDetach, when true, makes the client erase the whole
+	// ClearOnDetach, when true, makes the client erase the whole
 	// screen (\x1b[2J\x1b[H) after the parent-terminal restore sequence on
 	// the user-detach path (^]^] keystroke or `sb detach`). The default
 	// leaves the screen content untouched with the cursor on the line
 	// after the Detached banner. Process-exit teardown paths never clear.
-	// Set by the --clear-screen-on-detach flag; client-local, never sent
+	// Set by the --clear-on-detach flag; client-local, never sent
 	// to the terminal server.
-	ClearScreenOnDetach bool `json:"clearScreenOnDetach,omitempty"`
+	ClearOnDetach bool `json:"clearOnDetach,omitempty"`
 
 	// ClientMode determines whether the client runs a new terminal or attaches to an existing one.
 	ClientMode ClientMode `json:"clientMode,omitempty"`

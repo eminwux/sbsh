@@ -176,13 +176,13 @@ func setupAttachCmdFlags(attachCmd *cobra.Command) {
 		Bool("full-capture", false, "Replay the entire raw capture buffer on attach instead of repainting the current screen")
 	_ = viper.BindPFlag(config.SB_ATTACH_FULL_CAPTURE.ViperKey, attachCmd.Flags().Lookup("full-capture"))
 	attachCmd.Flags().
-		Bool("clear-screen", false, "Clear the terminal before repainting the session screen on attach (legacy behavior); the default paints below existing content. No effect with --full-capture, whose replay is raw history")
-	_ = viper.BindPFlag(config.SB_ATTACH_CLEAR_SCREEN.ViperKey, attachCmd.Flags().Lookup("clear-screen"))
+		Bool("clear-on-attach", false, "Clear the terminal before repainting the session screen on attach (legacy behavior); the default paints below existing content. No effect with --full-capture, whose replay is raw history")
+	_ = viper.BindPFlag(config.SB_ATTACH_CLEAR_ON_ATTACH.ViperKey, attachCmd.Flags().Lookup("clear-on-attach"))
 	attachCmd.Flags().
-		Bool("clear-screen-on-detach", false, "Erase the screen after detaching (^] twice or sb detach); the default leaves screen content untouched")
+		Bool("clear-on-detach", false, "Erase the screen after detaching (^] twice or sb detach); the default leaves screen content untouched")
 	_ = viper.BindPFlag(
-		config.SB_ATTACH_CLEAR_SCREEN_ON_DETACH.ViperKey,
-		attachCmd.Flags().Lookup("clear-screen-on-detach"),
+		config.SB_ATTACH_CLEAR_ON_DETACH.ViperKey,
+		attachCmd.Flags().Lookup("clear-on-detach"),
 	)
 }
 
@@ -210,8 +210,8 @@ func run(
 
 	disableDetach := viper.GetBool(config.SB_ATTACH_DISABLE_DETACH_KEYSTROKE.ViperKey)
 	fullCapture := viper.GetBool(config.SB_ATTACH_FULL_CAPTURE.ViperKey)
-	clearScreen := viper.GetBool(config.SB_ATTACH_CLEAR_SCREEN.ViperKey)
-	clearScreenOnDetach := viper.GetBool(config.SB_ATTACH_CLEAR_SCREEN_ON_DETACH.ViperKey)
+	clearOnAttach := viper.GetBool(config.SB_ATTACH_CLEAR_ON_ATTACH.ViperKey)
+	clearOnDetach := viper.GetBool(config.SB_ATTACH_CLEAR_ON_DETACH.ViperKey)
 
 	logger.DebugContext(
 		ctx,
@@ -222,10 +222,10 @@ func run(
 		disableDetach,
 		"full_capture",
 		fullCapture,
-		"clear_screen",
-		clearScreen,
-		"clear_screen_on_detach",
-		clearScreenOnDetach,
+		"clear_on_attach",
+		clearOnAttach,
+		"clear_on_detach",
+		clearOnDetach,
 	)
 
 	runErr := attach.Run(ctx, attach.Options{
@@ -235,8 +235,8 @@ func run(
 		Stderr:                 os.Stderr,
 		DisableDetachKeystroke: disableDetach,
 		FullCapture:            fullCapture,
-		ClearScreen:            clearScreen,
-		ClearScreenOnDetach:    clearScreenOnDetach,
+		ClearOnAttach:          clearOnAttach,
+		ClearOnDetach:          clearOnDetach,
 		Logger:                 logger,
 	})
 	if runErr == nil || errors.Is(runErr, context.Canceled) || errors.Is(runErr, errdefs.ErrContextDone) {

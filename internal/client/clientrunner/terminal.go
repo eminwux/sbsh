@@ -103,7 +103,7 @@ const escRestoreParentTerm = "\x1b7" + // save cursor (DECSC) so ?1049l's DECRC 
 	"\x1b[?2004l" // disable bracketed paste
 
 // escClearScreenHome is the full screen erase + cursor home the opt-in
-// --clear-screen-on-detach flag emits after escRestoreParentTerm — a real
+// --clear-on-detach flag emits after escRestoreParentTerm — a real
 // erase, not merely a cursor-home. See issue #425.
 const escClearScreenHome = "\x1b[2J\x1b[H"
 
@@ -122,7 +122,7 @@ const escClearScreenHome = "\x1b[2J\x1b[H"
 //
 // clearScreen, when true, emits a full screen erase + home immediately after
 // the normalize sequence — the user-detach paths pass the opt-in
-// ClearScreenOnDetach spec value; the Close()/process-exit paths pass false
+// ClearOnDetach spec value; the Close()/process-exit paths pass false
 // so they keep the screen content untouched. See issue #425.
 func (sr *Exec) restoreParentTerminal(postDrainMsg string, clearScreen bool) {
 	sr.restoreOnce.Do(func() {

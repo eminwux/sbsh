@@ -496,7 +496,7 @@ func (sr *Exec) Attach(req *api.AttachRequest, response *api.ResponseWithFD) err
 		return fmt.Errorf("Attach: terminal not running")
 	}
 
-	cliFD, err := sr.CreateNewClient(&req.ClientID, req.FullCapture, req.ClearScreen)
+	cliFD, err := sr.CreateNewClient(&req.ClientID, req.FullCapture, req.ClearOnAttach)
 	if err != nil {
 		return err
 	}
@@ -511,7 +511,7 @@ func (sr *Exec) Attach(req *api.AttachRequest, response *api.ResponseWithFD) err
 		"Attach response",
 		"id", req.ClientID,
 		"fullCapture", req.FullCapture,
-		"clearScreen", req.ClearScreen,
+		"clearOnAttach", req.ClearOnAttach,
 		"ok", payload.OK,
 		"fds", fds,
 	)

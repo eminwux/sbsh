@@ -380,13 +380,13 @@ func TestDetach_CursorStaysAfterBanner(t *testing.T) {
 	}
 }
 
-// TestDetach_OptInClearScreen asserts --clear-screen-on-detach performs a real
+// TestDetach_OptInClearScreen asserts --clear-on-detach performs a real
 // screen erase — the \x1b[2J\x1b[H bytes on client stdout after the normalize
 // sequence — not merely a cursor-home.
 func TestDetach_OptInClearScreen(t *testing.T) {
 	sr, _ := newAttachedExec(t)
 	sr.terminalClient = &mockTerminalClient{}
-	sr.metadata.Spec.ClearScreenOnDetach = true
+	sr.metadata.Spec.ClearOnDetach = true
 
 	out := captureDetachOutput(t, sr)
 
@@ -414,7 +414,7 @@ func TestDetach_OptInClearScreen_RPCFailure(t *testing.T) {
 	sr.terminalClient = &mockTerminalClient{
 		detachFunc: func(_ context.Context, _ *api.ID) error { return errMockDetach },
 	}
-	sr.metadata.Spec.ClearScreenOnDetach = true
+	sr.metadata.Spec.ClearOnDetach = true
 
 	r, w, errPipe := os.Pipe()
 	if errPipe != nil {

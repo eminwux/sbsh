@@ -231,7 +231,7 @@ func TestRepaintEmptyScreen(t *testing.T) {
 	}
 }
 
-// --clear-screen restores the legacy behavior on an empty screen: clear +
+// --clear-on-attach restores the legacy behavior on an empty screen: clear +
 // home, cursor at row 1 col 1, visible.
 func TestRepaintEmptyScreenClearScreen(t *testing.T) {
 	m := newScreenModel()
@@ -267,7 +267,7 @@ func TestRepaintPlainOutput(t *testing.T) {
 	}
 }
 
-// --clear-screen restores the legacy paint: clear + home + absolute per-row
+// --clear-on-attach restores the legacy paint: clear + home + absolute per-row
 // positioning, no newlines (which would stairstep in raw mode).
 func TestRepaintPlainOutputClearScreen(t *testing.T) {
 	m := newScreenModel()

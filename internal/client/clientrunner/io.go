@@ -151,11 +151,11 @@ func (sr *Exec) attach() error {
 	var response struct{}
 	sr.metadataMu.RLock()
 	fullCapture := sr.metadata.Spec.FullCapture
-	clearScreen := sr.metadata.Spec.ClearScreen
+	clearOnAttach := sr.metadata.Spec.ClearOnAttach
 	sr.metadataMu.RUnlock()
 	conn, err := sr.terminalClient.Attach(
 		sr.ctx,
-		&api.AttachRequest{ClientID: sr.id, FullCapture: fullCapture, ClearScreen: clearScreen},
+		&api.AttachRequest{ClientID: sr.id, FullCapture: fullCapture, ClearOnAttach: clearOnAttach},
 		&response,
 	)
 	if err != nil {
