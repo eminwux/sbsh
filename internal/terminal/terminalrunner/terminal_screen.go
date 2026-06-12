@@ -203,7 +203,7 @@ func (m *screenModel) repaint(clearScreen bool) []byte {
 // writeAbsolutePaint emits the legacy clear-and-repaint: erase the whole
 // screen, home, one absolutely positioned write per row, absolute final
 // cursor. Used for alt-screen sessions (entering the alt buffer first) and
-// for the --clear-screen opt-in on the normal buffer.
+// for the --clear-on-attach opt-in on the normal buffer.
 func writeAbsolutePaint(b *strings.Builder, lines []string, cur vt10x.Cursor, altScreen bool) {
 	if altScreen {
 		b.WriteString(escEnterAltScreen)

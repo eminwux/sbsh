@@ -62,18 +62,18 @@ type Options struct {
 	// It flows through ClientSpec.FullCapture to the terminal server.
 	FullCapture bool
 
-	// ClearScreen, when true, makes the attach repaint clear the terminal
+	// ClearOnAttach, when true, makes the attach repaint clear the terminal
 	// and paint with absolute positioning (the legacy behavior) instead of
 	// the default relative paint that preserves prior terminal content. It
-	// flows through ClientSpec.ClearScreen to the terminal server. The
+	// flows through ClientSpec.ClearOnAttach to the terminal server. The
 	// full-capture replay is raw history and is unaffected by it.
-	ClearScreen bool
+	ClearOnAttach bool
 
-	// ClearScreenOnDetach, when true, erases the whole screen after the
+	// ClearOnDetach, when true, erases the whole screen after the
 	// parent-terminal restore on the user-detach path (^]^] or `sb
 	// detach`). The default leaves screen content untouched. It flows
-	// through ClientSpec.ClearScreenOnDetach and stays client-local.
-	ClearScreenOnDetach bool
+	// through ClientSpec.ClearOnDetach and stays client-local.
+	ClearOnDetach bool
 
 	// Logger is a structured logger for diagnostics. Defaults to a
 	// discard logger when nil so embedders aren't forced to wire one
@@ -142,14 +142,14 @@ func Run(ctx context.Context, opts Options) error {
 			Annotations: make(map[string]string),
 		},
 		Spec: api.ClientSpec{
-			ID:                  api.ID(clientID),
-			RunPath:             runDir,
-			SockerCtrl:          clientCtrlSocket,
-			ClientMode:          api.AttachToTerminal,
-			DetachKeystroke:     !opts.DisableDetachKeystroke,
-			FullCapture:         opts.FullCapture,
-			ClearScreen:         opts.ClearScreen,
-			ClearScreenOnDetach: opts.ClearScreenOnDetach,
+			ID:              api.ID(clientID),
+			RunPath:         runDir,
+			SockerCtrl:      clientCtrlSocket,
+			ClientMode:      api.AttachToTerminal,
+			DetachKeystroke: !opts.DisableDetachKeystroke,
+			FullCapture:     opts.FullCapture,
+			ClearOnAttach:   opts.ClearOnAttach,
+			ClearOnDetach:   opts.ClearOnDetach,
 			TerminalSpec: &api.TerminalSpec{
 				SocketFile: opts.SocketPath,
 			},

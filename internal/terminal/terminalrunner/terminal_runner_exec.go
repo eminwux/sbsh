@@ -156,7 +156,7 @@ type ioClient struct {
 	// clearScreen opts the repaint into the legacy clear-and-repaint
 	// (erase screen + home + absolute positioning) instead of the default
 	// relative paint that preserves the client's prior terminal content.
-	// Set by the --clear-screen flag; ignored on the fullCapture path,
+	// Set by the --clear-on-attach flag; ignored on the fullCapture path,
 	// whose replay is raw history.
 	clearScreen bool
 }

@@ -47,7 +47,7 @@ func TestInitialAttachPaintRepaintsScreen(t *testing.T) {
 	}
 }
 
-// --clear-screen (clearScreen=true) restores the legacy clear-and-repaint
+// --clear-on-attach (clearScreen=true) restores the legacy clear-and-repaint
 // seed paint.
 func TestInitialAttachPaintClearScreen(t *testing.T) {
 	sr := newScreenExec()

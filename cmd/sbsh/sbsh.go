@@ -212,9 +212,9 @@ You can also use sbsh with parameters. For example:
 					TerminalSpec:    terminalSpec,
 					DetachKeystroke: !disableDetach, // Invert flag: when disable-detach is true, DetachKeystroke is false
 					ClientMode:      api.RunNewTerminal,
-					ClearScreen:     viper.GetBool(config.SBSH_CLIENT_CLEAR_SCREEN.ViperKey),
-					ClearScreenOnDetach: viper.GetBool(
-						config.SBSH_CLIENT_CLEAR_SCREEN_ON_DETACH.ViperKey,
+					ClearOnAttach:   viper.GetBool(config.SBSH_CLIENT_CLEAR_ON_ATTACH.ViperKey),
+					ClearOnDetach: viper.GetBool(
+						config.SBSH_CLIENT_CLEAR_ON_DETACH.ViperKey,
 					),
 				},
 			}
@@ -315,16 +315,16 @@ func setClientFlags(rootCmd *cobra.Command) error {
 	}
 
 	rootCmd.Flags().
-		Bool("clear-screen", false, "Clear the terminal before painting the session screen (legacy behavior); the default paints below existing content")
-	if err := viper.BindPFlag(config.SBSH_CLIENT_CLEAR_SCREEN.ViperKey, rootCmd.Flags().Lookup("clear-screen")); err != nil {
+		Bool("clear-on-attach", false, "Clear the terminal before painting the session screen (legacy behavior); the default paints below existing content")
+	if err := viper.BindPFlag(config.SBSH_CLIENT_CLEAR_ON_ATTACH.ViperKey, rootCmd.Flags().Lookup("clear-on-attach")); err != nil {
 		return err
 	}
 
 	rootCmd.Flags().
-		Bool("clear-screen-on-detach", false, "Erase the screen after detaching (^] twice or sb detach); the default leaves screen content untouched")
+		Bool("clear-on-detach", false, "Erase the screen after detaching (^] twice or sb detach); the default leaves screen content untouched")
 	if err := viper.BindPFlag(
-		config.SBSH_CLIENT_CLEAR_SCREEN_ON_DETACH.ViperKey,
-		rootCmd.Flags().Lookup("clear-screen-on-detach"),
+		config.SBSH_CLIENT_CLEAR_ON_DETACH.ViperKey,
+		rootCmd.Flags().Lookup("clear-on-detach"),
 	); err != nil {
 		return err
 	}

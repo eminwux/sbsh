@@ -307,15 +307,15 @@ type SubscribeRequest struct {
 // capture buffer on attach — the legacy behavior — instead of the default
 // bounded repaint synthesized from the live screen model. It mirrors the
 // CLI's --full-capture flag, which plumbs through ClientSpec.FullCapture.
-// ClearScreen opts the repaint into the legacy clear-and-repaint (erase
+// ClearOnAttach opts the repaint into the legacy clear-and-repaint (erase
 // screen + absolute positioning) instead of the default relative paint
 // that preserves the client's prior terminal content; it mirrors the CLI's
-// --clear-screen flag via ClientSpec.ClearScreen and has no effect on the
+// --clear-on-attach flag via ClientSpec.ClearOnAttach and has no effect on the
 // full-capture replay, which is raw history.
 type AttachRequest struct {
-	ClientID    ID
-	FullCapture bool
-	ClearScreen bool
+	ClientID      ID
+	FullCapture   bool
+	ClearOnAttach bool
 }
 
 // ResponseWithFD carries a normal JSON result plus OOB file descriptors.
