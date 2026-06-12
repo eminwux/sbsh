@@ -1,0 +1,88 @@
+name: Installer
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "scripts/install.sh"
+      - ".github/workflows/installer.yaml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/install.sh"
+      - ".github/workflows/installer.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: Install (${{ matrix.os }})
+    # Exercise the positive `curl | bash` install path on GitHub-hosted
+    # runners. macOS covers the darwin/arm64 asset; ubuntu covers linux/amd64.
+    # The script resolves the latest published release, so this validates the
+    # real end-to-end flow against actual release assets.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Run the installer
+        env:
+          # Authenticated API call avoids the unauthenticated rate limit when
+          # resolving the latest release tag on shared runners.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Install to a workspace-local prefix so no sudo prompt is needed and
+          # the runner's system dirs stay untouched.
+          SBSH_INSTALL_PREFIX: ${{ github.workspace }}/.sbsh-bin
+        run: bash scripts/install.sh
+
+      - name: Verify the install
+        env:
+          SBSH_INSTALL_PREFIX: ${{ github.workspace }}/.sbsh-bin
+        run: |
+          set -euo pipefail
+          prefix="$SBSH_INSTALL_PREFIX"
+          # Both names exist and are executable.
+          test -x "$prefix/sbsh"
+          test -x "$prefix/sb"
+          # `sb` is a real hardlink to `sbsh` (same inode), not a symlink — the
+          # argv[0] dispatch depends on it.
+          test ! -L "$prefix/sb"
+          test "$prefix/sbsh" -ef "$prefix/sb"
+          # Both invocations run and report the same version.
+          v_sbsh="$("$prefix/sbsh" version)"
+          v_sb="$("$prefix/sb" version)"
+          echo "sbsh version: $v_sbsh"
+          echo "sb version:   $v_sb"
+          test "$v_sbsh" = "$v_sb"
+
+      - name: Verify env overrides (pinned SBSH_VERSION + SBSH_SKIP_CHECKSUM)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SBSH_INSTALL_PREFIX: ${{ github.workspace }}/.sbsh-pinned
+          SBSH_SKIP_CHECKSUM: "1"
+        run: |
+          set -euo pipefail
+          # Resolve the latest tag once, then re-install pinned to it via
+          # SBSH_VERSION to exercise the pin path. Skip-checksum is set so the
+          # absent-checksum-asset case is acknowledged rather than warned.
+          # Capture the API response in full before piping to `grep -m1`:
+          # piping curl directly into `grep -m1` makes grep close the pipe
+          # after the first match, so curl aborts mid-write with `curl: (23)`
+          # under `pipefail` (the install.sh resolver captures first for the
+          # same reason).
+          resp="$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" \
+            https://api.github.com/repos/eminwux/sbsh/releases/latest)"
+          tag="$(printf '%s\n' "$resp" | grep -m1 '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')"
+          echo "pinning to $tag"
+          SBSH_VERSION="$tag" bash scripts/install.sh
+          test -x "$SBSH_INSTALL_PREFIX/sbsh"
+          test "$("$SBSH_INSTALL_PREFIX/sbsh" version)" = "$tag"
