@@ -1969,62 +1969,72 @@
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
 <p>sbsh is available for Linux, macOS, and FreeBSD. See the <a href="../install/prerequisites/">Installation</a> section for platform-specific instructions.</p>
 <h3 id="quick-install">Quick Install<a class="headerlink" href="#quick-install" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Set your platform (defaults shown)</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">OS</span><span class="o">=</span>linux<span class="w">        </span><span class="c1"># Options: linux, darwin, freebsd</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ARCH</span><span class="o">=</span>amd64<span class="w">      </span><span class="c1"># Options: amd64, arm64</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Install sbsh</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>curl<span class="w"> </span>-L<span class="w"> </span>-o<span class="w"> </span>sbsh<span class="w"> </span>https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-<span class="si">${</span><span class="nv">OS</span><span class="si">}</span>-<span class="si">${</span><span class="nv">ARCH</span><span class="si">}</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>chmod<span class="w"> </span>+x<span class="w"> </span>sbsh<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>sudo<span class="w"> </span>install<span class="w"> </span>-m<span class="w"> </span><span class="m">0755</span><span class="w"> </span>sbsh<span class="w"> </span>/usr/local/bin/sbsh<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>sudo<span class="w"> </span>ln<span class="w"> </span>-f<span class="w"> </span>/usr/local/bin/sbsh<span class="w"> </span>/usr/local/bin/sb
+<p>One-liner — auto-detects OS/arch, resolves the latest release, and installs <code>sbsh</code> plus the <code>sb</code> hardlink:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://sbsh.io/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
 </code></pre></div>
+<p>Override defaults via env vars: <code>SBSH_VERSION=vX.Y.Z</code> (pin a tag), <code>SBSH_INSTALL_PREFIX=/path/bin</code> (default <code>/usr/local/bin</code>), <code>SBSH_REPO=owner/repo</code> (forks), <code>SBSH_SKIP_CHECKSUM=1</code>. Pass <code>--check</code> to run prerequisite checks only (<code>curl -fsSL https://sbsh.io/install.sh | bash -s -- --check</code>), or <code>--help</code> for usage.</p>
+<details>
+<summary>Or install manually (air-gapped / pinned release)</summary>
+
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Set your platform (defaults shown)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">OS</span><span class="o">=</span>linux<span class="w">        </span><span class="c1"># Options: linux, darwin, freebsd</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ARCH</span><span class="o">=</span>amd64<span class="w">      </span><span class="c1"># Options: amd64, arm64</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Install sbsh</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>curl<span class="w"> </span>-L<span class="w"> </span>-o<span class="w"> </span>sbsh<span class="w"> </span>https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-<span class="si">${</span><span class="nv">OS</span><span class="si">}</span>-<span class="si">${</span><span class="nv">ARCH</span><span class="si">}</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>chmod<span class="w"> </span>+x<span class="w"> </span>sbsh<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>sudo<span class="w"> </span>install<span class="w"> </span>-m<span class="w"> </span><span class="m">0755</span><span class="w"> </span>sbsh<span class="w"> </span>/usr/local/bin/sbsh<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>sudo<span class="w"> </span>ln<span class="w"> </span>-f<span class="w"> </span>/usr/local/bin/sbsh<span class="w"> </span>/usr/local/bin/sb
+</code></pre></div>
+
+</details>
+
 <h3 id="autocomplete-setup">Autocomplete Setup<a class="headerlink" href="#autocomplete-setup" title="Permanent link">&para;</a></h3>
 <p>Enable command completion for bash:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cat<span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.bashrc<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="s">source &lt;(sbsh autocomplete bash)</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="s">source &lt;(sb autocomplete bash)</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="s">EOF</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cat<span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.bashrc<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="s">source &lt;(sbsh autocomplete bash)</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="s">source &lt;(sb autocomplete bash)</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="s">EOF</span>
 </code></pre></div>
 <p>For zsh, add to <code>~/.zshrc</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cat<span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.zshrc<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="s">source &lt;(sbsh autocomplete zsh)</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="s">source &lt;(sb autocomplete zsh)</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="s">EOF</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cat<span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.zshrc<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="s">source &lt;(sbsh autocomplete zsh)</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="s">source &lt;(sb autocomplete zsh)</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="s">EOF</span>
 </code></pre></div>
 <h2 id="your-first-terminal">Your First Terminal<a class="headerlink" href="#your-first-terminal" title="Permanent link">&para;</a></h2>
 <p>Start a terminal with the default profile:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>$<span class="w"> </span>sbsh
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>To<span class="w"> </span>detach,<span class="w"> </span>press<span class="w"> </span>^<span class="o">]</span><span class="w"> </span>twice
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="o">[</span>sbsh-35af93de<span class="o">]</span><span class="w"> </span>user@host:~/projects$
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>$<span class="w"> </span>sbsh
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>To<span class="w"> </span>detach,<span class="w"> </span>press<span class="w"> </span>^<span class="o">]</span><span class="w"> </span>twice
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="o">[</span>sbsh-35af93de<span class="o">]</span><span class="w"> </span>user@host:~/projects$
 </code></pre></div>
 <p>You're now in an sbsh terminal! The terminal ID (<code>35af93de</code>) is shown in the prompt.</p>
 <h3 id="detach-from-terminal">Detach from Terminal<a class="headerlink" href="#detach-from-terminal" title="Permanent link">&para;</a></h3>
 <p>Press <code>Ctrl-]</code> twice to detach. The terminal keeps running:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="o">[</span>sbsh-35af93de<span class="o">]</span><span class="w"> </span>user@host:~/projects$<span class="w"> </span><span class="c1"># Press Ctrl-] twice</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>Detached
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>$<span class="w">  </span><span class="c1"># Back to your shell, but terminal is still running</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="o">[</span>sbsh-35af93de<span class="o">]</span><span class="w"> </span>user@host:~/projects$<span class="w"> </span><span class="c1"># Press Ctrl-] twice</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>Detached
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>$<span class="w">  </span><span class="c1"># Back to your shell, but terminal is still running</span>
 </code></pre></div>
 <h3 id="list-active-terminals">List Active Terminals<a class="headerlink" href="#list-active-terminals" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>$<span class="w"> </span>sb<span class="w"> </span>get<span class="w"> </span>terminals
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>ID<span class="w">        </span>NAME<span class="w">           </span>PROFILE<span class="w">  </span>CMD<span class="w">                           </span>STATUS
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>bbb4b457<span class="w">  </span>quick_samwise<span class="w">  </span>default<span class="w">  </span>/bin/bash<span class="w"> </span>--norc<span class="w"> </span>--noprofile<span class="w">  </span>Ready
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>$<span class="w"> </span>sb<span class="w"> </span>get<span class="w"> </span>terminals
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>ID<span class="w">        </span>NAME<span class="w">           </span>PROFILE<span class="w">  </span>CMD<span class="w">                           </span>STATUS
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>bbb4b457<span class="w">  </span>quick_samwise<span class="w">  </span>default<span class="w">  </span>/bin/bash<span class="w"> </span>--norc<span class="w"> </span>--noprofile<span class="w">  </span>Ready
 </code></pre></div>
 <h3 id="reattach-to-a-terminal">Reattach to a Terminal<a class="headerlink" href="#reattach-to-a-terminal" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>$<span class="w"> </span>sb<span class="w"> </span>attach<span class="w"> </span>quick_samwise
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="o">[</span>sbsh-bbb4b457<span class="o">]</span><span class="w"> </span>user@host:~/projects$<span class="w"> </span><span class="c1"># Back where you left off!</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>$<span class="w"> </span>sb<span class="w"> </span>attach<span class="w"> </span>quick_samwise
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="o">[</span>sbsh-bbb4b457<span class="o">]</span><span class="w"> </span>user@host:~/projects$<span class="w"> </span><span class="c1"># Back where you left off!</span>
 </code></pre></div>
 <h2 id="using-profiles">Using Profiles<a class="headerlink" href="#using-profiles" title="Permanent link">&para;</a></h2>
 <p>Profiles define terminal environments declaratively. Start a terminal with a profile:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>$<span class="w"> </span>sbsh<span class="w"> </span>-p<span class="w"> </span>k8s-default
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1"># Automatically configures kubectl context, shows cluster status</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>$<span class="w"> </span>sbsh<span class="w"> </span>-p<span class="w"> </span>k8s-default
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="c1"># Automatically configures kubectl context, shows cluster status</span>
 </code></pre></div>
 <p>List available profiles:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>$<span class="w"> </span>sb<span class="w"> </span>get<span class="w"> </span>profiles
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>NAME<span class="w">              </span>TARGET<span class="w">  </span>ENVVARS<span class="w">  </span>CMD
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>k8s-default<span class="w">       </span><span class="nb">local</span><span class="w">   </span><span class="m">4</span><span class="w"> </span>vars<span class="w">   </span>/bin/bash
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>terraform-prd<span class="w">     </span><span class="nb">local</span><span class="w">   </span><span class="m">2</span><span class="w"> </span>vars<span class="w">   </span>/bin/bash
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>docker-container<span class="w">  </span><span class="nb">local</span><span class="w">   </span><span class="m">0</span><span class="w"> </span>vars<span class="w">   </span>/usr/bin/docker<span class="w"> </span>run<span class="w"> </span>...
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>$<span class="w"> </span>sb<span class="w"> </span>get<span class="w"> </span>profiles
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>NAME<span class="w">              </span>TARGET<span class="w">  </span>ENVVARS<span class="w">  </span>CMD
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>k8s-default<span class="w">       </span><span class="nb">local</span><span class="w">   </span><span class="m">4</span><span class="w"> </span>vars<span class="w">   </span>/bin/bash
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>terraform-prd<span class="w">     </span><span class="nb">local</span><span class="w">   </span><span class="m">2</span><span class="w"> </span>vars<span class="w">   </span>/bin/bash
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>docker-container<span class="w">  </span><span class="nb">local</span><span class="w">   </span><span class="m">0</span><span class="w"> </span>vars<span class="w">   </span>/usr/bin/docker<span class="w"> </span>run<span class="w"> </span>...
 </code></pre></div>
 <p>See the <a href="../guides/profiles/">Profiles Guide</a> for creating your own profiles.</p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
@@ -2056,7 +2066,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 18, 2026 17:15:20 UTC">April 18, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="June 12, 2026 12:39:56 UTC">June 12, 2026</span>
   </span>
 
     
