@@ -20,10 +20,10 @@ Get sbsh up and running in minutes.
 One-liner — auto-detects OS/arch, resolves the latest release, installs `sbsh` and the `sb` hardlink:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/eminwux/sbsh/main/scripts/install.sh | bash
+curl -fsSL https://sbsh.io/install.sh | bash
 ```
 
-Override defaults via env vars: `SBSH_VERSION=vX.Y.Z` (pin a tag), `SBSH_INSTALL_PREFIX=/path/bin` (default `/usr/local/bin`), `SBSH_REPO=owner/repo` (forks), `SBSH_SKIP_CHECKSUM=1`.
+Override defaults via env vars: `SBSH_VERSION=vX.Y.Z` (pin a tag), `SBSH_INSTALL_PREFIX=/path/bin` (default `/usr/local/bin`), `SBSH_REPO=owner/repo` (forks), `SBSH_SKIP_CHECKSUM=1`. Pass `--check` to run prerequisite checks only (`curl -fsSL https://sbsh.io/install.sh | bash -s -- --check`), or `--help` for usage.
 
 <details>
 <summary>Or install manually</summary>
