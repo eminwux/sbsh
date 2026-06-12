@@ -152,6 +152,26 @@ cleanup_tmpdir() {
     fi
 }
 
+# --- Checksum helper ---------------------------------------------------------
+# Stock macOS ships `shasum`/`openssl`, not GNU coreutils' `sha256sum`. Prefer
+# `sha256sum` (Linux/FreeBSD), fall back to `shasum -a 256`, then
+# `openssl dgst -sha256` so the darwin target verifies correctly once a
+# `.sha256` asset is published (#56) instead of aborting under `set -e`.
+sha256_of() {
+    local path="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$path" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$path" | awk '{print $1}'
+    elif command -v openssl >/dev/null 2>&1; then
+        # `openssl dgst -sha256` prints "SHA256(<path>)= <hex>" — last field.
+        openssl dgst -sha256 "$path" | awk '{print $NF}'
+    else
+        fail "no SHA-256 tool found (need one of: sha256sum, shasum, openssl)."
+        exit 1
+    fi
+}
+
 verify_checksum() {
     local bin_path="$1" sha_url="$2" sha_path="$3"
 
@@ -177,7 +197,7 @@ verify_checksum() {
         fail "checksum asset at ${sha_url} is empty or malformed."
         exit 1
     fi
-    actual="$(sha256sum "$bin_path" | awk '{print $1}')"
+    actual="$(sha256_of "$bin_path")"
     if [ "$expected" != "$actual" ]; then
         fail "checksum mismatch for the downloaded asset"
         printf '    expected: %s\n' "$expected" >&2
