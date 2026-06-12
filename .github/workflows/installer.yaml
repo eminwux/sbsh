@@ -6,12 +6,14 @@ on:
       - main
     paths:
       - "scripts/install.sh"
+      - "docs/site/install.sh"
       - ".github/workflows/installer.yaml"
   pull_request:
     branches:
       - main
     paths:
       - "scripts/install.sh"
+      - "docs/site/install.sh"
       - ".github/workflows/installer.yaml"
   workflow_dispatch:
 
@@ -33,6 +35,13 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
+
+      # Fail fast if the published mirror (docs/site/install.sh) has drifted
+      # from the canonical scripts/install.sh — an edit to either without
+      # running `make install-sh-sync` would otherwise serve a stale installer
+      # at sbsh.io/install.sh.
+      - name: Check installer mirror is in sync
+        run: make install-sh-check
 
       - name: Run the installer
         env:
