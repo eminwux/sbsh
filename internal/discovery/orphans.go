@@ -54,7 +54,7 @@ func pruneOrphanTerminalDirs(ctx context.Context, logger *slog.Logger, runPath s
 // pruneOrphanClientDirs removes client directories whose metadata.json is
 // missing or unparseable — the clients-side counterpart of
 // pruneOrphanTerminalDirs (see #422). The live-socket guard covers the
-// client control socket (clients/<id>/client.sock — see pkg/attach).
+// client control socket (clients/<id>/socket — see pkg/builder).
 func pruneOrphanClientDirs(ctx context.Context, logger *slog.Logger, runPath string, w io.Writer) error {
 	orphans, err := pkgdiscovery.OrphanClientDirs(ctx, logger, runPath)
 	if err != nil {
@@ -102,7 +102,7 @@ func pruneOrphanDirs(ctx context.Context, logger *slog.Logger, w io.Writer, orph
 // a connection. Best-effort: a terminal whose control socket was placed
 // outside its run dir (custom Spec.SocketFile) is not detected, but the
 // default layouts (runPath/terminals/<id>/socket,
-// runPath/clients/<id>/client.sock) are covered.
+// runPath/clients/<id>/socket) are covered.
 func hasLiveSocket(ctx context.Context, dir string) bool {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
