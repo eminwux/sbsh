@@ -115,3 +115,19 @@ test-e2e:
 tag:
 	git tag -s v$(SBSH_VERSION) -m "Release version $(SBSH_VERSION)"
 	git push origin v$(SBSH_VERSION)
+
+# ----- Hosted installer mirror -----
+# The canonical installer lives at scripts/install.sh. docs/site/install.sh is a
+# byte-identical published mirror that mkdocs (docs_dir: docs/site) serves at
+# https://sbsh.io/install.sh, backing the `curl -fsSL https://sbsh.io/install.sh | bash`
+# one-liner. Run install-sh-sync after editing scripts/install.sh; install-sh-check
+# (CI-friendly) fails if the two have drifted.
+.PHONY: install-sh-sync install-sh-check
+install-sh-sync:
+	cp scripts/install.sh docs/site/install.sh
+	chmod +x docs/site/install.sh
+
+install-sh-check:
+	@cmp -s scripts/install.sh docs/site/install.sh \
+		|| { echo "docs/site/install.sh is out of sync with scripts/install.sh; run 'make install-sh-sync'"; exit 1; }
+	@echo "install.sh mirror in sync"

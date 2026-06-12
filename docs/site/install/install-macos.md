@@ -4,17 +4,15 @@ Install sbsh on macOS systems.
 
 ## Quick Install
 
-```bash
-# Set your architecture (Apple Silicon uses arm64, Intel uses amd64)
-export ARCH=arm64      # For Apple Silicon (M1/M2/M3)
-# export ARCH=amd64    # For Intel Macs
+One-liner — auto-detects arch (Apple Silicon / Intel), resolves the latest release, and installs `sbsh` plus the `sb` hardlink:
 
-# Install sbsh
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-darwin-${ARCH} && \
-chmod +x sbsh && \
-sudo install -m 0755 sbsh /usr/local/bin/sbsh && \
-sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
+```bash
+curl -fsSL https://sbsh.io/install.sh | bash
 ```
+
+Override defaults via env vars: `SBSH_VERSION=vX.Y.Z` (pin a tag), `SBSH_INSTALL_PREFIX=/path/bin` (default `/usr/local/bin`), `SBSH_REPO=owner/repo` (forks), `SBSH_SKIP_CHECKSUM=1`. Pass `--check` to run prerequisite checks only (`curl -fsSL https://sbsh.io/install.sh | bash -s -- --check`), or `--help` for usage.
+
+For air-gapped or pinned-release installs, see [Manual Installation](#manual-installation) below.
 
 ## Verify Installation
 

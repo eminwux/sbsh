@@ -59,17 +59,14 @@ sbsh separates the terminal from the client, making terminals as durable and man
 Get sbsh up and running in minutes:
 
 ```bash
-# Install sbsh
-curl -L -o sbsh https://github.com/eminwux/sbsh/releases/download/v0.6.0/sbsh-linux-amd64 && \
-chmod +x sbsh && \
-sudo install -m 0755 sbsh /usr/local/bin/sbsh && \
-sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
+# Install sbsh (auto-detects OS/arch, resolves the latest release)
+curl -fsSL https://sbsh.io/install.sh | bash
 
 # Start your first terminal
 sbsh
 ```
 
-See the [Getting Started](getting-started.md) guide for detailed installation and setup instructions.
+See the [Getting Started](getting-started.md) guide for detailed installation (including the air-gapped / pinned-release manual path) and setup instructions.
 
 ## Philosophy
 

@@ -8,6 +8,17 @@ sbsh is available for Linux, macOS, and FreeBSD. See the [Installation](install/
 
 ### Quick Install
 
+One-liner — auto-detects OS/arch, resolves the latest release, and installs `sbsh` plus the `sb` hardlink:
+
+```bash
+curl -fsSL https://sbsh.io/install.sh | bash
+```
+
+Override defaults via env vars: `SBSH_VERSION=vX.Y.Z` (pin a tag), `SBSH_INSTALL_PREFIX=/path/bin` (default `/usr/local/bin`), `SBSH_REPO=owner/repo` (forks), `SBSH_SKIP_CHECKSUM=1`. Pass `--check` to run prerequisite checks only (`curl -fsSL https://sbsh.io/install.sh | bash -s -- --check`), or `--help` for usage.
+
+<details>
+<summary>Or install manually (air-gapped / pinned release)</summary>
+
 ```bash
 # Set your platform (defaults shown)
 export OS=linux        # Options: linux, darwin, freebsd
@@ -19,6 +30,8 @@ chmod +x sbsh && \
 sudo install -m 0755 sbsh /usr/local/bin/sbsh && \
 sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
 ```
+
+</details>
 
 ### Autocomplete Setup
 

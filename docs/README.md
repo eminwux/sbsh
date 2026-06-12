@@ -392,7 +392,16 @@ func main() {
 
 #### Installation
 
-The standard installation process creates the hard link:
+The one-liner installer auto-detects OS/arch, resolves the latest release, and creates the hard link for you:
+
+```bash
+curl -fsSL https://sbsh.io/install.sh | bash
+```
+
+<details>
+<summary>Or install manually (air-gapped / pinned release)</summary>
+
+The same steps the installer runs, performed by hand:
 
 ```bash
 # Set your platform (defaults shown)
@@ -405,6 +414,8 @@ chmod +x sbsh && \
 sudo install -m 0755 sbsh /usr/local/bin/sbsh && \
 sudo ln -f /usr/local/bin/sbsh /usr/local/bin/sb
 ```
+
+</details>
 
 The `ln -f` command creates a hard link, not a symbolic link. Both files point to the same data on disk.
 
