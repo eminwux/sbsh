@@ -4,8 +4,7 @@
 #
 # install.sh — one-line installer for sbsh.
 #
-#   curl -fsSL https://github.com/eminwux/sbsh/releases/latest/download/install.sh | bash
-#   curl -fsSL <raw-url>/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/eminwux/sbsh/main/scripts/install.sh | bash
 #
 # Collapses the multi-step manual install (download → chmod → install →
 # hardlink) documented in README §Install into a single invocation. sbsh is a
@@ -125,7 +124,10 @@ resolve_latest_version() {
         auth=(-H "Authorization: Bearer ${token}")
     fi
     local resp
-    if ! resp="$(curl -fsSL "${auth[@]}" "$api_url" 2>/dev/null)"; then
+    # ${auth[@]+...} guards the empty-array expansion: under `set -u`, a bare
+    # "${auth[@]}" on an empty array aborts with "unbound variable" on bash
+    # <4.4 (macOS stock /bin/bash 3.2.57) — the default no-token one-liner path.
+    if ! resp="$(curl -fsSL ${auth[@]+"${auth[@]}"} "$api_url" 2>/dev/null)"; then
         fail "could not query ${api_url} for the latest release tag."
         printf '    Pin a version manually:  SBSH_VERSION=v0.12.5 bash install.sh\n' >&2
         exit 1

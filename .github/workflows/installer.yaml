@@ -64,7 +64,7 @@ jobs:
           echo "sb version:   $v_sb"
           test "$v_sbsh" = "$v_sb"
 
-      - name: Verify env overrides (pinned version + fork repo defaults)
+      - name: Verify env overrides (pinned SBSH_VERSION + SBSH_SKIP_CHECKSUM)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SBSH_INSTALL_PREFIX: ${{ github.workspace }}/.sbsh-pinned
