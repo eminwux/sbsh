@@ -211,7 +211,7 @@ func TestScanAndPruneClients_SkipsOrphanWithLiveSocket(t *testing.T) {
 	if err := os.MkdirAll(clientDir, 0o700); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	ln, err := net.Listen("unix", filepath.Join(clientDir, "client.sock"))
+	ln, err := net.Listen("unix", filepath.Join(clientDir, "socket"))
 	if err != nil {
 		t.Fatalf("listen unix: %v", err)
 	}
