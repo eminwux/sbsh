@@ -23,7 +23,9 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -290,6 +292,39 @@ func TestServer_runLoop_TerminalEvents(t *testing.T) {
 	ev2 <- terminalrunner.Event{Type: terminalrunner.EvCmdExited}
 	if err := srv.runLoop(context.Background(), ev2, make(chan error)); err == nil {
 		t.Fatal("runLoop EvCmdExited: expected non-nil exit error")
+	}
+}
+
+func TestServer_runLoop_PTYReadErrorPrefersCmdExited(t *testing.T) {
+	srv := newAdapterServer(t)
+
+	// A benign PTY-master read error (the EIO the child's tty-close triggers)
+	// reliably preempts the authoritative EvCmdExited on the shared channel.
+	// runLoop must return the EvCmdExited cause, not the benign read error.
+	eioErr := fmt.Errorf("terminalManagerReader pty read error: %w: %w",
+		terminalrunner.ErrPipeRead, syscall.EIO)
+	exitErr := errors.New("shell process exited: code=0")
+
+	ev := make(chan terminalrunner.Event, 2)
+	ev <- terminalrunner.Event{Type: terminalrunner.EvError, Err: eioErr}
+	ev <- terminalrunner.Event{Type: terminalrunner.EvCmdExited, Err: exitErr}
+	if err := srv.runLoop(context.Background(), ev, make(chan error)); !errors.Is(err, exitErr) {
+		t.Fatalf("runLoop pty-EIO then EvCmdExited = %v, want %v", err, exitErr)
+	}
+}
+
+func TestServer_runLoop_PTYReadErrorWithoutExitReturnsError(t *testing.T) {
+	srv := newAdapterServer(t)
+
+	// A genuine PTY read error with no EvCmdExited following (the child is
+	// still alive) must fall back to returning that error once the grace
+	// window elapses — the preference only applies when an exit actually races.
+	eioErr := fmt.Errorf("terminalManagerReader pty read error: %w: %w",
+		terminalrunner.ErrPipeRead, syscall.EIO)
+	ev := make(chan terminalrunner.Event, 1)
+	ev <- terminalrunner.Event{Type: terminalrunner.EvError, Err: eioErr}
+	if err := srv.runLoop(context.Background(), ev, make(chan error)); !errors.Is(err, eioErr) {
+		t.Fatalf("runLoop pty-EIO alone = %v, want %v", err, eioErr)
 	}
 }
 
