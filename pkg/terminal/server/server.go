@@ -34,6 +34,7 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/eminwux/sbsh/internal/terminal/terminalrpc"
 	"github.com/eminwux/sbsh/internal/terminal/terminalrunner"
@@ -212,10 +213,7 @@ func (s *Server) runLoop(
 			return ctx.Err()
 		case ev := <-eventsCh:
 			if ev.Type == terminalrunner.EvError || ev.Type == terminalrunner.EvCmdExited {
-				if ev.Err != nil {
-					return ev.Err
-				}
-				return errors.New("server: terminal exited")
+				return s.terminalCause(ctx, ev, eventsCh)
 			}
 		case err := <-rpcDoneCh:
 			if err != nil {
@@ -233,6 +231,61 @@ func (s *Server) runLoop(
 			return errors.New("server: Stop called")
 		}
 	}
+}
+
+// ptyExitGrace bounds how long terminalCause waits for the authoritative
+// EvCmdExited after a benign PTY-read EvError. On a clean workload exit in
+// PID-1/init mode the PTY-master Read returns EIO — the immediate kernel
+// side-effect of the child closing its tty — and that EvError reliably
+// preempts the reaper's EvCmdExited on the shared eventsCh. The events
+// arrive back-to-back, so a short window suffices. See #438.
+const ptyExitGrace = 250 * time.Millisecond
+
+// terminalCause maps a terminating terminal event to the Serve cause. A
+// PTY-read EvError (ErrPipeRead) racing a clean child exit is benign: the
+// master read only failed because the workload closed its tty, and the
+// authoritative cause is the EvCmdExited the reaper publishes immediately
+// after. Without this preference Serve would return
+// "read /dev/ptmx: input/output error" instead of "shell process exited:
+// code=N", so a supervisor classifying the cause cannot tell a clean exit
+// from a wrapper failure (eminwux/kukeon#1282). Wait up to ptyExitGrace for
+// the EvCmdExited and return its cause; if none follows (a genuine PTY error
+// with the child still alive), fall back to the original EvError unchanged.
+// See #438.
+func (s *Server) terminalCause(
+	ctx context.Context,
+	ev terminalrunner.Event,
+	eventsCh <-chan terminalrunner.Event,
+) error {
+	if ev.Type == terminalrunner.EvError && errors.Is(ev.Err, terminalrunner.ErrPipeRead) {
+		timer := time.NewTimer(ptyExitGrace)
+		defer timer.Stop()
+		for {
+			select {
+			case ev2 := <-eventsCh:
+				if ev2.Type == terminalrunner.EvCmdExited {
+					return eventCause(ev2)
+				}
+				// Another benign reader/writer EvError can land ahead of the
+				// exit; keep waiting within the window rather than returning it.
+				continue
+			case <-timer.C:
+				return eventCause(ev)
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+	return eventCause(ev)
+}
+
+// eventCause extracts the cause carried by a terminating event, falling
+// back to a generic message when the event carries no error.
+func eventCause(ev terminalrunner.Event) error {
+	if ev.Err != nil {
+		return ev.Err
+	}
+	return errors.New("server: terminal exited")
 }
 
 // Stop initiates graceful shutdown. Safe to call from another
