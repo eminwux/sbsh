@@ -95,6 +95,9 @@ nav:
   - FAQ: faq.md
 
 extra:
+  analytics:
+    provider: google
+    property: G-NEXJDHW96D
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/eminwux/sbsh
