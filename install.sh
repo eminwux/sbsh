@@ -160,6 +160,33 @@ cleanup_tmpdir() {
     fi
 }
 
+create_install_tmpdir() {
+    INSTALL_TMPDIR="$(mktemp -d -t sbsh-install.XXXXXX)"
+
+    if ! : >"${INSTALL_TMPDIR}/.write-test" 2>/dev/null; then
+        fail "temporary directory is not writable: ${INSTALL_TMPDIR}"
+        printf '    Set TMPDIR to a writable filesystem and retry, for example:\n' >&2
+        printf '      mkdir -p "$HOME/.cache"\n' >&2
+        printf '      curl -fsSL https://sbsh.io/install.sh | TMPDIR="$HOME/.cache" bash\n' >&2
+        exit 1
+    fi
+    rm -f "${INSTALL_TMPDIR}/.write-test"
+}
+
+available_kb_for() {
+    local path="$1"
+    if command -v df >/dev/null 2>&1; then
+        df -Pk "$path" 2>/dev/null | awk 'NR == 2 {print $4}' || true
+    fi
+}
+
+content_length_for() {
+    local url="$1"
+    curl -fsSLI "$url" 2>/dev/null \
+        | awk 'BEGIN {IGNORECASE=1} /^content-length:/ {gsub("\r", "", $2); len=$2} END {print len}' \
+        || true
+}
+
 # --- Checksum helper ---------------------------------------------------------
 # Stock macOS ships `shasum`/`openssl`, not GNU coreutils' `sha256sum`. Prefer
 # `sha256sum` (Linux/FreeBSD), fall back to `shasum -a 256`, then
@@ -216,7 +243,7 @@ verify_checksum() {
 }
 
 do_install() {
-    local os arch asset_url sha_url bin_path sha_path
+    local os arch asset_url sha_url bin_path sha_path curl_err curl_rc asset_bytes avail_kb
     os="$(detect_os)"
     arch="$(detect_arch)"
 
@@ -229,16 +256,48 @@ do_install() {
     asset_url="https://github.com/${SBSH_REPO}/releases/download/${SBSH_VERSION}/sbsh-${os}-${arch}"
     sha_url="${asset_url}.sha256"
 
-    INSTALL_TMPDIR="$(mktemp -d -t sbsh-install.XXXXXX)"
+    create_install_tmpdir
     trap cleanup_tmpdir EXIT
     bin_path="${INSTALL_TMPDIR}/sbsh"
     sha_path="${INSTALL_TMPDIR}/sbsh.sha256"
+    curl_err="${INSTALL_TMPDIR}/curl.err"
+
+    asset_bytes="$(content_length_for "$asset_url")"
+    avail_kb="$(available_kb_for "$INSTALL_TMPDIR")"
+    if [ -n "$asset_bytes" ] && [ -n "$avail_kb" ]; then
+        # Use a small cushion for the checksum file, curl metadata, and block
+        # rounding so a nearly full temp filesystem fails before curl's generic
+        # "Failure writing output to destination" error.
+        local required_kb=$(( (asset_bytes + 1023) / 1024 + 1024 ))
+        if [ "$avail_kb" -lt "$required_kb" ]; then
+            fail "not enough free space in temporary directory: ${INSTALL_TMPDIR}"
+            printf '    need at least: %s KiB\n' "$required_kb" >&2
+            printf '    available:     %s KiB\n' "$avail_kb" >&2
+            printf '    Set TMPDIR to a filesystem with more free space and retry.\n' >&2
+            exit 1
+        fi
+    fi
 
     step "Downloading sbsh ${SBSH_VERSION} (${os}/${arch})"
-    if ! curl -fsSL -o "$bin_path" "$asset_url"; then
+    set +e
+    curl -fsSL -o "$bin_path" "$asset_url" 2>"$curl_err"
+    curl_rc="$?"
+    set -e
+    if [ "$curl_rc" -ne 0 ]; then
         fail "download failed: ${asset_url}"
-        printf '    Confirm SBSH_VERSION=%s ships a sbsh-%s-%s asset at\n' "$SBSH_VERSION" "$os" "$arch" >&2
-        printf '      https://github.com/%s/releases\n' "$SBSH_REPO" >&2
+        if [ -s "$curl_err" ]; then
+            sed 's/^/    /' "$curl_err" >&2
+        fi
+        if [ "$curl_rc" -eq 23 ]; then
+            printf '    curl could fetch the asset but could not write it to:\n' >&2
+            printf '      %s\n' "$bin_path" >&2
+            printf '    Check free space and write permissions for TMPDIR (%s), or retry with TMPDIR set on the bash side of the pipeline:\n' "${TMPDIR:-/tmp}" >&2
+            printf '      mkdir -p "$HOME/.cache"\n' >&2
+            printf '      curl -fsSL https://sbsh.io/install.sh | TMPDIR="$HOME/.cache" bash\n' >&2
+        else
+            printf '    Confirm SBSH_VERSION=%s ships a sbsh-%s-%s asset at\n' "$SBSH_VERSION" "$os" "$arch" >&2
+            printf '      https://github.com/%s/releases\n' "$SBSH_REPO" >&2
+        fi
         exit 1
     fi
     ok "downloaded $(wc -c <"$bin_path" | tr -d ' ') bytes"
