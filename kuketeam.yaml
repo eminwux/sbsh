@@ -5,7 +5,7 @@ spec:
   source:
     repo: github.com/eminwux/agents
     branch: main
-  defaults: { harnesses: [claude, opencode] }
+  defaults: { harnesses: [claude, opencode, codex] }
   roles:
     - { ref: dev, needs: { image: [go] } }
     - { ref: pm }
