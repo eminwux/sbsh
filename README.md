@@ -295,6 +295,10 @@ sbsh is under active development, with a focus on correctness, portability, and 
 
 sbsh is an open project that welcomes thoughtful contributions. The goal is to build a simple, reliable foundation for reproducible, shareable shell environments, not a large framework. Discussions, code reviews, and design proposals are encouraged, especially around clarity, portability, and correctness.
 
+## Community
+
+Have questions, ideas, or recommendations? Join the [sbsh Discord community](https://discord.gg/4ZuyGfjdp6) to connect with maintainers and other users.
+
 ## License
 
 Apache License 2.0
