@@ -82,6 +82,10 @@ sbsh applies the same principles of Infrastructure-as-Code to interactive enviro
 - **[CLI Reference](cli/commands.md)** - Complete command documentation
 - **[Tutorials](tutorials/create-your-first-profile.md)** - Step-by-step tutorials
 
+## Community
+
+Have questions, ideas, or recommendations? Join the [sbsh Discord community](https://discord.gg/4ZuyGfjdp6) to connect with maintainers and other users.
+
 ## Status
 
 sbsh is under active development, with a focus on correctness, portability, and clear abstractions before adding integrations.

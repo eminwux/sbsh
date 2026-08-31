@@ -101,6 +101,8 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/eminwux/sbsh
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/4ZuyGfjdp6
   version:
     provider: mike
 
