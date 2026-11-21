@@ -41,9 +41,14 @@ const (
 func (sr *Exec) dialTerminalCtrlSocket() error {
 	sr.logger.DebugContext(sr.ctx, "dialTerminalCtrlSocket: connecting to terminal",
 		"terminal_id", sr.terminal.Spec.ID,
-		"socket_file", sr.terminal.Spec.SocketFile)
+		"socket_file", sr.terminal.Spec.SocketFile,
+		"custom_dialer", sr.dial != nil)
 
-	sr.terminalClient = terminal.NewUnix(sr.terminal.Spec.SocketFile, sr.logger)
+	if sr.dial != nil {
+		sr.terminalClient = terminal.NewWithDialer(sr.dial, sr.logger)
+	} else {
+		sr.terminalClient = terminal.NewUnix(sr.terminal.Spec.SocketFile, sr.logger)
+	}
 	defer sr.terminalClient.Close()
 
 	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)

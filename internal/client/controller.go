@@ -31,6 +31,7 @@ import (
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/pkg/api"
+	rpcterminal "github.com/eminwux/sbsh/pkg/rpcclient/terminal"
 )
 
 /* ---------- Controller ---------- */
@@ -44,6 +45,11 @@ type Controller struct {
 	NewClientRunner func(ctx context.Context, logger *slog.Logger, doc *api.ClientDoc, evCh chan<- clientrunner.Event) clientrunner.ClientRunner
 
 	sr clientrunner.ClientRunner
+
+	// dial, when non-nil, is the caller-supplied terminal control-socket
+	// dialer (see NewClientControllerWithDialer). It lets an attach run
+	// with no SocketFile, ID or Name in the spec.
+	dial rpcterminal.Dialer
 
 	ctrlReadyCh  chan struct{}
 	closeReqCh   chan error
@@ -80,6 +86,22 @@ func NewClientControllerWithIO(
 	logger *slog.Logger,
 	stdin, stdout, stderr *os.File,
 ) api.ClientController {
+	return NewClientControllerWithDialer(ctx, logger, stdin, stdout, stderr, nil)
+}
+
+// NewClientControllerWithDialer is like NewClientControllerWithIO but also
+// lets the caller supply the terminal control-socket connections. With a
+// non-nil dial, an AttachToTerminal run needs no SocketFile, ID or Name:
+// every control RPC (Ping, State, Attach, Resize, Detach, ...) gets its
+// connection from dial. The dialer travels here rather than in the
+// ClientDoc because the doc is a serialized document and cannot carry a
+// function. A nil dial behaves exactly like NewClientControllerWithIO.
+func NewClientControllerWithDialer(
+	ctx context.Context,
+	logger *slog.Logger,
+	stdin, stdout, stderr *os.File,
+	dial rpcterminal.Dialer,
+) api.ClientController {
 	logger.InfoContext(ctx, "New client controller is being created")
 	newCtx, cancel := context.WithCancelCause(ctx)
 
@@ -87,6 +109,7 @@ func NewClientControllerWithIO(
 		ctx:         newCtx,
 		cancel:      cancel,
 		logger:      logger,
+		dial:        dial,
 		closedCh:    make(chan struct{}),
 		ctrlReadyCh: make(chan struct{}),
 		// rpcReadyCh is buffered (cap 1) so StartServer can deposit its
@@ -99,7 +122,7 @@ func NewClientControllerWithIO(
 		//nolint:mnd // event channel buffer size
 		eventsCh: make(chan clientrunner.Event, 32),
 		NewClientRunner: func(ctx context.Context, logger *slog.Logger, doc *api.ClientDoc, evCh chan<- clientrunner.Event) clientrunner.ClientRunner {
-			return clientrunner.NewClientRunnerExecWithIO(ctx, logger, doc, evCh, stdin, stdout, stderr)
+			return clientrunner.NewClientRunnerExecWithDialer(ctx, logger, doc, evCh, stdin, stdout, stderr, dial)
 		},
 	}
 	return c
@@ -206,8 +229,9 @@ func (s *Controller) Run(doc *api.ClientDoc) error {
 		}
 	case api.AttachToTerminal:
 		if doc.Spec.TerminalSpec == nil ||
-			(doc.Spec.TerminalSpec.ID == "" && doc.Spec.TerminalSpec.Name == "" && doc.Spec.TerminalSpec.SocketFile == "") {
-			s.logger.Error("no terminal ID, Name, or SocketFile provided for attach")
+			(doc.Spec.TerminalSpec.ID == "" && doc.Spec.TerminalSpec.Name == "" &&
+				doc.Spec.TerminalSpec.SocketFile == "" && s.dial == nil) {
+			s.logger.Error("no terminal ID, Name, SocketFile, or dialer provided for attach")
 			errAttachSpec := errdefs.ErrAttachNoTerminalSpec
 			if errC := s.Close(errAttachSpec); errC != nil {
 				s.logger.Error("error during Close after attach spec failure", "error", errC)
@@ -327,11 +351,13 @@ func (s *Controller) Run(doc *api.ClientDoc) error {
 }
 
 func (s *Controller) createAttachTerminal(doc *api.ClientDoc) (*api.AttachedTerminal, error) {
-	// SocketFile takes precedence: callers (notably pkg/attach
-	// embedders) that already know the absolute control-socket path
-	// can skip metadata discovery entirely.
-	if doc.Spec.TerminalSpec.SocketFile != "" {
-		s.logger.Debug("attach by socket path", "socket", doc.Spec.TerminalSpec.SocketFile)
+	// A caller-supplied dialer or SocketFile takes precedence: callers
+	// (notably pkg/attach embedders) that can already reach the control
+	// socket skip metadata discovery entirely. The dialer case has no
+	// path at all; the runner uses the dialer for every control RPC.
+	if s.dial != nil || doc.Spec.TerminalSpec.SocketFile != "" {
+		s.logger.Debug("attach by socket path or dialer",
+			"socket", doc.Spec.TerminalSpec.SocketFile, "custom_dialer", s.dial != nil)
 		spec := *doc.Spec.TerminalSpec
 		if spec.ID == "" {
 			spec.ID = api.ID(naming.RandomID())

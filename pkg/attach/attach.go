@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 
@@ -29,13 +30,31 @@ import (
 	"github.com/eminwux/sbsh/internal/errdefs"
 	"github.com/eminwux/sbsh/internal/naming"
 	"github.com/eminwux/sbsh/pkg/api"
+	"github.com/eminwux/sbsh/pkg/rpcclient/terminal"
 )
 
 // Options configures a single Run invocation.
 type Options struct {
 	// SocketPath is the absolute path to the target terminal's control
-	// socket (the same path "sb attach --socket" accepts). Required.
+	// socket (the same path "sb attach --socket" accepts). Exactly one of
+	// SocketPath and Dial must be set.
 	SocketPath string
+
+	// Dial, when set, supplies the control-socket connections instead of
+	// SocketPath, for embedders that cannot reach the socket by path (for
+	// example, a broker that connects on the caller's behalf and passes
+	// the connected socket back over SCM_RIGHTS). Exactly one of
+	// SocketPath and Dial must be set.
+	//
+	// Run calls Dial once per control RPC the session makes — Ping,
+	// State, Attach, Resize (initial and on every SIGWINCH), Detach — and
+	// again on each retry; each connection carries a single call and is
+	// closed afterwards. Dial must return a *net.UnixConn, because the
+	// Attach reply carries the IO descriptor via SCM_RIGHTS; any other
+	// net.Conn is closed and the call fails with an error matching
+	// terminal.ErrNotUnixConn. Dial may be called concurrently (a resize
+	// can race a detach) and must honour ctx.
+	Dial terminal.Dialer
 
 	// Stdin is the user-facing input handle. It must be a TTY-backed
 	// *os.File: the attach loop puts it in raw mode and reads the
@@ -95,8 +114,11 @@ type Options struct {
 // process; concurrent calls each get their own private control socket
 // under os.TempDir().
 func Run(ctx context.Context, opts Options) error {
-	if opts.SocketPath == "" {
+	switch {
+	case opts.SocketPath == "" && opts.Dial == nil:
 		return ErrSocketPathRequired
+	case opts.SocketPath != "" && opts.Dial != nil:
+		return ErrSocketPathAndDial
 	}
 
 	logger := opts.Logger
@@ -156,7 +178,7 @@ func Run(ctx context.Context, opts Options) error {
 		},
 	}
 
-	ctrl := client.NewClientControllerWithIO(ctx, logger, stdin, stdout, stderr)
+	ctrl := client.NewClientControllerWithDialer(ctx, logger, stdin, stdout, stderr, unixOnly(opts.Dial))
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -209,6 +231,30 @@ func Run(ctx context.Context, opts Options) error {
 // matching public sentinel. errdefs.ErrClientDetached → ErrDetached;
 // errdefs.ErrPeerClosed → ErrPeerClosed; anything else is returned
 // unchanged so existing errdefs.* matches keep working.
+// unixOnly wraps an embedder dialer so a non-Unix connection fails on the
+// first control RPC with terminal.ErrNotUnixConn, instead of letting Ping
+// and State succeed over it and the session fail later at Attach. A nil
+// dial stays nil (the path dial is used).
+func unixOnly(dial terminal.Dialer) terminal.Dialer {
+	if dial == nil {
+		return nil
+	}
+	return func(ctx context.Context) (net.Conn, error) {
+		conn, err := dial(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if conn == nil {
+			return nil, fmt.Errorf("pkg/attach: Options.Dial returned a nil connection: %w", terminal.ErrNotUnixConn)
+		}
+		if _, ok := conn.(*net.UnixConn); !ok {
+			_ = conn.Close()
+			return nil, fmt.Errorf("pkg/attach: Options.Dial returned %T: %w", conn, terminal.ErrNotUnixConn)
+		}
+		return conn, nil
+	}
+}
+
 func classifySessionEnd(err error) error {
 	switch {
 	case errors.Is(err, errdefs.ErrClientDetached):
