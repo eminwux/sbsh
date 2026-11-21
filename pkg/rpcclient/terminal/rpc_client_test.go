@@ -666,6 +666,40 @@ func TestNewWithDialer_AttachNonUnixConn(t *testing.T) {
 	}
 }
 
+// TestNewWithDialer_NilConnNotRetried verifies a dialer returning (nil, nil)
+// fails with ErrNilConn on the first attempt, for both plain JSON calls and
+// the FD-passing Attach path, instead of panicking inside the codec.
+func TestNewWithDialer_NilConnNotRetried(t *testing.T) {
+	t.Parallel()
+	calls := map[string]func(Client) error{
+		"Ping": func(c Client) error {
+			return c.Ping(ctx2s(t), &api.PingMessage{Message: "PING"}, &api.PingMessage{})
+		},
+		"Attach": func(c Client) error {
+			_, err := c.Attach(ctx2s(t), &api.AttachRequest{ClientID: "cli"}, &struct{}{})
+			return err
+		},
+	}
+	for name, call := range calls {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var dials atomic.Int32
+			c := NewWithDialer(func(context.Context) (net.Conn, error) {
+				dials.Add(1)
+				return nil, nil //nolint:nilnil // exercising a misbehaving dialer
+			}, testLogger())
+
+			err := call(c)
+			if !errors.Is(err, ErrNilConn) {
+				t.Fatalf("%s err = %v; want ErrNilConn", name, err)
+			}
+			if got := dials.Load(); got != 1 {
+				t.Fatalf("dials = %d; want 1 (no retry on a nil connection)", got)
+			}
+		})
+	}
+}
+
 // TestNewWithDialer_DialErrNotUnixConnNotRetried verifies a dialer that
 // itself reports ErrNotUnixConn is not retried.
 func TestNewWithDialer_DialErrNotUnixConnNotRetried(t *testing.T) {

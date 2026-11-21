@@ -44,6 +44,10 @@ type Dialer func(ctx context.Context) (net.Conn, error)
 // a *net.UnixConn on a call that needs descriptor passing.
 var ErrNotUnixConn = errors.New("terminal: dialer returned a connection that is not a *net.UnixConn")
 
+// ErrNilConn is returned when a Dialer returns a nil connection with a nil
+// error. The call fails on the first attempt; it is not retried.
+var ErrNilConn = errors.New("terminal: dialer returned a nil connection and no error")
+
 type client struct {
 	dial   Dialer
 	logger *slog.Logger
@@ -141,6 +145,12 @@ func (c *client) callWithCodec(
 			}
 			lastErr = err
 			continue
+		}
+		if conn == nil {
+			// A dialer that reports success without a connection will not
+			// change its answer on retry; fail before the codec touches it.
+			c.logger.ErrorContext(ctx, "dial returned nil connection", "method", method, "attempt", attempt)
+			return fmt.Errorf("%s: %w", method, ErrNilConn)
 		}
 
 		c.logger.DebugContext(ctx, "creating codec", "attempt", attempt)
