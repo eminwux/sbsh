@@ -1,12 +1,21 @@
 apiVersion: kuketeams.io/v1
-kind: ProjectTeam
+kind: Team
 metadata: { name: sbsh }
 spec:
-  source:
-    repo: github.com/eminwux/agents
-    branch: main
-  defaults: { harnesses: [claude, opencode, codex] }
+  sources:
+    - name: agents
+      url: git@github.com:eminwux/agents
+      branch: main
+      clonePath: /home/user/agents
+    # Harness definitions live in kukeon (agents#893); no runtime clone needed.
+    - name: kukeon
+      url: github.com/eminwux/kukeon
+      branch: main
   roles:
-    - { ref: dev, needs: { image: [go] } }
-    - { ref: pm }
-    - { ref: pr-reviewer }
+    - { name: dev, source: agents, path: dev, needs: { image: [go] } }
+    - { name: pm, source: agents, path: pm }
+    - { name: pr-reviewer, source: agents, path: pr-reviewer }
+  harnesses:
+    - { name: claude, source: kukeon, path: team/harnesses/claude }
+    - { name: opencode, source: kukeon, path: team/harnesses/opencode }
+    - { name: codex, source: kukeon, path: team/harnesses/codex }
