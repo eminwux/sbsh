@@ -31,7 +31,18 @@ import (
 	"github.com/eminwux/sbsh/pkg/api"
 )
 
+// Dialer opens one connection to a terminal's control socket. The client
+// calls it once per RPC (and again on each retry); the returned connection is
+// used for that single call and then closed.
+//
+// The connection must be a *net.UnixConn for Attach and Subscribe: their
+// replies carry the IO descriptor via SCM_RIGHTS. Any other net.Conn makes
+// those calls fail with ErrNotUnixConn.
 type Dialer func(ctx context.Context) (net.Conn, error)
+
+// ErrNotUnixConn is returned when a Dialer hands back a connection that is not
+// a *net.UnixConn on a call that needs descriptor passing.
+var ErrNotUnixConn = errors.New("terminal: dialer returned a connection that is not a *net.UnixConn")
 
 type client struct {
 	dial   Dialer
@@ -45,6 +56,9 @@ type (
 	}
 )
 
+// WithDialTimeout bounds each dial. For NewUnix it is the net.Dialer timeout
+// (default 5s); for NewWithDialer it bounds the context passed to the Dialer
+// (default: no extra bound beyond the call's own context).
 func WithDialTimeout(d time.Duration) Option {
 	return func(o *unixOpts) { o.DialTimeout = d }
 }
@@ -60,7 +74,39 @@ func NewUnix(sockPath string, logger *slog.Logger, opts ...Option) Client {
 		d := net.Dialer{Timeout: cfg.DialTimeout}
 		return d.DialContext(ctx, "unix", sockPath)
 	}
-	return &client{dial: dialer, logger: logger}
+	return NewWithDialer(dialer, logger)
+}
+
+// NewWithDialer returns a ctx-aware client that obtains a fresh connection
+// from dial for every call, with the same retry behavior as NewUnix. Use it
+// when the caller cannot reach the control socket by path and instead
+// supplies already-connected sockets (for example, ones received from a
+// broker over SCM_RIGHTS).
+func NewWithDialer(dial Dialer, logger *slog.Logger, opts ...Option) Client {
+	var cfg unixOpts
+	for _, o := range opts {
+		o(&cfg)
+	}
+	if cfg.DialTimeout > 0 {
+		inner := dial
+		timeout := cfg.DialTimeout
+		dial = func(ctx context.Context) (net.Conn, error) {
+			dctx, cancel := context.WithTimeout(ctx, timeout)
+			defer cancel()
+			return inner(dctx)
+		}
+	}
+	return &client{dial: dial, logger: logger}
+}
+
+// asUnixConn returns conn as a *net.UnixConn, or closes it and returns an
+// error wrapping ErrNotUnixConn that names the method and the concrete type.
+func asUnixConn(method string, conn net.Conn) (*net.UnixConn, error) {
+	if u, ok := conn.(*net.UnixConn); ok {
+		return u, nil
+	}
+	_ = conn.Close()
+	return nil, fmt.Errorf("%s: %w (got %T)", method, ErrNotUnixConn, conn)
 }
 
 // --- internal: generic call path with pluggable codec (handles retries/timeouts) ---.
@@ -88,6 +134,11 @@ func (c *client) callWithCodec(
 		conn, err := c.dial(ctx)
 		if err != nil {
 			c.logger.WarnContext(ctx, "dial failed", "attempt", attempt, "error", err)
+			if errors.Is(err, ErrNotUnixConn) {
+				// A dialer that rejects its own connection type will not
+				// change its answer on retry.
+				return err
+			}
 			lastErr = err
 			continue
 		}
@@ -97,6 +148,10 @@ func (c *client) callWithCodec(
 		if err != nil {
 			c.logger.ErrorContext(ctx, "codec creation failed", "attempt", attempt, "error", err)
 			_ = conn.Close()
+			if errors.Is(err, ErrNotUnixConn) {
+				// Retrying cannot change the dialer's connection type.
+				return err
+			}
 			lastErr = err
 			continue
 		}
@@ -199,11 +254,10 @@ func (c *client) Attach(ctx context.Context, req *api.AttachRequest, out any) (n
 		out,
 		func(conn net.Conn) (rpc.ClientCodec, func(), error) {
 			c.logger.DebugContext(ctx, "preparing codec for Attach")
-			uconn, ok := conn.(*net.UnixConn)
-			if !ok {
-				c.logger.ErrorContext(ctx, "attach: not a *net.UnixConn")
-				_ = conn.Close()
-				return nil, nil, errors.New("attach: not a *net.UnixConn")
+			uconn, err := asUnixConn("attach", conn)
+			if err != nil {
+				c.logger.ErrorContext(ctx, "attach: dialer did not return a *net.UnixConn", "error", err)
+				return nil, nil, err
 			}
 			codec := newUnixJSONClientCodec(uconn, c.logger)
 			c.logger.DebugContext(ctx, "Attach RPC call completed")
@@ -301,10 +355,9 @@ func (c *client) Subscribe(ctx context.Context, req *api.SubscribeRequest, out a
 		req,
 		out,
 		func(conn net.Conn) (rpc.ClientCodec, func(), error) {
-			uconn, ok := conn.(*net.UnixConn)
-			if !ok {
-				_ = conn.Close()
-				return nil, nil, errors.New("subscribe: not a *net.UnixConn")
+			uconn, err := asUnixConn("subscribe", conn)
+			if err != nil {
+				return nil, nil, err
 			}
 			codec := newUnixJSONClientCodec(uconn, c.logger)
 

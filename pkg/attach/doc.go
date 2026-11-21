@@ -20,7 +20,9 @@
 // binary as a subprocess.
 //
 // The single public entrypoint is Run(ctx, Options). It connects to the
-// terminal control socket given by Options.SocketPath, runs the
+// terminal control socket given by Options.SocketPath — or, for embedders
+// that cannot see that path, through connections handed out by
+// Options.Dial (exactly one of the two must be set) — runs the
 // bidirectional PTY copy loop (caller-supplied stdin/stdout/stderr),
 // installs the SIGWINCH-driven resize forwarder, honours the detach
 // keystroke (^] twice, opt-out via DisableDetachKeystroke), and returns

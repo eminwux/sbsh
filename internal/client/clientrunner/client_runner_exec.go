@@ -62,6 +62,12 @@ type Exec struct {
 
 	lnCtrl net.Listener
 
+	// dial, when non-nil, replaces the path dial of the terminal's control
+	// socket: every control RPC obtains its connection from it instead of
+	// from terminal.Spec.SocketFile. Set by embedders via
+	// NewClientRunnerExecWithDialer.
+	dial terminal.Dialer
+
 	terminalClient terminal.Client
 	ioConn         net.Conn
 }
@@ -93,6 +99,21 @@ func NewClientRunnerExecWithIO(
 	evCh chan<- Event,
 	stdin, stdout, stderr *os.File,
 ) ClientRunner {
+	return NewClientRunnerExecWithDialer(ctx, logger, doc, evCh, stdin, stdout, stderr, nil)
+}
+
+// NewClientRunnerExecWithDialer is like NewClientRunnerExecWithIO but also
+// lets the caller supply the terminal control-socket connections. A non-nil
+// dial is used for every control RPC instead of dialing
+// TerminalSpec.SocketFile; a nil dial keeps the path dial.
+func NewClientRunnerExecWithDialer(
+	ctx context.Context,
+	logger *slog.Logger,
+	doc *api.ClientDoc,
+	evCh chan<- Event,
+	stdin, stdout, stderr *os.File,
+	dial terminal.Dialer,
+) ClientRunner {
 	newCtx, cancel := context.WithCancel(ctx)
 
 	// Ensure the doc has the correct structure
@@ -123,6 +144,8 @@ func NewClientRunnerExecWithIO(
 		stdin:  stdin,
 		stdout: stdout,
 		stderr: stderr,
+
+		dial: dial,
 
 		events:    evCh,
 		ctx:       newCtx,

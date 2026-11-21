@@ -18,11 +18,17 @@ package attach
 
 import "errors"
 
-// ErrSocketPathRequired is returned from Run when Options.SocketPath is
-// empty. Embedders branching on error type can errors.Is against this
-// sentinel to distinguish a missing required option from any other
-// failure surfaced by the underlying controller.
-var ErrSocketPathRequired = errors.New("pkg/attach: Options.SocketPath is required")
+// ErrSocketPathRequired is returned from Run when neither
+// Options.SocketPath nor Options.Dial is set. Embedders branching on error
+// type can errors.Is against this sentinel to distinguish a missing
+// required option from any other failure surfaced by the underlying
+// controller.
+var ErrSocketPathRequired = errors.New("pkg/attach: Options.SocketPath or Options.Dial is required")
+
+// ErrSocketPathAndDial is returned from Run when both Options.SocketPath
+// and Options.Dial are set. Exactly one of them selects how the control
+// socket is reached.
+var ErrSocketPathAndDial = errors.New("pkg/attach: Options.SocketPath and Options.Dial are mutually exclusive")
 
 // ErrDetached signals that Run returned because the operator issued a
 // clean detach — either by pressing the in-band ^]^] keystroke or by

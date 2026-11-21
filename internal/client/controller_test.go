@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -785,11 +786,14 @@ func Test_ErrAttachNoIDOrName(t *testing.T) {
 			Annotations: make(map[string]string),
 		},
 		Spec: api.ClientSpec{
-			ID:           api.ID(clientID),
-			LogFile:      "/tmp/sbsh-logs/s0",
-			RunPath:      viper.GetString("global.runPath"),
-			TerminalSpec: &api.TerminalSpec{ID: "", Name: ""}, // All three (ID, Name, SocketFile) empty should trigger ErrAttachNoTerminalSpec
-			ClientMode:   api.AttachToTerminal,
+			ID:      api.ID(clientID),
+			LogFile: "/tmp/sbsh-logs/s0",
+			RunPath: viper.GetString("global.runPath"),
+			TerminalSpec: &api.TerminalSpec{
+				ID:   "",
+				Name: "",
+			}, // All three (ID, Name, SocketFile) empty should trigger ErrAttachNoTerminalSpec
+			ClientMode: api.AttachToTerminal,
 		},
 	}
 
@@ -1917,7 +1921,10 @@ func Test_CreateAttachTerminal_SocketFileOnly_SynthesizesID(t *testing.T) {
 	// Caller's TerminalSpec must not be mutated — the synthetic ID lives on
 	// the local copy createAttachTerminal builds.
 	if doc.Spec.TerminalSpec.ID != "" {
-		t.Fatalf("doc.Spec.TerminalSpec.ID was mutated to %q; embedder's spec must stay untouched", doc.Spec.TerminalSpec.ID)
+		t.Fatalf(
+			"doc.Spec.TerminalSpec.ID was mutated to %q; embedder's spec must stay untouched",
+			doc.Spec.TerminalSpec.ID,
+		)
 	}
 }
 
@@ -1943,5 +1950,94 @@ func Test_CreateAttachTerminal_SocketFileOnly_PreservesProvidedID(t *testing.T) 
 	}
 	if terminal.Spec.ID != api.ID("caller-provided") {
 		t.Fatalf("terminal.Spec.ID = %q; want %q", terminal.Spec.ID, "caller-provided")
+	}
+}
+
+// Test_CreateAttachTerminal_DialerOnly_SynthesizesID verifies that a
+// controller built with a caller-supplied dialer resolves an attach whose
+// spec carries no SocketFile, ID, or Name, synthesizing an ID the same way
+// the SocketFile-only short-circuit does (#157, #445).
+func Test_CreateAttachTerminal_DialerOnly_SynthesizesID(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	dial := func(context.Context) (net.Conn, error) { return nil, errors.New("not dialed in this test") }
+	sc := NewClientControllerWithDialer(context.Background(), logger, nil, nil, nil, dial).(*Controller)
+
+	doc := &api.ClientDoc{
+		Spec: api.ClientSpec{
+			TerminalSpec: &api.TerminalSpec{},
+		},
+	}
+
+	terminal, err := sc.createAttachTerminal(doc)
+	if err != nil {
+		t.Fatalf("createAttachTerminal returned error: %v", err)
+	}
+	if terminal == nil || terminal.Spec.ID == "" {
+		t.Fatalf("terminal = %+v; expected synthetic ID for dialer-only attach", terminal)
+	}
+	if terminal.Spec.SocketFile != "" {
+		t.Fatalf("terminal.Spec.SocketFile = %q; want empty for dialer-only attach", terminal.Spec.SocketFile)
+	}
+	if doc.Spec.TerminalSpec.ID != "" {
+		t.Fatalf(
+			"doc.Spec.TerminalSpec.ID was mutated to %q; embedder's spec must stay untouched",
+			doc.Spec.TerminalSpec.ID,
+		)
+	}
+}
+
+// Test_Run_AttachDialerOnly_PassesSpecCheck confirms the AttachToTerminal
+// spec check accepts "dialer, empty spec" instead of failing with
+// ErrAttachNoTerminalSpec, and that the runner is handed the dialer-backed
+// terminal.
+func Test_Run_AttachDialerOnly_PassesSpecCheck(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	dial := func(context.Context) (net.Conn, error) { return nil, errors.New("not dialed in this test") }
+	sc := NewClientControllerWithDialer(context.Background(), logger, nil, nil, nil, dial).(*Controller)
+
+	attached := make(chan *api.AttachedTerminal, 1)
+	sc.NewClientRunner = func(ctx context.Context, logger *slog.Logger, _ *api.ClientDoc, _ chan<- clientrunner.Event) clientrunner.ClientRunner {
+		return &clientrunner.Test{
+			Ctx:                ctx,
+			Logger:             logger,
+			CreateMetadataFunc: func() error { return nil },
+			OpenSocketCtrlFunc: func() error { return nil },
+			StartServerFunc: func(_ context.Context, _ *clientrpc.ClientControllerRPC, readyCh chan error, _ chan error) {
+				select {
+				case readyCh <- nil:
+				default:
+				}
+			},
+			AttachFunc: func(term *api.AttachedTerminal) error {
+				attached <- term
+				return errors.New("stop after attach")
+			},
+			CloseFunc: func(_ error) error { return nil },
+		}
+	}
+
+	doc := &api.ClientDoc{
+		Spec: api.ClientSpec{
+			ID:           api.ID("client-dialer"),
+			RunPath:      t.TempDir(),
+			ClientMode:   api.AttachToTerminal,
+			TerminalSpec: &api.TerminalSpec{},
+		},
+	}
+
+	err := sc.Run(doc)
+	if errors.Is(err, errdefs.ErrAttachNoTerminalSpec) {
+		t.Fatalf("Run rejected dialer-only spec: %v", err)
+	}
+	if !errors.Is(err, errdefs.ErrAttach) {
+		t.Fatalf("Run err = %v; want the runner's Attach failure (ErrAttach)", err)
+	}
+	select {
+	case term := <-attached:
+		if term.Spec.ID == "" {
+			t.Fatal("runner received terminal with empty ID")
+		}
+	default:
+		t.Fatal("runner Attach was never called")
 	}
 }

@@ -27,7 +27,9 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 	"path/filepath"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -597,5 +599,105 @@ func TestWithDialTimeout_Applied(t *testing.T) {
 	WithDialTimeout(7 * time.Second)(&opts)
 	if opts.DialTimeout != 7*time.Second {
 		t.Fatalf("DialTimeout = %v; want 7s", opts.DialTimeout)
+	}
+}
+
+// TestNewWithDialer_EveryCallDials confirms a NewWithDialer client obtains a
+// fresh connection from the dialer for each RPC (one connection per call, as
+// NewUnix does by path).
+func TestNewWithDialer_EveryCallDials(t *testing.T) {
+	t.Parallel()
+	core := &internalterminal.ControllerTest{
+		PingFunc: func(_ *api.PingMessage) (*api.PingMessage, error) {
+			return &api.PingMessage{Message: "PONG"}, nil
+		},
+		StateFunc: func() (*api.TerminalStatusMode, error) {
+			s := api.Ready
+			return &s, nil
+		},
+	}
+	sock := startTermServer(t, core)
+
+	var dials atomic.Int32
+	c := NewWithDialer(func(ctx context.Context) (net.Conn, error) {
+		dials.Add(1)
+		var d net.Dialer
+		return d.DialContext(ctx, "unix", sock)
+	}, testLogger())
+
+	out := &api.PingMessage{}
+	if err := c.Ping(ctx2s(t), &api.PingMessage{Message: "PING"}, out); err != nil {
+		t.Fatalf("Ping: %v", err)
+	}
+	if out.Message != "PONG" {
+		t.Fatalf("Ping reply = %q; want PONG", out.Message)
+	}
+	var st api.TerminalStatusMode
+	if err := c.State(ctx2s(t), &st); err != nil {
+		t.Fatalf("State: %v", err)
+	}
+	if got := dials.Load(); got != 2 {
+		t.Fatalf("dials = %d; want 2 (one per call)", got)
+	}
+}
+
+// TestNewWithDialer_AttachNonUnixConn verifies Attach over a dialer that
+// returns a non-Unix connection fails with ErrNotUnixConn (naming the
+// concrete type) on the first attempt instead of retrying.
+func TestNewWithDialer_AttachNonUnixConn(t *testing.T) {
+	t.Parallel()
+	var dials atomic.Int32
+	c := NewWithDialer(func(context.Context) (net.Conn, error) {
+		dials.Add(1)
+		a, b := net.Pipe()
+		_ = b.Close()
+		return a, nil
+	}, testLogger())
+
+	_, err := c.Attach(ctx2s(t), &api.AttachRequest{ClientID: "cli"}, &struct{}{})
+	if !errors.Is(err, ErrNotUnixConn) {
+		t.Fatalf("Attach err = %v; want ErrNotUnixConn", err)
+	}
+	if !strings.Contains(err.Error(), "net.pipe") {
+		t.Fatalf("Attach err = %q; want it to name the connection type", err)
+	}
+	if got := dials.Load(); got != 1 {
+		t.Fatalf("dials = %d; want 1 (no retry on a wrong connection type)", got)
+	}
+}
+
+// TestNewWithDialer_DialErrNotUnixConnNotRetried verifies a dialer that
+// itself reports ErrNotUnixConn is not retried.
+func TestNewWithDialer_DialErrNotUnixConnNotRetried(t *testing.T) {
+	t.Parallel()
+	var dials atomic.Int32
+	c := NewWithDialer(func(context.Context) (net.Conn, error) {
+		dials.Add(1)
+		return nil, ErrNotUnixConn
+	}, testLogger())
+
+	err := c.Ping(ctx2s(t), &api.PingMessage{Message: "PING"}, &api.PingMessage{})
+	if !errors.Is(err, ErrNotUnixConn) {
+		t.Fatalf("Ping err = %v; want ErrNotUnixConn", err)
+	}
+	if got := dials.Load(); got != 1 {
+		t.Fatalf("dials = %d; want 1", got)
+	}
+}
+
+// TestNewWithDialer_DialTimeoutBoundsDialCtx verifies WithDialTimeout puts a
+// deadline on the context passed to a custom dialer.
+func TestNewWithDialer_DialTimeoutBoundsDialCtx(t *testing.T) {
+	t.Parallel()
+	gotDeadline := make(chan bool, 3)
+	c := NewWithDialer(func(ctx context.Context) (net.Conn, error) {
+		_, ok := ctx.Deadline()
+		gotDeadline <- ok
+		return nil, ErrNotUnixConn
+	}, testLogger(), WithDialTimeout(time.Second))
+
+	_ = c.Ping(context.Background(), &api.PingMessage{Message: "PING"}, &api.PingMessage{})
+	if ok := <-gotDeadline; !ok {
+		t.Fatal("dial ctx has no deadline; want WithDialTimeout to bound it")
 	}
 }
