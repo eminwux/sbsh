@@ -1,13 +1,15 @@
-apiVersion: kuketeams.io/v1
+apiVersion: v1beta1
 kind: Team
 metadata: { name: sbsh }
 spec:
+  # The project is this repository: the Source named like the team, sbsh.
+  projectSource: { url: github.com/eminwux/sbsh, branch: main }
   sources:
+    # agents is private, so it is fetched over SSH.
     - name: agents
       url: git@github.com:eminwux/agents
       branch: main
       clonePath: /home/user/agents
-    # Harness definitions live in kukeon (agents#893); no runtime clone needed.
     - name: kukeon
       url: github.com/eminwux/kukeon
       branch: main
@@ -15,7 +17,8 @@ spec:
     - { name: dev, source: agents, path: dev, needs: { image: [go] } }
     - { name: pm, source: agents, path: pm }
     - { name: pr-reviewer, source: agents, path: pr-reviewer }
+  # Harness definitions, contexts and image catalogs live in the kukeon
+  # repository (team/harnesses/).
   harnesses:
     - { name: claude, source: kukeon, path: team/harnesses/claude }
-    - { name: opencode, source: kukeon, path: team/harnesses/opencode }
     - { name: codex, source: kukeon, path: team/harnesses/codex }
