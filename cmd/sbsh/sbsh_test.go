@@ -24,6 +24,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -1251,5 +1252,23 @@ func Test_setTerminalFlags_ProfileEnvBinding(t *testing.T) {
 
 	if got := viper.GetString(config.SBSH_ROOT_TERM_PROFILE.ViperKey); got != envValue {
 		t.Fatalf("expected env value %s for key %s, got %s", envValue, config.SBSH_ROOT_TERM_PROFILE.ViperKey, got)
+	}
+}
+
+func TestNewSbshRootCmd_LongHelpIsNotTautological(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	rootCmd, err := NewSbshRootCmd()
+	if err != nil {
+		t.Fatalf("NewSbshRootCmd() error = %v", err)
+	}
+	if strings.Contains(rootCmd.Long, "sbsh help") {
+		t.Fatalf("Long help must not point at `sbsh help`; got %q", rootCmd.Long)
+	}
+	for _, want := range []string{"Examples:", "https://sbsh.io/cli/sbsh/"} {
+		if !strings.Contains(rootCmd.Long, want) {
+			t.Fatalf("Long help missing %q; got %q", want, rootCmd.Long)
+		}
 	}
 }

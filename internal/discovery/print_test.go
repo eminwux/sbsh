@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -134,6 +135,38 @@ func TestScanAndPrintTerminals(t *testing.T) {
 			t.Fatalf("expected no-active message, got %q", buf.String())
 		}
 	})
+}
+
+// TestScanAndPrintTerminals_WidePIDColumn checks that `-o wide` renders the
+// terminal's Status.Pid in a PID column.
+func TestScanAndPrintTerminals_WidePIDColumn(t *testing.T) {
+	ctx := context.Background()
+	logger := discardLogger()
+	livePid := os.Getpid()
+
+	runPath := t.TempDir()
+	writeTerminalDoc(t, runPath, "id-1", "alpha", api.Ready, livePid)
+	var buf bytes.Buffer
+	if err := discovery.ScanAndPrintTerminals(ctx, logger, runPath, &buf, true, "wide"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("expected header + 1 row, got %q", buf.String())
+	}
+	// tabwriter aligns columns, so the PID value starts at the header's
+	// PID offset even when earlier columns are empty.
+	pidCol := strings.Index(lines[0], "PID")
+	if pidCol < 0 {
+		t.Fatalf("expected PID column in wide header, got %q", lines[0])
+	}
+	if pidCol >= len(lines[1]) {
+		t.Fatalf("row shorter than PID column offset: %q", lines[1])
+	}
+	fields := strings.Fields(lines[1][pidCol:])
+	if len(fields) == 0 || fields[0] != strconv.Itoa(livePid) {
+		t.Fatalf("expected PID %d at column offset %d, got row %q", livePid, pidCol, lines[1])
+	}
 }
 
 func TestScanAndPrintTerminals_Formats(t *testing.T) {

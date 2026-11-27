@@ -53,15 +53,17 @@ func NewSbshRootCmd() (*cobra.Command, error) {
 	rootCmd := &cobra.Command{
 		Use:   "sbsh",
 		Short: "sbsh command line tool",
-		Long: `sbsh is a command line tool to launch sbsh clients and terminals
-You can see available options and commands with:
-  sbsh help
+		Long: `sbsh is a command line tool to launch sbsh clients and terminals.
 
-If you run sbsh with no options, a default terminal will start.
+If you run sbsh with no options, a default terminal will start and attach.
 
-You can also use sbsh with parameters. For example:
-  sbsh --log-level=debug
-  sbsh terminal
+Examples:
+  sbsh                      # start a default terminal and attach to it
+  sbsh -p <profile>         # start a terminal from a profile
+  sbsh -d                   # start a terminal detached
+  sbsh terminal             # run a terminal with no attached client
+
+Documentation: https://sbsh.io/cli/sbsh/
 `,
 		CompletionOptions: cobra.CompletionOptions{
 			DisableDefaultCmd: true,

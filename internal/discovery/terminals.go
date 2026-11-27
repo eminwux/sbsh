@@ -24,6 +24,7 @@ import (
 	"log/slog"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -160,7 +161,7 @@ func printTerminals(w io.Writer, terminals []api.TerminalDoc, printAll, wide boo
 	}
 
 	if wide {
-		fmt.Fprintln(tw, "ID\tNAME\tPROFILE\tCMD\tTTY\tSTATUS\tATTACHERS\tCREATED\tATTACHED\tLABELS")
+		fmt.Fprintln(tw, "ID\tNAME\tPROFILE\tCMD\tTTY\tPID\tSTATUS\tATTACHERS\tCREATED\tATTACHED\tLABELS")
 	} else {
 		fmt.Fprintln(tw, "NAME\tPROFILE\tTTY\tCREATED")
 	}
@@ -169,12 +170,13 @@ func printTerminals(w io.Writer, terminals []api.TerminalDoc, printAll, wide boo
 			continue
 		}
 		if wide {
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 				sanitizeField(pkgdiscovery.TerminalID(s)),
 				sanitizeField(pkgdiscovery.TerminalName(s)),
 				sanitizeField(terminalProfile(s)),
 				sanitizeField(terminalCmd(s)),
 				sanitizeField(terminalPty(s)),
+				terminalPid(s),
 				s.Status.State.String(),
 				sanitizeField(terminalAttachers(s)),
 				formatAge(s.Metadata.CreatedAt),
@@ -212,6 +214,14 @@ func formatAge(t time.Time) string {
 		//nolint:mnd // 24h = day
 		return fmt.Sprintf("%dd", int(d.Hours()/24))
 	}
+}
+
+// terminalPid renders the terminal controller PID, or "-" when none is recorded.
+func terminalPid(s api.TerminalDoc) string {
+	if s.Status.Pid <= 0 {
+		return "-"
+	}
+	return strconv.Itoa(s.Status.Pid)
 }
 
 func terminalAttachers(s api.TerminalDoc) string {
