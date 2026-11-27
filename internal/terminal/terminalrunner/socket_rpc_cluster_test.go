@@ -378,11 +378,12 @@ func TestWritePTY(t *testing.T) {
 			t.Fatalf("WritePTY: %v", err)
 		}
 		<-done
-		sr.obsMu.RLock()
-		got := sr.bytesIn
-		sr.obsMu.RUnlock()
-		if got != uint64(len(data)) {
-			t.Errorf("bytesIn = %d, want %d", got, len(data))
+		res, err := sr.Activity(&api.ActivityArgs{})
+		if err != nil {
+			t.Fatalf("Activity: %v", err)
+		}
+		if res.BytesIn != uint64(len(data)) {
+			t.Errorf("Activity BytesIn = %d, want %d", res.BytesIn, len(data))
 		}
 	})
 

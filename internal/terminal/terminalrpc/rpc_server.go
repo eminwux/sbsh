@@ -96,3 +96,12 @@ func (s *TerminalControllerRPC) Screenshot(args *api.ScreenshotArgs, result *api
 	*result = *res
 	return nil
 }
+
+func (s *TerminalControllerRPC) Activity(args *api.ActivityArgs, result *api.ActivityResult) error {
+	res, err := s.Core.Activity(args)
+	if err != nil {
+		return err
+	}
+	*result = *res
+	return nil
+}

@@ -338,6 +338,66 @@ func TestTerminal_Screenshot_PropagatesError(t *testing.T) {
 	}
 }
 
+// activityFixture is an ActivityResult with every field set, so a JSON
+// round trip proves each field (times, uint64 counters, the integer-
+// nanosecond IdleFor) survives the wire.
+func activityFixture() *api.ActivityResult {
+	return &api.ActivityResult{
+		StartedAt:    time.Date(2026, 1, 2, 3, 4, 5, 6, time.UTC),
+		BytesOut:     1 << 40,
+		BytesIn:      17,
+		LastOutputAt: time.Date(2026, 1, 2, 3, 4, 6, 0, time.UTC),
+		IdleFor:      1500 * time.Millisecond,
+	}
+}
+
+func assertActivityEqual(t *testing.T, got, want *api.ActivityResult) {
+	t.Helper()
+	if !got.StartedAt.Equal(want.StartedAt) || !got.LastOutputAt.Equal(want.LastOutputAt) ||
+		got.BytesOut != want.BytesOut || got.BytesIn != want.BytesIn || got.IdleFor != want.IdleFor {
+		t.Fatalf("Activity reply = %+v; want %+v", got, want)
+	}
+}
+
+func TestTerminal_Activity_Roundtrip(t *testing.T) {
+	t.Parallel()
+	want := activityFixture()
+	var gotArgs *api.ActivityArgs
+	core := &internalterminal.ControllerTest{
+		ActivityFunc: func(args *api.ActivityArgs) (*api.ActivityResult, error) {
+			gotArgs = args
+			return want, nil
+		},
+	}
+	c := newTestClient(t, core)
+
+	got := &api.ActivityResult{}
+	if err := c.Activity(ctx2s(t), nil, got); err != nil { // nil args exercises substitution
+		t.Fatalf("Activity: %v", err)
+	}
+	if gotArgs == nil {
+		t.Fatal("server received nil ActivityArgs; want substituted empty args")
+	}
+	assertActivityEqual(t, got, want)
+}
+
+func TestTerminal_Activity_PropagatesError(t *testing.T) {
+	t.Parallel()
+	core := &internalterminal.ControllerTest{
+		ActivityFunc: func(_ *api.ActivityArgs) (*api.ActivityResult, error) {
+			return nil, errors.New("boom")
+		},
+	}
+	c := newTestClient(t, core)
+	err := c.Activity(ctx2s(t), &api.ActivityArgs{}, &api.ActivityResult{})
+	if err == nil {
+		t.Fatalf("Activity err = nil; want wrapped error")
+	}
+	if !strings.Contains(err.Error(), "Activity call failed") {
+		t.Fatalf("Activity err = %v; want it wrapped as \"Activity call failed\"", err)
+	}
+}
+
 // fdPair returns a connected socketpair as two *os.File-free fds. ours is kept
 // by the test (write side for assertions); theirs is handed to the server to
 // pass back over SCM_RIGHTS. The server codec closes the fd it sends, so theirs
@@ -638,6 +698,33 @@ func TestNewWithDialer_EveryCallDials(t *testing.T) {
 	}
 	if got := dials.Load(); got != 2 {
 		t.Fatalf("dials = %d; want 2 (one per call)", got)
+	}
+}
+
+// TestNewWithDialer_Activity verifies Activity rides the shared call path
+// on a dialer-built client, not just on NewUnix.
+func TestNewWithDialer_Activity(t *testing.T) {
+	t.Parallel()
+	want := activityFixture()
+	core := &internalterminal.ControllerTest{
+		ActivityFunc: func(_ *api.ActivityArgs) (*api.ActivityResult, error) { return want, nil },
+	}
+	sock := startTermServer(t, core)
+
+	var dials atomic.Int32
+	c := NewWithDialer(func(ctx context.Context) (net.Conn, error) {
+		dials.Add(1)
+		var d net.Dialer
+		return d.DialContext(ctx, "unix", sock)
+	}, testLogger())
+
+	got := &api.ActivityResult{}
+	if err := c.Activity(ctx2s(t), &api.ActivityArgs{}, got); err != nil {
+		t.Fatalf("Activity: %v", err)
+	}
+	assertActivityEqual(t, got, want)
+	if n := dials.Load(); n != 1 {
+		t.Fatalf("dials = %d; want 1", n)
 	}
 }
 

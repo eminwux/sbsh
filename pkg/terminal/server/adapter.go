@@ -125,3 +125,11 @@ func (a *rpcAdapter) Screenshot(args *api.ScreenshotArgs) (*api.ScreenshotResult
 	}
 	return r.Screenshot(args)
 }
+
+func (a *rpcAdapter) Activity(args *api.ActivityArgs) (*api.ActivityResult, error) {
+	r := a.srv.getRunner()
+	if r == nil {
+		return nil, errors.New("server: terminal not running")
+	}
+	return r.Activity(args)
+}

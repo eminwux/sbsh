@@ -95,6 +95,9 @@ func TestRPCAdapter_NilRunnerErrors(t *testing.T) {
 	if _, err := a.Screenshot(&api.ScreenshotArgs{}); err == nil {
 		t.Fatal("Screenshot(nil runner): expected error")
 	}
+	if _, err := a.Activity(&api.ActivityArgs{}); err == nil {
+		t.Fatal("Activity(nil runner): expected error")
+	}
 	if _, err := a.State(); err == nil {
 		t.Fatal("State(nil runner): expected error")
 	}
@@ -203,6 +206,21 @@ func TestRPCAdapter_Screenshot_Forwards(t *testing.T) {
 	}
 	if got != want {
 		t.Fatal("Screenshot did not return the runner's result")
+	}
+}
+
+func TestRPCAdapter_Activity_Forwards(t *testing.T) {
+	srv := newAdapterServer(t)
+	want := &api.ActivityResult{BytesOut: 3}
+	srv.runner = &terminalrunner.Test{
+		ActivityFunc: func(*api.ActivityArgs) (*api.ActivityResult, error) { return want, nil },
+	}
+	got, err := (&rpcAdapter{srv: srv}).Activity(&api.ActivityArgs{})
+	if err != nil {
+		t.Fatalf("Activity: %v", err)
+	}
+	if got != want {
+		t.Fatal("Activity did not return the runner's result")
 	}
 }
 

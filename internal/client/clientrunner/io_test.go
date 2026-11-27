@@ -107,6 +107,10 @@ func (m *mockTerminalClient) Screenshot(_ context.Context, _ *api.ScreenshotArgs
 	return errors.New("not implemented in mock")
 }
 
+func (m *mockTerminalClient) Activity(_ context.Context, _ *api.ActivityArgs, _ *api.ActivityResult) error {
+	return errors.New("not implemented in mock")
+}
+
 func Test_WaitReady_WithMultipleStates(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	ctx, cancel := context.WithCancel(context.Background())
