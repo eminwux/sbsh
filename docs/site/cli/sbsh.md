@@ -75,6 +75,10 @@ These flags apply to all `sbsh` commands:
 
 All flags above are terminal-scoped — they configure the embedded terminal that `sbsh` launches. Client-scoped flags (without the `--terminal-` prefix) configure the client process itself.
 
+### `sbsh terminal` Log Output
+
+- `--log-output <file|stdout>`: Where the terminal writes its logs (env: `SBSH_TERM_LOG_OUTPUT`). `file` (default) writes to the per-terminal log file (`--log-file`, or `<runPath>/terminals/<id>/log`). `stdout` writes the same lines to the process's stdout for `docker logs`, `kubectl logs`, systemd, or CI, and creates no log file. Overrides the profile's `spec.logOutput`, and cannot be combined with `--log-file`. See the profile field `spec.logOutput` in the [Profiles guide](../guides/profiles.md).
+
 ## Examples
 
 ### Start with Default Profile

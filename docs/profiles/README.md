@@ -92,6 +92,7 @@ spec:
     mode: "0640" # Octal string; defaults to 0600 if omitted
     gid: 986 # Numeric host GID; omit to leave the group unchanged
   captureFormat: asciicast # On-disk capture format: "raw" (default) or "asciicast"
+  logOutput: file # Where terminal logs go: "file" (default) or "stdout"
 ```
 
 ## Field Reference
@@ -363,6 +364,43 @@ their own flag:
   (or `SBSH_TERM_CAPTURE_FORMAT=asciicast`)
 
 An unrecognized value is rejected at spec-build time.
+
+#### `logOutput` (optional)
+
+Selects where the terminal process writes its own logs. It does not affect the
+capture transcript.
+
+```yaml
+spec:
+  # ...
+  logOutput: stdout # "file" (default) or "stdout"
+```
+
+- **`file`** (default): logs go to the per-terminal log file
+  (`<runPath>/terminals/<id>/log`, or `--log-file`). Omitting the field keeps
+  this behavior.
+- **`stdout`**: the same log lines go to the `sbsh terminal` process's stdout,
+  so a supervisor collects them (`docker logs`, `kubectl logs`, journald, CI).
+  No log file is created, and the terminal's `logFile` in `sb get terminal` is
+  empty. Combining `stdout` with an explicit `--log-file` is rejected as
+  conflicting flags.
+
+Precedence: `sbsh terminal --log-output` > `SBSH_TERM_LOG_OUTPUT` > profile
+`spec.logOutput` > `file`. An unrecognized value is rejected at spec-build
+time.
+
+`stdout` applies only to standalone `sbsh terminal`. When a profile with
+`logOutput: stdout` is started through the interactive client (`sbsh`,
+`sbsh -p <profile>`), the terminal shares your TTY, so sbsh keeps logging to
+the file and prints one warning instead. There is no root-level
+`--terminal-log-output` flag.
+
+Container example: the published image runs `sbsh terminal` in the
+foreground, so its logs become visible to `docker logs` / `kubectl logs`:
+
+```bash
+sbsh terminal -p <profile> --log-output stdout
+```
 
 ## Example Profiles
 

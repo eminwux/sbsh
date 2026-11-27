@@ -97,6 +97,16 @@ type TerminalSpec struct {
 	LogLevel    string `json:"logLevel"`
 	SocketFile  string `json:"socketIO"`
 
+	// LogOutput selects where the terminal process writes its own logs.
+	// "" / "file" (default) writes to LogFile. "stdout" writes the same
+	// ReformatHandler text lines to the terminal process's stdout so a
+	// supervisor (docker logs, kubectl logs, journald) collects them; in
+	// that mode LogFile (and so Status.LogFile) is empty and no log file is
+	// created. Only standalone `sbsh terminal` honors "stdout": the
+	// interactive client path downgrades it to "file" because the terminal
+	// child shares the user's TTY. See NormalizeLogOutput.
+	LogOutput string `json:"logOutput,omitempty"`
+
 	// MetadataDir overrides where the runner writes metadata.json. When
 	// non-empty, the runner uses this directory verbatim and does NOT
 	// create the legacy runPath/terminals/<id>/ subdir. The builder sets
@@ -186,6 +196,34 @@ func NormalizeCaptureFormat(s string) (string, error) {
 			s,
 			CaptureFormatRaw,
 			CaptureFormatAsciicast,
+		)
+	}
+}
+
+// Log output selectors for TerminalSpec.LogOutput. The empty string is
+// treated as LogOutputFile so a spec that never sets the field keeps the
+// legacy per-terminal log file.
+const (
+	LogOutputFile   = "file"
+	LogOutputStdout = "stdout"
+)
+
+// NormalizeLogOutput resolves a (possibly empty) log-output string to its
+// canonical value and rejects anything that is neither file nor stdout.
+// "" and "file" both normalize to LogOutputFile. Validate at spec-build time
+// so a typo surfaces before the terminal launches.
+func NormalizeLogOutput(s string) (string, error) {
+	switch s {
+	case "", LogOutputFile:
+		return LogOutputFile, nil
+	case LogOutputStdout:
+		return LogOutputStdout, nil
+	default:
+		return "", fmt.Errorf(
+			"invalid log output %q: must be %q or %q",
+			s,
+			LogOutputFile,
+			LogOutputStdout,
 		)
 	}
 }

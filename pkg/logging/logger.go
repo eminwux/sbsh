@@ -18,6 +18,7 @@ package logging
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -53,6 +54,8 @@ func ParseLevel(lvl string) slog.Level {
 // FileLogger bundles the file-backed slog.Logger and the resources
 // that back it. File is the underlying sink; the caller owns it and
 // must Close it during shutdown to flush and release the OS handle.
+// File is nil for a logger built by NewStdoutLogger, which does not own
+// its sink.
 // LevelVar exposes the configured threshold so callers can adjust the
 // minimum level at runtime.
 type FileLogger struct {
@@ -87,19 +90,35 @@ func NewFileLogger(logfile, loglevel string) (*FileLogger, error) {
 		return nil, fmt.Errorf("logging: open %s: %w", logfile, err)
 	}
 
+	fl := newWriterLogger(f, loglevel)
+	fl.File = f
+	return fl, nil
+}
+
+// NewStdoutLogger wires the same ReformatHandler/TextHandler stack as
+// NewFileLogger onto os.Stdout, for a terminal run under a supervisor that
+// collects stdout (docker/kubectl logs, journald, CI). It creates no file.
+// The returned FileLogger's File is nil: stdout is not owned by the
+// logger, so there is nothing for the caller to Close.
+//
+// loglevel is required.
+func NewStdoutLogger(loglevel string) (*FileLogger, error) {
+	if loglevel == "" {
+		return nil, fmt.Errorf("logging: loglevel=%q must not be empty", loglevel)
+	}
+	return newWriterLogger(os.Stdout, loglevel), nil
+}
+
+func newWriterLogger(w io.Writer, loglevel string) *FileLogger {
 	levelVar := new(slog.LevelVar)
 	levelVar.Set(ParseLevel(loglevel))
-
 	handler := &ReformatHandler{
-		Inner:  slog.NewTextHandler(f, &slog.HandlerOptions{Level: levelVar}),
-		Writer: f,
+		Inner:  slog.NewTextHandler(w, &slog.HandlerOptions{Level: levelVar}),
+		Writer: w,
 	}
-	logger := slog.New(handler)
-
 	return &FileLogger{
-		Logger:   logger,
+		Logger:   slog.New(handler),
 		LevelVar: levelVar,
 		Handler:  handler,
-		File:     f,
-	}, nil
+	}
 }

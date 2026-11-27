@@ -72,6 +72,14 @@ type TerminalProfileSpec struct {
 	// spec-build time. The launch-time --capture-format flag /
 	// SBSH_*_TERM_CAPTURE_FORMAT env var override it when set.
 	CaptureFormat string `json:"captureFormat,omitempty" yaml:"captureFormat,omitempty"`
+	// LogOutput selects where the terminal process writes its own logs
+	// ("file" default, or "stdout"). Empty leaves the default (file); an
+	// invalid value is rejected at spec-build time. "stdout" applies only
+	// when the profile is launched with standalone `sbsh terminal`; the
+	// interactive client path (`sbsh -p`) keeps "file" and logs a warning.
+	// The launch-time --log-output flag / SBSH_TERM_LOG_OUTPUT env var
+	// override it when set.
+	LogOutput string `json:"logOutput,omitempty"     yaml:"logOutput,omitempty"`
 }
 
 // FilePermSpec configures the filesystem permissions of a per-terminal
