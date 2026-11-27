@@ -94,6 +94,12 @@ func TestWatchChildExit_Init_SIGKILLDistinctFromExit137(t *testing.T) {
 		t.Fatalf("doc status = %+v, want exitSignal SIGKILL and no exitCode", doc.Status)
 	}
 
+	// Stop the first reaper before the second child exists. Both reapers
+	// Wait4(-1) on SIGCHLD, so a still-running first reaper can reap the
+	// exit-137 child as an orphan and drop its status, starving sr137's
+	// reaper (#460). Stop is idempotent; the t.Cleanup call becomes a no-op.
+	sr.reaper.Stop()
+
 	sr137 := newInitModeExitExec(t, "exit 137")
 	ee137 := requireExitError(t, runWatchChildExit(t, sr137))
 	if ee137.Code == nil || *ee137.Code != 137 || ee137.Signal != "" {
