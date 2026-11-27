@@ -134,6 +134,19 @@ type Exec struct {
 	// stopSignalForwarder tears down the PID-1 signal forwarder. nil when
 	// initMode is false.
 	stopSignalForwarder func()
+
+	// exitInfo holds the workload's exit details from watchChildExit until
+	// Close folds them into Status. Guarded by metadataMu.
+	exitInfo *exitInfo
+
+	// Status observer (WithStatusObserver). statusObserver and statusCh are
+	// set at construction and immutable afterwards; statusCh is nil without
+	// an observer. statusMu serializes snapshot+post against each other and
+	// against closeStatusObserver; statusClosed is guarded by it.
+	statusObserver func(api.TerminalDoc)
+	statusCh       chan api.TerminalDoc
+	statusMu       sync.Mutex
+	statusClosed   bool
 }
 
 type ptyPipes struct {
@@ -163,6 +176,19 @@ type ioClient struct {
 }
 
 func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.TerminalSpec) TerminalRunner {
+	return NewTerminalRunnerExecWithOptions(ctx, logger, spec)
+}
+
+// NewTerminalRunnerExecWithOptions is NewTerminalRunnerExec with
+// construction options such as WithStatusObserver. It is a separate
+// function so NewTerminalRunnerExec keeps the signature the controller's
+// NewTerminalRunner field expects.
+func NewTerminalRunnerExecWithOptions(
+	ctx context.Context,
+	logger *slog.Logger,
+	spec *api.TerminalSpec,
+	opts ...ExecOption,
+) TerminalRunner {
 	newCtx, cancel := context.WithCancel(ctx)
 
 	inInit := initmode.IsInit()
@@ -172,7 +198,7 @@ func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.T
 		rp.Start()
 	}
 
-	return &Exec{
+	sr := &Exec{
 		id: spec.ID,
 		metadata: api.TerminalDoc{
 			APIVersion: api.APIVersionV1Beta1,
@@ -228,6 +254,11 @@ func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.T
 		initMode: inInit,
 		reaper:   rp,
 	}
+	for _, opt := range opts {
+		opt(sr)
+	}
+	sr.startStatusDispatcher()
+	return sr
 }
 
 // markChildDone records that the child has exited. Safe to call from any

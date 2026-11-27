@@ -155,9 +155,9 @@ func (sr *Exec) watchChildExit() {
 	var exitErr error
 	if sr.initMode && sr.reaper != nil {
 		select {
-		case code, ok := <-sr.reaper.TrackedExitCh():
+		case st, ok := <-sr.reaper.TrackedExitCh():
 			if ok {
-				exitErr = fmt.Errorf("shell process exited: code=%d", code)
+				exitErr = newTrackedExitError(st)
 			} else {
 				exitErr = errors.New("shell process exited")
 			}
@@ -186,14 +186,16 @@ func (sr *Exec) watchChildExit() {
 		// cmd.Wait()'s *exec.ExitError carries the real exit code (and signal
 		// info on signaled deaths) — propagate it so EvCmdExited consumers can
 		// distinguish "shell exited 0" from "shell killed by SIGSEGV".
-		if werr := sr.cmd.Wait(); werr != nil {
-			exitErr = fmt.Errorf("shell process exited: %w", werr)
-		} else {
-			exitErr = errors.New("shell process exited (code 0)")
-		}
+		exitErr = newWaitExitError(sr.cmd.Wait())
 	}
 
 	sr.logger.Info("child process has exited", "parent_pid", os.Getpid(), "child_pid", pid)
+	// Record the exit details before markChildDone so a Close waiting on
+	// childDoneCh (shutdownChild) finds them when it persists them.
+	var ee *ExitError
+	if errors.As(exitErr, &ee) {
+		sr.recordExit(ee)
+	}
 	sr.markChildDone()
 	// waitOnTerminal reads from closeReqCh; send is allowed to block
 	// briefly if Close is racing.
@@ -281,9 +283,12 @@ func (sr *Exec) shutdownChild(grace time.Duration) {
 func (sr *Exec) Close(reason error) error {
 	sr.logger.Info("closing terminal", "id", sr.id, "reason", reason)
 
-	if err := sr.updateTerminalState(api.Exited); err != nil {
+	// On a natural exit the exit details are already recorded and land in
+	// this same write. markExited commits Exited in memory even if the write
+	// fails.
+	if err := sr.markExited(); err != nil {
 		// The permission-denied case is already surfaced once, actionably, by
-		// updateTerminalState -> noteMetadataWriteErr; demote here so close
+		// markExited -> noteMetadataWriteErr; demote here so close
 		// does not pair a redundant ERROR with that single WARN. See #345.
 		if errors.Is(err, fs.ErrPermission) {
 			sr.logger.Debug("terminal state not persisted on close (dir not writable)", "id", sr.id, "err", err)
@@ -307,6 +312,13 @@ func (sr *Exec) Close(reason error) error {
 	// of PID-1 status; removing the always-hard-kill default is correct in
 	// every mode.
 	sr.shutdownChild(sr.metadata.Spec.ShutdownGrace)
+
+	// On Stop/ctx paths the child only exits during shutdownChild, after
+	// Exited was written; persist its exit details now. Then post the final
+	// document and close the status mailbox without waiting for the
+	// observer.
+	sr.persistLateExitInfo()
+	sr.closeStatusObserver()
 
 	sr.ctxCancel()
 

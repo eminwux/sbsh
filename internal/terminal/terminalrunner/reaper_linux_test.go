@@ -83,12 +83,12 @@ func TestReaper_TrackedExitResolvesRace(t *testing.T) {
 	r.RegisterChild(cmd.Process.Pid)
 
 	select {
-	case code, ok := <-r.TrackedExitCh():
+	case st, ok := <-r.TrackedExitCh():
 		if !ok {
 			t.Fatalf("TrackedExitCh closed without delivering a code")
 		}
-		if code != 7 {
-			t.Fatalf("tracked exit code = %d, want 7", code)
+		if st.Code != 7 || st.Signal != 0 {
+			t.Fatalf("tracked exit = %+v, want code 7 and no signal", st)
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatalf("timed out waiting for reaper to deliver tracked exit")
@@ -142,12 +142,12 @@ func TestReaper_ExitBeforeRegisterResolves(t *testing.T) {
 	r.RegisterChild(pid)
 
 	select {
-	case code, ok := <-r.TrackedExitCh():
+	case st, ok := <-r.TrackedExitCh():
 		if !ok {
 			t.Fatalf("TrackedExitCh closed without delivering a code")
 		}
-		if code != 7 {
-			t.Fatalf("tracked exit code = %d, want 7", code)
+		if st.Code != 7 || st.Signal != 0 {
+			t.Fatalf("tracked exit = %+v, want code 7 and no signal", st)
 		}
 	case <-time.After(time.Second):
 		t.Fatalf("RegisterChild after a pre-registration reap did not resolve the tracked exit")
