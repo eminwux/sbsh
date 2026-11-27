@@ -30,6 +30,14 @@ loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   profile-driven build path (empty `WithProfile` resolves to
   `"default"`, `pkg/discovery` lookup, hardcoded-default fallback for
   the `"default"` name only).
+- Releases now publish `SHA256SUMS` and per-binary `<asset>.sha256`
+  checksums (so `install.sh` verifies downloads instead of warning),
+  a keyless cosign signature for `SHA256SUMS`, SPDX SBOMs with cosign
+  attestations for each binary and container image platform, SLSA
+  build provenance for the binaries, and a cosign signature on the
+  container image. Verification steps are in
+  `docs/site/install/verify.md`. A dedicated `Lint` workflow and README
+  badge now report golangci-lint status separately from `Test`.
 
 ### Changed
 

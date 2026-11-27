@@ -66,6 +66,7 @@ nav:
       - install/install-linux.md
       - install/install-macos.md
       - install/install-windows.md
+      - install/verify.md
   - Concepts:
       - concepts/terminals.md
       - concepts/profiles.md
