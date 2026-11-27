@@ -936,6 +936,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#stage-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage Semantics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stage Semantics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-a-step-is-written" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How a step is written
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminal-state-does-not-wait-for-the-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal state does not wait for the step
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caveats
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#profile-storage" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1919,6 +1969,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#stage-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage Semantics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stage Semantics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-a-step-is-written" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How a step is written
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminal-state-does-not-wait-for-the-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal state does not wait for the step
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caveats
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#profile-storage" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2030,15 +2130,41 @@
 <li><strong><code>shell</code></strong>: Command and environment configuration</li>
 <li><strong><code>stages</code></strong>: Lifecycle hooks (<code>onInit</code>, <code>postAttach</code>)</li>
 </ul>
+<h2 id="stage-semantics">Stage Semantics<a class="headerlink" href="#stage-semantics" title="Permanent link">&para;</a></h2>
+<p><code>onInit</code> and <code>postAttach</code> steps are <strong>typed into the shell's PTY as input</strong>, as if you had typed them at the prompt. sbsh does not exec them as separate subprocesses and does not wait for them to finish.</p>
+<ul>
+<li><strong><code>onInit</code></strong> runs once, after the shell has started and the prompt is set up.</li>
+<li><strong><code>postAttach</code></strong> runs on every attach, after the terminal is <code>Ready</code>.</li>
+</ul>
+<h3 id="how-a-step-is-written">How a step is written<a class="headerlink" href="#how-a-step-is-written" title="Permanent link">&para;</a></h3>
+<p>For each step, sbsh builds one line, <code>KEY="value" … script</code>, and writes it to the PTY followed by a newline. Steps are written in order, about 10ms apart. For example, this step:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">onInit</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">script</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./bootstrap.sh</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">env</span><span class="p">:</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">      </span><span class="nt">FOO</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bar</span>
+</code></pre></div>
+<p>is typed into the shell as:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">FOO</span><span class="o">=</span><span class="s2">"bar"</span><span class="w"> </span>./bootstrap.sh
+</code></pre></div>
+<p><code>env</code> pairs are <strong>inline prefixes, not exports</strong>: they apply only to that command and do not persist in the shell afterwards. To set a variable for the whole session, use <code>spec.shell.env</code> or put <code>export FOO=bar</code> in a step's <code>script</code>.</p>
+<h3 id="terminal-state-does-not-wait-for-the-step">Terminal state does not wait for the step<a class="headerlink" href="#terminal-state-does-not-wait-for-the-step" title="Permanent link">&para;</a></h3>
+<p>The terminal moves to <code>OnInit</code> (or <code>PostAttach</code>), the steps are written, and the state moves to <code>Ready</code> <strong>right after the last line is written</strong>, not when the commands finish. If an <code>onInit</code> step starts a long-running foreground process (a server, <code>tail -f</code>), the terminal reports <code>Ready</code> while that process is still running. Any later steps are typed into that process's input instead of reaching the shell.</p>
+<h3 id="caveats">Caveats<a class="headerlink" href="#caveats" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Env scoping</strong>: the inline prefix applies only to the first simple command on the line. In <code>cd app &amp;&amp; make</code>, only <code>cd</code> sees the variables. Keys are not written in a fixed order. Values go inside double quotes, so the shell still expands <code>$</code>, backticks, and <code>\</code> in them.</li>
+<li><strong>Multi-line scripts</strong>: every newline in <code>script</code> works like pressing Enter, so each line runs as a separate command and only the first line gets the <code>env</code> prefix. Use one line per step, or call a script file.</li>
+<li><strong>Here-docs and interactive input</strong>: here-docs work because the shell reads the typed lines like keyboard input, but they show up in the terminal output along with secondary prompts. The same applies to any step that waits for input.</li>
+<li><strong>Visibility</strong>: steps are echoed in the terminal and in its capture, and an interactive shell may save them to its history.</li>
+</ul>
 <h2 id="profile-storage">Profile Storage<a class="headerlink" href="#profile-storage" title="Permanent link">&para;</a></h2>
 <p>Profiles live under <code>~/.sbsh/profiles.d/</code> by default. sbsh scans the directory recursively and loads every <code>*.yaml</code> / <code>*.yml</code> file, so you can keep one profile per file, group related profiles into subdirectories, or combine several into a single multi-document YAML (documents separated by <code>---</code>). Point sbsh at a different directory with <code>--profiles-dir</code> or <code>SBSH_PROFILES_DIR</code>.</p>
 <h2 id="profile-discovery">Profile Discovery<a class="headerlink" href="#profile-discovery" title="Permanent link">&para;</a></h2>
 <p>List available profiles:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>sb<span class="w"> </span>get<span class="w"> </span>profiles
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>sb<span class="w"> </span>get<span class="w"> </span>profiles
 </code></pre></div>
 <h2 id="using-profiles">Using Profiles<a class="headerlink" href="#using-profiles" title="Permanent link">&para;</a></h2>
 <p>Start a terminal with a profile:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sbsh<span class="w"> </span>-p<span class="w"> </span>profile-name
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>sbsh<span class="w"> </span>-p<span class="w"> </span>profile-name
 </code></pre></div>
 <h2 id="profile-examples">Profile Examples<a class="headerlink" href="#profile-examples" title="Permanent link">&para;</a></h2>
 <p>See the <a href="../../guides/profiles/">Profiles Guide</a> for comprehensive examples and reference documentation.</p>
@@ -2070,7 +2196,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 24, 2026 12:14:48 UTC">April 24, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 27, 2026 16:03:00 UTC">November 27, 2026</span>
   </span>
 
     
