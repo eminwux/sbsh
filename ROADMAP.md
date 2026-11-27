@@ -34,8 +34,8 @@
     (if Active → attach, if Exited → restart with same spec/paths, if not found → create new)
 - [ ] **A** Supervisor - `sbsh terminal` should detach from terminal and run in background
 - [ ] **A** Supervisor - If `sbsh terminal` fails supervisor must print and log error
-- [ ] **A** Terminal - Add logMode field to TerminalSpec and TerminalProfileSpec (file/stdout)
-- [ ] **A** Terminal - `sbsh terminal` new --log-mode=file/stdout, file by default
+- [x] **A** Terminal - Add logOutput field to TerminalSpec and TerminalProfileSpec (file/stdout)
+- [x] **A** Terminal - `sbsh terminal` new --log-output=file/stdout (env `SBSH_TERM_LOG_OUTPUT`), file by default
 - [ ] **A** Supervisor - Add disable-detach flag in SupervisorSpec, nested case
 - [ ] **A** Supervisor - Implement disable-detach handling for nested supervisors
 - [ ] **A** Terminal - Add captureMode field to TerminalSpec and TerminalProfileSpec (raw/disable)
