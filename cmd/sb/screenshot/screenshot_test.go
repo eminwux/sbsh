@@ -36,28 +36,34 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 }
 
+// Every fixture terminal is written under this ID and name.
+const (
+	testTerminalID   = "term1"
+	testTerminalName = "alice"
+)
+
 // writeTerminalMetadata writes a terminal metadata.json under runPath so
 // discovery.FindTerminalByName resolves it. socket may be empty to exercise the
 // "no control socket recorded" path.
-func writeTerminalMetadata(t *testing.T, runPath, id, name, socket string) {
+func writeTerminalMetadata(t *testing.T, runPath, socket string) {
 	t.Helper()
-	dir := filepath.Join(runPath, defaults.TerminalsRunPath, id)
+	dir := filepath.Join(runPath, defaults.TerminalsRunPath, testTerminalID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir terminal dir: %v", err)
 	}
 	doc := api.TerminalDoc{
 		APIVersion: api.APIVersionV1Beta1,
 		Kind:       api.KindTerminal,
-		Metadata:   api.TerminalMetadata{Name: name},
-		Spec:       api.TerminalSpec{ID: api.ID(id), Name: name, RunPath: runPath},
+		Metadata:   api.TerminalMetadata{Name: testTerminalName},
+		Spec:       api.TerminalSpec{ID: api.ID(testTerminalID), Name: testTerminalName, RunPath: runPath},
 		Status:     api.TerminalStatus{State: api.Ready, SocketFile: socket},
 	}
 	data, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		t.Fatalf("marshal metadata: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "metadata.json"), data, 0o644); err != nil {
-		t.Fatalf("write metadata: %v", err)
+	if errWriteFile := os.WriteFile(filepath.Join(dir, "metadata.json"), data, 0o644); errWriteFile != nil {
+		t.Fatalf("write metadata: %v", errWriteFile)
 	}
 }
 
@@ -107,8 +113,8 @@ func Test_runScreenshot_TerminalNotFound(t *testing.T) {
 
 func Test_runScreenshot_NoSocketRecorded(t *testing.T) {
 	runPath := t.TempDir()
-	writeTerminalMetadata(t, runPath, "term1", "alice", "")
-	opts := screenshotOpts{runPath: runPath, name: "alice"}
+	writeTerminalMetadata(t, runPath, "")
+	opts := screenshotOpts{runPath: runPath, name: testTerminalName}
 
 	err := runScreenshot(context.Background(), testLogger(), io.Discard, opts)
 	if err == nil {

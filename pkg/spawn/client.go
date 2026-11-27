@@ -20,7 +20,6 @@ package spawn
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -235,35 +234,10 @@ func (h *ClientHandle) WaitReady(ctx context.Context) error {
 
 	rpc := clientrpc.NewUnix(h.socketPath)
 
-	for {
-		if h.proc.exited() {
-			return wrapProcessExited(h.proc.takeExitErr())
-		}
-
-		if _, err := os.Stat(h.socketPath); err == nil {
-			pingCtx, pingCancel := context.WithTimeout(readyCtx, poll)
-			pingErr := rpc.Ping(pingCtx, &api.PingMessage{Message: "PING"}, &api.PingMessage{})
-			pingCancel()
-			if pingErr == nil {
-				return nil
-			}
-			if h.opts.Logger != nil {
-				h.opts.Logger.DebugContext(readyCtx, "client not ready yet",
-					"socket", h.socketPath, "error", pingErr)
-			}
-		}
-
-		select {
-		case <-readyCtx.Done():
-			if errors.Is(readyCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
-				return ErrReadyTimeout
-			}
-			return ctx.Err()
-		case <-h.proc.exitCh:
-			return wrapProcessExited(h.proc.takeExitErr())
-		case <-time.After(poll):
-		}
+	ping := func(pingCtx context.Context) error {
+		return rpc.Ping(pingCtx, &api.PingMessage{Message: "PING"}, &api.PingMessage{})
 	}
+	return pollReady(ctx, readyCtx, h.proc, h.socketPath, poll, ping, h.opts.Logger, "client")
 }
 
 func (h *ClientHandle) readyContext(ctx context.Context) (context.Context, context.CancelFunc) {

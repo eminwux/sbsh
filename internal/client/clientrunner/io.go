@@ -36,6 +36,8 @@ import (
 const (
 	// in milliseconds.
 	resizeTimeout = 100
+	// pingTimeout bounds the readiness Ping to the terminal control socket.
+	pingTimeout = 3 * time.Second
 )
 
 func (sr *Exec) dialTerminalCtrlSocket() error {
@@ -51,7 +53,7 @@ func (sr *Exec) dialTerminalCtrlSocket() error {
 	}
 	defer sr.terminalClient.Close()
 
-	ctx, cancel := context.WithTimeout(sr.ctx, 3*time.Second)
+	ctx, cancel := context.WithTimeout(sr.ctx, pingTimeout)
 	defer cancel()
 
 	ping := api.PingMessage{Message: "PING"}

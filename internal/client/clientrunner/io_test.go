@@ -380,7 +380,9 @@ func Test_WaitReady_WedgedStateRPC(t *testing.T) {
 	select {
 	case err := <-done:
 		if err == nil {
-			t.Fatal("waitReady returned nil against a wedged State RPC; want an error so the caller can restore the terminal")
+			t.Fatal(
+				"waitReady returned nil against a wedged State RPC; want an error so the caller can restore the terminal",
+			)
 		}
 	case <-time.After(waitReadyTimeoutSeconds*time.Second + 3*time.Second):
 		t.Fatal("waitReady hung on a wedged State RPC; the readiness wait did not bound the RPC (issue #389)")

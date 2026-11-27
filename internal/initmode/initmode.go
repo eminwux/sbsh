@@ -24,17 +24,25 @@ import (
 	"sync/atomic"
 )
 
+// Values of override; zero means no override.
+const (
+	overrideOn  int32 = 1
+	overrideOff int32 = 2
+)
+
 // override, when non-zero, forces IsInit to return true (1) or false (2)
 // regardless of os.Getpid(). Tests flip this via Enable.
+//
+//nolint:gochecknoglobals // process-wide test override; atomic so readers need no lock
 var override atomic.Int32
 
 // IsInit reports whether this process should act as container init. Default
 // is os.Getpid() == 1. Tests can force the value via Enable.
 func IsInit() bool {
 	switch override.Load() {
-	case 1:
+	case overrideOn:
 		return true
-	case 2:
+	case overrideOff:
 		return false
 	default:
 		return os.Getpid() == 1
@@ -45,9 +53,9 @@ func IsInit() bool {
 // that reads IsInit has started. Passing false forces IsInit off.
 func Enable(on bool) {
 	if on {
-		override.Store(1)
+		override.Store(overrideOn)
 	} else {
-		override.Store(2)
+		override.Store(overrideOff)
 	}
 }
 

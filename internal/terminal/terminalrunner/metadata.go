@@ -158,7 +158,7 @@ func liveMetadataOwner(dir, name string) *api.TerminalDoc {
 		return nil
 	}
 	var doc api.TerminalDoc
-	if err := json.Unmarshal(b, &doc); err != nil {
+	if errUnmarshal := json.Unmarshal(b, &doc); errUnmarshal != nil {
 		// Corrupt metadata cannot identify a live owner; do not block the start.
 		return nil
 	}

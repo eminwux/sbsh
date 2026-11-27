@@ -51,7 +51,14 @@ const orphanGracePeriod = 30 * time.Second
 // remove the directory anyway. Directories modified within the last
 // orphanGracePeriod are also skipped — see the constant's doc.
 func OrphanTerminalDirs(ctx context.Context, logger *slog.Logger, runPath string) ([]string, error) {
-	return orphanDirs[api.TerminalDoc](ctx, logger, runPath, defaults.TerminalsRunPath, "OrphanTerminalDirs", "terminal")
+	return orphanDirs[api.TerminalDoc](
+		ctx,
+		logger,
+		runPath,
+		defaults.TerminalsRunPath,
+		"OrphanTerminalDirs",
+		"terminal",
+	)
 }
 
 // OrphanClientDirs returns the directories under runPath/clients whose

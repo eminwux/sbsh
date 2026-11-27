@@ -14,6 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//nolint:revive // var-naming: renaming the widely imported cmd/types package is out of scope
 package types
 
 const (

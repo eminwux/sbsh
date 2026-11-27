@@ -29,6 +29,8 @@ import (
 // reading but never closes would pin the drain goroutine indefinitely
 // and prevent the lagged sentinel from ever being delivered or detach
 // from firing. var (not const) so tests can shorten it.
+//
+//nolint:gochecknoglobals // test-tunable knob, mirrors subscriberBackpressureStall
 var subscriberWriteTimeout = 5 * time.Second
 
 // defaultSubscriberBufferBytes bounds how far a Subscribe stream can fall
@@ -56,6 +58,8 @@ var subscriberBackpressureStall = 2 * time.Second
 // framing is intentional: it renders cleanly in terminal mode and the
 // client-side needle (cmd/sb/read) matches only the bracketed message so
 // framing can evolve without breaking detection.
+//
+//nolint:gochecknoglobals // immutable sentinel; []byte has no const form
 var laggedNotice = []byte("\r\n[sbsh: subscriber lagged, disconnecting]\r\n")
 
 // subscriberWriter absorbs PTY output from the multiwriter into a bounded

@@ -79,10 +79,10 @@ func Test_runScreenshot_ANSIRoundtrip(t *testing.T) {
 		},
 	})
 	runPath := t.TempDir()
-	writeTerminalMetadata(t, runPath, "term1", "alice", sock)
+	writeTerminalMetadata(t, runPath, sock)
 
 	var out bytes.Buffer
-	opts := screenshotOpts{runPath: runPath, name: "alice", plain: false}
+	opts := screenshotOpts{runPath: runPath, name: testTerminalName, plain: false}
 	if err := runScreenshot(context.Background(), testLogger(), &out, opts); err != nil {
 		t.Fatalf("runScreenshot: %v", err)
 	}
@@ -98,10 +98,10 @@ func Test_runScreenshot_PlainGrid(t *testing.T) {
 		},
 	})
 	runPath := t.TempDir()
-	writeTerminalMetadata(t, runPath, "term1", "alice", sock)
+	writeTerminalMetadata(t, runPath, sock)
 
 	var out bytes.Buffer
-	opts := screenshotOpts{runPath: runPath, name: "alice", plain: true}
+	opts := screenshotOpts{runPath: runPath, name: testTerminalName, plain: true}
 	if err := runScreenshot(context.Background(), testLogger(), &out, opts); err != nil {
 		t.Fatalf("runScreenshot: %v", err)
 	}
@@ -117,9 +117,9 @@ func Test_runScreenshot_RPCError(t *testing.T) {
 		},
 	})
 	runPath := t.TempDir()
-	writeTerminalMetadata(t, runPath, "term1", "alice", sock)
+	writeTerminalMetadata(t, runPath, sock)
 
-	opts := screenshotOpts{runPath: runPath, name: "alice"}
+	opts := screenshotOpts{runPath: runPath, name: testTerminalName}
 	if err := runScreenshot(context.Background(), testLogger(), &bytes.Buffer{}, opts); err == nil {
 		t.Fatal("expected screenshot RPC error, got nil")
 	}

@@ -138,8 +138,8 @@ func runRead(
 	}
 	defer func() { _ = conn.Close() }()
 
-	if err := dumpCapture(capturePath, stdout); err != nil {
-		return err
+	if errDumpCapture := dumpCapture(capturePath, stdout); errDumpCapture != nil {
+		return errDumpCapture
 	}
 
 	// Close conn when ctx is done so io.Copy unblocks.
@@ -175,10 +175,16 @@ func dumpCapture(path string, stdout io.Writer) error {
 // internal/terminal/terminalrunner/subscriber.go). The server wraps this
 // in \r\n framing; the needle here is the bare bracketed form so framing
 // can evolve on the server without breaking client detection.
+//
+//nolint:gochecknoglobals // immutable needle; []byte has no const form
 var laggedNotice = []byte("[sbsh: subscriber lagged, disconnecting]")
 
+// liveReadChunk is the per-read buffer size for the live stream.
+const liveReadChunk = 4096
+
+//nolint:gocognit,nestif // one read loop: split-sentinel tail scan, lag detection and EOF handling share buffer state
 func streamLive(conn net.Conn, stdout, stderr io.Writer) error {
-	buf := make([]byte, 4096)
+	buf := make([]byte, liveReadChunk)
 	// A single server-side Write delivers the sentinel atomically, but
 	// TCP/socket reads can still split it across chunk boundaries. Keep
 	// a rolling tail of (len(laggedNotice)-1) bytes from the previous

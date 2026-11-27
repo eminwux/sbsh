@@ -17,6 +17,7 @@
 package terminalrunner
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -98,7 +99,7 @@ func (sr *Exec) Subscribe(req *api.SubscribeRequest, response *api.ResponseWithF
 	if multiOutW == nil {
 		_ = conn.Close()
 		_ = unix.Close(cliFD)
-		return fmt.Errorf("Subscribe: terminal not running")
+		return errors.New("Subscribe: terminal not running")
 	}
 
 	// Early shutdown check: avoid registry mutation when Close has already

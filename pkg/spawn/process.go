@@ -250,3 +250,49 @@ func closeFiles(files []*os.File) {
 		_ = f.Close()
 	}
 }
+
+// pollReady drives the WaitReady loop shared by ClientHandle and
+// TerminalHandle: once socketPath exists it pings it every poll interval
+// until a ping succeeds, the child exits, or readyCtx ends. ctx is the
+// caller's context, used to tell the internal readiness cap
+// (ErrReadyTimeout) apart from caller cancellation. what names the child
+// kind ("client" or "terminal") in debug logs; logger may be nil.
+func pollReady(
+	ctx, readyCtx context.Context,
+	p *process,
+	socketPath string,
+	poll time.Duration,
+	ping func(context.Context) error,
+	logger *slog.Logger,
+	what string,
+) error {
+	for {
+		if p.exited() {
+			return wrapProcessExited(p.takeExitErr())
+		}
+
+		if _, err := os.Stat(socketPath); err == nil {
+			pingCtx, pingCancel := context.WithTimeout(readyCtx, poll)
+			pingErr := ping(pingCtx)
+			pingCancel()
+			if pingErr == nil {
+				return nil
+			}
+			if logger != nil {
+				logger.DebugContext(readyCtx, what+" not ready yet",
+					"socket", socketPath, "error", pingErr)
+			}
+		}
+
+		select {
+		case <-readyCtx.Done():
+			if errors.Is(readyCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
+				return ErrReadyTimeout
+			}
+			return ctx.Err()
+		case <-p.exitCh:
+			return wrapProcessExited(p.takeExitErr())
+		case <-time.After(poll):
+		}
+	}
+}

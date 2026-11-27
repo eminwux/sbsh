@@ -48,9 +48,9 @@ func TestExpandCwd(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := expandCwd(tc.in)
-			if err != nil {
-				t.Fatalf("expandCwd(%q) returned error: %v", tc.in, err)
+			got, errExpandCwd := expandCwd(tc.in)
+			if errExpandCwd != nil {
+				t.Fatalf("expandCwd(%q) returned error: %v", tc.in, errExpandCwd)
 			}
 			if got != tc.want {
 				t.Errorf("expandCwd(%q) = %q, want %q", tc.in, got, tc.want)

@@ -95,7 +95,6 @@ func (sr *Exec) updateMetadata() error {
 	return shared.WriteMetadata(sr.ctx, metadataCopy, dir)
 }
 
-//nolint:unused // this will be used eventually
 func (sr *Exec) getTerminalMetadata() (*api.TerminalDoc, error) {
 	if sr.terminalClient == nil {
 		return nil, errors.New("getTerminalMetadata: terminal client is nil")

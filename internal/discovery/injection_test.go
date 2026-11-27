@@ -40,7 +40,7 @@ const evilName = "evil\x1b]0;pwned\x07\x1b[31m\x1b[2J"
 // silently dropped.
 func assertNoRawEscapes(t *testing.T, label, out string) {
 	t.Helper()
-	for i := 0; i < len(out); i++ {
+	for i := range len(out) {
 		if b := out[i]; b < 0x20 && b != '\n' && b != '\t' || b == 0x7f {
 			t.Fatalf("%s: raw control byte %#x emitted to terminal: %q", label, b, out)
 		}

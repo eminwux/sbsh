@@ -71,7 +71,7 @@ rejected.`,
 // that file if any.
 type fileValidation struct {
 	Path      string
-	Results   []profile.ProfileValidationResult
+	Results   []profile.ValidationResult
 	DecodeErr error
 }
 
@@ -89,10 +89,7 @@ func runValidateProfiles(cmd *cobra.Command, args []string, stdout, stderr io.Wr
 		return err
 	}
 
-	validations, err := validateFiles(cmd, logger, files)
-	if err != nil {
-		return err
-	}
+	validations := validateFiles(cmd, logger, files)
 
 	return reportResults(stdout, stderr, path, validations, warnings)
 }
@@ -147,7 +144,7 @@ func expandPath(cmd *cobra.Command, logger *slog.Logger, path string) ([]string,
 	return files, warnings, nil
 }
 
-func validateFiles(cmd *cobra.Command, logger *slog.Logger, files []string) ([]fileValidation, error) {
+func validateFiles(cmd *cobra.Command, logger *slog.Logger, files []string) []fileValidation {
 	var out []fileValidation
 	for _, f := range files {
 		results, err := profile.ValidateProfilesFromPath(cmd.Context(), logger, f)
@@ -159,7 +156,7 @@ func validateFiles(cmd *cobra.Command, logger *slog.Logger, files []string) ([]f
 		}
 		out = append(out, fileValidation{Path: f, Results: results, DecodeErr: err})
 	}
-	return out, nil
+	return out
 }
 
 func reportResults(
@@ -230,7 +227,7 @@ func hasBlockingWarning(warnings []pkgdiscovery.ProfileWarning) bool {
 	return len(warnings) > 0
 }
 
-func formatLabel(r profile.ProfileValidationResult) string {
+func formatLabel(r profile.ValidationResult) string {
 	if r.ProfileName == "" {
 		return fmt.Sprintf("document %d", r.DocIndex)
 	}

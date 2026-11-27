@@ -18,6 +18,7 @@ package terminalrunner
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -87,6 +88,8 @@ func newWiredExec(t *testing.T) *Exec {
 // applySocketPerms with an explicit mode chmods the inode to that mode and a
 // zero mode falls back to defaultSocketMode. A non-nil gid set to the caller's
 // own gid exercises the chown arm without requiring privilege.
+//
+//nolint:gocognit // table-driven permission matrix
 func TestApplySocketPerms(t *testing.T) {
 	sr := newWiredExec(t)
 
@@ -144,6 +147,8 @@ func TestApplySocketPerms(t *testing.T) {
 }
 
 // applyArtifactPerms mirrors applySocketPerms for capture/log artifacts.
+//
+//nolint:gocognit // table-driven permission matrix
 func TestApplyArtifactPerms(t *testing.T) {
 	sr := newWiredExec(t)
 
@@ -263,8 +268,8 @@ func TestCreateNewClient_RegistersAndCleansUp(t *testing.T) {
 
 	// Closing the client end makes the server-side reader observe EOF, which
 	// funnels through detach -> cleanupClient -> removeClient.
-	if err := unix.Close(cliFD); err != nil {
-		t.Fatalf("close client fd: %v", err)
+	if errClose := unix.Close(cliFD); errClose != nil {
+		t.Fatalf("close client fd: %v", errClose)
 	}
 
 	deadline := time.Now().Add(2 * time.Second)
@@ -342,7 +347,7 @@ func TestWritePTY(t *testing.T) {
 	t.Run("stdin closed", func(t *testing.T) {
 		sr := newWiredExec(t)
 		sr.gates.StdinOpen = false
-		if err := sr.WritePTY([]byte("x")); err != errdefs.ErrTerminalStdinClosed {
+		if err := sr.WritePTY([]byte("x")); !errors.Is(err, errdefs.ErrTerminalStdinClosed) {
 			t.Errorf("WritePTY with stdin closed = %v, want ErrTerminalStdinClosed", err)
 		}
 	})
@@ -350,7 +355,7 @@ func TestWritePTY(t *testing.T) {
 	t.Run("nil ptmx", func(t *testing.T) {
 		sr := newWiredExec(t)
 		sr.ptmx = nil
-		if err := sr.WritePTY([]byte("x")); err != errdefs.ErrTerminalStdinClosed {
+		if err := sr.WritePTY([]byte("x")); !errors.Is(err, errdefs.ErrTerminalStdinClosed) {
 			t.Errorf("WritePTY with nil ptmx = %v, want ErrTerminalStdinClosed", err)
 		}
 	})
@@ -374,8 +379,8 @@ func TestWritePTY(t *testing.T) {
 		}()
 
 		data := []byte("hello")
-		if err := sr.WritePTY(data); err != nil {
-			t.Fatalf("WritePTY: %v", err)
+		if errWritePTY := sr.WritePTY(data); errWritePTY != nil {
+			t.Fatalf("WritePTY: %v", errWritePTY)
 		}
 		<-done
 		res, err := sr.Activity(&api.ActivityArgs{})
@@ -398,7 +403,7 @@ func TestWritePTY(t *testing.T) {
 		sr.ptmx = pw
 		defer pw.Close()
 
-		if err := sr.WritePTY([]byte("data")); err == nil {
+		if errWritePTY := sr.WritePTY([]byte("data")); errWritePTY == nil {
 			t.Error("WritePTY to a broken pipe returned nil; want write error")
 		}
 	})
@@ -462,7 +467,7 @@ func TestSubscribe_EarlyShutdown(t *testing.T) {
 
 	var resp api.ResponseWithFD
 	err := sr.Subscribe(&api.SubscribeRequest{ClientID: api.ID("sub-2")}, &resp)
-	if err != errTerminalClosing {
+	if !errors.Is(err, errTerminalClosing) {
 		t.Fatalf("Subscribe after ctx cancel = %v, want errTerminalClosing", err)
 	}
 	sr.subsMu.Lock()
@@ -537,9 +542,9 @@ func TestStartServer_AcceptsConnection(t *testing.T) {
 
 	sr.ctxCancel()
 	select {
-	case err := <-doneCh:
-		if err != nil {
-			t.Fatalf("graceful exit delivered non-nil err: %v", err)
+	case errDoneCh := <-doneCh:
+		if errDoneCh != nil {
+			t.Fatalf("graceful exit delivered non-nil err: %v", errDoneCh)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("StartServer did not exit within 2s after ctx cancel")

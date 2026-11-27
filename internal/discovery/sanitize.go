@@ -49,7 +49,7 @@ func sanitizeField(s string) string {
 	b.Grow(len(s))
 	for _, r := range s {
 		if isControlRune(r) {
-			//nolint:mnd // 0x00..0x9F all fit in two hex digits
+			// 0x00..0x9F all fit in two hex digits.
 			b.WriteString(`\x`)
 			b.WriteByte(hex[byte(r)>>4])
 			b.WriteByte(hex[byte(r)&0x0f])

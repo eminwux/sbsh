@@ -113,6 +113,8 @@ func spawnSbshOnPty(t *testing.T, pts *os.File, env []string) *os.Process {
 // stranded in raw mode with DEC private modes still active. Regression test for
 // the client trapping only INT/TERM: with HUP/QUIT untrapped they took the
 // default terminate disposition and skipped restore entirely.
+//
+//nolint:gocognit // per-signal subtests with PTY polling loops
 func TestSbsh_SignalRestoresTerminal(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -127,7 +129,16 @@ func TestSbsh_SignalRestoresTerminal(t *testing.T) {
 
 			t.Cleanup(func() {
 				runPathEnv := buildSbRunPathEnv(t, runPath)
-				runReturningBinary(t, []string{runPathEnv}, sb, "prune", "terminals", "--verbose", "--log-level", "debug")
+				runReturningBinary(
+					t,
+					[]string{runPathEnv},
+					sb,
+					"prune",
+					"terminals",
+					"--verbose",
+					"--log-level",
+					"debug",
+				)
 				runReturningBinary(t, []string{runPathEnv}, sb, "prune", "clients", "--verbose", "--log-level", "debug")
 			})
 
@@ -177,10 +188,7 @@ func TestSbsh_SignalRestoresTerminal(t *testing.T) {
 			// Restore runs during ctx-cancel teardown before the process exits;
 			// poll briefly to absorb teardown latency.
 			deadline := time.Now().Add(2 * time.Second)
-			for {
-				if isCanonical(ptyTermios(t, ptmx.Fd())) {
-					break
-				}
+			for !isCanonical(ptyTermios(t, ptmx.Fd())) {
 				if !time.Now().Before(deadline) {
 					t.Fatalf("terminal not restored to canonical mode after %v", tc.sig)
 				}

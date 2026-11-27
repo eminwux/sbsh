@@ -50,8 +50,8 @@ func TestWriteMetadata_RoundTrips(t *testing.T) {
 		t.Errorf("metadata.json does not end with a trailing newline")
 	}
 	var out meta
-	if err := json.Unmarshal(raw, &out); err != nil {
-		t.Fatalf("unmarshal metadata.json: %v", err)
+	if errUnmarshal := json.Unmarshal(raw, &out); errUnmarshal != nil {
+		t.Fatalf("unmarshal metadata.json: %v", errUnmarshal)
 	}
 	if out != in {
 		t.Errorf("round-trip = %+v, want %+v", out, in)
@@ -110,7 +110,7 @@ func newDebugLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelDebug}))
 }
 
-func TestLogBytes_EmptyAndNonEmpty(t *testing.T) {
+func TestLogBytes_EmptyAndNonEmpty(_ *testing.T) {
 	logger := newDebugLogger()
 	// Empty data exercises the empty branches of logASCII and logHEX.
 	LogBytes("p", nil, logger)
@@ -145,8 +145,8 @@ func TestLoggingConn_ReadWrite(t *testing.T) {
 		if string(buf[:n]) != "hello" {
 			t.Errorf("peer read = %q, want hello", buf[:n])
 		}
-		if _, err := c2.Write([]byte("ack")); err != nil {
-			t.Errorf("peer write: %v", err)
+		if _, errWrite := c2.Write([]byte("ack")); errWrite != nil {
+			t.Errorf("peer write: %v", errWrite)
 		}
 	}()
 
@@ -165,7 +165,7 @@ func TestLoggingConn_ReadWrite(t *testing.T) {
 }
 
 // unixConnPair returns a connected pair of *net.UnixConn over a temp socket.
-func unixConnPair(t *testing.T) (server, client *net.UnixConn) {
+func unixConnPair(t *testing.T) (*net.UnixConn, *net.UnixConn) {
 	t.Helper()
 	sock := filepath.Join(t.TempDir(), "s.sock")
 	ln, err := net.Listen("unix", sock)
@@ -188,11 +188,11 @@ func unixConnPair(t *testing.T) (server, client *net.UnixConn) {
 	if err != nil {
 		t.Fatalf("dial unix: %v", err)
 	}
-	server = <-accepted
+	server := <-accepted
 	if server == nil {
 		t.Fatal("accept failed")
 	}
-	client = dialed.(*net.UnixConn)
+	client := dialed.(*net.UnixConn)
 	t.Cleanup(func() { server.Close(); client.Close() })
 	return server, client
 }
@@ -213,8 +213,8 @@ func TestLoggingConnUnix_ReadWrite(t *testing.T) {
 			t.Errorf("server read: %v", err)
 			return
 		}
-		if _, err := server.Write(buf[:n]); err != nil {
-			t.Errorf("server echo: %v", err)
+		if _, errWrite := server.Write(buf[:n]); errWrite != nil {
+			t.Errorf("server echo: %v", errWrite)
 		}
 	}()
 
@@ -286,8 +286,8 @@ func TestLoggingConnUnix_MsgWithFDPassing(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if _, _, err := sender.WriteMsgUnix([]byte("fd"), rights, nil); err != nil {
-			t.Errorf("WriteMsgUnix with rights: %v", err)
+		if _, _, errWriteMsgUnix := sender.WriteMsgUnix([]byte("fd"), rights, nil); errWriteMsgUnix != nil {
+			t.Errorf("WriteMsgUnix with rights: %v", errWriteMsgUnix)
 		}
 	}()
 

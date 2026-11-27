@@ -30,6 +30,8 @@ import (
 // forwardedSignals is the minimum set the PID-1 forwarder relays to the
 // tracked child's process group. SIGWINCH is intentionally omitted: PTY
 // resize already has its own dedicated path.
+//
+//nolint:gochecknoglobals // fixed signal set; slices have no const form
 var forwardedSignals = []os.Signal{
 	syscall.SIGTERM,
 	syscall.SIGINT,

@@ -18,9 +18,8 @@ package naming
 
 import (
 	"crypto/rand"
-	"encoding/binary"
 	"encoding/hex"
-	mrand "math/rand"
+	mrand "math/rand/v2"
 )
 
 //nolint:gochecknoglobals // word lists
@@ -51,20 +50,15 @@ var right = []string{
 	"khazaddum", "caradhras", "amonhen", "amonsul", "fornost", "weathertop", "bucklebury", "hobbiton", "bywater", "bagend",
 }
 
+// RandomName returns a human-friendly "<adjective>_<name>" terminal name.
+// math/rand/v2's top-level functions are randomly seeded per process, so no
+// explicit seeding is needed.
 func RandomName() string {
-	r := mrand.New(mrand.NewSource(randSeed()))
-	l := left[r.Intn(len(left))]
-	rn := right[r.Intn(len(right))]
-	n := l + "_" + rn
-	return n
-}
-
-func randSeed() int64 {
-	var b [8]byte
-	if _, err := rand.Read(b[:]); err == nil {
-		return int64(binary.LittleEndian.Uint64(b[:]))
-	}
-	return mrand.Int63()
+	//nolint:gosec // cosmetic display name, not a security token; RandomID covers uniqueness
+	l := left[mrand.IntN(len(left))]
+	//nolint:gosec // cosmetic display name, not a security token; RandomID covers uniqueness
+	rn := right[mrand.IntN(len(right))]
+	return l + "_" + rn
 }
 
 func RandomID() string {

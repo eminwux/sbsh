@@ -17,6 +17,7 @@
 package terminalrunner
 
 import (
+	"errors"
 	"io"
 	"log/slog"
 	"os/exec"
@@ -53,7 +54,8 @@ func startWaiter(sr *Exec) <-chan *exec.ExitError {
 	done := make(chan *exec.ExitError, 1)
 	go func() {
 		err := sr.cmd.Wait()
-		exitErr, _ := err.(*exec.ExitError)
+		var exitErr *exec.ExitError
+		_ = errors.As(err, &exitErr) // exitErr stays nil when err is not an ExitError
 		done <- exitErr
 		sr.markChildDone()
 	}()
@@ -158,7 +160,7 @@ func TestShutdownChild_Escalation(t *testing.T) {
 			}
 		} else {
 			code := ws.ExitStatus()
-			//nolint:mnd // shell-conventional 128+SIGKILL
+			// Shell-conventional 128+SIGKILL.
 			if code != 128+int(syscall.SIGKILL) {
 				t.Fatalf("child exited with code %d; want 128+SIGKILL (%d) or signaled by SIGKILL",
 					code, 128+int(syscall.SIGKILL))

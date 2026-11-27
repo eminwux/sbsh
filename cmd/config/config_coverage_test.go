@@ -36,18 +36,15 @@ import (
 func unsetEnv(t *testing.T, keys ...string) {
 	t.Helper()
 	for _, k := range keys {
-		k := k
-		if old, ok := os.LookupEnv(k); ok {
-			t.Cleanup(func() { _ = os.Setenv(k, old) })
-		} else {
-			t.Cleanup(func() { _ = os.Unsetenv(k) })
-		}
+		// t.Setenv records the prior value (or absence) and restores it on
+		// cleanup; the Unsetenv then removes the key for the test body.
+		t.Setenv(k, "")
 		_ = os.Unsetenv(k)
 	}
 }
 
 func TestApplyConfigurationDocEnv(t *testing.T) {
-	t.Run("nil doc is a no-op", func(t *testing.T) {
+	t.Run("nil doc is a no-op", func(_ *testing.T) {
 		ApplyConfigurationDocEnv(nil)
 	})
 
@@ -270,8 +267,8 @@ func writeTerminalDoc(t *testing.T, runPath, id, name string, state api.Terminal
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "metadata.json"), b, 0o644); err != nil {
-		t.Fatalf("write: %v", err)
+	if errWriteFile := os.WriteFile(filepath.Join(dir, "metadata.json"), b, 0o644); errWriteFile != nil {
+		t.Fatalf("write: %v", errWriteFile)
 	}
 }
 
@@ -292,8 +289,8 @@ func writeClientDoc(t *testing.T, runPath, id, name string, state api.ClientStat
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "metadata.json"), b, 0o644); err != nil {
-		t.Fatalf("write: %v", err)
+	if errWriteFile := os.WriteFile(filepath.Join(dir, "metadata.json"), b, 0o644); errWriteFile != nil {
+		t.Fatalf("write: %v", errWriteFile)
 	}
 }
 
@@ -321,6 +318,7 @@ func TestAutoCompleteListProfileNames(t *testing.T) {
 	})
 }
 
+//nolint:gocognit // table of fixture scenarios asserted inline
 func TestAutoCompleteListTerminalNamesAndIDs(t *testing.T) {
 	ctx := context.Background()
 

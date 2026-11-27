@@ -135,6 +135,7 @@ func expandCwd(p string) (string, error) {
 	return p, nil
 }
 
+//nolint:funlen // sequential PTY bring-up; splitting scatters the fd ownership hand-offs
 func (sr *Exec) startPty() error {
 	// Open a pty
 	ptmx, pts, errOpen := pty.Open()

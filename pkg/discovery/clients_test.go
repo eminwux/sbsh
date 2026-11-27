@@ -45,8 +45,8 @@ func writeClientDoc(t *testing.T, runPath, id, name string) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "metadata.json"), b, 0o644); err != nil {
-		t.Fatalf("write metadata.json: %v", err)
+	if errWriteFile := os.WriteFile(filepath.Join(dir, "metadata.json"), b, 0o644); errWriteFile != nil {
+		t.Fatalf("write metadata.json: %v", errWriteFile)
 	}
 }
 

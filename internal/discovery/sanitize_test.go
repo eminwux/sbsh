@@ -34,7 +34,7 @@ func TestSanitizeField(t *testing.T) {
 		{"DEL is escaped", "a\x7fb", `a\x7fb`},
 		{"tab is escaped so the table cannot be split", "a\tb", `a\x09b`},
 		{"newline is escaped so rows cannot be forged", "a\nb", `a\x0ab`},
-		{"C1 CSI introducer is escaped", "am", `a\x9bm`},
+		{"C1 CSI introducer is escaped", "a\u009bm", `a\x9bm`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -48,7 +48,7 @@ func TestSanitizeField(t *testing.T) {
 // TestSanitizeFieldNeutralizesControlBytes is the security invariant: no output
 // of sanitizeField ever carries a raw control byte the terminal could act on.
 func TestSanitizeFieldNeutralizesControlBytes(t *testing.T) {
-	in := "name\x1b[31m\x1b]0;t\x07\x00\x7f"
+	in := "name\x1b[31m\x1b]0;t\x07\x00\x7f\u009b"
 	got := sanitizeField(in)
 	for _, r := range got {
 		if isControlRune(r) {

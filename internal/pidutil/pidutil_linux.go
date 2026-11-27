@@ -20,6 +20,7 @@
 package pidutil
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strconv"
@@ -34,7 +35,7 @@ func readStartTime(pid int) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	rparen := strings.LastIndexByte(string(data), ')')
+	rparen := bytes.LastIndexByte(data, ')')
 	if rparen < 0 || rparen+1 >= len(data) {
 		return 0, fmt.Errorf("pidutil: malformed /proc/%d/stat", pid)
 	}

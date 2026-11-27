@@ -17,12 +17,10 @@
 package terminal
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -106,11 +104,6 @@ func TestRunTerminal_ErrWaitOnReady(t *testing.T) {
 
 	t.Cleanup(func() {})
 
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
-
 	spec := api.TerminalSpec{
 		ID:          api.ID(naming.RandomID()),
 		Kind:        api.TerminalLocal,
@@ -140,11 +133,6 @@ func TestRunTerminal_ErrWaitOnClose(t *testing.T) {
 	t.Cleanup(func() {})
 
 	ctrl := newTerminalController(context.Background())
-
-	var buf bytes.Buffer
-	old := log.Writer()
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(old) })
 
 	spec := api.TerminalSpec{
 		ID:          api.ID(naming.RandomID()),
@@ -781,16 +769,16 @@ func Test_TerminalCmd_PreRunE_FromFileSpec(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 	specFile := filepath.Join(t.TempDir(), "spec.json")
-	if err := os.WriteFile(specFile, jsonData, 0o600); err != nil {
-		t.Fatalf("write spec: %v", err)
+	if errWriteFile := os.WriteFile(specFile, jsonData, 0o600); errWriteFile != nil {
+		t.Fatalf("write spec: %v", errWriteFile)
 	}
 	viper.Set(config.SBSH_TERM_SPEC.ViperKey, specFile)
 
 	cmd := NewTerminalCmd()
 	cmd.SetContext(context.Background())
 
-	if err := cmd.PreRunE(cmd, []string{}); err != nil {
-		t.Fatalf("PreRunE() error = %v", err)
+	if errPreRunE := cmd.PreRunE(cmd, []string{}); errPreRunE != nil {
+		t.Fatalf("PreRunE() error = %v", errPreRunE)
 	}
 
 	spec, ok := cmd.Context().Value(types.CtxTerminalSpec).(*api.TerminalSpec)

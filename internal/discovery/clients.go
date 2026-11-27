@@ -49,11 +49,11 @@ func ScanAndPrintClients(
 	logger.InfoContext(ctx, "ScanAndPrintClients: scanned clients", "count", len(clients))
 
 	switch format {
-	case "json", "yaml":
+	case FormatJSON, FormatYAML:
 		filtered := filterClients(clients, printAll)
 		return printTerminalMetadata(w, filtered, format)
-	case "", "wide":
-		return printClients(w, clients, printAll, format == "wide")
+	case "", FormatWide:
+		return printClients(w, clients, printAll, format == FormatWide)
 	default:
 		return fmt.Errorf("unknown output format: %q (use wide|json|yaml)", format)
 	}

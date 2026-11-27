@@ -18,7 +18,6 @@ package version
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/eminwux/sbsh/cmd/config"
 	"github.com/spf13/cobra"
@@ -28,8 +27,8 @@ func NewVersionCmd() *cobra.Command {
 	versionCmd := &cobra.Command{
 		Use:   "version",
 		Short: "Print the version number",
-		Run: func(_ *cobra.Command, _ []string) {
-			fmt.Fprintln(os.Stdout, config.Version)
+		Run: func(cmd *cobra.Command, _ []string) {
+			fmt.Fprintln(cmd.OutOrStdout(), config.Version)
 		},
 	}
 	return versionCmd

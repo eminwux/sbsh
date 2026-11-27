@@ -36,8 +36,8 @@ func readMetadataDoc(t *testing.T, dir string) api.TerminalDoc {
 		t.Fatalf("read metadata.json in %q: %v", dir, err)
 	}
 	var doc api.TerminalDoc
-	if err := json.Unmarshal(b, &doc); err != nil {
-		t.Fatalf("unmarshal metadata.json: %v", err)
+	if errUnmarshal := json.Unmarshal(b, &doc); errUnmarshal != nil {
+		t.Fatalf("unmarshal metadata.json: %v", errUnmarshal)
 	}
 	return doc
 }
@@ -127,14 +127,14 @@ func TestCreateMetadata_RecyclesExitedOwnerID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal prior: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "metadata.json"), b, 0o600); err != nil {
-		t.Fatalf("write prior metadata: %v", err)
+	if errWriteFile := os.WriteFile(filepath.Join(dir, "metadata.json"), b, 0o600); errWriteFile != nil {
+		t.Fatalf("write prior metadata: %v", errWriteFile)
 	}
 
 	sr := newMetadataExec(t, runPath, "", id)
 	sr.metadata.Spec.Name = "new"
-	if err := sr.CreateMetadata(); err != nil {
-		t.Fatalf("CreateMetadata on exited-owner id: expected nil, got: %v", err)
+	if errCreateMetadata := sr.CreateMetadata(); errCreateMetadata != nil {
+		t.Fatalf("CreateMetadata on exited-owner id: expected nil, got: %v", errCreateMetadata)
 	}
 	got := readMetadataDoc(t, dir)
 	if got.Status.State != api.Initializing {

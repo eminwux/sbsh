@@ -169,7 +169,14 @@ func TestProcess_PasteModeWritesThroughUntilEndMarker(t *testing.T) {
 		t.Fatalf("Process error: %v", err)
 	}
 	if out != nil || nwrite != len(start) || ncons != len(start) {
-		t.Fatalf("paste start = (out=%v, nwrite=%d, ncons=%d); want (nil, %d, %d)", out, nwrite, ncons, len(start), len(start))
+		t.Fatalf(
+			"paste start = (out=%v, nwrite=%d, ncons=%d); want (nil, %d, %d)",
+			out,
+			nwrite,
+			ncons,
+			len(start),
+			len(start),
+		)
 	}
 	if !f.pasteMode {
 		t.Fatal("pasteMode = false after start marker; want true")

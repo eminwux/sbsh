@@ -18,6 +18,7 @@
 // the Server's runLoop/bringUp/Stop branches directly, injecting a fake
 // runner so the adapter and lifecycle paths are covered without spawning
 // a real PTY (the wire-level integration coverage lives in server_test.go).
+
 package server
 
 import (
@@ -66,10 +67,10 @@ func TestRPCAdapter_Ping(t *testing.T) {
 		t.Fatalf("Ping reply = %q, want PONG", pong.Message)
 	}
 
-	if _, err := a.Ping(nil); err == nil {
+	if _, errPing := a.Ping(nil); errPing == nil {
 		t.Fatal("Ping(nil): expected error")
 	}
-	if _, err := a.Ping(&api.PingMessage{Message: "nope"}); err == nil {
+	if _, errPing := a.Ping(&api.PingMessage{Message: "nope"}); errPing == nil {
 		t.Fatal("Ping(nope): expected error")
 	}
 }
@@ -370,8 +371,9 @@ func TestServer_runLoop_StopChannel(t *testing.T) {
 	srv := newAdapterServer(t)
 	stopErr := errors.New("stop boom")
 	srv.stopCh <- stopErr
-	if err := srv.runLoop(context.Background(), make(chan terminalrunner.Event), make(chan error)); !errors.Is(err, stopErr) {
-		t.Fatalf("runLoop stop err = %v, want %v", err, stopErr)
+	errStop := srv.runLoop(context.Background(), make(chan terminalrunner.Event), make(chan error))
+	if !errors.Is(errStop, stopErr) {
+		t.Fatalf("runLoop stop err = %v, want %v", errStop, stopErr)
 	}
 
 	// Stop signal with nil error yields the generic "Stop called" cause.

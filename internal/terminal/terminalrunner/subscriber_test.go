@@ -69,7 +69,7 @@ func TestSubscriber_DeliversBytesInOrder(t *testing.T) {
 	}()
 
 	got, err := io.ReadAll(clientSide)
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		t.Fatalf("read: %v", err)
 	}
 	if !bytes.Equal(got, want) {
@@ -301,7 +301,7 @@ func TestSubscriber_LaggedReaderIsDropped(t *testing.T) {
 	writeDone := make(chan struct{})
 	go func() {
 		defer close(writeDone)
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			n, err := sub.Write(chunk)
 			if err != nil {
 				t.Errorf("unexpected Write error: %v", err)
@@ -366,7 +366,7 @@ func TestSubscriber_LaggedNoticeReachesClient(t *testing.T) {
 
 	select {
 	case res := <-readCh:
-		if res.err != nil && res.err != io.EOF {
+		if res.err != nil && !errors.Is(res.err, io.EOF) {
 			t.Fatalf("read: %v", res.err)
 		}
 		if !bytes.Contains(res.data, laggedNotice) {
