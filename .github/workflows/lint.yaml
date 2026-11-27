@@ -1,0 +1,40 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Dedicated lint status (and README badge). The pre-commit golangci-lint
+# hook in test.yaml runs `--new-from-rev HEAD`, which is empty in CI, so it
+# lints nothing there. Keep the version in sync with the golangci-lint rev
+# in .pre-commit-config.yaml.
+jobs:
+  golangci-lint:
+    name: golangci-lint
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: v2.5.0
+          args: ./...
+          # main carries pre-existing lint debt; gate only on issues the PR
+          # (or push range) introduces until that backlog is cleared.
+          only-new-issues: true

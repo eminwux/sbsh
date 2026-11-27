@@ -4,6 +4,11 @@ on:
     tags:
       - "v[0-9].[0-9]+.[0-9]+"
 
+# Every signature and attestation below is keyless (Sigstore / GitHub OIDC):
+# no signing keys or secrets to manage, and `make release` stays free of
+# manual signing steps. Consumer-side verification commands live in
+# docs/site/install/verify.md.
+
 jobs:
   sbsh_binaries:
     name: Create Release
@@ -25,6 +30,46 @@ jobs:
       - name: Build artifacts
         run: make release-build SBSH_VERSION=$SBSH_VERSION
 
+      # SHA256SUMS covers all six binaries; the per-asset <asset>.sha256
+      # files are what scripts/install.sh fetches.
+      - name: Generate checksums
+        run: make release-checksums
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v4.1.4
+        with:
+          cosign-release: "v3.1.6"
+
+      - name: Install syft
+        id: syft
+        uses: anchore/sbom-action/download-syft@v0.24.4
+        with:
+          syft-version: "v1.57.2"
+
+      # Signing SHA256SUMS transitively signs every binary it lists.
+      - name: Sign SHA256SUMS
+        run: cosign sign-blob --yes --bundle SHA256SUMS.sigstore.json SHA256SUMS
+
+      - name: Generate and attest binary SBOMs
+        env:
+          SYFT: ${{ steps.syft.outputs.cmd }}
+        run: |
+          for bin in sbsh-*-amd64 sbsh-*-arm64; do
+            "$SYFT" scan "file:${bin}" -o "spdx-json=${bin}.spdx.json"
+            cosign attest-blob --yes \
+              --type spdxjson \
+              --predicate "${bin}.spdx.json" \
+              --bundle "${bin}.spdx.json.sigstore.json" \
+              "${bin}"
+          done
+
+      # SLSA build provenance for every binary listed in SHA256SUMS
+      # (verify with `gh attestation verify`).
+      - name: Generate binary provenance attestation
+        uses: actions/attest-build-provenance@v4.2.2
+        with:
+          subject-checksums: SHA256SUMS
+
       - name: Create Github Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -33,15 +78,23 @@ jobs:
           ./sbsh-linux-amd64 ./sbsh-linux-arm64 \
           ./sbsh-darwin-amd64 ./sbsh-darwin-arm64 \
           ./sbsh-freebsd-amd64 ./sbsh-freebsd-arm64 \
+          ./sbsh-*.sha256 \
+          ./sbsh-*.spdx.json ./sbsh-*.spdx.json.sigstore.json \
+          ./SHA256SUMS ./SHA256SUMS.sigstore.json \
           --title "${GITHUB_REF#refs/tags/}" \
           --generate-notes \
           --notes "Container images (multi-arch: linux/amd64, linux/arm64):
           - ${SBSH_REGISTRY}/${SBSH_IMAGE_NAME}:${SBSH_VERSION}
           - ${SBSH_REGISTRY}/${SBSH_IMAGE_NAME}:latest
+
+          All binaries and images are signed, carry SLSA provenance and SPDX SBOMs.
+          Verification steps: https://github.com/${GITHUB_REPOSITORY}/blob/${SBSH_VERSION}/docs/site/install/verify.md
           "
 
   sbsh_images:
     name: Build Images
+    # Waits for the release so the image SBOMs can be uploaded to it.
+    needs: sbsh_binaries
     env:
       SBSH_VERSION: ${{ github.ref_name }}
       SBSH_REGISTRY: ghcr.io
@@ -96,8 +149,44 @@ jobs:
           platforms: linux/amd64,linux/arm64
 
       - name: Generate sbsh artifact attestation
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4.2.2
         with:
           subject-name: ${{ env.SBSH_REGISTRY }}/${{ env.SBSH_IMAGE_NAME }}
           subject-digest: ${{ steps.push-sbsh.outputs.digest }}
           push-to-registry: true
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v4.1.4
+        with:
+          cosign-release: "v3.1.6"
+
+      - name: Install syft
+        id: syft
+        uses: anchore/sbom-action/download-syft@v0.24.4
+        with:
+          syft-version: "v1.57.2"
+
+      # Digest-based: the signature binds to the pushed index, and
+      # --recursive also signs each per-platform manifest.
+      - name: Sign image
+        env:
+          IMAGE: ${{ env.SBSH_REGISTRY }}/${{ env.SBSH_IMAGE_NAME }}@${{ steps.push-sbsh.outputs.digest }}
+        run: cosign sign --yes --recursive "$IMAGE"
+
+      # One SBOM per platform, scanned from that platform's manifest digest
+      # and attested to the index digest, so consumers find both from the tag.
+      - name: Generate, attest and upload image SBOMs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SYFT: ${{ steps.syft.outputs.cmd }}
+          REPO: ${{ env.SBSH_REGISTRY }}/${{ env.SBSH_IMAGE_NAME }}
+          INDEX_DIGEST: ${{ steps.push-sbsh.outputs.digest }}
+        run: |
+          for arch in amd64 arm64; do
+            platform_digest="$(docker buildx imagetools inspect --raw "${REPO}@${INDEX_DIGEST}" \
+              | jq -er --arg a "$arch" '.manifests[] | select(.platform.os == "linux" and .platform.architecture == $a) | .digest')"
+            sbom="sbsh-image-linux-${arch}.spdx.json"
+            "$SYFT" scan "registry:${REPO}@${platform_digest}" -o "spdx-json=${sbom}"
+            cosign attest --yes --type spdxjson --predicate "$sbom" "${REPO}@${INDEX_DIGEST}"
+          done
+          gh release upload "${SBSH_VERSION}" sbsh-image-linux-*.spdx.json --clobber

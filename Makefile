@@ -19,11 +19,18 @@ BINS = sbsh-sb
 OS = linux darwin freebsd
 ARCHS = amd64 arm64
 
+# ----- Release assets -----
+# One raw binary per OS/ARCH pair, as produced by release-build.
+RELEASE_BINS = $(foreach os,$(OS),$(foreach arch,$(ARCHS),sbsh-$(os)-$(arch)))
+# Stock macOS ships `shasum`, not GNU coreutils' `sha256sum`; both emit the
+# same "<hex>  <name>" format that scripts/install.sh parses.
+SHA256SUM ?= $(shell command -v sha256sum >/dev/null 2>&1 && echo sha256sum || echo shasum -a 256)
+
 
 all: clean kill $(BINS)
 
 .PHONY: release
-release: release-build docker-build docker-push
+release: release-build release-checksums docker-build docker-push
 
 sbsh-sb:
 	go build \
@@ -51,6 +58,13 @@ release-build:
 			./cmd; \
 		done \
 	done
+
+# Writes SHA256SUMS (all binaries, for `sha256sum -c` and signing) plus one
+# <asset>.sha256 per binary (fetched by scripts/install.sh as ${asset_url}.sha256).
+.PHONY: release-checksums
+release-checksums:
+	$(SHA256SUM) $(RELEASE_BINS) > SHA256SUMS
+	for f in $(RELEASE_BINS); do $(SHA256SUM) $$f > $$f.sha256; done
 
 docker-build:
 	# Only support Docker build for linux OS
