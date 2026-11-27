@@ -35,4 +35,5 @@ type Client interface {
 	Write(ctx context.Context, req *api.WriteRequest) error
 	Subscribe(ctx context.Context, req *api.SubscribeRequest, response any) (net.Conn, error)
 	Screenshot(ctx context.Context, args *api.ScreenshotArgs, result *api.ScreenshotResult) error
+	Activity(ctx context.Context, args *api.ActivityArgs, result *api.ActivityResult) error
 }

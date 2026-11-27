@@ -37,6 +37,7 @@ type TerminalController interface {
 	Write(req *WriteRequest) error
 	Subscribe(req *SubscribeRequest, reply *ResponseWithFD) error
 	Screenshot(args *ScreenshotArgs) (*ScreenshotResult, error)
+	Activity(args *ActivityArgs) (*ActivityResult, error)
 }
 
 type TerminalDoc struct {
@@ -272,6 +273,7 @@ const (
 	TerminalMethodWrite      = TerminalService + ".Write"
 	TerminalMethodSubscribe  = TerminalService + ".Subscribe"
 	TerminalMethodScreenshot = TerminalService + ".Screenshot"
+	TerminalMethodActivity   = TerminalService + ".Activity"
 )
 
 type PingMessage struct {
@@ -342,4 +344,33 @@ type ScreenshotResult struct {
 	AltScreen     bool   `json:"altScreen"`
 	Text          string `json:"text"`
 	ANSI          string `json:"ansi"`
+}
+
+// ActivityArgs is the request for an Activity RPC. It carries no fields
+// today; it exists so the wire shape can grow.
+type ActivityArgs struct{}
+
+// ActivityResult reports a terminal's I/O counters since StartedAt. The
+// counters live in memory only: they are monotonic for the lifetime of
+// one terminal runner, are never persisted, and restart from zero (with
+// a new StartedAt) when a new runner starts.
+type ActivityResult struct {
+	// StartedAt is when this terminal runner started counting. The
+	// counters restart from zero when it changes, so a consumer keeps
+	// (StartedAt, BytesOut) together as its cursor.
+	StartedAt time.Time `json:"startedAt"`
+	// BytesOut is the number of bytes read from the PTY master: every byte
+	// the workload produced, including echo of typed input and bytes read
+	// while the output gate is off.
+	BytesOut uint64 `json:"bytesOut"`
+	// BytesIn is the number of bytes written to the PTY through Write.
+	BytesIn uint64 `json:"bytesIn"`
+	// LastOutputAt is the time of the last PTY read that returned data;
+	// zero when the terminal has produced no output yet.
+	LastOutputAt time.Time `json:"lastOutputAt,omitzero"`
+	// IdleFor is Now minus LastOutputAt, computed in the terminal, so a
+	// consumer needs no clock agreement with it. Zero when LastOutputAt
+	// is zero. On the wire it is a plain time.Duration: integer
+	// nanoseconds.
+	IdleFor time.Duration `json:"idleFor"`
 }

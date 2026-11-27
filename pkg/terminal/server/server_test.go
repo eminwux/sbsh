@@ -24,6 +24,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"syscall"
 	"testing"
 	"time"
@@ -64,6 +65,7 @@ func TestServer_PingWriteSubscribeStop(t *testing.T) {
 
 	t.Run("Write", func(t *testing.T) { runWrite(ctx, t, client) })
 	t.Run("SubscribeReceivesPTYBytes", func(t *testing.T) { runSubscribeRead(t, subConn) })
+	t.Run("ActivityWithSubscriber", func(t *testing.T) { runActivity(ctx, t, client) })
 	t.Run("Stop", func(t *testing.T) { runStop(t, h) })
 }
 
@@ -312,9 +314,13 @@ func runPing(ctx context.Context, t *testing.T, client rpcclient.Client) {
 	}
 }
 
+// runWriteData is the payload runWrite pushes; runActivity asserts BytesIn
+// against its length.
+const runWriteData = "echo hi\n"
+
 func runWrite(ctx context.Context, t *testing.T, client rpcclient.Client) {
 	t.Helper()
-	if err := client.Write(ctx, &api.WriteRequest{Data: []byte("echo hi\n")}); err != nil {
+	if err := client.Write(ctx, &api.WriteRequest{Data: []byte(runWriteData)}); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
 }
@@ -337,6 +343,59 @@ func runSubscribeRead(t *testing.T, conn net.Conn) {
 		t.Fatal("subscribe read returned 0 bytes")
 	}
 	t.Logf("subscribe read %d bytes: %q", n, buf[:n])
+}
+
+// runActivity calls Activity over the real socket while a Subscribe
+// consumer is connected and after runWrite: BytesIn matches the written
+// length, BytesOut is non-zero (the subscriber has already received PTY
+// bytes, which the reader counts before fanning out), and repeated calls
+// leave the attacher list untouched.
+func runActivity(ctx context.Context, t *testing.T, client rpcclient.Client) {
+	t.Helper()
+	var before api.TerminalDoc
+	if err := client.Metadata(ctx, &before); err != nil {
+		t.Fatalf("Metadata: %v", err)
+	}
+
+	var first api.ActivityResult
+	if err := client.Activity(ctx, &api.ActivityArgs{}, &first); err != nil {
+		t.Fatalf("Activity: %v", err)
+	}
+	if first.BytesIn != uint64(len(runWriteData)) {
+		t.Errorf("BytesIn = %d, want %d", first.BytesIn, len(runWriteData))
+	}
+	if first.BytesOut == 0 {
+		t.Error("BytesOut = 0 after the subscriber received PTY bytes")
+	}
+	if first.StartedAt.IsZero() {
+		t.Error("StartedAt is zero")
+	}
+	if first.LastOutputAt.IsZero() {
+		t.Error("LastOutputAt is zero after PTY output")
+	}
+
+	var second api.ActivityResult
+	if err := client.Activity(ctx, nil, &second); err != nil {
+		t.Fatalf("Activity (nil args): %v", err)
+	}
+	if !second.StartedAt.Equal(first.StartedAt) {
+		t.Errorf("StartedAt changed across calls: %v -> %v", first.StartedAt, second.StartedAt)
+	}
+	if second.BytesOut < first.BytesOut || second.BytesIn < first.BytesIn {
+		t.Errorf("counters went backwards: %+v -> %+v", first, second)
+	}
+
+	var after api.TerminalDoc
+	if err := client.Metadata(ctx, &after); err != nil {
+		t.Fatalf("Metadata: %v", err)
+	}
+	if !slices.Equal(after.Status.Attachers, before.Status.Attachers) {
+		t.Errorf("Attachers changed across Activity: %v -> %v", before.Status.Attachers, after.Status.Attachers)
+	}
+	if !after.Status.LastAttachedAt.Equal(before.Status.LastAttachedAt) {
+		t.Errorf("LastAttachedAt changed across Activity: %v -> %v",
+			before.Status.LastAttachedAt, after.Status.LastAttachedAt)
+	}
 }
 
 func runStop(t *testing.T, h *testHarness) {

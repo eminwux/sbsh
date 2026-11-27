@@ -77,9 +77,10 @@ type Exec struct {
 		StdinOpen bool
 		OutputOn  bool
 	}
-	obsMu sync.RWMutex // protects gates, bytesIn, bytesOut, lastRead
+	obsMu sync.RWMutex // protects gates, startedAt, bytesIn, bytesOut, lastRead
 
 	// observability
+	startedAt         time.Time // when bytesIn/bytesOut were zeroed (runner construction)
 	bytesIn, bytesOut uint64
 	lastRead          time.Time
 
@@ -205,9 +206,12 @@ func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.T
 			OutputOn:  true, // render PTY output by default
 		},
 
-		// observability (zeroed; will be updated when running)
-		bytesIn:  0,
-		bytesOut: 0,
+		// observability (zeroed; will be updated when running).
+		// startedAt marks where the counters were zeroed, so Activity
+		// consumers can detect a counter reset by a new runner.
+		startedAt: time.Now(),
+		bytesIn:   0,
+		bytesOut:  0,
 
 		// signaling (set in Start)
 		evCh: nil, // assigned in Start(...)

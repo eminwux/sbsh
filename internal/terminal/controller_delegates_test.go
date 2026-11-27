@@ -118,6 +118,9 @@ func Test_Delegates_NilRunner(t *testing.T) {
 	if _, err := c.Screenshot(&api.ScreenshotArgs{}); err == nil {
 		t.Error("Screenshot: expected error with nil runner")
 	}
+	if _, err := c.Activity(&api.ActivityArgs{}); err == nil {
+		t.Error("Activity: expected error with nil runner")
+	}
 	if _, err := c.State(); err == nil {
 		t.Error("State: expected error with nil runner")
 	}
@@ -275,6 +278,39 @@ func Test_Screenshot_Delegates(t *testing.T) {
 	}
 }
 
+func Test_Activity_Delegates(t *testing.T) {
+	c := newTestController(t)
+	res := &api.ActivityResult{BytesOut: 42, BytesIn: 7}
+	var gotArgs *api.ActivityArgs
+	c.sr = &terminalrunner.Test{
+		ActivityFunc: func(args *api.ActivityArgs) (*api.ActivityResult, error) {
+			gotArgs = args
+			return res, nil
+		},
+	}
+	args := &api.ActivityArgs{}
+	got, err := c.Activity(args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != res {
+		t.Error("expected delegated activity result")
+	}
+	if gotArgs != args {
+		t.Error("expected args to be forwarded to the runner")
+	}
+
+	want := errors.New("activity boom")
+	c.sr = &terminalrunner.Test{
+		ActivityFunc: func(_ *api.ActivityArgs) (*api.ActivityResult, error) {
+			return nil, want
+		},
+	}
+	if _, err = c.Activity(&api.ActivityArgs{}); !errors.Is(err, want) {
+		t.Errorf("expected %v, got %v", want, err)
+	}
+}
+
 func Test_State_MetadataError(t *testing.T) {
 	c := newTestController(t)
 	want := errors.New("metadata boom")
@@ -396,6 +432,9 @@ func Test_ControllerTest_Fake(t *testing.T) {
 	if _, err := empty.Screenshot(&api.ScreenshotArgs{}); !errors.Is(err, errdefs.ErrFuncNotSet) {
 		t.Errorf("Screenshot: expected ErrFuncNotSet, got %v", err)
 	}
+	if _, err := empty.Activity(&api.ActivityArgs{}); !errors.Is(err, errdefs.ErrFuncNotSet) {
+		t.Errorf("Activity: expected ErrFuncNotSet, got %v", err)
+	}
 
 	// Hooks set: every method delegates to its hook.
 	sentinel := errors.New("hook")
@@ -415,6 +454,7 @@ func Test_ControllerTest_Fake(t *testing.T) {
 		WriteFunc:      func(_ *api.WriteRequest) error { return sentinel },
 		SubscribeFunc:  func(_ *api.SubscribeRequest, _ *api.ResponseWithFD) error { return sentinel },
 		ScreenshotFunc: func(_ *api.ScreenshotArgs) (*api.ScreenshotResult, error) { return nil, sentinel },
+		ActivityFunc:   func(_ *api.ActivityArgs) (*api.ActivityResult, error) { return nil, sentinel },
 	}
 
 	if err := full.Run(&api.TerminalSpec{}); !errors.Is(err, sentinel) {
@@ -459,5 +499,8 @@ func Test_ControllerTest_Fake(t *testing.T) {
 	}
 	if _, err := full.Screenshot(&api.ScreenshotArgs{}); !errors.Is(err, sentinel) {
 		t.Errorf("Screenshot hook: expected sentinel, got %v", err)
+	}
+	if _, err := full.Activity(&api.ActivityArgs{}); !errors.Is(err, sentinel) {
+		t.Errorf("Activity hook: expected sentinel, got %v", err)
 	}
 }

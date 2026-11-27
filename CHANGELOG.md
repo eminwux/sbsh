@@ -7,6 +7,16 @@ loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Terminals expose read-only I/O activity counters through a new
+  `Activity` RPC (`api.TerminalMethodActivity`), reachable via
+  `pkg/rpcclient/terminal.Client.Activity` and the
+  `pkg/terminal/server` facade. `api.ActivityResult` reports
+  `BytesOut` (raw bytes read from the PTY, attached or not),
+  `BytesIn` (bytes pushed through `Write`), `LastOutputAt`, a
+  terminal-computed `IdleFor`, and `StartedAt`, which marks where the
+  in-memory counters were zeroed so consumers can detect a restart.
+  Calling it attaches nothing and writes no metadata. A terminal
+  started by an older sbsh answers with a method-not-found RPC error.
 - `pkg/builder` gained five new `TerminalOption` helpers so SDK
   consumers can populate every shell-shaped field of a `TerminalSpec`
   without writing a YAML profile to disk:

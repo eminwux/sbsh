@@ -55,4 +55,5 @@ type TerminalRunner interface {
 	WritePTY(data []byte) error
 	Subscribe(req *api.SubscribeRequest, response *api.ResponseWithFD) error
 	Screenshot(args *api.ScreenshotArgs) (*api.ScreenshotResult, error)
+	Activity(args *api.ActivityArgs) (*api.ActivityResult, error)
 }

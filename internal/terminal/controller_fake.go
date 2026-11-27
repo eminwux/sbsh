@@ -40,6 +40,7 @@ type ControllerTest struct {
 	WriteFunc      func(req *api.WriteRequest) error
 	SubscribeFunc  func(req *api.SubscribeRequest, response *api.ResponseWithFD) error
 	ScreenshotFunc func(args *api.ScreenshotArgs) (*api.ScreenshotResult, error)
+	ActivityFunc   func(args *api.ActivityArgs) (*api.ActivityResult, error)
 }
 
 func (f *ControllerTest) Run(spec *api.TerminalSpec) error {
@@ -136,6 +137,13 @@ func (f *ControllerTest) Subscribe(req *api.SubscribeRequest, response *api.Resp
 func (f *ControllerTest) Screenshot(args *api.ScreenshotArgs) (*api.ScreenshotResult, error) {
 	if f.ScreenshotFunc != nil {
 		return f.ScreenshotFunc(args)
+	}
+	return nil, errdefs.ErrFuncNotSet
+}
+
+func (f *ControllerTest) Activity(args *api.ActivityArgs) (*api.ActivityResult, error) {
+	if f.ActivityFunc != nil {
+		return f.ActivityFunc(args)
 	}
 	return nil, errdefs.ErrFuncNotSet
 }

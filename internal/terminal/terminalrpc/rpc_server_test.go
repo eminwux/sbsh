@@ -19,6 +19,7 @@ package terminalrpc
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/eminwux/sbsh/pkg/api"
 )
@@ -47,6 +48,8 @@ type fakeController struct {
 	subErr     error
 	shotResult *api.ScreenshotResult
 	shotErr    error
+	actResult  *api.ActivityResult
+	actErr     error
 }
 
 func (f *fakeController) Run(*api.TerminalSpec) error { return nil }
@@ -93,6 +96,10 @@ func (f *fakeController) Subscribe(*api.SubscribeRequest, *api.ResponseWithFD) e
 
 func (f *fakeController) Screenshot(*api.ScreenshotArgs) (*api.ScreenshotResult, error) {
 	return f.shotResult, f.shotErr
+}
+
+func (f *fakeController) Activity(*api.ActivityArgs) (*api.ActivityResult, error) {
+	return f.actResult, f.actErr
 }
 
 func TestPing_CopiesPongOnSuccess(t *testing.T) {
@@ -246,5 +253,28 @@ func TestScreenshot_CopiesResultOnSuccess(t *testing.T) {
 	s2 := &TerminalControllerRPC{Core: &fakeController{shotErr: errCore}}
 	if err := s2.Screenshot(&api.ScreenshotArgs{}, &out); !errors.Is(err, errCore) {
 		t.Fatalf("Screenshot err = %v; want errCore", err)
+	}
+}
+
+func TestActivity_CopiesResultOnSuccess(t *testing.T) {
+	started := time.Unix(1700000000, 0)
+	core := &fakeController{actResult: &api.ActivityResult{
+		StartedAt: started,
+		BytesOut:  12,
+		BytesIn:   3,
+		IdleFor:   time.Second,
+	}}
+	s := &TerminalControllerRPC{Core: core}
+	var out api.ActivityResult
+	if err := s.Activity(&api.ActivityArgs{}, &out); err != nil {
+		t.Fatalf("Activity: %v", err)
+	}
+	if !out.StartedAt.Equal(started) || out.BytesOut != 12 || out.BytesIn != 3 || out.IdleFor != time.Second {
+		t.Fatalf("out = %+v; want copied core result", out)
+	}
+
+	s2 := &TerminalControllerRPC{Core: &fakeController{actErr: errCore}}
+	if err := s2.Activity(&api.ActivityArgs{}, &out); !errors.Is(err, errCore) {
+		t.Fatalf("Activity err = %v; want errCore", err)
 	}
 }

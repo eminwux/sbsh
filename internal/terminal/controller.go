@@ -396,6 +396,16 @@ func (c *Controller) Screenshot(args *api.ScreenshotArgs) (*api.ScreenshotResult
 	return sr.Screenshot(args)
 }
 
+func (c *Controller) Activity(args *api.ActivityArgs) (*api.ActivityResult, error) {
+	c.srMu.RLock()
+	sr := c.sr
+	c.srMu.RUnlock()
+	if sr == nil {
+		return nil, errors.New("terminal runner not initialized")
+	}
+	return sr.Activity(args)
+}
+
 func (c *Controller) State() (*api.TerminalStatusMode, error) {
 	c.srMu.RLock()
 	sr := c.sr

@@ -340,6 +340,18 @@ func (c *client) Screenshot(ctx context.Context, args *api.ScreenshotArgs, resul
 	return nil
 }
 
+func (c *client) Activity(ctx context.Context, args *api.ActivityArgs, result *api.ActivityResult) error {
+	if args == nil {
+		args = &api.ActivityArgs{}
+	}
+	err := c.call(ctx, c.logger, api.TerminalMethodActivity, args, result)
+	if err != nil {
+		c.logger.ErrorContext(ctx, "Activity call failed", "error", err)
+		return fmt.Errorf("Activity call failed: %w", err)
+	}
+	return nil
+}
+
 func (c *client) Write(ctx context.Context, req *api.WriteRequest) error {
 	if req == nil {
 		req = &api.WriteRequest{}
