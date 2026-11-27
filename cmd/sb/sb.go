@@ -52,9 +52,13 @@ func NewSbRootCmd() (*cobra.Command, error) {
 		Short: "sb command line tool",
 		Long: `sb is a command line tool to manage sbsh terminals and profiles.
 
-You can see available options and commands with:
-	sb help
+Examples:
+  sb get terminals          # list active terminals
+  sb get terminals -o wide  # include ID, PID, status and attachers
+  sb attach <name>          # attach to a running terminal
+  sb stop terminal <name>   # stop a terminal
 
+Documentation: https://sbsh.io/cli/sb/
 `,
 		CompletionOptions: cobra.CompletionOptions{
 			DisableDefaultCmd: true,

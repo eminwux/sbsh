@@ -23,6 +23,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/eminwux/sbsh/cmd/config"
@@ -54,6 +55,23 @@ func Test_NewSbRootCmd_Construct(t *testing.T) {
 	}
 	if cmd.Use != "sb" {
 		t.Fatalf("expected Use \"sb\"; got %q", cmd.Use)
+	}
+}
+
+func Test_NewSbRootCmd_LongHelpIsNotTautological(t *testing.T) {
+	t.Cleanup(viper.Reset)
+
+	cmd, err := NewSbRootCmd()
+	if err != nil {
+		t.Fatalf("NewSbRootCmd() error = %v", err)
+	}
+	if strings.Contains(cmd.Long, "sb help") {
+		t.Fatalf("Long help must not point at `sb help`; got %q", cmd.Long)
+	}
+	for _, want := range []string{"Examples:", "https://sbsh.io/cli/sb/"} {
+		if !strings.Contains(cmd.Long, want) {
+			t.Fatalf("Long help missing %q; got %q", want, cmd.Long)
+		}
 	}
 }
 
