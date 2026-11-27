@@ -32,6 +32,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
 // scanMetadataFiles reads all metadata.json files matching the pattern and unmarshals them.
@@ -50,7 +52,7 @@ func scanMetadataFiles[T any](
 	idGetter func(T) string,
 	nameGetter func(T) string,
 ) ([]T, error) {
-	pattern := filepath.Join(runPath, subDir, "*", "metadata.json")
+	pattern := filepath.Join(runPath, subDir, "*", api.DefaultMetadataFile)
 	logger.DebugContext(ctx, fmt.Sprintf("%s: globbing for metadata", logPrefix), "pattern", pattern)
 	paths, err := filepath.Glob(pattern)
 	if err != nil {
