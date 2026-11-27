@@ -38,7 +38,10 @@ repos:
   - repo: https://github.com/golangci/golangci-lint
     rev: v2.5.0
     hooks:
-      - id: golangci-lint
+      # -full lints the whole tree like the Lint workflow. The plain
+      # golangci-lint id runs --new-from-rev HEAD, which hides issues
+      # anchored on unchanged lines (gocognit/funlen at the func line).
+      - id: golangci-lint-full
         args: ["./..."]
 
   - repo: https://github.com/pre-commit/mirrors-prettier
