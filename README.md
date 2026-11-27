@@ -292,7 +292,7 @@ As Ken Thompson once said, "One of my most productive days was throwing away 1,0
 
 sbsh is under active development, with a focus on correctness, portability, and clear abstractions before adding integrations.
 
-→ See [ROADMAP.md](./ROADMAP.md) for work in progress, planned features, and the project roadmap.
+→ See the [GitHub issues](https://github.com/eminwux/sbsh/issues) for work in progress, planned features, and the project roadmap.
 
 ## Contribute
 
