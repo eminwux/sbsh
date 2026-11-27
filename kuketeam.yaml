@@ -17,8 +17,14 @@ spec:
     - { name: dev, source: agents, path: dev, needs: { image: [go] } }
     - { name: pm, source: agents, path: pm }
     - { name: pr-reviewer, source: agents, path: pr-reviewer }
+    - name: pipeline
+      source: agents
+      path: pipeline
+      harness: script
+      tasks: [{ name: tick, suspend: true }]
   # Harness definitions, contexts and image catalogs live in the kukeon
   # repository (team/harnesses/).
   harnesses:
     - { name: claude, source: kukeon, path: team/harnesses/claude }
     - { name: codex, source: kukeon, path: team/harnesses/codex }
+    - { name: script, source: kukeon, path: team/harnesses/script }
