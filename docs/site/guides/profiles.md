@@ -163,8 +163,9 @@ Lifecycle hooks that run at specific points in the terminal lifecycle.
 
 **`onInit`**
 
-- List of commands that run **before** the main `cmd` starts
-- Runs in sequence; if one fails, subsequent commands may not run
+- List of commands typed into the shell once it has started; `postAttach` always runs after them
+- Steps are typed in order without waiting for the previous one to finish, so every step is sent even if an earlier one fails. Chain dependent commands with `&&` in a single step
+- See [Stage Semantics](../concepts/profiles.md#stage-semantics) for how steps are written to the shell and their caveats
 - Common uses:
   - Authenticating or configuring tools (`kubectl config use-context`)
   - Initializing environments (`terraform init`)
