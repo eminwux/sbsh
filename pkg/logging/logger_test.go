@@ -155,3 +155,42 @@ func TestNewFileLogger_LevelVarFilters(t *testing.T) {
 		t.Errorf("expected warn record to pass, got: %q", got)
 	}
 }
+
+func TestNewStdoutLogger_RejectsEmptyLevel(t *testing.T) {
+	if _, err := logging.NewStdoutLogger(""); err == nil {
+		t.Fatal("NewStdoutLogger(empty level) returned no error")
+	}
+}
+
+// TestNewStdoutLogger_WritesReformattedLinesToStdout swaps os.Stdout for a
+// pipe, so it must not run in parallel with other tests.
+func TestNewStdoutLogger_WritesReformattedLinesToStdout(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	orig := os.Stdout
+	os.Stdout = w                          //nolint:reassign // capture the stdout log sink
+	t.Cleanup(func() { os.Stdout = orig }) //nolint:reassign // restore the captured stdout
+
+	fl, err := logging.NewStdoutLogger("info")
+	if err != nil {
+		t.Fatalf("NewStdoutLogger: %v", err)
+	}
+	if fl.File != nil {
+		t.Errorf("File = %v; want nil (stdout is not owned by the logger)", fl.File)
+	}
+	fl.Logger.Debug("filtered out")
+	fl.Logger.Info("hello stdout", "k", "v")
+	_ = w.Close()
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	out := string(buf[:n])
+	if strings.Contains(out, "filtered out") {
+		t.Errorf("debug line leaked at info level: %q", out)
+	}
+	if !strings.Contains(out, `INFO "hello stdout" k=v`) {
+		t.Errorf("stdout = %q; want a ReformatHandler INFO line with k=v", out)
+	}
+}

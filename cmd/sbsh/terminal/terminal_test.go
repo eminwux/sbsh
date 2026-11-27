@@ -541,7 +541,7 @@ func Test_buildTerminalSpecFromFlags_RunPathRequired(t *testing.T) {
 	cmd := NewTerminalCmd()
 	cmd.SetContext(context.Background())
 
-	spec, err := buildTerminalSpecFromFlags(cmd, logger, nil)
+	spec, err := buildTerminalSpecFromFlags(cmd, logger, nil, false)
 	if err == nil {
 		t.Fatal("expected error when run path is empty")
 	}
@@ -647,7 +647,9 @@ func Test_setLoggingVarsFromFlags_Defaults(t *testing.T) {
 	runPath := t.TempDir()
 	viper.Set(config.SB_ROOT_RUN_PATH.ViperKey, runPath)
 
-	setLoggingVarsFromFlags()
+	if !setLoggingVarsFromFlags(api.LogOutputFile) {
+		t.Fatal("expected the log file to be reported as defaulted")
+	}
 
 	if got := viper.GetString(config.SBSH_TERM_ID.ViperKey); got == "" {
 		t.Fatal("expected a generated terminal ID")
@@ -691,7 +693,7 @@ func Test_buildTerminalSpecFromFlags_DefaultProfile(t *testing.T) {
 	cmd := NewTerminalCmd()
 	cmd.SetContext(context.Background())
 
-	spec, err := buildTerminalSpecFromFlags(cmd, logger, []string{"/bin/echo", "hi"})
+	spec, err := buildTerminalSpecFromFlags(cmd, logger, []string{"/bin/echo", "hi"}, false)
 	if err != nil {
 		t.Fatalf("buildTerminalSpecFromFlags() error = %v", err)
 	}

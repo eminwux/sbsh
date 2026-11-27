@@ -70,7 +70,7 @@ func splitWorkload(args []string, dash int) ([]string, []string) {
 
 func checkStdInUsage(cmd *cobra.Command, _ []string) error {
 	errorMessage := "positional argument '-'"
-	flagsToCheck := []string{"id", "name", "profile", "log-file", "log-level", "socket", "file"}
+	flagsToCheck := []string{"id", "name", "profile", "log-file", "log-level", "log-output", "socket", "file"}
 	for _, flag := range flagsToCheck {
 		if err := checkFlag(cmd, flag, errorMessage); err != nil {
 			return err
@@ -81,7 +81,7 @@ func checkStdInUsage(cmd *cobra.Command, _ []string) error {
 
 func checkFileUsage(cmd *cobra.Command, _ []string) error {
 	errorMessage := "the --file flag"
-	flagsToCheck := []string{"id", "name", "profile", "log-file", "log-level", "socket"}
+	flagsToCheck := []string{"id", "name", "profile", "log-file", "log-level", "log-output", "socket"}
 	for _, flag := range flagsToCheck {
 		if err := checkFlag(cmd, flag, errorMessage); err != nil {
 			return err
@@ -130,6 +130,7 @@ func buildTerminalSpecFromFlags(
 	cmd *cobra.Command,
 	logger *slog.Logger,
 	workload []string,
+	logFileDefaulted bool,
 ) (*api.TerminalSpec, error) {
 	var (
 		terminalCmd     string
@@ -162,6 +163,9 @@ func buildTerminalSpecFromFlags(
 			CaptureFormat:    viper.GetString(config.SBSH_TERM_CAPTURE_FORMAT.ViperKey),
 			LogFileMode:      viper.GetString(config.SBSH_TERM_LOG_FILE_MODE.ViperKey),
 			LogFileGID:       readLogFileGID(cmd),
+			LogOutput:        viper.GetString(config.SBSH_TERM_LOG_OUTPUT.ViperKey),
+			AllowStdoutLog:   true,
+			LogFileDefaulted: logFileDefaulted,
 			DisableSetPrompt: viper.GetBool(config.SBSH_TERM_DISABLE_SET_PROMPT.ViperKey),
 			ShutdownGrace:    viper.GetDuration(config.SBSH_TERM_SHUTDOWN_GRACE.ViperKey),
 		},
@@ -231,7 +235,12 @@ func processInput(cmd *cobra.Command, args []string) (*api.TerminalSpec, error) 
 	return &spec, nil
 }
 
-func setLoggingVarsFromFlags() {
+// setLoggingVarsFromFlags fills in the terminal ID, log level and — unless
+// logOutput is stdout — the default log-file path in viper. It reports
+// whether the log file was defaulted (true) rather than supplied via
+// --log-file / env (false), so the spec builder can tell a stdout profile's
+// harmless default apart from a conflicting explicit --log-file.
+func setLoggingVarsFromFlags(logOutput string) bool {
 	terminalID := viper.GetString(config.SBSH_TERM_ID.ViperKey)
 	if terminalID == "" {
 		terminalID = naming.RandomID()
@@ -245,14 +254,57 @@ func setLoggingVarsFromFlags() {
 	}
 
 	sesLogfile := viper.GetString(config.SBSH_TERM_LOG_FILE.ViperKey)
-	if sesLogfile == "" {
-		sesLogfile = filepath.Join(
-			viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
-			defaults.TerminalsRunPath,
-			terminalID,
-			"log",
+	if sesLogfile != "" || logOutput == api.LogOutputStdout {
+		return false
+	}
+	sesLogfile = filepath.Join(
+		viper.GetString(config.SB_ROOT_RUN_PATH.ViperKey),
+		defaults.TerminalsRunPath,
+		terminalID,
+		"log",
+	)
+	viper.Set(config.SBSH_TERM_LOG_FILE.ViperKey, sesLogfile)
+	return true
+}
+
+// setupLoggerFromSuppliedSpec sets up the terminal logger for a spec read
+// from stdin or --file: the spec carries its own log destination (the
+// client path always sends "file"). A "stdout" spec must not also name a
+// LogFile.
+func setupLoggerFromSuppliedSpec(cmd *cobra.Command, spec *api.TerminalSpec) error {
+	logOutput, errOut := api.NormalizeLogOutput(spec.LogOutput)
+	if errOut != nil {
+		return fmt.Errorf("%w: %w", errdefs.ErrInvalidJSONSpec, errOut)
+	}
+	if logOutput == api.LogOutputStdout && spec.LogFile != "" {
+		return fmt.Errorf(
+			"%w: spec logOutput %q cannot be combined with logFile %q",
+			errdefs.ErrInvalidJSONSpec, api.LogOutputStdout, spec.LogFile,
 		)
-		viper.Set(config.SBSH_TERM_LOG_FILE.ViperKey, sesLogfile)
+	}
+	spec.LogOutput = logOutput
+	return logging.SetupLogger(cmd, logOutput, spec.LogFile, spec.LogLevel)
+}
+
+// flushBootstrapToFlagLogger is the spec-build failure path: with no built
+// spec to pick the destination, it lands the buffered build-time records
+// where the flags alone point (the flag/env log file, or stdout), as they
+// did before the profile could choose. Setup failures are best-effort: the
+// build error is what the caller reports.
+func flushBootstrapToFlagLogger(
+	cmd *cobra.Command,
+	bootstrap *logging.BufferedLogger,
+	flagLogOutput, logLevel string,
+) {
+	fallbackFile := viper.GetString(config.SBSH_TERM_LOG_FILE.ViperKey)
+	if flagLogOutput == api.LogOutputStdout {
+		fallbackFile = ""
+	}
+	if logging.SetupLogger(cmd, flagLogOutput, fallbackFile, logLevel) != nil {
+		return
+	}
+	if fallback, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger); ok && fallback != nil {
+		bootstrap.Flush(cmd.Context(), fallback)
 	}
 }
 
@@ -268,8 +320,7 @@ func processSpec(cmd *cobra.Command, spec **api.TerminalSpec, workload []string)
 			)
 		}
 		// Spec provided via stdin or --file
-		err := logging.SetupFileLogger(cmd, (*spec).LogFile, (*spec).LogLevel)
-		if err != nil {
+		if err := setupLoggerFromSuppliedSpec(cmd, *spec); err != nil {
 			return err
 		}
 
@@ -279,31 +330,34 @@ func processSpec(cmd *cobra.Command, spec **api.TerminalSpec, workload []string)
 		}
 		return nil
 	}
-	// No spec provided, build from flags
-	// Set logging vars from flags
-	setLoggingVarsFromFlags()
+	// No spec provided, build from flags.
+	// The log destination is only known once the profile is loaded (its
+	// spec.logOutput may say stdout), so validate the flag/env override up
+	// front, then build the spec with a buffering bootstrap logger and set
+	// up the real logger from the built spec.
+	flagLogOutput, errOut := api.NormalizeLogOutput(viper.GetString(config.SBSH_TERM_LOG_OUTPUT.ViperKey))
+	if errOut != nil {
+		return fmt.Errorf("%w: %w", errdefs.ErrInvalidFlag, errOut)
+	}
+	logFileDefaulted := setLoggingVarsFromFlags(flagLogOutput)
+	logLevel := viper.GetString(config.SBSH_TERM_LOG_LEVEL.ViperKey)
 
-	// Setup logger
-	err := logging.SetupFileLogger(
-		cmd,
-		viper.GetString(config.SBSH_TERM_LOG_FILE.ViperKey),
-		viper.GetString(config.SBSH_TERM_LOG_LEVEL.ViperKey),
-	)
-	if err != nil {
-		return err
+	bootstrap := logging.NewBufferedLogger(logLevel)
+	specBuilt, errBuild := buildTerminalSpecFromFlags(cmd, bootstrap.Logger, workload, logFileDefaulted)
+	if errBuild != nil {
+		flushBootstrapToFlagLogger(cmd, bootstrap, flagLogOutput, logLevel)
+		return fmt.Errorf("%w: %w", errdefs.ErrBuildTerminalSpec, errBuild)
 	}
 
-	// Retrieve logger from context
+	if err := logging.SetupLogger(cmd, specBuilt.LogOutput, specBuilt.LogFile, specBuilt.LogLevel); err != nil {
+		return err
+	}
 	logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)
 	if !ok || logger == nil {
 		return errdefs.ErrLoggerNotFound
 	}
+	bootstrap.Flush(cmd.Context(), logger)
 
-	// Build spec from flags
-	specBuilt, err := buildTerminalSpecFromFlags(cmd, logger, workload)
-	if err != nil {
-		return fmt.Errorf("%w: %w", errdefs.ErrBuildTerminalSpec, err)
-	}
 	// Set built spec in context
 	*spec = specBuilt
 
@@ -508,6 +562,14 @@ func setupTerminalCmdFlags(terminalCmd *cobra.Command) {
 	)
 	_ = viper.BindPFlag(config.SBSH_TERM_CAPTURE_FORMAT.ViperKey, terminalCmd.Flags().Lookup("capture-format"))
 	_ = viper.BindEnv(config.SBSH_TERM_CAPTURE_FORMAT.ViperKey, config.SBSH_TERM_CAPTURE_FORMAT.EnvVar())
+
+	terminalCmd.Flags().String(
+		"log-output",
+		"",
+		`Where terminal logs go: "file" (default, the --log-file path) or "stdout" (for docker/kubectl logs, systemd, CI)`,
+	)
+	_ = viper.BindPFlag(config.SBSH_TERM_LOG_OUTPUT.ViperKey, terminalCmd.Flags().Lookup("log-output"))
+	_ = viper.BindEnv(config.SBSH_TERM_LOG_OUTPUT.ViperKey, config.SBSH_TERM_LOG_OUTPUT.EnvVar())
 
 	terminalCmd.Flags().String(
 		"log-file-mode",

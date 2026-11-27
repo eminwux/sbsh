@@ -154,30 +154,7 @@ Documentation: https://sbsh.io/cli/sbsh/
 				)
 			}
 
-			terminalSpec, buildErr := profile.BuildTerminalSpecFromProfile(
-				cmd.Context(),
-				logger,
-				&profile.BuildTerminalSpecParams{
-					TerminalID:       viper.GetString(config.SBSH_ROOT_TERM_ID.ViperKey),
-					TerminalName:     viper.GetString(config.SBSH_ROOT_TERM_NAME.ViperKey),
-					TerminalCmd:      viper.GetString(config.SBSH_ROOT_TERM_COMMAND.ViperKey),
-					CaptureFile:      viper.GetString(config.SBSH_ROOT_TERM_CAPTURE_FILE.ViperKey),
-					RunPath:          viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
-					ProfilesDir:      viper.GetString(config.SBSH_ROOT_PROFILES_DIR.ViperKey),
-					ProfileName:      viper.GetString(config.SBSH_ROOT_TERM_PROFILE.ViperKey),
-					LogFile:          viper.GetString(config.SBSH_ROOT_TERM_LOG_FILE.ViperKey),
-					LogLevel:         viper.GetString(config.SBSH_ROOT_TERM_LOG_LEVEL.ViperKey),
-					SocketFile:       viper.GetString(config.SBSH_ROOT_TERM_SOCKET.ViperKey),
-					SocketMode:       viper.GetString(config.SBSH_ROOT_TERM_SOCKET_MODE.ViperKey),
-					SocketGID:        readRootSocketGID(cmd),
-					CaptureMode:      viper.GetString(config.SBSH_ROOT_TERM_CAPTURE_MODE.ViperKey),
-					CaptureGID:       readRootCaptureGID(cmd),
-					CaptureFormat:    viper.GetString(config.SBSH_ROOT_TERM_CAPTURE_FORMAT.ViperKey),
-					LogFileMode:      viper.GetString(config.SBSH_ROOT_TERM_LOG_FILE_MODE.ViperKey),
-					LogFileGID:       readRootLogFileGID(cmd),
-					DisableSetPrompt: viper.GetBool(config.SBSH_ROOT_TERM_DISABLE_SET_PROMPT.ViperKey),
-				},
-			)
+			terminalSpec, buildErr := buildClientTerminalSpec(cmd, logger)
 
 			if buildErr != nil {
 				logger.Error("Failed to build terminal spec", "error", buildErr)
@@ -739,6 +716,38 @@ func setAutoCompleteProfile(rootCmd *cobra.Command) error {
 
 			// Optionally add descriptions: "value\tpath" for nicer columns
 			return profs, cobra.ShellCompDirectiveNoFileComp
+		},
+	)
+}
+
+// buildClientTerminalSpec builds the spec for the terminal the interactive
+// client spawns. AllowStdoutLog stays false: the terminal child inherits
+// the client's stdout (the user's TTY), so a profile with logOutput: stdout
+// is downgraded to file with a warning instead of writing log lines into
+// the attached session.
+func buildClientTerminalSpec(cmd *cobra.Command, logger *slog.Logger) (*api.TerminalSpec, error) {
+	return profile.BuildTerminalSpecFromProfile(
+		cmd.Context(),
+		logger,
+		&profile.BuildTerminalSpecParams{
+			TerminalID:       viper.GetString(config.SBSH_ROOT_TERM_ID.ViperKey),
+			TerminalName:     viper.GetString(config.SBSH_ROOT_TERM_NAME.ViperKey),
+			TerminalCmd:      viper.GetString(config.SBSH_ROOT_TERM_COMMAND.ViperKey),
+			CaptureFile:      viper.GetString(config.SBSH_ROOT_TERM_CAPTURE_FILE.ViperKey),
+			RunPath:          viper.GetString(config.SBSH_ROOT_RUN_PATH.ViperKey),
+			ProfilesDir:      viper.GetString(config.SBSH_ROOT_PROFILES_DIR.ViperKey),
+			ProfileName:      viper.GetString(config.SBSH_ROOT_TERM_PROFILE.ViperKey),
+			LogFile:          viper.GetString(config.SBSH_ROOT_TERM_LOG_FILE.ViperKey),
+			LogLevel:         viper.GetString(config.SBSH_ROOT_TERM_LOG_LEVEL.ViperKey),
+			SocketFile:       viper.GetString(config.SBSH_ROOT_TERM_SOCKET.ViperKey),
+			SocketMode:       viper.GetString(config.SBSH_ROOT_TERM_SOCKET_MODE.ViperKey),
+			SocketGID:        readRootSocketGID(cmd),
+			CaptureMode:      viper.GetString(config.SBSH_ROOT_TERM_CAPTURE_MODE.ViperKey),
+			CaptureGID:       readRootCaptureGID(cmd),
+			CaptureFormat:    viper.GetString(config.SBSH_ROOT_TERM_CAPTURE_FORMAT.ViperKey),
+			LogFileMode:      viper.GetString(config.SBSH_ROOT_TERM_LOG_FILE_MODE.ViperKey),
+			LogFileGID:       readRootLogFileGID(cmd),
+			DisableSetPrompt: viper.GetBool(config.SBSH_ROOT_TERM_DISABLE_SET_PROMPT.ViperKey),
 		},
 	)
 }

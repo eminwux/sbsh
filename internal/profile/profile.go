@@ -118,18 +118,38 @@ func CreateTerminalFromProfile(profile *api.TerminalProfileDoc) (*api.TerminalSp
 		return nil, errPerm
 	}
 
+	if errSel := applyProfileSelectors(profile, spec); errSel != nil {
+		return nil, errSel
+	}
+
+	return spec, nil
+}
+
+// applyProfileSelectors validates the profile's enum-valued selectors
+// (spec.captureFormat, spec.logOutput) and copies their normalized values
+// onto spec. Empty values leave the spec's zero value untouched.
+func applyProfileSelectors(profile *api.TerminalProfileDoc, spec *api.TerminalSpec) error {
 	if profile.Spec.CaptureFormat != "" {
 		cf, err := api.NormalizeCaptureFormat(profile.Spec.CaptureFormat)
 		if err != nil {
-			return nil, fmt.Errorf(
+			return fmt.Errorf(
 				"invalid spec.captureFormat in profile %q: %w",
 				profile.Metadata.Name, err,
 			)
 		}
 		spec.CaptureFormat = cf
 	}
-
-	return spec, nil
+	if profile.Spec.LogOutput != "" {
+		lo, err := api.NormalizeLogOutput(profile.Spec.LogOutput)
+		if err != nil {
+			return fmt.Errorf(
+				"invalid spec.logOutput in profile %q: %w",
+				profile.Metadata.Name, err,
+			)
+		}
+		spec.LogOutput = lo
+	}
+	return nil
 }
 
 // applyProfilePermBlock validates and copies a profile's permissions block
@@ -238,6 +258,21 @@ type BuildTerminalSpecParams struct {
 	// LogFileGID is the numeric GID flag value for the log file, or nil
 	// to fall through to the profile / leave the group unchanged.
 	LogFileGID *int
+	// LogOutput is the raw launch-time override for where the terminal
+	// process logs ("file" or "stdout"). Empty means "no override; fall
+	// through to the profile's spec.logOutput, then to file". An invalid
+	// value is rejected at spec-build time. See pkg/api.NormalizeLogOutput.
+	LogOutput string
+	// AllowStdoutLog permits a resolved "stdout" log output. Only
+	// standalone `sbsh terminal` sets it: on the interactive client path
+	// the terminal child inherits the user's TTY as stdout, so a "stdout"
+	// value is downgraded to "file" with a warning instead.
+	AllowStdoutLog bool
+	// LogFileDefaulted marks a non-empty LogFile as a caller-derived
+	// default path rather than a user-supplied one. A resolved "stdout"
+	// log output silently drops a defaulted LogFile but rejects an
+	// explicit one as a conflicting-flags error.
+	LogFileDefaulted bool
 	// MetadataDir, when non-empty, overrides where the runner writes
 	// metadata.json — bypassing the legacy runPath/terminals/<id>/
 	// subdir. applyParamDefaults derives it (from LogFile.dirname) when
@@ -308,7 +343,10 @@ func applyParamDefaults(input *BuildTerminalSpecParams) {
 	explicitArtifactPaths := input.LogFile != "" &&
 		input.CaptureFile != "" &&
 		input.SocketFile != ""
-	if input.LogFile == "" {
+	// A stdout log-output override means no log file at all, so don't
+	// derive the default path. (A profile-sourced stdout is only known
+	// after the profile loads; applyLogOutput clears the path then.)
+	if input.LogFile == "" && !stdoutLogOverride(input) {
 		input.LogFile = filepath.Join(
 			input.RunPath,
 			defaults.TerminalsRunPath,
@@ -361,6 +399,7 @@ func BuildTerminalSpecFromProfile(
 		return nil, errdefs.ErrRunPathRequired
 	}
 
+	explicitLogFile := input.LogFile != "" && !input.LogFileDefaulted
 	applyParamDefaults(input)
 
 	if input.ProfileName == "" {
@@ -425,6 +464,9 @@ func BuildTerminalSpecFromProfile(
 	if errFmt := applyCaptureFormat(terminalSpec, input); errFmt != nil {
 		return nil, errFmt
 	}
+	if errLog := applyLogOutput(ctx, logger, terminalSpec, input, explicitLogFile); errLog != nil {
+		return nil, errLog
+	}
 
 	return terminalSpec, nil
 }
@@ -449,6 +491,7 @@ func BuildTerminalSpecInline(
 		return nil, errdefs.ErrRunPathRequired
 	}
 
+	explicitLogFile := input.LogFile != "" && !input.LogFileDefaulted
 	applyParamDefaults(input)
 
 	logger.DebugContext(
@@ -469,6 +512,9 @@ func BuildTerminalSpecInline(
 	if errFmt := applyCaptureFormat(terminalSpec, input); errFmt != nil {
 		return nil, errFmt
 	}
+	if errLog := applyLogOutput(ctx, logger, terminalSpec, input, explicitLogFile); errLog != nil {
+		return nil, errLog
+	}
 
 	return terminalSpec, nil
 }
@@ -485,6 +531,66 @@ func applyCaptureFormat(spec *api.TerminalSpec, input *BuildTerminalSpecParams) 
 		return fmt.Errorf("%w: %w", errdefs.ErrInvalidFlag, err)
 	}
 	spec.CaptureFormat = cf
+	return nil
+}
+
+// stdoutLogOverride reports whether the caller's launch-time override
+// resolves to a permitted stdout log output. An invalid override is
+// reported later by applyLogOutput, so it is treated as "not stdout" here.
+func stdoutLogOverride(input *BuildTerminalSpecParams) bool {
+	if !input.AllowStdoutLog || input.LogOutput == "" {
+		return false
+	}
+	lo, err := api.NormalizeLogOutput(input.LogOutput)
+	return err == nil && lo == api.LogOutputStdout
+}
+
+// applyLogOutput resolves the log-output precedence (launch-time override >
+// profile spec.logOutput > file) and stamps the normalized value onto the
+// spec. A resolved "stdout" is downgraded to "file" with one warning when
+// the caller does not allow it (the interactive client path); when allowed
+// it clears LogFile on both the spec and input — so Status.LogFile is empty
+// and no log file is created — and rejects an explicit LogFile as a
+// conflicting-flags error.
+func applyLogOutput(
+	ctx context.Context,
+	logger *slog.Logger,
+	spec *api.TerminalSpec,
+	input *BuildTerminalSpecParams,
+	explicitLogFile bool,
+) error {
+	resolved := spec.LogOutput
+	if input.LogOutput != "" {
+		lo, err := api.NormalizeLogOutput(input.LogOutput)
+		if err != nil {
+			return fmt.Errorf("%w: %w", errdefs.ErrInvalidFlag, err)
+		}
+		resolved = lo
+	}
+	resolved, _ = api.NormalizeLogOutput(resolved)
+
+	if resolved == api.LogOutputStdout && !input.AllowStdoutLog {
+		logger.WarnContext(
+			ctx,
+			"logOutput stdout is only supported by standalone `sbsh terminal`; logging to file instead",
+			"profile", spec.ProfileName,
+			"logFile", spec.LogFile,
+		)
+		resolved = api.LogOutputFile
+	}
+
+	if resolved == api.LogOutputStdout {
+		if explicitLogFile {
+			return fmt.Errorf(
+				"%w: log output %q cannot be combined with an explicit log file (%s)",
+				errdefs.ErrConflictingFlags, api.LogOutputStdout, input.LogFile,
+			)
+		}
+		spec.LogFile = ""
+		input.LogFile = ""
+	}
+
+	spec.LogOutput = resolved
 	return nil
 }
 
