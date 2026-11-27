@@ -35,6 +35,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+// maxWriteArgs is the positional-arg ceiling: <terminal> [data].
+const maxWriteArgs = 2
+
 type writeOpts struct {
 	runPath string
 	name    string
@@ -61,7 +64,7 @@ Examples:
   sb write mybox --raw "$(printf '\x03')"
   cat script.sh | sb write mybox -`,
 		SilenceUsage:      true,
-		Args:              cobra.RangeArgs(1, 2),
+		Args:              cobra.RangeArgs(1, maxWriteArgs),
 		ValidArgsFunction: get.CompleteTerminals,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger, ok := cmd.Context().Value(types.CtxLogger).(*slog.Logger)

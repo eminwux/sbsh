@@ -931,14 +931,14 @@ func Test_readRootGIDWrappers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSbshRootCmd() error = %v", err)
 	}
-	if err := rootCmd.Flags().Set("terminal-socket-gid", "21"); err != nil {
-		t.Fatalf("set socket-gid: %v", err)
+	if errSet := rootCmd.Flags().Set("terminal-socket-gid", "21"); errSet != nil {
+		t.Fatalf("set socket-gid: %v", errSet)
 	}
-	if err := rootCmd.Flags().Set("terminal-capture-gid", "22"); err != nil {
-		t.Fatalf("set capture-gid: %v", err)
+	if errSet := rootCmd.Flags().Set("terminal-capture-gid", "22"); errSet != nil {
+		t.Fatalf("set capture-gid: %v", errSet)
 	}
-	if err := rootCmd.Flags().Set("terminal-log-file-gid", "23"); err != nil {
-		t.Fatalf("set log-file-gid: %v", err)
+	if errSet := rootCmd.Flags().Set("terminal-log-file-gid", "23"); errSet != nil {
+		t.Fatalf("set log-file-gid: %v", errSet)
 	}
 
 	if got := readRootSocketGID(rootCmd); got == nil || *got != 21 {
@@ -1068,7 +1068,7 @@ func Test_RootCmd_PreRunE_SetupLoggerError(t *testing.T) {
 	}
 	rootCmd.SetContext(context.Background())
 
-	if err := rootCmd.PreRunE(rootCmd, []string{}); err == nil {
+	if errPreRunE := rootCmd.PreRunE(rootCmd, []string{}); errPreRunE == nil {
 		t.Fatal("expected error when log file path is unwritable")
 	}
 }
@@ -1097,8 +1097,8 @@ func Test_RootCmd_RunE_DetachPath(t *testing.T) {
 	ctx := context.WithValue(context.Background(), types.CtxLogger, logger)
 	rootCmd.SetContext(ctx)
 
-	if err := rootCmd.RunE(rootCmd, []string{}); err != nil {
-		t.Fatalf("RunE() detach path error = %v", err)
+	if errRunE := rootCmd.RunE(rootCmd, []string{}); errRunE != nil {
+		t.Fatalf("RunE() detach path error = %v", errRunE)
 	}
 }
 
@@ -1112,7 +1112,7 @@ func Test_RootCmd_RunE_MissingLogger(t *testing.T) {
 	}
 	rootCmd.SetContext(context.Background())
 
-	if err := rootCmd.RunE(rootCmd, []string{}); err == nil {
+	if errRunE := rootCmd.RunE(rootCmd, []string{}); errRunE == nil {
 		t.Fatal("expected error when logger is missing from context")
 	}
 }
@@ -1134,8 +1134,8 @@ func Test_RootCmd_PersistentPreRunE(t *testing.T) {
 	}
 	rootCmd.SetContext(context.Background())
 
-	if err := rootCmd.PersistentPreRunE(rootCmd, []string{}); err != nil {
-		t.Fatalf("PersistentPreRunE() error = %v", err)
+	if errPersistentPreRunE := rootCmd.PersistentPreRunE(rootCmd, []string{}); errPersistentPreRunE != nil {
+		t.Fatalf("PersistentPreRunE() error = %v", errPersistentPreRunE)
 	}
 }
 
@@ -1151,8 +1151,8 @@ func Test_RootCmd_PreRunE_DerivesDefaults(t *testing.T) {
 	}
 	rootCmd.SetContext(context.Background())
 
-	if err := rootCmd.PreRunE(rootCmd, []string{}); err != nil {
-		t.Fatalf("PreRunE() error = %v", err)
+	if errPreRunE := rootCmd.PreRunE(rootCmd, []string{}); errPreRunE != nil {
+		t.Fatalf("PreRunE() error = %v", errPreRunE)
 	}
 
 	if got := viper.GetString(config.SBSH_CLIENT_ID.ViperKey); got == "" {
@@ -1175,7 +1175,7 @@ func Test_RootCmd_RunE_SpecBuildError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	rootCmd.SetContext(context.WithValue(context.Background(), types.CtxLogger, logger))
 
-	if err := rootCmd.RunE(rootCmd, []string{}); err == nil {
+	if errRunE := rootCmd.RunE(rootCmd, []string{}); errRunE == nil {
 		t.Fatal("expected spec-build error when run path is empty")
 	}
 }
@@ -1210,8 +1210,8 @@ func Test_RootCmd_PostRunE(t *testing.T) {
 
 	t.Run("nil closer", func(t *testing.T) {
 		rootCmd.SetContext(context.Background())
-		if err := rootCmd.PostRunE(rootCmd, []string{}); err != nil {
-			t.Fatalf("PostRunE() error = %v", err)
+		if errPostRunE := rootCmd.PostRunE(rootCmd, []string{}); errPostRunE != nil {
+			t.Fatalf("PostRunE() error = %v", errPostRunE)
 		}
 	})
 
@@ -1219,8 +1219,8 @@ func Test_RootCmd_PostRunE(t *testing.T) {
 		c := &rootRecordingCloser{}
 		ctx := context.WithValue(context.Background(), types.CtxCloser, io.Closer(c))
 		rootCmd.SetContext(ctx)
-		if err := rootCmd.PostRunE(rootCmd, []string{}); err != nil {
-			t.Fatalf("PostRunE() error = %v", err)
+		if errPostRunE := rootCmd.PostRunE(rootCmd, []string{}); errPostRunE != nil {
+			t.Fatalf("PostRunE() error = %v", errPostRunE)
 		}
 		if !c.closed {
 			t.Fatal("expected closer to be closed")

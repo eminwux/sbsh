@@ -42,6 +42,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+// defaultLogLevel is the log level used when neither flag, env nor config sets one.
+const defaultLogLevel = "info"
+
 func NewSbRootCmd() (*cobra.Command, error) {
 	// rootCmd represents the base command when called without any subcommands.
 	rootCmd := &cobra.Command{
@@ -61,7 +64,7 @@ You can see available options and commands with:
 			if viper.GetBool(config.SB_ROOT_VERBOSE.ViperKey) {
 				logLevel := viper.GetString(config.SB_ROOT_LOG_LEVEL.ViperKey)
 				if logLevel == "" {
-					logLevel = "info"
+					logLevel = defaultLogLevel
 				}
 
 				// Create a new logger that writes to the file with the specified log level
@@ -188,7 +191,7 @@ func LoadConfig() error {
 	config.SB_GET_PROFILES_DIR.SetDefault(profilesDir)
 
 	_ = config.SBSH_ROOT_LOG_LEVEL.BindEnv()
-	logLevel := "info"
+	logLevel := defaultLogLevel
 	if cfgDoc != nil && cfgDoc.Spec.LogLevel != "" {
 		logLevel = cfgDoc.Spec.LogLevel
 	}

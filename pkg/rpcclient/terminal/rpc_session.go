@@ -48,6 +48,10 @@ var ErrNotUnixConn = errors.New("terminal: dialer returned a connection that is 
 // error. The call fails on the first attempt; it is not retried.
 var ErrNilConn = errors.New("terminal: dialer returned a nil connection and no error")
 
+// cancelDeadline is the near-immediate deadline set on a connection whose
+// call context ended, unblocking the in-flight RPC goroutine.
+const cancelDeadline = 10 * time.Millisecond
+
 type client struct {
 	dial   Dialer
 	logger *slog.Logger
@@ -114,6 +118,8 @@ func asUnixConn(method string, conn net.Conn) (*net.UnixConn, error) {
 }
 
 // --- internal: generic call path with pluggable codec (handles retries/timeouts) ---.
+//
+//nolint:gocognit // retry loop with per-attempt deadline and ctx-cancel unblock
 func (c *client) callWithCodec(
 	ctx context.Context,
 	method string,
@@ -186,7 +192,7 @@ func (c *client) callWithCodec(
 				"error",
 				ctx.Err(),
 			)
-			_ = conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+			_ = conn.SetDeadline(time.Now().Add(cancelDeadline))
 			_ = rpcc.Close()
 			if cleanup != nil {
 				cleanup()
@@ -391,7 +397,6 @@ func (c *client) Subscribe(ctx context.Context, req *api.SubscribeRequest, out a
 			return codec, cleanup, nil
 		},
 	)
-
 	if err != nil {
 		c.logger.ErrorContext(ctx, "Subscribe failed", "error", err)
 		return nil, err

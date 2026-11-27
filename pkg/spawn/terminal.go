@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -189,35 +188,10 @@ func (h *TerminalHandle) WaitReady(ctx context.Context) error {
 
 	rpc := terminalrpc.NewUnix(h.socketPath, h.readyLogger())
 
-	for {
-		if h.proc.exited() {
-			return wrapProcessExited(h.proc.takeExitErr())
-		}
-
-		if _, err := os.Stat(h.socketPath); err == nil {
-			pingCtx, pingCancel := context.WithTimeout(readyCtx, poll)
-			pingErr := rpc.Ping(pingCtx, &api.PingMessage{Message: "PING"}, &api.PingMessage{})
-			pingCancel()
-			if pingErr == nil {
-				return nil
-			}
-			if h.opts.Logger != nil {
-				h.opts.Logger.DebugContext(readyCtx, "terminal not ready yet",
-					"socket", h.socketPath, "error", pingErr)
-			}
-		}
-
-		select {
-		case <-readyCtx.Done():
-			if errors.Is(readyCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
-				return ErrReadyTimeout
-			}
-			return ctx.Err()
-		case <-h.proc.exitCh:
-			return wrapProcessExited(h.proc.takeExitErr())
-		case <-time.After(poll):
-		}
+	ping := func(pingCtx context.Context) error {
+		return rpc.Ping(pingCtx, &api.PingMessage{Message: "PING"}, &api.PingMessage{})
 	}
+	return pollReady(ctx, readyCtx, h.proc, h.socketPath, poll, ping, h.opts.Logger, "terminal")
 }
 
 // wrapProcessExited returns ErrProcessExited alone when the child's

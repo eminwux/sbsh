@@ -27,6 +27,10 @@ import (
 	"syscall"
 )
 
+// reaperSigBuffer sizes the SIGCHLD channel so a burst of child exits is not
+// dropped while the loop is draining.
+const reaperSigBuffer = 16
+
 // reaper drains SIGCHLD for the whole PID namespace by looping
 // Wait4(-1, WNOHANG) on each signal. It is only active when sbsh is acting as
 // container init (see internal/initmode). The tracked child's exit status is
@@ -60,7 +64,7 @@ type reaper struct {
 func newReaper(logger *slog.Logger) *reaper {
 	return &reaper{
 		logger:        logger,
-		sigCh:         make(chan os.Signal, 16),
+		sigCh:         make(chan os.Signal, reaperSigBuffer),
 		stop:          make(chan struct{}),
 		done:          make(chan struct{}),
 		trackedExitCh: make(chan exitStatus, 1),
@@ -121,29 +125,27 @@ func (r *reaper) TrackedExitCh() <-chan exitStatus {
 	return r.trackedExitCh
 }
 
-// drainOnce runs a single WNOHANG Wait4 sweep, returning the number of
-// children reaped. Exported for tests.
-func (r *reaper) drainOnce() int {
-	reaped := 0
+// drainOnce runs a single WNOHANG Wait4 sweep, reaping every child that is
+// ready. Unexported but called directly by tests.
+func (r *reaper) drainOnce() {
 	for {
 		var status syscall.WaitStatus
 		pid, err := syscall.Wait4(-1, &status, syscall.WNOHANG, nil)
 		switch {
 		case pid > 0:
-			reaped++
 			r.handleReaped(pid, status)
 			continue
 		case pid == 0:
 			// No more children ready to be reaped right now.
-			return reaped
+			return
 		case errors.Is(err, syscall.ECHILD):
 			// No children at all (normal once the tracked child is gone).
-			return reaped
+			return
 		case errors.Is(err, syscall.EINTR):
 			continue
 		default:
 			r.logger.Warn("reaper: wait4 error", "err", err)
-			return reaped
+			return
 		}
 	}
 }

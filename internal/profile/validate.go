@@ -30,15 +30,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ProfileValidationResult holds the outcome of validating a single YAML document.
-type ProfileValidationResult struct {
+// ValidationResult holds the outcome of validating a single YAML document.
+type ValidationResult struct {
 	DocIndex    int     // 1-based index of the document within the file
 	ProfileName string  // metadata.name, empty if decoding failed
 	Errors      []error // all issues found for this document; nil when valid
 }
 
 // OK reports whether the profile document passed all checks.
-func (r ProfileValidationResult) OK() bool { return len(r.Errors) == 0 }
+func (r ValidationResult) OK() bool { return len(r.Errors) == 0 }
 
 // ValidateProfilesFromPath validates every profile document in the YAML file at
 // profilesFile. See ValidateProfilesFromReader for the semantics.
@@ -46,7 +46,7 @@ func ValidateProfilesFromPath(
 	ctx context.Context,
 	logger *slog.Logger,
 	profilesFile string,
-) ([]ProfileValidationResult, error) {
+) ([]ValidationResult, error) {
 	logger.DebugContext(ctx, "ValidateProfilesFromPath: opening file", "path", profilesFile)
 	f, err := os.Open(profilesFile)
 	if err != nil {
@@ -61,7 +61,7 @@ func ValidateProfilesFromPath(
 // kind / metadata.name / shell.cmd, enum checks on runTarget and restartPolicy,
 // and a PATH-resolution check on shell.cmd when runTarget is "local" (or unset).
 //
-// It returns one ProfileValidationResult per document. Decode errors on a doc
+// It returns one ValidationResult per document. Decode errors on a doc
 // produce a result with empty ProfileName and the decode error attached; when
 // the underlying YAML stream becomes unparsable the function stops and returns
 // the partial results together with a non-nil error.
@@ -69,10 +69,10 @@ func ValidateProfilesFromReader(
 	ctx context.Context,
 	logger *slog.Logger,
 	r io.Reader,
-) ([]ProfileValidationResult, error) {
+) ([]ValidationResult, error) {
 	dec := yaml.NewDecoder(r)
 
-	var results []ProfileValidationResult
+	var results []ValidationResult
 	docIndex := 0
 	for {
 		var node yaml.Node
@@ -81,8 +81,15 @@ func ValidateProfilesFromReader(
 				break
 			}
 			docIndex++
-			logger.ErrorContext(ctx, "ValidateProfilesFromReader: unrecoverable parse error", "doc", docIndex, "error", err)
-			results = append(results, ProfileValidationResult{
+			logger.ErrorContext(
+				ctx,
+				"ValidateProfilesFromReader: unrecoverable parse error",
+				"doc",
+				docIndex,
+				"error",
+				err,
+			)
+			results = append(results, ValidationResult{
 				DocIndex: docIndex,
 				Errors:   []error{err},
 			})
@@ -105,8 +112,13 @@ func ValidateProfilesFromReader(
 // pass and field-level checks are skipped: the strict pass would just
 // re-report the same structural error, and field checks on a zero-valued
 // struct produce cascading "required" noise for one underlying issue.
-func validateOneDocument(ctx context.Context, logger *slog.Logger, docIndex int, node *yaml.Node) ProfileValidationResult {
-	res := ProfileValidationResult{DocIndex: docIndex}
+func validateOneDocument(
+	ctx context.Context,
+	logger *slog.Logger,
+	docIndex int,
+	node *yaml.Node,
+) ValidationResult {
+	res := ValidationResult{DocIndex: docIndex}
 
 	var tolerant api.TerminalProfileDoc
 	if err := node.Decode(&tolerant); err != nil {
@@ -132,8 +144,8 @@ func decodeStrict(node *yaml.Node) error {
 	dec := yaml.NewDecoder(bytes.NewReader(buf))
 	dec.KnownFields(true)
 	var strict api.TerminalProfileDoc
-	if err := dec.Decode(&strict); err != nil && !errors.Is(err, io.EOF) {
-		return err
+	if errDecode := dec.Decode(&strict); errDecode != nil && !errors.Is(errDecode, io.EOF) {
+		return errDecode
 	}
 	return nil
 }

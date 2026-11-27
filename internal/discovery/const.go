@@ -20,3 +20,11 @@ const (
 	NoClientsString   = "no active or inactive clients found\r\n"
 	NoTerminalsString = "no active or inactive terminals found\r\n"
 )
+
+// Output formats accepted by the ScanAndPrint* helpers and `sb get -o`.
+// The empty string selects the compact table.
+const (
+	FormatWide = "wide"
+	FormatJSON = "json"
+	FormatYAML = "yaml"
+)

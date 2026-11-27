@@ -384,6 +384,8 @@ func Test_Close_Idempotent(t *testing.T) {
 // Test_ControllerTest_Fake exercises the controller_fake.go test double: each
 // method returns ErrFuncNotSet when its Func hook is unset, and delegates when
 // the hook is provided.
+//
+//nolint:gocognit,gocyclo,cyclop // exercises every fake delegate in one table
 func Test_ControllerTest_Fake(t *testing.T) {
 	fakeID := api.ID("c1")
 

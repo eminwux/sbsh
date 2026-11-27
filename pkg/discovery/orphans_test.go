@@ -37,6 +37,7 @@ func backdateDir(t *testing.T, dir string) {
 	}
 }
 
+//nolint:gocognit // table-driven; each case builds and asserts a fixture tree
 func TestOrphanTerminalDirs(t *testing.T) {
 	ctx := context.Background()
 	logger := testLogger()
@@ -134,6 +135,7 @@ func TestOrphanTerminalDirs(t *testing.T) {
 	})
 }
 
+//nolint:gocognit // table-driven; each case builds and asserts a fixture tree
 func TestOrphanClientDirs(t *testing.T) {
 	ctx := context.Background()
 	logger := testLogger()

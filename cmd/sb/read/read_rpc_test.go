@@ -78,7 +78,7 @@ func startTermServer(t *testing.T, core *internalterminal.ControllerTest) string
 // write side feeds the live stream); theirs is handed to the server to pass
 // back over SCM_RIGHTS as the subscriber's read end. The server codec closes
 // the fd it sends, so theirs must not be closed by the test.
-func fdPair(t *testing.T) (ours, theirs int) {
+func fdPair(t *testing.T) (int, int) {
 	t.Helper()
 	fds, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM, 0)
 	if err != nil {
@@ -103,7 +103,7 @@ func Test_runRead_Follow_ReplaysThenStreams(t *testing.T) {
 	if err := os.WriteFile(capturePath, []byte("REPLAY:"), 0o644); err != nil {
 		t.Fatalf("write capture: %v", err)
 	}
-	writeTerminalMetadata(t, runPath, "term1", "alice", capturePath, sock)
+	writeTerminalMetadata(t, runPath, capturePath, sock)
 
 	// Queue live bytes in the socketpair buffer and close our end so the
 	// follower reads the replay, then the live tail, then EOF and returns.
@@ -113,7 +113,7 @@ func Test_runRead_Follow_ReplaysThenStreams(t *testing.T) {
 	_ = unix.Close(ours)
 
 	var out, errOut bytes.Buffer
-	opts := readOpts{runPath: runPath, name: "alice", follow: true}
+	opts := readOpts{runPath: runPath, name: testTerminalName, follow: true}
 	if err := runRead(context.Background(), testLogger(), &out, &errOut, opts); err != nil {
 		t.Fatalf("runRead(follow): %v", err)
 	}
@@ -131,9 +131,9 @@ func Test_runRead_Follow_NoSocketRecorded(t *testing.T) {
 	if err := os.WriteFile(capturePath, []byte("data"), 0o644); err != nil {
 		t.Fatalf("write capture: %v", err)
 	}
-	writeTerminalMetadata(t, runPath, "term1", "alice", capturePath, "")
+	writeTerminalMetadata(t, runPath, capturePath, "")
 
-	opts := readOpts{runPath: runPath, name: "alice", follow: true}
+	opts := readOpts{runPath: runPath, name: testTerminalName, follow: true}
 	err := runRead(context.Background(), testLogger(), &bytes.Buffer{}, &bytes.Buffer{}, opts)
 	if err == nil {
 		t.Fatal("expected error for missing socket in follow mode, got nil")

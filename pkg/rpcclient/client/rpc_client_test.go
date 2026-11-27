@@ -51,9 +51,9 @@ func startTestServer(t *testing.T, core *internalclient.ControllerTest) string {
 	}
 
 	srv := rpc.NewServer()
-	if err := srv.RegisterName(api.ClientService, &clientrpc.ClientControllerRPC{Core: core}); err != nil {
+	if errRegisterName := srv.RegisterName(api.ClientService, &clientrpc.ClientControllerRPC{Core: core}); errRegisterName != nil {
 		_ = ln.Close()
-		t.Fatalf("RegisterName: %v", err)
+		t.Fatalf("RegisterName: %v", errRegisterName)
 	}
 
 	var wg sync.WaitGroup

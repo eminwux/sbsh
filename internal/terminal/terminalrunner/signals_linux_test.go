@@ -93,8 +93,8 @@ exit 0
 	if err != nil {
 		t.Fatalf("stdout pipe: %v", err)
 	}
-	if err := leader.Start(); err != nil {
-		t.Fatalf("start leader: %v", err)
+	if errStart := leader.Start(); errStart != nil {
+		t.Fatalf("start leader: %v", errStart)
 	}
 	t.Cleanup(func() {
 		_ = syscall.Kill(-leader.Process.Pid, syscall.SIGKILL)
@@ -113,8 +113,8 @@ exit 0
 	// Send SIGHUP to our own process. signal.Notify in the forwarder
 	// catches it; the relay targets -pgid; default termination is
 	// suppressed because the handler is registered.
-	if err := syscall.Kill(os.Getpid(), syscall.SIGHUP); err != nil {
-		t.Fatalf("self-kill SIGHUP: %v", err)
+	if errKill := syscall.Kill(os.Getpid(), syscall.SIGHUP); errKill != nil {
+		t.Fatalf("self-kill SIGHUP: %v", errKill)
 	}
 
 	_ = collectLinesUntil(t, reader, 3*time.Second, "done")

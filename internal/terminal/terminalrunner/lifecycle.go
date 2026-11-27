@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"math"
 	"net"
 	"os"
 	"path/filepath"
@@ -280,6 +281,7 @@ func (sr *Exec) shutdownChild(grace time.Duration) {
 	}
 }
 
+//nolint:gocognit,funlen // ordered teardown; each once-guarded step must run in sequence
 func (sr *Exec) Close(reason error) error {
 	sr.logger.Info("closing terminal", "id", sr.id, "reason", reason)
 
@@ -454,8 +456,8 @@ func (sr *Exec) Close(reason error) error {
 
 func (sr *Exec) Resize(args api.ResizeArgs) {
 	_ = pty.Setsize(sr.ptmx, &pty.Winsize{
-		Cols: uint16(args.Cols),
-		Rows: uint16(args.Rows),
+		Cols: winsizeDim(args.Cols),
+		Rows: winsizeDim(args.Rows),
 	})
 	// Keep the screen model's grid in step with the PTY winsize so a
 	// Screenshot reflects the dimensions the child program is drawing for.
@@ -505,7 +507,7 @@ func (sr *Exec) Attach(req *api.AttachRequest, response *api.ResponseWithFD) err
 	multiOutW := sr.ptyPipes.multiOutW
 	sr.ptyPipesMu.RUnlock()
 	if multiOutW == nil {
-		return fmt.Errorf("Attach: terminal not running")
+		return errors.New("Attach: terminal not running")
 	}
 
 	cliFD, err := sr.CreateNewClient(&req.ClientID, req.FullCapture, req.ClearOnAttach)
@@ -714,4 +716,17 @@ func (sr *Exec) OnInitShell() error {
 		sr.logger.Error("failed to update terminal state on ready", "id", sr.id, "err", err)
 	}
 	return nil
+}
+
+// winsizeDim clamps a requested PTY dimension into the uint16 range the
+// kernel winsize struct carries, so an out-of-range Resize value saturates
+// instead of wrapping.
+func winsizeDim(v int) uint16 {
+	if v < 0 {
+		return 0
+	}
+	if v > math.MaxUint16 {
+		return math.MaxUint16
+	}
+	return uint16(v)
 }

@@ -71,7 +71,11 @@ func setupNewGetTerminalCmd(cmd *cobra.Command) {
 	_ = cmd.RegisterFlagCompletionFunc(
 		"output",
 		func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-			return []string{"wide", "json", "yaml"}, cobra.ShellCompDirectiveNoFileComp
+			return []string{
+				discovery.FormatWide,
+				discovery.FormatJSON,
+				discovery.FormatYAML,
+			}, cobra.ShellCompDirectiveNoFileComp
 		},
 	)
 }
@@ -83,7 +87,8 @@ func listTerminals(cmd *cobra.Command, _ []string) error {
 	}
 
 	format := viper.GetString(outputFormat)
-	if format != "" && format != "wide" && format != "json" && format != "yaml" {
+	if format != "" && format != discovery.FormatWide && format != discovery.FormatJSON &&
+		format != discovery.FormatYAML {
 		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
 	}
 
@@ -167,7 +172,7 @@ func getTerminal(cmd *cobra.Command, args []string) error {
 	}
 	terminalName := args[0]
 	format := viper.GetString(outputFormat)
-	if format != "" && format != "json" && format != "yaml" {
+	if format != "" && format != discovery.FormatJSON && format != discovery.FormatYAML {
 		return fmt.Errorf("%w: %s (use json|yaml for a single terminal)", errdefs.ErrInvalidOutputFormat, format)
 	}
 	logger.Debug("get terminal command invoked",

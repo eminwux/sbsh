@@ -237,7 +237,13 @@ You can also use sbsh with parameters. For example:
 			// Trap HUP/QUIT alongside INT/TERM so they drive the same ctx-cancel →
 			// restoreParentTerminal path; otherwise a HUP/QUIT whose tty survives
 			// leaves the parent shell in raw mode with DEC private modes active.
-			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
+			ctx, cancel := signal.NotifyContext(
+				context.Background(),
+				os.Interrupt,
+				syscall.SIGTERM,
+				syscall.SIGHUP,
+				syscall.SIGQUIT,
+			)
 			ctrl := client.NewClientController(ctx, logger)
 
 			return runClient(ctx, cancel, logger, ctrl, doc)
@@ -332,6 +338,7 @@ func setClientFlags(rootCmd *cobra.Command) error {
 	return nil
 }
 
+//nolint:gocognit,funlen // flat flag registration; each flag adds an independent error check
 func setTerminalFlags(rootCmd *cobra.Command) error {
 	rootCmd.Flags().String("terminal-id", "", "Optional terminal ID (random if omitted)")
 	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_ID.ViperKey, rootCmd.Flags().Lookup("terminal-id")); err != nil {
@@ -343,7 +350,8 @@ func setTerminalFlags(rootCmd *cobra.Command) error {
 		return err
 	}
 
-	rootCmd.Flags().String("terminal-name", "", "Optional name for the terminal (must be unique across active terminals)")
+	rootCmd.Flags().
+		String("terminal-name", "", "Optional name for the terminal (must be unique across active terminals)")
 	if err := viper.BindPFlag(config.SBSH_ROOT_TERM_NAME.ViperKey, rootCmd.Flags().Lookup("terminal-name")); err != nil {
 		return err
 	}
@@ -705,7 +713,7 @@ func detachSelf() {
 		// o salir con error según tu caso
 		return
 	}
-	fmt.Printf("[%d] sbsh detached\n", cmd.Process.Pid)
+	fmt.Fprintf(os.Stdout, "[%d] sbsh detached\n", cmd.Process.Pid)
 	os.Exit(0) // el padre termina; el hijo queda en background
 }
 

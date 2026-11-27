@@ -78,14 +78,13 @@ func startStopRPCServer(t *testing.T, sockPath string, onStop func(*api.StopArgs
 // pid) so the test can reap the whole pgroup, records a goroutine that Wait()s to
 // avoid a zombie, and returns the pid, its start-time token, and a channel that
 // closes once the process is reaped.
-func spawnSessionProc(t *testing.T, script string) (pid int, pidStart uint64, done <-chan struct{}) {
+func spawnSessionProc(t *testing.T, script string) (int, uint64, <-chan struct{}) {
 	t.Helper()
 	cmd := exec.Command("/bin/sh", "-c", script)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	d := startBackgroundProc(t, cmd)
-	pid = cmd.Process.Pid
-	var err error
-	pidStart, err = pidutil.StartTime(pid)
+	pid := cmd.Process.Pid
+	pidStart, err := pidutil.StartTime(pid)
 	if err != nil {
 		t.Fatalf("StartTime(%d): %v", pid, err)
 	}

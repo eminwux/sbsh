@@ -169,6 +169,9 @@ func applyProfilePermBlock(
 // rwx bits. parseFileMode rejects any mode with bits outside this mask.
 const chmodMask uint64 = 0o7777
 
+// defaultProfileName is the profile used when none is named.
+const defaultProfileName = "default"
+
 // parseFileMode parses an octal mode string like "0660" or "660" into an
 // os.FileMode and rejects modes with bits outside chmodMask. The leading "0"
 // is optional because strconv.ParseUint with base 8 accepts both forms.
@@ -361,7 +364,7 @@ func BuildTerminalSpecFromProfile(
 	applyParamDefaults(input)
 
 	if input.ProfileName == "" {
-		input.ProfileName = "default"
+		input.ProfileName = defaultProfileName
 	}
 
 	logger.DebugContext(
@@ -392,7 +395,7 @@ func BuildTerminalSpecFromProfile(
 			input.ProfileName,
 		)
 
-		if input.ProfileName != "default" {
+		if input.ProfileName != defaultProfileName {
 			return nil, errFind
 		}
 
@@ -595,7 +598,7 @@ func GetDefaultHardcodedProfile(
 		APIVersion: api.APIVersionV1Beta1,
 		Kind:       api.KindTerminalProfile,
 		Metadata: api.TerminalProfileMetadata{
-			Name:   "default",
+			Name:   defaultProfileName,
 			Labels: map[string]string{},
 		},
 		Spec: api.TerminalProfileSpec{

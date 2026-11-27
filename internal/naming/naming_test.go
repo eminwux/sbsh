@@ -32,7 +32,7 @@ func TestRandomName_FormatAndWordlists(t *testing.T) {
 		rightSet[w] = true
 	}
 
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		name := RandomName()
 		parts := strings.SplitN(name, "_", 2)
 		if len(parts) != 2 {
@@ -49,7 +49,7 @@ func TestRandomName_FormatAndWordlists(t *testing.T) {
 
 func TestRandomName_ProducesVariety(t *testing.T) {
 	seen := make(map[string]bool)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		seen[RandomName()] = true
 	}
 	// With ~100x100 combinations, 100 draws should yield well more than one
@@ -60,7 +60,7 @@ func TestRandomName_ProducesVariety(t *testing.T) {
 }
 
 func TestRandomID_LengthAndHex(t *testing.T) {
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		id := RandomID()
 		// 4 random bytes hex-encoded → 8 hex chars.
 		if len(id) != 8 {
@@ -74,22 +74,10 @@ func TestRandomID_LengthAndHex(t *testing.T) {
 
 func TestRandomID_ProducesVariety(t *testing.T) {
 	seen := make(map[string]bool)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		seen[RandomID()] = true
 	}
 	if len(seen) < 2 {
 		t.Fatalf("RandomID() produced %d distinct values over 100 draws; want variety", len(seen))
-	}
-}
-
-func TestRandSeed_NonTrivial(t *testing.T) {
-	// randSeed reads from crypto/rand; over several calls it should not return
-	// a constant value. This exercises the success path of the helper.
-	seeds := make(map[int64]bool)
-	for i := 0; i < 20; i++ {
-		seeds[randSeed()] = true
-	}
-	if len(seeds) < 2 {
-		t.Fatalf("randSeed() returned %d distinct values over 20 calls; want variety", len(seeds))
 	}
 }

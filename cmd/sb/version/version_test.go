@@ -18,40 +18,11 @@ package version
 
 import (
 	"bytes"
-	"io"
-	"os"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/eminwux/sbsh/cmd/config"
 )
-
-func captureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	oldStdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe: %v", err)
-	}
-	os.Stdout = w
-
-	var buf bytes.Buffer
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		_, _ = io.Copy(&buf, r)
-		wg.Done()
-	}()
-
-	fn()
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-	wg.Wait()
-	_ = r.Close()
-	return buf.String()
-}
 
 func Test_NewVersionCmd_Metadata(t *testing.T) {
 	cmd := NewVersionCmd()
@@ -68,10 +39,10 @@ func Test_NewVersionCmd_Metadata(t *testing.T) {
 
 func Test_VersionCmd_PrintsVersion(t *testing.T) {
 	cmd := NewVersionCmd()
-	out := captureStdout(t, func() {
-		cmd.Run(cmd, []string{})
-	})
-	got := strings.TrimSpace(out)
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.Run(cmd, []string{})
+	got := strings.TrimSpace(buf.String())
 	if got != config.Version {
 		t.Errorf("printed version = %q, want %q", got, config.Version)
 	}

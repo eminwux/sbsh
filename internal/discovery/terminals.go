@@ -55,11 +55,11 @@ func ScanAndPrintTerminals(
 	logger.InfoContext(ctx, "ScanAndPrintTerminals: scanned terminals", "count", len(terminals))
 
 	switch format {
-	case "json", "yaml":
+	case FormatJSON, FormatYAML:
 		filtered := filterTerminals(terminals, printAll)
 		return printTerminalMetadata(w, filtered, format)
-	case "", "wide":
-		return printTerminals(w, terminals, printAll, format == "wide")
+	case "", FormatWide:
+		return printTerminals(w, terminals, printAll, format == FormatWide)
 	default:
 		return fmt.Errorf("unknown output format: %q (use wide|json|yaml)", format)
 	}
@@ -432,11 +432,11 @@ func FindAndPrintTerminalMetadata(
 
 func printTerminalMetadata(w io.Writer, t any, format string) error {
 	switch format {
-	case "json":
+	case FormatJSON:
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return enc.Encode(t)
-	case "yaml":
+	case FormatYAML:
 		b, err := yaml.Marshal(t)
 		if err != nil {
 			return err

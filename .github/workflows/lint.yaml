@@ -12,10 +12,11 @@ on:
 permissions:
   contents: read
 
-# Dedicated lint status (and README badge). The pre-commit golangci-lint
-# hook in test.yaml runs `--new-from-rev HEAD`, which is empty in CI, so it
-# lints nothing there. Keep the version in sync with the golangci-lint rev
-# in .pre-commit-config.yaml.
+# Dedicated lint status (and README badge), and the CI lint gate: it lints
+# the whole tree, so the badge reflects all of main. The pre-commit
+# golangci-lint hook in test.yaml runs `--new-from-rev HEAD`, which is empty
+# in CI, so it lints nothing there; it is for local incremental use. Keep the
+# version in sync with the golangci-lint rev in .pre-commit-config.yaml.
 jobs:
   golangci-lint:
     name: golangci-lint
@@ -35,6 +36,3 @@ jobs:
         with:
           version: v2.5.0
           args: ./...
-          # main carries pre-existing lint debt; gate only on issues the PR
-          # (or push range) introduces until that backlog is cleared.
-          only-new-issues: true

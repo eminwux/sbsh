@@ -139,7 +139,7 @@ func (s *Controller) WaitReady() error {
 
 // Run is the main orchestration loop. It owns all mode transitions.
 //
-//nolint:gocognit,funlen // long main function
+//nolint:gocognit,gocyclo,cyclop,funlen // long main function
 func (s *Controller) Run(doc *api.ClientDoc) error {
 	clientMode := doc.Spec.ClientMode
 	s.logger.Info("controller loop started", "client_mode", clientMode, "run_path", doc.Spec.RunPath)
@@ -478,11 +478,9 @@ func (s *Controller) Close(reason error) error {
 }
 
 func (s *Controller) WaitClose() error {
-	select {
-	case <-s.closedCh:
-		s.logger.Debug("controller has fully exited and resources are released")
-		return nil
-	}
+	<-s.closedCh
+	s.logger.Debug("controller has fully exited and resources are released")
+	return nil
 }
 
 func (s *Controller) Detach() error {

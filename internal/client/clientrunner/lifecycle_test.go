@@ -250,7 +250,10 @@ func TestDetach_StdoutWriteError(t *testing.T) {
 	sr.terminalClient = &mockTerminalClient{} // detach succeeds by default
 
 	if errDetach := sr.Detach(); errDetach != nil {
-		t.Fatalf("Detach returned %v on banner-write failure; want nil (RPC succeeded, banner is best-effort)", errDetach)
+		t.Fatalf(
+			"Detach returned %v on banner-write failure; want nil (RPC succeeded, banner is best-effort)",
+			errDetach,
+		)
 	}
 }
 

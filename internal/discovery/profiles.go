@@ -54,10 +54,10 @@ func ScanAndPrintProfiles(
 	logger.InfoContext(ctx, "ScanAndPrintProfiles: loaded profiles", "count", len(profiles))
 
 	switch format {
-	case "json", "yaml":
+	case FormatJSON, FormatYAML:
 		return printTerminalMetadata(w, profiles, format)
-	case "", "wide":
-		return PrintProfilesTable(w, profiles, format == "wide")
+	case "", FormatWide:
+		return PrintProfilesTable(w, profiles, format == FormatWide)
 	default:
 		return fmt.Errorf("unknown output format: %q (use wide|json|yaml)", format)
 	}

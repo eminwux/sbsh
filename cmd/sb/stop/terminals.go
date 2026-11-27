@@ -40,11 +40,11 @@ import (
 
 const (
 	defaultStopTimeout = 10 * time.Second
-	//nolint:mnd // poll interval while waiting for the process to exit
+	// Poll interval while waiting for the process to exit.
 	stopPollInterval = 100 * time.Millisecond
-	//nolint:mnd // short RPC dial deadline (network is a Unix socket)
+	// Short RPC dial deadline (network is a Unix socket).
 	stopRPCDialTimeout = 3 * time.Second
-	//nolint:mnd // short fixed grace after SIGKILL; the kernel reaps almost immediately
+	// Short fixed grace after SIGKILL; the kernel reaps almost immediately.
 	sigkillGrace = 2 * time.Second
 )
 
@@ -89,9 +89,9 @@ Metadata is left in place so 'sb prune terminals' can clean it up.`,
 				return err
 			}
 
-			if err := runStopTerminals(cmd.Context(), logger, os.Stdout, os.Stderr, opts); err != nil {
-				logger.DebugContext(cmd.Context(), "stop terminals failed", "error", err)
-				return err
+			if errRunStopTerminals := runStopTerminals(cmd.Context(), logger, os.Stdout, os.Stderr, opts); errRunStopTerminals != nil {
+				logger.DebugContext(cmd.Context(), "stop terminals failed", "error", errRunStopTerminals)
+				return errRunStopTerminals
 			}
 			return nil
 		},
@@ -395,12 +395,12 @@ func sendSignal(pid int, pidStart uint64, sig syscall.Signal) error {
 	if err != nil {
 		return fmt.Errorf("%w: %w", errdefs.ErrSignalProcess, err)
 	}
-	if err := proc.Signal(sig); err != nil {
-		if isProcessGoneErr(err) {
+	if errSignal := proc.Signal(sig); errSignal != nil {
+		if isProcessGoneErr(errSignal) {
 			// Process is already gone — not an error for our purposes.
 			return nil
 		}
-		return fmt.Errorf("%w: %w", errdefs.ErrSignalProcess, err)
+		return fmt.Errorf("%w: %w", errdefs.ErrSignalProcess, errSignal)
 	}
 	return nil
 }

@@ -36,12 +36,14 @@ import (
 //
 // Anything not matching one of the above escapes passes through as the
 // original UTF-8 bytes of the input.
+//
+//nolint:gocognit // single-pass escape scanner; one switch arm per supported escape form
 func parseCaret(in []byte) ([]byte, error) {
 	out := make([]byte, 0, len(in))
 	for i := 0; i < len(in); i++ {
 		b := in[i]
-		switch {
-		case b == '^':
+		switch b {
+		case '^':
 			if i+1 >= len(in) {
 				return nil, fmt.Errorf("dangling '^' at offset %d", i)
 			}
@@ -52,7 +54,7 @@ func parseCaret(in []byte) ([]byte, error) {
 			}
 			out = append(out, decoded)
 			i++
-		case b == '\\':
+		case '\\':
 			if i+1 >= len(in) {
 				return nil, fmt.Errorf("dangling '\\' at offset %d", i)
 			}
@@ -84,12 +86,19 @@ func parseCaret(in []byte) ([]byte, error) {
 	return out, nil
 }
 
+const (
+	// asciiDEL is the byte ^? maps to.
+	asciiDEL = 0x7F
+	// hexLetterBase is the value of hex digit 'a'/'A'.
+	hexLetterBase = 10
+)
+
 // caretByte maps the character after '^' to its control-byte equivalent
 // per stty convention. Returns false when the sequence is unsupported.
 func caretByte(c byte) (byte, bool) {
 	switch {
 	case c == '?':
-		return 0x7F, true
+		return asciiDEL, true
 	case c >= '@' && c <= '_':
 		return c - '@', true
 	case c >= 'a' && c <= 'z':
@@ -105,9 +114,9 @@ func hexNibble(c byte) (byte, bool) {
 	case c >= '0' && c <= '9':
 		return c - '0', true
 	case c >= 'a' && c <= 'f':
-		return c - 'a' + 10, true
+		return c - 'a' + hexLetterBase, true
 	case c >= 'A' && c <= 'F':
-		return c - 'A' + 10, true
+		return c - 'A' + hexLetterBase, true
 	default:
 		return 0, false
 	}

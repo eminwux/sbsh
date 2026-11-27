@@ -17,8 +17,7 @@
 package version
 
 import (
-	"bufio"
-	"os"
+	"bytes"
 	"strings"
 	"testing"
 
@@ -39,21 +38,12 @@ func TestNewVersionCmd_Metadata(t *testing.T) {
 }
 
 func TestNewVersionCmd_PrintsVersion(t *testing.T) {
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe: %v", err)
-	}
-	old := os.Stdout
-	os.Stdout = w
-	t.Cleanup(func() { os.Stdout = old })
-
+	var buf bytes.Buffer
 	cmd := NewVersionCmd()
+	cmd.SetOut(&buf)
 	cmd.Run(cmd, []string{})
 
-	if err := w.Close(); err != nil {
-		t.Fatalf("close pipe: %v", err)
-	}
-	got, err := bufio.NewReader(r).ReadString('\n')
+	got, err := buf.ReadString('\n')
 	if err != nil {
 		t.Fatalf("read output: %v", err)
 	}

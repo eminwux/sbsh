@@ -489,14 +489,14 @@ func TestCaptureWriter_ReopenApplyPermsFailureIsNonFatal(t *testing.T) {
 
 	// This write crosses the threshold and rotates; reopenCanonical's applyPerms
 	// fails but rotation must not error out.
-	if _, err := w.Write([]byte("AAAA")); err != nil {
-		t.Fatalf("Write: %v", err)
+	if _, errWrite := w.Write([]byte("AAAA")); errWrite != nil {
+		t.Fatalf("Write: %v", errWrite)
 	}
 	// Capture still works: a follow-up write lands on the fresh live segment.
-	if _, err := w.Write([]byte("B")); err != nil {
-		t.Fatalf("Write after rotation: %v", err)
+	if _, errWrite := w.Write([]byte("B")); errWrite != nil {
+		t.Fatalf("Write after rotation: %v", errWrite)
 	}
-	if err := w.Close(); err != nil {
-		t.Fatalf("close: %v", err)
+	if errClose := w.Close(); errClose != nil {
+		t.Fatalf("close: %v", errClose)
 	}
 }

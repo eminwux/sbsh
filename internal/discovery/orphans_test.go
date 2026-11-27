@@ -51,8 +51,8 @@ func truncateMetadata(t *testing.T, dir string) {
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)
 	}
-	if err := os.WriteFile(path, b[:len(b)/2], 0o644); err != nil {
-		t.Fatalf("truncate %s: %v", path, err)
+	if errWriteFile := os.WriteFile(path, b[:len(b)/2], 0o644); errWriteFile != nil {
+		t.Fatalf("truncate %s: %v", path, errWriteFile)
 	}
 }
 
@@ -127,12 +127,12 @@ func TestScanAndPruneTerminals_SkipsOrphanWithLiveSocket(t *testing.T) {
 	}()
 	backdateDir(t, termDir)
 
-	if err := discovery.ScanAndPruneTerminals(context.Background(), discardLogger(), runPath, io.Discard); err != nil {
-		t.Fatalf("ScanAndPruneTerminals: unexpected error: %v", err)
+	if errScanAndPruneTerminals := discovery.ScanAndPruneTerminals(context.Background(), discardLogger(), runPath, io.Discard); errScanAndPruneTerminals != nil {
+		t.Fatalf("ScanAndPruneTerminals: unexpected error: %v", errScanAndPruneTerminals)
 	}
 
-	if _, err := os.Stat(termDir); err != nil {
-		t.Fatalf("expected orphan dir with live socket to survive prune, stat err=%v", err)
+	if _, errStat := os.Stat(termDir); errStat != nil {
+		t.Fatalf("expected orphan dir with live socket to survive prune, stat err=%v", errStat)
 	}
 }
 
@@ -227,12 +227,12 @@ func TestScanAndPruneClients_SkipsOrphanWithLiveSocket(t *testing.T) {
 	}()
 	backdateDir(t, clientDir)
 
-	if err := discovery.ScanAndPruneClients(context.Background(), discardLogger(), runPath, io.Discard); err != nil {
-		t.Fatalf("ScanAndPruneClients: unexpected error: %v", err)
+	if errScanAndPruneClients := discovery.ScanAndPruneClients(context.Background(), discardLogger(), runPath, io.Discard); errScanAndPruneClients != nil {
+		t.Fatalf("ScanAndPruneClients: unexpected error: %v", errScanAndPruneClients)
 	}
 
-	if _, err := os.Stat(clientDir); err != nil {
-		t.Fatalf("expected orphan dir with live socket to survive prune, stat err=%v", err)
+	if _, errStat := os.Stat(clientDir); errStat != nil {
+		t.Fatalf("expected orphan dir with live socket to survive prune, stat err=%v", errStat)
 	}
 }
 

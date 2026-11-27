@@ -49,6 +49,7 @@ func TestSentinelIdentity(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			//nolint:errorlint // asserting sentinel identity, not wrapped-chain membership
 			if tc.reexport != tc.internal {
 				t.Fatalf("pkg/errors.%s != internal/errdefs.%s: identity not preserved",
 					tc.name, tc.name)

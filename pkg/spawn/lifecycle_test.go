@@ -42,6 +42,8 @@ import (
 // them and exit). Written once in TestMain before any test runs; see #376 —
 // per-test os.WriteFile of an executable then fork+exec from sibling parallel
 // goroutines races on the kernel's writer-FD check and surfaces as ETXTBSY.
+//
+//nolint:gochecknoglobals // written once in TestMain, shared by parallel tests (#376)
 var sharedSleeperPath string
 
 // sharedTrapPath is the package-shared path to a trap.sh script that traps and
@@ -51,6 +53,8 @@ var sharedSleeperPath string
 // sibling parallel goroutines races on the kernel's writer-FD check and
 // surfaces as ETXTBSY. The script body is static, so a single shared copy
 // suffices.
+//
+//nolint:gochecknoglobals // written once in TestMain, shared by parallel tests (#377)
 var sharedTrapPath string
 
 func TestMain(m *testing.M) {
@@ -60,14 +64,14 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	sharedSleeperPath = filepath.Join(dir, "sleeper.sh")
-	if err := os.WriteFile(sharedSleeperPath, []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "spawn tests: write sleeper: %v\n", err)
+	if errWriteFile := os.WriteFile(sharedSleeperPath, []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); errWriteFile != nil {
+		fmt.Fprintf(os.Stderr, "spawn tests: write sleeper: %v\n", errWriteFile)
 		_ = os.RemoveAll(dir)
 		os.Exit(1)
 	}
 	sharedTrapPath = filepath.Join(dir, "trap.sh")
-	if err := os.WriteFile(sharedTrapPath, []byte("#!/bin/sh\ntrap '' TERM\nwhile true; do sleep 1; done\n"), 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "spawn tests: write trap script: %v\n", err)
+	if errWriteFile := os.WriteFile(sharedTrapPath, []byte("#!/bin/sh\ntrap '' TERM\nwhile true; do sleep 1; done\n"), 0o755); errWriteFile != nil {
+		fmt.Fprintf(os.Stderr, "spawn tests: write trap script: %v\n", errWriteFile)
 		_ = os.RemoveAll(dir)
 		os.Exit(1)
 	}

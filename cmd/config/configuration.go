@@ -55,6 +55,8 @@ func ApplyConfigurationDocEnv(cfgDoc *api.ConfigurationDoc) {
 // when the file exists but contains no Configuration document, so callers can
 // fall back to built-in defaults. Returns a non-nil error only when the file
 // is present but malformed or uses an unsupported apiVersion/kind.
+//
+//nolint:nilnil // (nil, nil) is the documented "no config, use defaults" contract
 func LoadConfigurationDoc(path string) (*api.ConfigurationDoc, error) {
 	if path == "" {
 		return nil, nil
@@ -72,11 +74,11 @@ func LoadConfigurationDoc(path string) (*api.ConfigurationDoc, error) {
 	dec := yaml.NewDecoder(f)
 	for {
 		var doc api.ConfigurationDoc
-		if err := dec.Decode(&doc); err != nil {
-			if errors.Is(err, io.EOF) {
+		if errDecode := dec.Decode(&doc); errDecode != nil {
+			if errors.Is(errDecode, io.EOF) {
 				return nil, nil
 			}
-			return nil, fmt.Errorf("decode config file %q: %w", path, err)
+			return nil, fmt.Errorf("decode config file %q: %w", path, errDecode)
 		}
 
 		if doc.APIVersion == "" && doc.Kind == "" {

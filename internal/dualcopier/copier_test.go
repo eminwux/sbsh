@@ -56,7 +56,7 @@ type faultyWriter struct {
 	err error
 }
 
-func (w faultyWriter) Write(p []byte) (int, error) { return w.n, w.err }
+func (w faultyWriter) Write(_ []byte) (int, error) { return w.n, w.err }
 
 // scriptedFilter returns a fixed Process result on every call.
 type scriptedFilter struct {

@@ -195,8 +195,8 @@ func TestWriteResponse_FDPassing(t *testing.T) {
 
 	r := &api.ResponseWithFD{JSON: map[string]string{"k": "v"}, FDs: []int{int(pr.Fd())}}
 	resp := &rpc.Response{ServiceMethod: "Svc.Attach", Seq: req.Seq}
-	if err := codec.WriteResponse(resp, r); err != nil {
-		t.Fatalf("WriteResponse: %v", err)
+	if errWriteResponse := codec.WriteResponse(resp, r); errWriteResponse != nil {
+		t.Fatalf("WriteResponse: %v", errWriteResponse)
 	}
 	if r.FDs != nil {
 		t.Fatalf("r.FDs = %v; want nil after send", r.FDs)
@@ -230,8 +230,8 @@ func TestWriteResponse_FDPassing(t *testing.T) {
 		ID     any             `json:"id"`
 		Result json.RawMessage `json:"result"`
 	}
-	if err := json.Unmarshal(buf[:n], &wire); err != nil {
-		t.Fatalf("unmarshal fd-path payload: %v", err)
+	if errUnmarshal := json.Unmarshal(buf[:n], &wire); errUnmarshal != nil {
+		t.Fatalf("unmarshal fd-path payload: %v", errUnmarshal)
 	}
 	if id, ok := wire.ID.(float64); !ok || id != 3 {
 		t.Fatalf("wire id = %v; want 3", wire.ID)
@@ -259,7 +259,7 @@ func TestWriteResponse_FDPassingEncodeError(t *testing.T) {
 
 	r := &api.ResponseWithFD{JSON: make(chan int), FDs: []int{int(pr.Fd())}}
 	resp := &rpc.Response{ServiceMethod: "Svc.Attach", Seq: 1}
-	if err := codec.WriteResponse(resp, r); err == nil {
+	if errWriteResponse := codec.WriteResponse(resp, r); errWriteResponse == nil {
 		t.Fatal("WriteResponse: want encode error for unencodable FD payload, got nil")
 	}
 	if r.FDs != nil {

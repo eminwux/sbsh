@@ -106,6 +106,7 @@ func ReconcileTerminals(
 	}
 }
 
+//nolint:dupl // mirrors reconcileClient over a distinct doc type; a generic version needs accessor plumbing
 func reconcileTerminal(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -152,6 +153,7 @@ func ReconcileClients(
 	}
 }
 
+//nolint:dupl // mirrors reconcileTerminal over a distinct doc type; a generic version needs accessor plumbing
 func reconcileClient(
 	ctx context.Context,
 	logger *slog.Logger,

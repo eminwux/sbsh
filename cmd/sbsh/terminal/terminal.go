@@ -61,7 +61,7 @@ func checkFlag(cmd *cobra.Command, flag string, err string) error {
 // (e.g. "-" for stdin); post-dash args are the workload's argv (argv[0] is
 // the binary, the rest are its args), preserved verbatim with no shell
 // re-tokenization.
-func splitWorkload(args []string, dash int) (preDash, workload []string) {
+func splitWorkload(args []string, dash int) ([]string, []string) {
 	if dash < 0 {
 		return args, nil
 	}
@@ -316,6 +316,7 @@ func processSpec(cmd *cobra.Command, spec **api.TerminalSpec, workload []string)
 	return nil
 }
 
+//nolint:gocognit,funlen // cobra command wiring; closures for PreRunE/RunE live inline by convention
 func NewTerminalCmd() *cobra.Command {
 	// terminalCmd represents the terminal command.
 	terminalCmd := &cobra.Command{
@@ -448,7 +449,8 @@ func setupTerminalCmdFlags(terminalCmd *cobra.Command) {
 	terminalCmd.Flags().String("id", "", "Optional terminal ID (random if omitted)")
 	_ = viper.BindPFlag(config.SBSH_TERM_ID.ViperKey, terminalCmd.Flags().Lookup("id"))
 
-	terminalCmd.Flags().String("name", "", "Optional name for the terminal (random if omitted; must be unique across active terminals)")
+	terminalCmd.Flags().
+		String("name", "", "Optional name for the terminal (random if omitted; must be unique across active terminals)")
 	_ = viper.BindPFlag(config.SBSH_TERM_NAME.ViperKey, terminalCmd.Flags().Lookup("name"))
 
 	terminalCmd.Flags().String("log-file", "", "Optional filename for the terminal log")

@@ -58,13 +58,13 @@ type TerminalProfileMetadata struct {
 }
 
 type TerminalProfileSpec struct {
-	RunTarget     RunTarget     `json:"runTarget"         yaml:"runTarget"`
-	RestartPolicy RestartPolicy `json:"restartPolicy"     yaml:"restartPolicy"`
-	Shell         ShellSpec     `json:"shell"             yaml:"shell"`
-	Stages        StagesSpec    `json:"stages"            yaml:"stages"`
-	Socket        *FilePermSpec `json:"socket,omitempty"  yaml:"socket,omitempty"`
-	Capture       *FilePermSpec `json:"capture,omitempty" yaml:"capture,omitempty"`
-	LogFile       *FilePermSpec `json:"logFile,omitempty" yaml:"logFile,omitempty"`
+	RunTarget     RunTarget     `json:"runTarget"               yaml:"runTarget"`
+	RestartPolicy RestartPolicy `json:"restartPolicy"           yaml:"restartPolicy"`
+	Shell         ShellSpec     `json:"shell"                   yaml:"shell"`
+	Stages        StagesSpec    `json:"stages"                  yaml:"stages"`
+	Socket        *FilePermSpec `json:"socket,omitempty"        yaml:"socket,omitempty"`
+	Capture       *FilePermSpec `json:"capture,omitempty"       yaml:"capture,omitempty"`
+	LogFile       *FilePermSpec `json:"logFile,omitempty"       yaml:"logFile,omitempty"`
 	// CaptureFormat selects the on-disk capture format ("raw" default, or
 	// "asciicast"). It is orthogonal to the spec.capture block, which sets
 	// the capture file's chmod/gid — this picks the serialization. Empty

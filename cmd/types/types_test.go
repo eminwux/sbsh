@@ -14,11 +14,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package types
+package types_test
 
 import (
 	"context"
 	"testing"
+
+	"github.com/eminwux/sbsh/cmd/types"
 )
 
 // The types package declares only context-key constants and a key type; it
@@ -28,8 +30,14 @@ import (
 // the property logging.SetupFileLogger relies on.
 
 func TestCtxKeys_Distinct(t *testing.T) {
-	keys := []CtxLoggerType{CtxLogger, CtxLevelVar, CtxHandler, CtxCloser, CtxTerminalSpec}
-	seen := make(map[CtxLoggerType]bool, len(keys))
+	keys := []types.CtxLoggerType{
+		types.CtxLogger,
+		types.CtxLevelVar,
+		types.CtxHandler,
+		types.CtxCloser,
+		types.CtxTerminalSpec,
+	}
+	seen := make(map[types.CtxLoggerType]bool, len(keys))
 	for _, k := range keys {
 		if seen[k] {
 			t.Errorf("duplicate context key %q", k)
@@ -42,13 +50,13 @@ func TestCtxKeys_Distinct(t *testing.T) {
 }
 
 func TestCtxKeys_RoundTripThroughContext(t *testing.T) {
-	ctx := context.WithValue(context.Background(), CtxLogger, "logger-value")
-	ctx = context.WithValue(ctx, CtxCloser, "closer-value")
+	ctx := context.WithValue(context.Background(), types.CtxLogger, "logger-value")
+	ctx = context.WithValue(ctx, types.CtxCloser, "closer-value")
 
-	if got := ctx.Value(CtxLogger); got != "logger-value" {
+	if got := ctx.Value(types.CtxLogger); got != "logger-value" {
 		t.Errorf("ctx.Value(CtxLogger) = %v, want logger-value", got)
 	}
-	if got := ctx.Value(CtxCloser); got != "closer-value" {
+	if got := ctx.Value(types.CtxCloser); got != "closer-value" {
 		t.Errorf("ctx.Value(CtxCloser) = %v, want closer-value", got)
 	}
 	// A bare string with the same text must NOT collide with the typed key.

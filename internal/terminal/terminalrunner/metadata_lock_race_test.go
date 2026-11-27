@@ -66,12 +66,12 @@ func TestSetupShell_StatePollRace(t *testing.T) {
 	}()
 
 	const iterations = 50
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		sr.metadataMu.Lock()
 		sr.metadata.Spec.Prompt = ""
 		sr.metadataMu.Unlock()
-		if err := sr.SetupShell(); err != nil {
-			t.Fatalf("SetupShell: %v", err)
+		if errSetupShell := sr.SetupShell(); errSetupShell != nil {
+			t.Fatalf("SetupShell: %v", errSetupShell)
 		}
 	}
 
@@ -97,11 +97,11 @@ func TestPostAttachShell_OverlappingAttachesRace(t *testing.T) {
 		iterations = 200
 	)
 	var wg sync.WaitGroup
-	for g := 0; g < attachers; g++ {
+	for range attachers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				if err := sr.PostAttachShell(); err != nil {
 					t.Errorf("PostAttachShell: %v", err)
 					return

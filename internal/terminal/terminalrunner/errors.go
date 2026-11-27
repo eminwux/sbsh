@@ -19,9 +19,9 @@ package terminalrunner
 import "errors"
 
 var (
-	ErrCloseReq  error = errors.New("received close order")
-	ErrPipeWrite error = errors.New("could not write pty->pipe")
-	ErrPipeRead  error = errors.New("could not read pipe->pipe")
+	ErrCloseReq  = errors.New("received close order")
+	ErrPipeWrite = errors.New("could not write pty->pipe")
+	ErrPipeRead  = errors.New("could not read pipe->pipe")
 )
 
 // errTerminalClosing is returned by Subscribe (and any future post-Close

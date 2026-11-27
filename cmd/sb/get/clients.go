@@ -64,7 +64,11 @@ func setupNewGetClientCmd(cmd *cobra.Command) {
 	_ = cmd.RegisterFlagCompletionFunc(
 		"output",
 		func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-			return []string{"wide", "json", "yaml"}, cobra.ShellCompDirectiveNoFileComp
+			return []string{
+				discovery.FormatWide,
+				discovery.FormatJSON,
+				discovery.FormatYAML,
+			}, cobra.ShellCompDirectiveNoFileComp
 		},
 	)
 }
@@ -76,7 +80,8 @@ func listClients(cmd *cobra.Command, _ []string) error {
 	}
 
 	format := viper.GetString(config.SB_GET_CLIENTS_OUTPUT.ViperKey)
-	if format != "" && format != "wide" && format != "json" && format != "yaml" {
+	if format != "" && format != discovery.FormatWide && format != discovery.FormatJSON &&
+		format != discovery.FormatYAML {
 		return fmt.Errorf("%w: %s", errdefs.ErrInvalidOutputFormat, format)
 	}
 
@@ -152,7 +157,7 @@ func getClient(cmd *cobra.Command, args []string) error {
 	}
 	clientName := args[0]
 	format := viper.GetString(config.SB_GET_CLIENTS_OUTPUT.ViperKey)
-	if format != "" && format != "json" && format != "yaml" {
+	if format != "" && format != discovery.FormatJSON && format != discovery.FormatYAML {
 		return fmt.Errorf("%w: %s (use json|yaml for a single client)", errdefs.ErrInvalidOutputFormat, format)
 	}
 	logger.Debug("get client command invoked",

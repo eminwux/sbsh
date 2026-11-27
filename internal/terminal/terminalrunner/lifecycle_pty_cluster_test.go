@@ -179,6 +179,7 @@ func TestStartTerminalMissingDir(t *testing.T) {
 	}
 }
 
+//nolint:gocognit // table-driven; each case asserts several command fields
 func TestPrepareTerminalCommand(t *testing.T) {
 	t.Run("inherit env", func(t *testing.T) {
 		sr := newBareExec(t)
@@ -343,8 +344,8 @@ func TestWriteStage(t *testing.T) {
 		sr.ptmx = w
 
 		stage := []api.ExecStep{{Script: "echo hi", Env: map[string]string{"K": "v"}}}
-		if err := sr.writeStage(&stage); err != nil {
-			t.Fatalf("writeStage: %v", err)
+		if errWriteStage := sr.writeStage(&stage); errWriteStage != nil {
+			t.Fatalf("writeStage: %v", errWriteStage)
 		}
 	})
 
@@ -359,7 +360,7 @@ func TestWriteStage(t *testing.T) {
 		sr.ptmx = w // closed pipe: the first PTY write fails
 
 		stage := []api.ExecStep{{Script: "echo hi"}}
-		if err := sr.writeStage(&stage); err == nil {
+		if errWriteStage := sr.writeStage(&stage); errWriteStage == nil {
 			t.Fatal("expected writeStage to surface a PTY write error")
 		}
 	})
@@ -495,8 +496,8 @@ func TestUseListener(t *testing.T) {
 	t.Cleanup(func() { _ = ln.Close() })
 	sr.metadata.Spec.SocketMode = 0o660
 
-	if err := sr.UseListener(ln); err != nil {
-		t.Fatalf("UseListener: %v", err)
+	if errUseListener := sr.UseListener(ln); errUseListener != nil {
+		t.Fatalf("UseListener: %v", errUseListener)
 	}
 	if sr.lnCtrl != ln {
 		t.Error("UseListener did not store the listener")

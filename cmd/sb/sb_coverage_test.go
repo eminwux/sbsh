@@ -72,8 +72,8 @@ func Test_PersistentPreRunE_NonVerbose(t *testing.T) {
 	}
 	cmd.SetContext(context.Background())
 
-	if err := cmd.PersistentPreRunE(cmd, nil); err != nil {
-		t.Fatalf("PersistentPreRunE() error = %v", err)
+	if errPersistentPreRunE := cmd.PersistentPreRunE(cmd, nil); errPersistentPreRunE != nil {
+		t.Fatalf("PersistentPreRunE() error = %v", errPersistentPreRunE)
 	}
 }
 
@@ -93,8 +93,8 @@ func Test_PersistentPreRunE_Verbose(t *testing.T) {
 	}
 	cmd.SetContext(context.Background())
 
-	if err := cmd.PersistentPreRunE(cmd, nil); err != nil {
-		t.Fatalf("PersistentPreRunE() error = %v", err)
+	if errPersistentPreRunE := cmd.PersistentPreRunE(cmd, nil); errPersistentPreRunE != nil {
+		t.Fatalf("PersistentPreRunE() error = %v", errPersistentPreRunE)
 	}
 }
 
@@ -182,8 +182,8 @@ func Test_RunE_Help(t *testing.T) {
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
 
-	if err := cmd.RunE(cmd, nil); err != nil {
-		t.Fatalf("RunE() error = %v", err)
+	if errRunE := cmd.RunE(cmd, nil); errRunE != nil {
+		t.Fatalf("RunE() error = %v", errRunE)
 	}
 }
 
@@ -196,8 +196,8 @@ func Test_PostRunE_NoCloser(t *testing.T) {
 	}
 	cmd.SetContext(context.Background())
 
-	if err := cmd.PostRunE(cmd, nil); err != nil {
-		t.Fatalf("PostRunE() error = %v", err)
+	if errPostRunE := cmd.PostRunE(cmd, nil); errPostRunE != nil {
+		t.Fatalf("PostRunE() error = %v", errPostRunE)
 	}
 }
 
@@ -211,8 +211,8 @@ func Test_PostRunE_WithCloser(t *testing.T) {
 	fc := &fakeCloser{}
 	cmd.SetContext(context.WithValue(context.Background(), types.CtxCloser, io.Closer(fc)))
 
-	if err := cmd.PostRunE(cmd, nil); err != nil {
-		t.Fatalf("PostRunE() error = %v", err)
+	if errPostRunE := cmd.PostRunE(cmd, nil); errPostRunE != nil {
+		t.Fatalf("PostRunE() error = %v", errPostRunE)
 	}
 	if !fc.closed {
 		t.Fatal("expected closer to be closed")
