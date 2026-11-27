@@ -16,6 +16,8 @@
 
 package server
 
+import "github.com/eminwux/sbsh/pkg/api"
+
 // Handler is a custom JSON-RPC service an embedder registers alongside
 // the built-in attach/control protocol, served on the same listener.
 //
@@ -56,5 +58,27 @@ type Option func(*Server)
 func WithHandlers(handlers ...Handler) Option {
 	return func(s *Server) {
 		s.handlers = append(s.handlers, handlers...)
+	}
+}
+
+// WithStatusObserver registers fn to receive a copy of the terminal
+// document (the same shape Metadata returns) after every committed status
+// change: each state transition, each attach and detach, and the exit
+// details written when the terminal closes.
+//
+// fn runs on a dedicated goroutine, so it never blocks PTY I/O, the RPC
+// server or shutdown. Documents arrive in commit order, but while fn is
+// busy only the latest pending document is kept: a slow observer gets the
+// most recent state, not every intermediate one. The final call, carrying
+// State Exited and any exit details, may arrive after Serve returns; call
+// Metadata after Serve for a synchronous read of the final document. A
+// panic in fn is recovered and logged. Treat the document as read-only.
+//
+// New returns an error when fn is nil. Without this option nothing
+// changes.
+func WithStatusObserver(fn func(api.TerminalDoc)) Option {
+	return func(s *Server) {
+		s.statusObserver = fn
+		s.statusObserverSet = true
 	}
 }

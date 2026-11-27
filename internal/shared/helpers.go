@@ -24,8 +24,21 @@ import (
 	"path/filepath"
 )
 
-func WriteMetadata(_ context.Context, metadata any, dir string) error {
-	dst := filepath.Join(dir, "metadata.json")
+// DefaultMetadataFile is the metadata document name WriteMetadata uses. It
+// mirrors api.DefaultMetadataFile; discovery scans only for this name.
+const DefaultMetadataFile = "metadata.json"
+
+// WriteMetadata atomically writes metadata as dir/metadata.json.
+func WriteMetadata(ctx context.Context, metadata any, dir string) error {
+	return WriteMetadataFile(ctx, metadata, dir, DefaultMetadataFile)
+}
+
+// WriteMetadataFile atomically writes metadata as dir/name. name must be a
+// single path component (callers validate it, e.g. via
+// api.ResolveMetadataFile). The temp file is ".meta-*.tmp" for the default
+// name, unchanged from before, and ".<name>-*.tmp" otherwise.
+func WriteMetadataFile(_ context.Context, metadata any, dir, name string) error {
+	dst := filepath.Join(dir, name)
 	marshaled, marshalErr := json.MarshalIndent(metadata, "", "  ")
 	if marshalErr != nil {
 		return fmt.Errorf("marshal %s: %w", dir, marshalErr)
@@ -33,17 +46,26 @@ func WriteMetadata(_ context.Context, metadata any, dir string) error {
 	marshaled = append(marshaled, '\n') // gocritic: assign result to same slice
 
 	const filePerm = 0o644 // mnd: magic number
-	if writeErr := atomicWriteFile(dst, marshaled, filePerm); writeErr != nil {
+	if writeErr := atomicWriteFile(dst, metadataTempPattern(name), marshaled, filePerm); writeErr != nil {
 		return fmt.Errorf("write %s: %w", dst, writeErr)
 	}
 	return nil
 }
 
+// metadataTempPattern returns the os.CreateTemp pattern for a metadata
+// document named name.
+func metadataTempPattern(name string) string {
+	if name == DefaultMetadataFile {
+		return ".meta-*.tmp"
+	}
+	return "." + name + "-*.tmp"
+}
+
 // atomicWriteFile writes to a temp file in the same dir, fsyncs, then renames.
-func atomicWriteFile(dst string, data []byte, mode os.FileMode) error {
+func atomicWriteFile(dst, tempPattern string, data []byte, mode os.FileMode) error {
 	dir := filepath.Dir(dst)
 
-	f, createErr := os.CreateTemp(dir, ".meta-*.tmp")
+	f, createErr := os.CreateTemp(dir, tempPattern)
 	if createErr != nil {
 		return createErr
 	}

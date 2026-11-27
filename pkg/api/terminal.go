@@ -19,6 +19,8 @@ package api
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -106,6 +108,18 @@ type TerminalSpec struct {
 	// pkg/discovery.ScanTerminals).
 	MetadataDir string `json:"metadataDir,omitempty"`
 
+	// MetadataFile is the basename of the metadata document the runner
+	// writes into the metadata directory and reads back for its live-owner
+	// check. Empty means DefaultMetadataFile ("metadata.json"). It must be a
+	// single path component (no separator, not "." or ".."), and a
+	// non-default name requires MetadataDir: pkg/discovery (and so `sb get`
+	// and `sb prune`) only look for metadata.json under
+	// runPath/terminals/<id>/, so a terminal with another file name is not
+	// listed, and a legacy-layout directory without metadata.json would be
+	// pruned as an orphan. Temp files used for the atomic write are named
+	// after it (".<name>-*.tmp"). See ResolveMetadataFile.
+	MetadataFile string `json:"metadataFile,omitempty"`
+
 	// SocketMode is the chmod applied to the control socket after Listen.
 	// Zero means "use the runner default" (0600), preserving owner-only
 	// behavior for callers that never set the field.
@@ -176,6 +190,41 @@ func NormalizeCaptureFormat(s string) (string, error) {
 	}
 }
 
+// DefaultMetadataFile is the metadata document name used when
+// TerminalSpec.MetadataFile is empty. It is the only name pkg/discovery
+// scans for.
+const DefaultMetadataFile = "metadata.json"
+
+// ResolveMetadataFile returns the metadata document basename for spec:
+// DefaultMetadataFile when MetadataFile is empty, otherwise MetadataFile
+// itself. It rejects a name that is not a single clean path component
+// ("a/b", "../x", ".", "..") and a non-default name when MetadataDir is
+// empty, because discovery would then treat the legacy
+// runPath/terminals/<id>/ directory as an orphan and prune it.
+func ResolveMetadataFile(spec *TerminalSpec) (string, error) {
+	if spec == nil || spec.MetadataFile == "" {
+		return DefaultMetadataFile, nil
+	}
+	name := spec.MetadataFile
+	if name == "." || name == ".." ||
+		strings.ContainsRune(name, '/') ||
+		strings.ContainsRune(name, filepath.Separator) ||
+		name != filepath.Base(name) {
+		return "", fmt.Errorf(
+			"invalid metadata file name %q: must be a single file name without a path separator",
+			name,
+		)
+	}
+	if name != DefaultMetadataFile && spec.MetadataDir == "" {
+		return "", fmt.Errorf(
+			"metadata file name %q requires MetadataDir: discovery only scans for %q in the default layout",
+			name,
+			DefaultMetadataFile,
+		)
+	}
+	return name, nil
+}
+
 type TerminalStatus struct {
 	Pid int `json:"pid"`
 	// PidStart is an opaque per-process identifier captured at metadata
@@ -203,6 +252,18 @@ type TerminalStatus struct {
 	CaptureFile     string             `json:"captureFile"`
 	Attachers       []string           `json:"attachers"`
 	LastAttachedAt  time.Time          `json:"lastAttachedAt,omitzero" yaml:"lastAttachedAt,omitempty"`
+
+	// ExitCode is the workload's exit status once it has exited normally.
+	// nil while the workload runs and when it was killed by a signal (no
+	// POSIX exit status exists then; see ExitSignal).
+	ExitCode *int `json:"exitCode,omitempty"   yaml:"exitCode,omitempty"`
+	// ExitSignal is the name of the signal that killed the workload (e.g.
+	// "SIGKILL"). Empty while it runs and when it exited normally.
+	ExitSignal string `json:"exitSignal,omitempty" yaml:"exitSignal,omitempty"`
+	// ExitedAt is when the runner observed the workload's exit. Zero while
+	// it runs. Set together with ExitCode or ExitSignal and persisted with
+	// State Exited.
+	ExitedAt time.Time `json:"exitedAt,omitzero"    yaml:"exitedAt,omitempty"`
 }
 
 type TerminalState int

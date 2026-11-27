@@ -58,7 +58,12 @@ func (sr *Exec) CreateMetadata() error {
 	sr.metadataMu.Lock()
 	runPath := sr.metadata.Spec.RunPath
 	metadataDirOverride := sr.metadata.Spec.MetadataDir
+	metadataFile, nameErr := api.ResolveMetadataFile(&sr.metadata.Spec)
 	sr.metadataMu.Unlock()
+	if nameErr != nil {
+		sr.logger.Error("CreateMetadata: invalid metadata file name", "error", nameErr)
+		return nameErr
+	}
 
 	dir, embedderOwnsDir := resolveMetadataDir(runPath, metadataDirOverride, sr.id)
 
@@ -70,7 +75,7 @@ func (sr *Exec) CreateMetadata() error {
 	// os.RemoveAll a still-running terminal's run dir. The socket probe in
 	// OpenSocketCtrl runs only after this write, so detection has to happen
 	// here, before the overwrite. See #386.
-	if owner := liveMetadataOwner(dir); owner != nil {
+	if owner := liveMetadataOwner(dir, metadataFile); owner != nil {
 		sr.logger.Error(
 			"CreateMetadata: refusing to overwrite metadata owned by a live terminal",
 			"dir", dir,
@@ -126,11 +131,13 @@ func (sr *Exec) CreateMetadata() error {
 		sr.logger.Error("CreateMetadata: failed to update metadata", "error", err)
 		return err
 	}
+	sr.notifyStatus()
 	sr.logger.Info("CreateMetadata: metadata created successfully")
 	return nil
 }
 
-// liveMetadataOwner reads an existing metadata.json under dir and returns the
+// liveMetadataOwner reads an existing metadata document (dir/name, normally
+// metadata.json) and returns the
 // decoded doc when it represents an active owner — recorded state is not Exited
 // and the owner process instance is still alive — or nil when no metadata
 // exists, it is unreadable/corrupt, the prior owner already exited, or its
@@ -141,11 +148,11 @@ func (sr *Exec) CreateMetadata() error {
 // of VerifyTerminalNameAvailable. CreateMetadata is called once per runner
 // lifecycle before the runner writes any metadata of its own, so a fresh start
 // never matches itself here.
-func liveMetadataOwner(dir string) *api.TerminalDoc {
+func liveMetadataOwner(dir, name string) *api.TerminalDoc {
 	if dir == "" {
 		return nil
 	}
-	b, err := os.ReadFile(filepath.Join(dir, "metadata.json"))
+	b, err := os.ReadFile(filepath.Join(dir, name))
 	if err != nil {
 		// ENOENT (fresh ID) or any read error: no live owner to protect.
 		return nil
@@ -175,9 +182,22 @@ func (sr *Exec) getTerminalDir() string {
 func (sr *Exec) updateMetadata() error {
 	sr.metadataMu.RLock()
 	metadataCopy := sr.metadata
-	dir, _ := resolveMetadataDir(sr.metadata.Spec.RunPath, sr.metadata.Spec.MetadataDir, sr.id)
 	sr.metadataMu.RUnlock()
-	return shared.WriteMetadata(sr.ctx, metadataCopy, dir)
+	return sr.persistMetadata(metadataCopy)
+}
+
+// persistMetadata atomically writes doc to the directory and file name its
+// own Spec resolves to (MetadataDir or the legacy layout, MetadataFile or
+// metadata.json). An invalid MetadataFile is returned as an error and
+// nothing is written, so a runner whose CreateMetadata rejected the name
+// does not write a stray file from Close.
+func (sr *Exec) persistMetadata(doc api.TerminalDoc) error {
+	name, err := api.ResolveMetadataFile(&doc.Spec)
+	if err != nil {
+		return err
+	}
+	dir, _ := resolveMetadataDir(doc.Spec.RunPath, doc.Spec.MetadataDir, sr.id)
+	return shared.WriteMetadataFile(sr.ctx, doc, dir, name)
 }
 
 // resolveMetadataDir picks the directory where metadata.json is written.
@@ -226,11 +246,10 @@ func (sr *Exec) noteMetadataWriteErr(where string, err error) {
 func (sr *Exec) updateTerminalState(status api.TerminalStatusMode) error {
 	sr.metadataMu.RLock()
 	metadataCopy := sr.metadata
-	dir, _ := resolveMetadataDir(sr.metadata.Spec.RunPath, sr.metadata.Spec.MetadataDir, sr.id)
 	sr.metadataMu.RUnlock()
 	metadataCopy.Status.State = status
 
-	if err := shared.WriteMetadata(sr.ctx, metadataCopy, dir); err != nil {
+	if err := sr.persistMetadata(metadataCopy); err != nil {
 		sr.noteMetadataWriteErr("updateTerminalState", err)
 		return err
 	}
@@ -238,6 +257,7 @@ func (sr *Exec) updateTerminalState(status api.TerminalStatusMode) error {
 	sr.metadataMu.Lock()
 	sr.metadata.Status.State = status
 	sr.metadataMu.Unlock()
+	sr.notifyStatus()
 	return nil
 }
 
@@ -256,6 +276,9 @@ func (sr *Exec) updateTerminalAttachers() error {
 		sr.metadata.Status.LastAttachedAt = time.Now().UTC()
 	}
 	sr.metadataMu.Unlock()
+	// The attacher list is committed in memory before the write, so the
+	// observer sees it even if the write below fails.
+	sr.notifyStatus()
 
 	if err := sr.updateMetadata(); err != nil {
 		sr.noteMetadataWriteErr("updateTerminalAttachers", err)

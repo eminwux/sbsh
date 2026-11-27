@@ -7,6 +7,24 @@ loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `api.TerminalSpec.MetadataFile` names the metadata document the
+  runner writes into `MetadataDir` and reads back for its live-owner
+  check (empty keeps `metadata.json`). It must be a plain file name and
+  requires `MetadataDir`; a terminal with another name is not listed
+  by `sb get` or `pkg/discovery`. Temp files for the atomic write are
+  named after it.
+- `pkg/terminal/server.WithStatusObserver` delivers a copy of the
+  terminal document after every committed status change (state
+  transitions, attach, detach, close) on its own goroutine, coalescing
+  to the latest document while the observer is busy, so it never
+  delays PTY I/O or shutdown. The final `Exited` call may arrive after
+  `Serve` returns.
+- `api.TerminalStatus` records `exitCode`, `exitSignal` and `exitedAt`
+  when the workload exits, in PID-1 init mode and normal mode alike;
+  a signaled death sets `exitSignal` (e.g. `SIGKILL`) and leaves
+  `exitCode` unset. `Serve` returns a `*server.ExitError` (`Code`,
+  `Signal`) for a workload exit, matchable with `errors.As`, with the
+  same error text as before.
 - Terminals expose read-only I/O activity counters through a new
   `Activity` RPC (`api.TerminalMethodActivity`), reachable via
   `pkg/rpcclient/terminal.Client.Activity` and the

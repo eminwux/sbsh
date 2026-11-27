@@ -83,10 +83,10 @@ func TestWriteMetadata_WriteErrorOnMissingDir(t *testing.T) {
 
 func TestAtomicWriteFile_OverwritesExisting(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "f.txt")
-	if err := atomicWriteFile(dst, []byte("first"), 0o600); err != nil {
+	if err := atomicWriteFile(dst, ".meta-*.tmp", []byte("first"), 0o600); err != nil {
 		t.Fatalf("first write: %v", err)
 	}
-	if err := atomicWriteFile(dst, []byte("second"), 0o600); err != nil {
+	if err := atomicWriteFile(dst, ".meta-*.tmp", []byte("second"), 0o600); err != nil {
 		t.Fatalf("second write: %v", err)
 	}
 	got, err := os.ReadFile(dst)
@@ -100,7 +100,7 @@ func TestAtomicWriteFile_OverwritesExisting(t *testing.T) {
 
 func TestAtomicWriteFile_CreateTempError(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "no-such-dir", "f.txt")
-	if err := atomicWriteFile(dst, []byte("x"), 0o600); err == nil {
+	if err := atomicWriteFile(dst, ".meta-*.tmp", []byte("x"), 0o600); err == nil {
 		t.Errorf("atomicWriteFile into missing dir = nil; want CreateTemp error")
 	}
 }

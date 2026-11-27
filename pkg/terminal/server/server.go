@@ -49,6 +49,9 @@ type Server struct {
 
 	handlers []Handler
 
+	statusObserver    func(api.TerminalDoc)
+	statusObserverSet bool
+
 	mu          sync.Mutex
 	serveCalled bool
 	runner      terminalrunner.TerminalRunner
@@ -83,8 +86,28 @@ func New(spec *api.TerminalSpec, logger *slog.Logger, opts ...Option) (*Server, 
 	if err := validateHandlers(s.handlers); err != nil {
 		return nil, err
 	}
+	if s.statusObserverSet && s.statusObserver == nil {
+		return nil, errors.New("server: nil status observer")
+	}
+	if _, err := api.ResolveMetadataFile(spec); err != nil {
+		return nil, fmt.Errorf("server: %w", err)
+	}
 	return s, nil
 }
+
+// ExitError is the error Serve returns when the wrapped workload exits.
+// Match it with errors.As to read the exit code or signal:
+//
+//	var ee *server.ExitError
+//	if errors.As(err, &ee) { ... ee.Code, ee.Signal ... }
+//
+// Exactly one of Code and Signal is set: Code for a normal exit
+// (including 0), Signal (e.g. "SIGKILL") for a death by signal. Its
+// Error() text is unchanged from earlier releases. Other terminating
+// causes (Stop, context cancellation, PTY or RPC failures) are not an
+// ExitError. The same details are persisted in the document's Status
+// (ExitCode, ExitSignal, ExitedAt).
+type ExitError = terminalrunner.ExitError
 
 // validateHandlers rejects custom handler registrations that would
 // collide with the built-in service or with each other before Serve
@@ -112,7 +135,7 @@ func validateHandlers(handlers []Handler) error {
 // Serve accepts on listener and dispatches the TerminalController
 // service surface. Blocks until ctx is cancelled, the wrapped child
 // exits, Stop is called, or the RPC server fails. Returns the
-// terminating cause. The listener is closed by the underlying runner
+// terminating cause; a workload exit is an *ExitError. The listener is closed by the underlying runner
 // during shutdown — the caller transfers ownership for the lifetime of
 // Serve.
 func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
@@ -155,7 +178,11 @@ func (s *Server) bringUp(
 	rpcReadyCh := make(chan error, 1)
 	rpcDoneCh := make(chan error, 1)
 
-	runner := terminalrunner.NewTerminalRunnerExec(ctx, s.logger, s.spec)
+	var runnerOpts []terminalrunner.ExecOption
+	if s.statusObserver != nil {
+		runnerOpts = append(runnerOpts, terminalrunner.WithStatusObserver(s.statusObserver))
+	}
+	runner := terminalrunner.NewTerminalRunnerExecWithOptions(ctx, s.logger, s.spec, runnerOpts...)
 	if err := runner.UseListener(listener); err != nil {
 		s.mu.Unlock()
 		_ = runner.Close(err)
