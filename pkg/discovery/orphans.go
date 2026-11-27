@@ -96,7 +96,7 @@ func orphanDirs[T any](
 			continue
 		}
 		dir := filepath.Join(root, e.Name())
-		b, errRead := os.ReadFile(filepath.Join(dir, "metadata.json"))
+		b, errRead := os.ReadFile(filepath.Join(dir, api.DefaultMetadataFile))
 		if errRead == nil {
 			var doc T
 			if json.Unmarshal(b, &doc) == nil {
@@ -105,7 +105,7 @@ func orphanDirs[T any](
 		} else if !errors.Is(errRead, fs.ErrNotExist) {
 			logger.WarnContext(
 				ctx,
-				fmt.Sprintf("%s: metadata.json unreadable, not classifying as orphan", logPrefix),
+				fmt.Sprintf("%s: %s unreadable, not classifying as orphan", logPrefix, api.DefaultMetadataFile),
 				"dir", dir,
 				"error", errRead,
 			)
@@ -117,7 +117,7 @@ func orphanDirs[T any](
 		}
 		logger.WarnContext(
 			ctx,
-			fmt.Sprintf("%s: %s dir has missing or unparseable metadata.json", logPrefix, noun),
+			fmt.Sprintf("%s: %s dir has missing or unparseable %s", logPrefix, noun, api.DefaultMetadataFile),
 			"dir", dir,
 		)
 		orphans = append(orphans, dir)

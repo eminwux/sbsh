@@ -22,11 +22,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/eminwux/sbsh/pkg/api"
 )
 
 // DefaultMetadataFile is the metadata document name WriteMetadata uses. It
-// mirrors api.DefaultMetadataFile; discovery scans only for this name.
-const DefaultMetadataFile = "metadata.json"
+// aliases api.DefaultMetadataFile, the only name discovery scans for, so the
+// runner and discovery cannot drift apart.
+const DefaultMetadataFile = api.DefaultMetadataFile
 
 // WriteMetadata atomically writes metadata as dir/metadata.json.
 func WriteMetadata(ctx context.Context, metadata any, dir string) error {
