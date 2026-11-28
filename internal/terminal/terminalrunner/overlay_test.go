@@ -791,6 +791,125 @@ func checkToastTracking(t *testing.T, pos ToastPosition) {
 	}
 }
 
+// A bottom-right toast over a full-width last line that leaves the cursor in
+// pending-wrap state keeps its right border: the draw does not recreate the
+// wrap by rewriting the covered last cell. The erase recreates it, so the
+// next live byte wraps on the client exactly as in the model, and a
+// dismissal leaves the client in pending-wrap state too.
+func TestToastPendingWrapKeepsBorder(t *testing.T) {
+	r := newOverlayRig(t)
+	cols, rows := r.screen.size()
+	r.out(t, styledScreen, fmt.Sprintf("\x1b[%d;1H", rows), strings.Repeat("w", cols))
+	if !wrapPending(r.screen) {
+		t.Fatal("setup: model cursor is not in pending-wrap state")
+	}
+	c := r.attach(t, "c", false)
+	toast := Toast{Lines: []string{"wrap"}, Position: ToastBottomRight}
+	box := r.toastBoxFor(t, toast)
+
+	checkBorder := func(label string) {
+		t.Helper()
+		want := []rune{'┐', '│', '┘'}
+		for i, y := range []int{box.top, box.top + 1, box.top + box.height - 1} {
+			c.term.vt.Lock()
+			got := c.term.vt.Cell(cols-1, y).Char
+			c.term.vt.Unlock()
+			if got != want[i] {
+				t.Errorf("%s: right border at (%d,%d) is %q, want %q", label, cols-1, y, got, want[i])
+			}
+		}
+	}
+
+	id := mustToast(t, r, toast)
+	c.drain()
+	checkBorder("after show")
+	expectScreen(t, "after show", c.term, r.screen, box, true)
+
+	if err := r.sr.DismissToast(id); err != nil {
+		t.Fatalf("DismissToast: %v", err)
+	}
+	c.drain()
+	expectScreen(t, "after dismiss", c.term, r.screen, nil, true)
+	if !wrapPending(c.term) {
+		t.Error("after dismiss: client lost the pending wrap")
+	}
+
+	mustToast(t, r, toast)
+	c.drain()
+	checkBorder("after re-show")
+	r.out(t, "Z", "\r\nmore")
+	c.drain()
+	checkBorder("after live output")
+	expectScreen(t, "after live output", c.term, r.screen, box, true)
+}
+
+func wrapPending(m *screenModel) bool {
+	m.vt.Lock()
+	defer m.vt.Unlock()
+	return m.vt.Cursor().State&vtCursorWrapNext != 0
+}
+
+// Replacing sticky toasts (TTL <= 0) without dismissing the old IDs does not
+// grow the registry: a toast replaced on every client that showed it is
+// forgotten, and dismissing its ID reports ErrToastNotFound. A toast still
+// shown on some client stays dismissable there.
+func TestToastReplacedStickyPruned(t *testing.T) {
+	r := newOverlayRig(t)
+	r.out(t, styledScreen)
+	c1 := r.attach(t, "c1", false)
+	c2 := r.attach(t, "c2", false)
+
+	registrySize := func() int {
+		r.sr.overlays.mu.Lock()
+		defer r.sr.overlays.mu.Unlock()
+		return len(r.sr.overlays.toasts)
+	}
+
+	var first, last ToastID
+	for i := range 100 {
+		last = mustToast(t, r, Toast{Lines: []string{fmt.Sprintf("sticky %d", i)}})
+		if i == 0 {
+			first = last
+		}
+		if n := registrySize(); n != 1 {
+			t.Fatalf("after %d replacements: registry holds %d toasts, want 1", i, n)
+		}
+	}
+	if err := r.sr.DismissToast(first); !errors.Is(err, ErrToastNotFound) {
+		t.Errorf("dismiss replaced toast: got %v, want ErrToastNotFound", err)
+	}
+
+	// Replace the last toast on c1 only: it stays registered for c2.
+	only1, err := r.sr.ShowToast(context.Background(), Target{Only: []api.ID{c1.id}}, Toast{Lines: []string{"c1 only"}})
+	if err != nil {
+		t.Fatalf("ShowToast: %v", err)
+	}
+	if n := registrySize(); n != 2 {
+		t.Fatalf("after a partial replace: registry holds %d toasts, want 2", n)
+	}
+	if err = r.sr.DismissToast(last); err != nil {
+		t.Fatalf("dismiss toast still shown on c2: %v", err)
+	}
+	c2.drain()
+	expectScreen(t, "c2 after dismiss", c2.term, r.screen, nil, true)
+	c1.drain()
+	expectScreen(t, "c1 keeps its toast", c1.term, r.screen,
+		r.toastBoxFor(t, Toast{Lines: []string{"c1 only"}}), true)
+	if err = r.sr.DismissToast(only1); err != nil {
+		t.Fatalf("DismissToast: %v", err)
+	}
+	if n := registrySize(); n != 0 {
+		t.Errorf("after dismissing everything: registry holds %d toasts, want 0", n)
+	}
+
+	// A replaced TTL toast is pruned too, and its timer stopped.
+	mustToast(t, r, Toast{Lines: []string{"ttl"}, TTL: time.Hour})
+	mustToast(t, r, Toast{Lines: []string{"sticky"}})
+	if n := registrySize(); n != 1 {
+		t.Errorf("after replacing a TTL toast: registry holds %d toasts, want 1", n)
+	}
+}
+
 // AC: on TTL expiry the box area matches the model again.
 func TestToastTTLExpiry(t *testing.T) {
 	r := newOverlayRig(t)

@@ -90,7 +90,10 @@ What overlays guarantee:
   never slows the workload, the capture or other attached clients.
   Toast and restore redraws never wait for a client either: a client
   that has stopped reading and whose output buffer is full is
-  disconnected as lagged instead.
+  disconnected as lagged instead. The exception is a toast redraw sent
+  with a chunk of live output (the box taken down before the chunk and
+  drawn again after it): it follows that output's backpressure, so a
+  live client in backpressure mode is paced rather than dropped.
 - Overlay bytes are never inserted inside an escape sequence. A switch
   waits for the output to reach the end of the current sequence, for at
   most 100 ms. After that, sbsh aborts the client's partial sequence

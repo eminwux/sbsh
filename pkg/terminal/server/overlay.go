@@ -46,9 +46,12 @@ import (
 //     the workload, sibling clients and the capture are never slowed.
 //     Overlay paints (toast draws and erases, the restore after End or a
 //     resize) never wait for a client either: a client whose output buffer
-//     cannot take one is disconnected as lagged. Takeover.Write is the
-//     exception: it blocks the caller, never the workload, while a held
-//     client's buffer is full.
+//     cannot take one is disconnected as lagged. There are two exceptions.
+//     Takeover.Write blocks the caller, never the workload, while a held
+//     client's buffer is full. And toast bytes sent with a forwarded chunk
+//     of live output (the box erase before it, the redraw after it) follow
+//     that output's backpressure, so a live client in backpressure mode is
+//     paced rather than dropped.
 //   - Redraws use absolute positioning and synchronized output and never
 //     touch the workload's saved-cursor slot (no DECSC/DECRC).
 //   - Without any overlay call, clients receive exactly the bytes they
@@ -100,7 +103,9 @@ var (
 	ErrNotStarted = errors.New("server: not started")
 	// ErrOverlaysNotRunning is returned when the terminal's PTY is not up.
 	ErrOverlaysNotRunning = terminalrunner.ErrOverlaysNotRunning
-	// ErrToastNotFound is returned by DismissToast for an unknown toast.
+	// ErrToastNotFound is returned by DismissToast for an unknown toast,
+	// one already dismissed or expired, or one replaced by a newer toast on
+	// every client that showed it.
 	ErrToastNotFound = terminalrunner.ErrToastNotFound
 	// ErrTakeoverEnded is returned by Takeover.Write and a second End.
 	ErrTakeoverEnded = terminalrunner.ErrTakeoverEnded
@@ -146,7 +151,9 @@ func (s *Server) Clients() []ClientInfo {
 }
 
 // ShowToast draws toast on the targeted clients and returns its ID. A
-// client already showing a toast has it replaced. The toast's lines are
+// client already showing a toast has it replaced; once a toast is replaced
+// on every client that showed it, it is forgotten and DismissToast of its ID
+// returns ErrToastNotFound. The toast's lines are
 // plain text (control characters are stripped) and sbsh draws the box
 // itself, restoring the cursor and text style after every redraw. It is
 // redrawn after each chunk of live output, re-placed on resize, and
