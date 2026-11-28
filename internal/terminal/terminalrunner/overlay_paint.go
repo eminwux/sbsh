@@ -36,8 +36,8 @@ const (
 
 // restorePaint returns the bytes that bring a client terminal whose screen
 // was overwritten (by takeover frames) back to exactly the model's state:
-// the buffer (normal/alt), every cell with its colors and text style, the
-// cursor position (including a pending wrap), the current pen, and the
+// the buffer (normal/alt), every cell with its colors and text style
+// (styled trailing blanks included), the cursor position (including a pending wrap), the current pen, and the
 // cursor visibility. It uses absolute positioning only and never touches the
 // saved-cursor slot (no DECSC/DECRC), which belongs to the workload. The
 // whole paint is wrapped in synchronized output.
@@ -64,16 +64,34 @@ func (m *screenModel) restorePaint(clientAlt bool) ([]byte, bool) {
 	b.WriteString(sgrReset)
 	b.WriteString(escClearScreen)
 	for y := range rows {
-		_, line := renderLine(m.vt, cols, y)
-		if line == "" {
-			continue
+		// Paint up to the last cell that differs from a cleared one. Unlike
+		// renderLine, this keeps trailing blanks that carry a pen (a
+		// reverse-video title bar, a colored background), which the client
+		// showed before the takeover and the clear above wiped.
+		if last := m.lastPaintedCellLocked(cols, y); last >= 0 {
+			m.writeSpanLocked(&b, y, 0, last+1)
 		}
-		fmt.Fprintf(&b, escCursorTo, y+1, 1)
-		b.WriteString(line)
 	}
 	m.writeCursorStateLocked(&b, cols)
 	b.WriteString(escSyncEnd)
 	return []byte(b.String()), altScreen
+}
+
+// lastPaintedCellLocked returns the index of the last cell in row y whose
+// rune is not blank or whose pen (colors or text style) is not the default,
+// or -1 when the whole row looks like a cleared one. The caller holds the vt
+// lock.
+func (m *screenModel) lastPaintedCellLocked(cols, y int) int {
+	for x := cols - 1; x >= 0; x-- {
+		g := m.vt.Cell(x, y)
+		if g.Char != ' ' && g.Char != 0 {
+			return x
+		}
+		if fg, bg, mode := cellPen(g); fg != vt10x.DefaultFG || bg != vt10x.DefaultBG || mode != 0 {
+			return x
+		}
+	}
+	return -1
 }
 
 // writeSpanLocked paints cells [x0,x1) of row y exactly as the model holds

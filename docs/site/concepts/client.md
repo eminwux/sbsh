@@ -88,6 +88,9 @@ What overlays guarantee:
   `sb screenshot` and the workload's input never see them.
 - A held client's live output is discarded, not buffered, so a takeover
   never slows the workload, the capture or other attached clients.
+  Toast and restore redraws never wait for a client either: a client
+  that has stopped reading and whose output buffer is full is
+  disconnected as lagged instead.
 - Overlay bytes are never inserted inside an escape sequence. A switch
   waits for the output to reach the end of the current sequence, for at
   most 100 ms. After that, sbsh aborts the client's partial sequence

@@ -49,7 +49,9 @@ import (
 // guarded by its mutex. Every state change happens either on the PTY reader
 // goroutine inside the fan-out (onLive) or under DynamicMultiWriter.Quiesce,
 // so the screen model and the client stream are always at the same chunk
-// boundary when a paint is computed.
+// boundary when a paint is computed. Because those paths hold the fan-out,
+// a paint made there never waits for ring space: a client whose ring cannot
+// take it is dropped as lagged (see clientOverlay.emitLocked).
 
 // overlayGroundWait bounds how long an overlay switch waits for the client
 // stream to reach a chunk boundary at ground before forcing it with CAN. var
@@ -185,6 +187,13 @@ type clientOverlay struct {
 	// (or miss what the workload drew there while the client was held), so
 	// the client is repainted once the workload leaves the alternate screen.
 	normalStale bool
+	// pacing is true while onLive forwards a live chunk to a live client.
+	// Overlay bytes emitted then (the box erase before the chunk, paints
+	// after it) follow the chunk's backpressure policy (issue #312). Every
+	// other overlay write runs under Quiesce, on a ground-wait timer or for
+	// a held client, where waiting for ring space would stall the whole
+	// fan-out, so it never waits (see emitLocked).
+	pacing bool
 
 	toast   *Toast
 	toastID ToastID
@@ -220,10 +229,12 @@ func (o *clientOverlay) onLive(s *subscriberWriter, p []byte) {
 		o.reconcile(s, false)
 		return
 	}
+	o.pacing = true
+	defer func() { o.pacing = false }()
 	if o.boxErase != nil {
 		// Take the box down before the chunk so output that scrolls or
 		// overwrites the screen moves the real cells, not the box.
-		s.enqueueLocked(o.boxErase)
+		o.emitLocked(s, o.boxErase)
 		o.boxErase = nil
 	}
 	wasAlt := o.liveEsc.altScreen
@@ -282,7 +293,7 @@ func (o *clientOverlay) reconcileHold(s *subscriberWriter, forced bool) {
 			o.armTimer(s)
 			return
 		}
-		s.enqueueLocked(cancelSeq)
+		o.emitLocked(s, cancelSeq)
 	}
 	o.stopTimer()
 	o.phase = phaseHeld
@@ -301,7 +312,7 @@ func (o *clientOverlay) reconcileEnd(s *subscriberWriter, forced bool) bool {
 	if !o.clientEsc.AtGround() {
 		// The embedder's frames left a partial sequence; no more frames are
 		// coming, so abort it now.
-		s.enqueueLocked(cancelSeq)
+		o.emitLocked(s, cancelSeq)
 	}
 	if !o.liveEsc.AtGround() {
 		if !forced {
@@ -336,7 +347,7 @@ func (o *clientOverlay) reconcileLive(s *subscriberWriter, forced bool) {
 			o.armTimer(s)
 			return
 		}
-		s.enqueueLocked(cancelSeq)
+		o.emitLocked(s, cancelSeq)
 		o.skipToGround = true
 		o.restorePending = true
 		o.stopTimer()
@@ -356,15 +367,27 @@ func (o *clientOverlay) reconcileLive(s *subscriberWriter, forced bool) {
 // the alternate screen the client's normal buffer is flagged stale.
 func (o *clientOverlay) restoreLocked(s *subscriberWriter) {
 	paint, alt := o.screen.restorePaint(o.clientEsc.altScreen)
-	s.enqueueLocked(paint)
+	o.emitLocked(s, paint)
 	o.normalStale = alt
+}
+
+// emitLocked enqueues overlay bytes for the client. Inside a forwarded live
+// chunk (pacing) they are paced like that chunk; anywhere else they never
+// wait, and a client whose ring cannot take them is dropped as lagged, so an
+// overlay paint can never slow the workload, sibling clients or the capture.
+func (o *clientOverlay) emitLocked(s *subscriberWriter, p []byte) {
+	if o.pacing {
+		s.enqueueLocked(p)
+		return
+	}
+	s.enqueueNoWaitLocked(p)
 }
 
 // drawToastLocked (re)draws the active toast, taking down a previous box
 // first. The client must be at ground.
 func (o *clientOverlay) drawToastLocked(s *subscriberWriter) {
 	if o.boxErase != nil {
-		s.enqueueLocked(o.boxErase)
+		o.emitLocked(s, o.boxErase)
 		o.boxErase = nil
 	}
 	if o.toast == nil {
@@ -374,7 +397,7 @@ func (o *clientOverlay) drawToastLocked(s *subscriberWriter) {
 	if !ok {
 		return
 	}
-	s.enqueueLocked(draw)
+	o.emitLocked(s, draw)
 	o.boxErase = erase
 }
 
@@ -619,7 +642,7 @@ func (sr *Exec) DismissToast(id ToastID) error {
 				if o.boxErase != nil && !w.closed {
 					// The box was drawn at a ground boundary and nothing has
 					// been sent since, so the client is at ground.
-					w.enqueueLocked(o.boxErase)
+					w.enqueueNoWaitLocked(o.boxErase)
 				}
 				o.boxErase = nil
 				o.reconcile(w, false)
@@ -768,6 +791,8 @@ func (tk *Takeover) Write(frame []byte) error {
 		w := oc.w
 		w.mu.Lock()
 		if w.overlay.phase == phaseHeld {
+			// Frames are paced like live output: outside the fan-out and
+			// Quiesce, a full ring blocks only this call, never the workload.
 			w.enqueueLocked(frame)
 		}
 		w.mu.Unlock()

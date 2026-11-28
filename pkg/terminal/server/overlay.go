@@ -44,6 +44,11 @@ import (
 //     sequence with CAN (0x18).
 //   - A takeover discards (never buffers) live output for its clients, so
 //     the workload, sibling clients and the capture are never slowed.
+//     Overlay paints (toast draws and erases, the restore after End or a
+//     resize) never wait for a client either: a client whose output buffer
+//     cannot take one is disconnected as lagged. Takeover.Write is the
+//     exception: it blocks the caller, never the workload, while a held
+//     client's buffer is full.
 //   - Redraws use absolute positioning and synchronized output and never
 //     touch the workload's saved-cursor slot (no DECSC/DECRC).
 //   - Without any overlay call, clients receive exactly the bytes they

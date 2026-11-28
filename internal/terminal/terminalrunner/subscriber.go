@@ -162,6 +162,20 @@ func (s *subscriberWriter) Write(p []byte) (int, error) {
 // the conn — live output and overlay bytes alike — goes through here, so the
 // drain goroutine stays the single writer of conn. The caller holds s.mu.
 func (s *subscriberWriter) enqueueLocked(p []byte) {
+	s.enqueueWithLocked(p, s.backpressure)
+}
+
+// enqueueNoWaitLocked appends p like enqueueLocked but never waits for ring
+// space, even in backpressure mode: when the ring cannot hold p the client is
+// dropped as lagged right away. Overlay paints that are not part of a
+// forwarded live chunk use it, because they run under
+// DynamicMultiWriter.Quiesce, on a ground-wait timer or for a held client,
+// where waiting would stall the whole fan-out. The caller holds s.mu.
+func (s *subscriberWriter) enqueueNoWaitLocked(p []byte) {
+	s.enqueueWithLocked(p, false)
+}
+
+func (s *subscriberWriter) enqueueWithLocked(p []byte, pace bool) {
 	if s.closed || len(p) == 0 {
 		return
 	}
@@ -173,7 +187,7 @@ func (s *subscriberWriter) enqueueLocked(p []byte) {
 		// rate. waitForRoom returns true once the drain has freed enough
 		// space (throttle), or false if the writer closed or the stall
 		// budget elapsed with no progress (drop the stuck attacher below).
-		if s.backpressure && s.waitForRoom(len(p)) {
+		if pace && s.waitForRoom(len(p)) {
 			_, _ = s.buf.Write(p)
 			s.cond.Broadcast()
 			return

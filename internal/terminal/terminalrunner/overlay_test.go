@@ -430,13 +430,100 @@ func TestTakeoverHoldNeverSlowsWorkload(t *testing.T) {
 	if got := r.capture.Len(); got != total {
 		t.Errorf("capture got %d bytes, want %d", got, total)
 	}
-	if err = tk.End(); err != nil {
+
+	// The paused held client's ring is now filled with frames. End's restore
+	// runs under Quiesce, so it must not wait for ring space (that would park
+	// the whole fan-out for the pacing budget): the client is dropped as
+	// lagged instead, and a workload Write during End is not slowed.
+	held.w.mu.Lock()
+	room := held.w.maxBytes - held.w.buf.Len()
+	held.w.mu.Unlock()
+	mustFrame(t, tk, strings.Repeat("x", room))
+	if got := held.queued(); got != room+before {
+		t.Fatalf("held ring holds %d bytes after the frames, want %d", got, room+before)
+	}
+	stop := make(chan struct{})
+	writerDone := make(chan time.Duration)
+	extra := 0
+	go func() {
+		var slow time.Duration
+		for {
+			select {
+			case <-stop:
+				writerDone <- slow
+				return
+			default:
+			}
+			start := time.Now()
+			_, _ = r.mw.Write(chunk)
+			slow = max(slow, time.Since(start))
+			extra += len(chunk)
+		}
+	}()
+	start := time.Now()
+	err = tk.End()
+	endTook := time.Since(start)
+	close(stop)
+	slowDuringEnd := <-writerDone
+	if err != nil {
 		t.Fatalf("End: %v", err)
+	}
+	if endTook >= subscriberBackpressureStall {
+		t.Errorf(
+			"End with a full held ring took %v, at or beyond the pacing bound %v",
+			endTook,
+			subscriberBackpressureStall,
+		)
+	}
+	if slowDuringEnd >= subscriberBackpressureStall {
+		t.Errorf(
+			"a Write during End took %v, at or beyond the pacing bound %v",
+			slowDuringEnd,
+			subscriberBackpressureStall,
+		)
+	}
+	held.w.mu.Lock()
+	lagged = held.w.lagged
+	held.w.mu.Unlock()
+	if !lagged {
+		t.Errorf("held client with a full ring was not dropped as lagged by the restore")
 	}
 	_ = sw.Close()
 	<-sibDone
-	if sibGot != total {
-		t.Errorf("sibling got %d bytes, want %d", sibGot, total)
+	if want := int64(total + extra); sibGot != want {
+		t.Errorf("sibling got %d bytes, want %d", sibGot, want)
+	}
+}
+
+// ShowToast never blocks on a client: a paused client whose ring is full is
+// dropped as lagged instead of parking the fan-out under Quiesce.
+func TestShowToastNeverBlocksOnFullRing(t *testing.T) {
+	r := newOverlayRig(t)
+	full := r.attach(t, "full", false)
+	other := r.attach(t, "other", false)
+
+	full.w.mu.Lock()
+	_, _ = full.w.buf.WriteString(strings.Repeat("x", full.w.maxBytes-full.w.buf.Len()))
+	full.w.mu.Unlock()
+
+	start := time.Now()
+	mustToast(t, r, Toast{Lines: []string{"hello"}})
+	if took := time.Since(start); took >= subscriberBackpressureStall {
+		t.Errorf(
+			"ShowToast took %v with a full client ring, at or beyond the pacing bound %v",
+			took,
+			subscriberBackpressureStall,
+		)
+	}
+	full.w.mu.Lock()
+	lagged := full.w.lagged
+	full.w.mu.Unlock()
+	if !lagged {
+		t.Errorf("client with a full ring was not dropped as lagged")
+	}
+	other.drain()
+	if !bytes.Contains(other.raw.Bytes(), []byte("hello")) {
+		t.Errorf("the other client did not get the toast")
 	}
 }
 
@@ -453,6 +540,10 @@ func TestTakeoverEndRestoresScreen(t *testing.T) {
 		frames      string
 		duringOut   string
 		afterOut    []string
+		// lossyRedraw marks screens a fresh attach redraw cannot reproduce
+		// (it trims styled trailing blanks, as on main); the held client is
+		// then compared with the model only.
+		lossyRedraw bool
 	}{
 		{
 			name:      "normal screen",
@@ -488,6 +579,17 @@ func TestTakeoverEndRestoresScreen(t *testing.T) {
 			afterOut:    []string{"\x1b[?1047l", "\x1b8", "x"},
 		},
 		{
+			// Trailing blanks that carry a pen — a full-width reverse-video
+			// title bar, a colored background — were on the client's screen
+			// before the takeover and must be back after it.
+			name:   "styled trailing blanks",
+			before: styledScreen,
+			attachedOut: "\x1b[6;1H\x1b[7m title" + strings.Repeat(" ", vt100Cols-len(" title")) + "\x1b[0m" +
+				"\x1b[7;1H\x1b[44m" + strings.Repeat(" ", vt100Cols/2) + "\x1b[0m\x1b[9;1H",
+			frames:      "\x1b[2Jframe",
+			lossyRedraw: true,
+		},
+		{
 			name:      "pending wrap",
 			before:    styledScreen,
 			frames:    "frame",
@@ -502,6 +604,7 @@ func TestTakeoverEndRestoresScreen(t *testing.T) {
 			if tc.attachedOut != "" {
 				r.out(t, tc.attachedOut)
 				c.drain()
+				expectScreen(t, "client vs model before the takeover", c.term, r.screen, nil, true)
 			}
 
 			tk := mustBegin(t, r, Target{All: true}, TakeoverOptions{})
@@ -510,7 +613,9 @@ func TestTakeoverEndRestoresScreen(t *testing.T) {
 			mustEnd(t, tk)
 			c.drain()
 
-			expectScreen(t, "held client vs fresh redraw", c.term, r.freshRedraw(), nil, false)
+			if !tc.lossyRedraw {
+				expectScreen(t, "held client vs fresh redraw", c.term, r.freshRedraw(), nil, false)
+			}
 			expectScreen(t, "held client vs model", c.term, r.screen, nil, true)
 
 			for i, chunk := range tc.afterOut {
@@ -953,4 +1058,43 @@ func waitUntil(t *testing.T, cond func() bool) {
 		}
 		time.Sleep(2 * time.Millisecond)
 	}
+}
+
+// Overlay bytes sent with a forwarded live chunk (the toast erase before it,
+// the redraw after it) keep the chunk's backpressure policy (issue #312): a
+// live client showing a toast whose ring is briefly full is paced, not
+// dropped, and keeps tracking the model.
+func TestToastLiveClientStillPaced(t *testing.T) {
+	r := newOverlayRig(t)
+	r.out(t, styledScreen)
+	c := r.attach(t, "c", false)
+	toast := Toast{Lines: []string{"hello"}}
+	mustToast(t, r, toast)
+	c.drain()
+
+	c.w.mu.Lock()
+	filler := c.w.maxBytes - c.w.buf.Len()
+	_, _ = c.w.buf.WriteString(strings.Repeat("x", filler))
+	c.w.mu.Unlock()
+
+	drained := make(chan struct{})
+	go func() {
+		defer close(drained)
+		time.Sleep(50 * time.Millisecond)
+		c.w.mu.Lock()
+		c.w.buf.Next(filler) // the terminal reads the filler
+		c.w.cond.Broadcast()
+		c.w.mu.Unlock()
+	}()
+	r.out(t, "more output\r\n")
+	<-drained
+
+	c.w.mu.Lock()
+	lagged, closed := c.w.lagged, c.w.closed
+	c.w.mu.Unlock()
+	if lagged || closed {
+		t.Fatalf("live toasted client was dropped (lagged=%v closed=%v), want paced", lagged, closed)
+	}
+	c.drain()
+	expectScreen(t, "client vs model after a paced chunk", c.term, r.screen, r.toastBoxFor(t, toast), true)
 }
