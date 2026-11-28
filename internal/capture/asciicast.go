@@ -22,12 +22,15 @@ package capture
 // the first line, then one event line `[t, code, data]` per record, where t is
 // the absolute offset in seconds from session start.
 //
-// The capture writer emits exactly one output ("o") event per Write call, so a
-// record line is never bisected by segment rotation (which lands on write
+// The capture writer emits at most one output ("o") event per Write call and
+// one resize ("r") event per size change, each as a single whole line, so a
+// record line is never bisected by segment rotation (which lands on record
 // boundaries). To keep every segment self-describing — and so a reassembled
 // capture stays decodable after retention prunes segment 0 — the writer
-// re-emits the header at the top of each segment. DecodeAsciicast therefore
-// tolerates a header line anywhere in the stream, not just at the very top.
+// re-emits the header (carrying the size in effect) at the top of each
+// segment, and writes a fresh header when a new terminal run reopens a
+// non-empty capture. DecodeAsciicast therefore tolerates a header line
+// anywhere in the stream, not just at the very top.
 
 import (
 	"bufio"
@@ -39,10 +42,13 @@ import (
 // AsciicastVersion is the asciicast format version this package reads/writes.
 const AsciicastVersion = 2
 
-// eventOutput is the asciicast event code for terminal output. Other codes
-// (input "i", resize "r", marker "m") are not emitted by the writer and are
-// skipped by the decoder.
+// eventOutput is the asciicast event code for terminal output.
 const eventOutput = "o"
+
+// eventResize is the asciicast event code for a terminal resize; its data is
+// "<cols>x<rows>". The decoder skips it (it carries no output bytes), as it
+// does the other codes (input "i", marker "m") the writer never emits.
+const eventResize = "r"
 
 // maxEventLine bounds a single scanned record line. The capture writer emits
 // one event per PTY read (currently 8 KiB), and a JSON-escaped payload at most
@@ -63,7 +69,8 @@ type Header struct {
 }
 
 // EncodeHeader marshals an asciicast v2 header line (newline-terminated).
-// width/height record the terminal's initial geometry; timestamp is the unix
+// width/height record the terminal geometry in effect when the line is written
+// (the launch size, or the latest resize); timestamp is the unix
 // epoch (seconds) of session start, used by players to label the recording.
 func EncodeHeader(width, height int, timestamp int64) ([]byte, error) {
 	b, err := json.Marshal(Header{
@@ -86,6 +93,16 @@ func EncodeOutputEvent(elapsed float64, data []byte) ([]byte, error) {
 	b, err := json.Marshal([]any{elapsed, eventOutput, string(data)})
 	if err != nil {
 		return nil, fmt.Errorf("marshal asciicast event: %w", err)
+	}
+	return append(b, '\n'), nil
+}
+
+// EncodeResizeEvent marshals one asciicast v2 resize record line:
+// `[<elapsed-seconds>, "r", "<cols>x<rows>"]\n`.
+func EncodeResizeEvent(elapsed float64, cols, rows int) ([]byte, error) {
+	b, err := json.Marshal([]any{elapsed, eventResize, fmt.Sprintf("%dx%d", cols, rows)})
+	if err != nil {
+		return nil, fmt.Errorf("marshal asciicast resize event: %w", err)
 	}
 	return append(b, '\n'), nil
 }

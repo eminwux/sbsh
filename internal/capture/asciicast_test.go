@@ -199,3 +199,21 @@ func TestReplay_HeaderSurvivesPruning(t *testing.T) {
 		t.Fatalf("Replay = %q, want %q", got, want)
 	}
 }
+
+// A resize event is a three-element `[t, "r", "<cols>x<rows>"]` line that the
+// decoder skips (it carries no output bytes).
+func TestAsciicast_ResizeEvent(t *testing.T) {
+	ev, err := EncodeResizeEvent(1.5, 120, 40)
+	if err != nil {
+		t.Fatalf("EncodeResizeEvent: %v", err)
+	}
+	if got, want := string(ev), "[1.5,\"r\",\"120x40\"]\n"; got != want {
+		t.Fatalf("EncodeResizeEvent = %q, want %q", got, want)
+	}
+	hdr, _ := EncodeHeader(80, 24, 0)
+	out, _ := EncodeOutputEvent(2, []byte("hi"))
+	stream := append(append(hdr, ev...), out...)
+	if got := DecodeAsciicast(stream); string(got) != "hi" {
+		t.Fatalf("decoded = %q, want %q", got, "hi")
+	}
+}

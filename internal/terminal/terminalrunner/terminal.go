@@ -229,9 +229,9 @@ func (sr *Exec) startPty() error {
 	capWriter, errO := newCaptureWriter(captureFile, sr.logger, func(path string) error {
 		return sr.applyArtifactPerms("capture", path, captureMode, captureGID)
 	}, captureFormatOpts{
-		// The initial PTY geometry is the VT100 standard set above; resizes
-		// after launch do not rewrite the asciicast header (the recorded
-		// geometry is the session's starting size, per asciicast v2).
+		// The initial PTY geometry is the VT100 standard set above. Resizes
+		// after launch are recorded as asciicast "r" events by Exec.Resize,
+		// and every header written after one carries the size in effect.
 		Asciicast: captureFormat == api.CaptureFormatAsciicast,
 		Cols:      vt100Cols,
 		Rows:      vt100Rows,
