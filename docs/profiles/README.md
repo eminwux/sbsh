@@ -249,7 +249,7 @@ flag) preserves owner-only access exactly as in earlier releases.
 
 Configures the filesystem permissions of the terminal's capture transcript —
 the on-disk file that records the terminal's PTY output for later replay via
-`sb log <terminal>`. Both fields are optional; omitting the block keeps the
+`sb read <terminal>`. Both fields are optional; omitting the block keeps the
 legacy owner-only behavior (`-rw------- runner-uid:runner-gid`), which is the
 right default when no other uid needs to read the transcript.
 
@@ -351,9 +351,37 @@ spec:
 ```
 
 - **`raw`** (default): the verbatim PTY output stream, replayed by
-  `sb log <terminal>`. Omitting the field keeps this behavior.
+  `sb read <terminal>`. Omitting the field keeps this behavior.
 - **`asciicast`**: the [asciinema](https://docs.asciinema.org/manual/asciicast/v2/)
   v2 format, suitable for sharing or replaying with asciinema tooling.
+
+An asciicast capture is a sequence of JSON lines: header objects and
+`[t, code, data]` events. `sb read` and `sb attach --full-capture` replay its
+output bytes. Its structure:
+
+- **Output events** (`"o"`) carry what the terminal printed. A multi-byte
+  UTF-8 character split across two PTY reads is joined into one event. Bytes
+  that are not valid UTF-8 are not preserved: they are recorded as U+FFFD.
+  Use `raw` when the capture must be byte-exact.
+- **Resize events** (`"r"`) record each change of the terminal size, as
+  `"<cols>x<rows>"`. A resize to the current size records nothing.
+- **Headers** start every capture segment (see rotation below) and carry the
+  terminal size in effect when they are written — the launch size, or the
+  latest resize — so the recording plays at the right size even after the
+  segment holding the resize event has been pruned.
+- **Runs.** Each terminal start on a reused capture path begins a new run with
+  its own header, whose `timestamp` is that start time. `t` restarts at 0 for
+  each run and never decreases within one. Segment headers repeat their run's
+  `timestamp`.
+
+Timing rule: an event's wall-clock time is the `timestamp` of the nearest
+preceding header plus its `t`.
+
+The capture is rotated into segments: the capture path holds the live tail,
+and older segments sit next to it as `<path>.NNNNNN` or `<path>.NNNNNN.gz`.
+No line is ever split across segments. Go programs can list and read the
+segments with [`pkg/capture`](https://pkg.go.dev/github.com/eminwux/sbsh/pkg/capture),
+which documents the naming contract.
 
 The same configuration can also be supplied at launch time and overrides the
 profile when set. The root command and the `terminal` subcommand each take
