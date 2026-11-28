@@ -27,6 +27,7 @@ import (
 
 	"github.com/eminwux/sbsh/internal/capture"
 	"github.com/eminwux/sbsh/internal/defaults"
+	pcapture "github.com/eminwux/sbsh/pkg/capture"
 )
 
 // captureFormatOpts configures the on-disk capture format for a captureWriter.
@@ -44,11 +45,11 @@ type captureFormatOpts struct {
 // captureWriter is the always-on capture sink registered first in multiOutW.
 // It writes the live segment append-only at the canonical path and, once the
 // live segment crosses maxBytes, rotates: close → rename to a deterministic
-// sibling (capture.SegmentPath) → gzip-compress the closed segment
+// sibling (pcapture.SegmentPath) → gzip-compress the closed segment
 // (capture.CompressSegment) → reopen a fresh canonical → prune oldest closed
 // segments by count and total bytes. The live segment is never compressed (it
 // must stay raw and seekable); only closed segments are. Readers reassemble
-// and transparently decompress the full transcript via the internal/capture
+// and transparently decompress the full transcript via the pkg/capture
 // helpers.
 //
 // Rotation failures never silently kill capture: the writer always restores a
@@ -121,7 +122,7 @@ func newCaptureWriter(
 			return nil, perr
 		}
 	}
-	nextSeq, err := capture.NextSeq(canonical)
+	nextSeq, err := pcapture.NextSeq(canonical)
 	if err != nil {
 		_ = f.Close()
 		return nil, fmt.Errorf("seed capture sequence: %w", err)
@@ -363,7 +364,7 @@ func (w *captureWriter) rotate() error {
 	}
 	w.f = nil
 
-	target := capture.SegmentPath(w.canonical, w.nextSeq)
+	target := pcapture.SegmentPath(w.canonical, w.nextSeq)
 	if rerr := os.Rename(w.canonical, target); rerr != nil {
 		_ = w.reopenCanonical()
 		return fmt.Errorf("rename live segment to %q: %w", target, rerr)
@@ -422,7 +423,7 @@ func (w *captureWriter) reopenCanonical() error {
 // at most retainSegments closed segments, and at most retainBytes total across
 // them. The live segment is never pruned.
 func (w *captureWriter) prune() {
-	segs, err := capture.ClosedSegments(w.canonical)
+	segs, err := pcapture.ClosedSegments(w.canonical)
 	if err != nil {
 		w.logger.Warn("capture retention listing failed; skipping prune", "err", err)
 		return
@@ -451,7 +452,7 @@ func (w *captureWriter) prune() {
 // dropOldest removes the front (oldest) segment from disk and returns the
 // remaining slice. A removal error is logged but still advances the slice so
 // pruning makes progress rather than spinning on an undeletable file.
-func (w *captureWriter) dropOldest(segs []capture.Segment) []capture.Segment {
+func (w *captureWriter) dropOldest(segs []pcapture.Segment) []pcapture.Segment {
 	oldest := segs[0]
 	if rerr := os.Remove(oldest.Path); rerr != nil && !os.IsNotExist(rerr) {
 		w.logger.Warn("capture retention prune failed", "path", oldest.Path, "err", rerr)

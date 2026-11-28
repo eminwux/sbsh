@@ -14,67 +14,26 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+// Package capture holds the writer side of sbsh's capture format: the
+// asciicast line encoders and segment compression used by the rotating capture
+// writer in internal/terminal/terminalrunner. Readers live in pkg/capture,
+// which also documents the on-disk contract.
 package capture
 
-// asciicast v2 support for the capture format selector (see
-// pkg/api.CaptureFormat). The on-disk shape is the asciicast v2 stream:
-// https://docs.asciinema.org/manual/asciicast/v2/ — a JSON header object on
-// the first line, then one event line `[t, code, data]` per record, where t is
-// the absolute offset in seconds from session start.
-//
-// The capture writer emits at most one output ("o") event per Write call and
-// one resize ("r") event per size change, each as a single whole line, so a
-// record line is never bisected by segment rotation (which lands on record
-// boundaries). To keep every segment self-describing — and so a reassembled
-// capture stays decodable after retention prunes segment 0 — the writer
-// re-emits the header (carrying the size in effect) at the top of each
-// segment, and writes a fresh header when a new terminal run reopens a
-// non-empty capture. DecodeAsciicast therefore tolerates a header line
-// anywhere in the stream, not just at the very top.
-
 import (
-	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
+
+	pcapture "github.com/eminwux/sbsh/pkg/capture"
 )
-
-// AsciicastVersion is the asciicast format version this package reads/writes.
-const AsciicastVersion = 2
-
-// eventOutput is the asciicast event code for terminal output.
-const eventOutput = "o"
-
-// eventResize is the asciicast event code for a terminal resize; its data is
-// "<cols>x<rows>". The decoder skips it (it carries no output bytes), as it
-// does the other codes (input "i", marker "m") the writer never emits.
-const eventResize = "r"
-
-// maxEventLine bounds a single scanned record line. The capture writer emits
-// one event per PTY read (currently 8 KiB), and a JSON-escaped payload at most
-// quadruples that, so 1 MiB is comfortably above any real line while still
-// guarding the decoder against an unbounded allocation on a corrupt segment.
-const maxEventLine = 1 << 20
-
-// scanBufInit is the initial (pre-grow) decoder scan buffer; bufio.Scanner
-// grows it up to maxEventLine as needed.
-const scanBufInit = 64 * 1024
-
-// Header is the asciicast v2 header — the first line of the stream.
-type Header struct {
-	Version   int   `json:"version"`
-	Width     int   `json:"width"`
-	Height    int   `json:"height"`
-	Timestamp int64 `json:"timestamp,omitempty"`
-}
 
 // EncodeHeader marshals an asciicast v2 header line (newline-terminated).
 // width/height record the terminal geometry in effect when the line is written
-// (the launch size, or the latest resize); timestamp is the unix
-// epoch (seconds) of session start, used by players to label the recording.
+// (the launch size, or the latest resize); timestamp is the unix epoch
+// (seconds) of the run's start.
 func EncodeHeader(width, height int, timestamp int64) ([]byte, error) {
-	b, err := json.Marshal(Header{
-		Version:   AsciicastVersion,
+	b, err := json.Marshal(pcapture.Header{
+		Version:   pcapture.AsciicastVersion,
 		Width:     width,
 		Height:    height,
 		Timestamp: timestamp,
@@ -90,7 +49,7 @@ func EncodeHeader(width, height int, timestamp int64) ([]byte, error) {
 // arbitrary bytes are escaped (and non-UTF-8 bytes coerced by the encoder —
 // raw is the byte-exact format; asciicast trades that for replay/portability).
 func EncodeOutputEvent(elapsed float64, data []byte) ([]byte, error) {
-	b, err := json.Marshal([]any{elapsed, eventOutput, string(data)})
+	b, err := json.Marshal([]any{elapsed, pcapture.EventOutput, string(data)})
 	if err != nil {
 		return nil, fmt.Errorf("marshal asciicast event: %w", err)
 	}
@@ -100,77 +59,9 @@ func EncodeOutputEvent(elapsed float64, data []byte) ([]byte, error) {
 // EncodeResizeEvent marshals one asciicast v2 resize record line:
 // `[<elapsed-seconds>, "r", "<cols>x<rows>"]\n`.
 func EncodeResizeEvent(elapsed float64, cols, rows int) ([]byte, error) {
-	b, err := json.Marshal([]any{elapsed, eventResize, fmt.Sprintf("%dx%d", cols, rows)})
+	b, err := json.Marshal([]any{elapsed, pcapture.EventResize, fmt.Sprintf("%dx%d", cols, rows)})
 	if err != nil {
 		return nil, fmt.Errorf("marshal asciicast resize event: %w", err)
 	}
 	return append(b, '\n'), nil
-}
-
-// IsAsciicast reports whether data begins with an asciicast v2 header line —
-// the format sniff readers use to decide between decode and raw passthrough.
-// It inspects only the first line, so it is cheap on a large reassembled
-// transcript.
-func IsAsciicast(data []byte) bool {
-	line := data
-	if i := bytes.IndexByte(data, '\n'); i >= 0 {
-		line = data[:i]
-	}
-	line = bytes.TrimSpace(line)
-	if len(line) == 0 || line[0] != '{' {
-		return false
-	}
-	var h Header
-	if err := json.Unmarshal(line, &h); err != nil {
-		return false
-	}
-	return h.Version == AsciicastVersion
-}
-
-// DecodeAsciicast extracts the concatenated terminal-output bytes from an
-// asciicast v2 stream: it skips header lines (one per segment in a reassembled
-// multi-segment capture) and decodes each `[t, "o", data]` record to its data
-// payload, dropping non-"o" events. A malformed line is skipped rather than
-// failing the whole replay, so a torn tail (e.g. a half-written live segment)
-// never denies an attach — it just stops contributing bytes.
-func DecodeAsciicast(data []byte) []byte {
-	var out []byte
-	sc := bufio.NewScanner(bytes.NewReader(data))
-	sc.Buffer(make([]byte, 0, scanBufInit), maxEventLine)
-	for sc.Scan() {
-		line := bytes.TrimSpace(sc.Bytes())
-		if len(line) == 0 || line[0] != '[' {
-			continue // header object, blank line, or non-record content
-		}
-		var rec []json.RawMessage
-		if err := json.Unmarshal(line, &rec); err != nil || len(rec) < 3 {
-			continue
-		}
-		var code string
-		if err := json.Unmarshal(rec[1], &code); err != nil || code != eventOutput {
-			continue
-		}
-		var payload string
-		if err := json.Unmarshal(rec[2], &payload); err != nil {
-			continue
-		}
-		out = append(out, payload...)
-	}
-	return out
-}
-
-// Replay reassembles the full transcript at canonical and returns the bytes a
-// reader should blast to a client PTY: raw captures pass through byte-for-byte;
-// asciicast captures are decoded to their output bytes. It is the single
-// sniff-and-decode entry point shared by `--full-capture` attach and `sb read`
-// so both readers agree on format handling.
-func Replay(canonical string) ([]byte, error) {
-	data, err := ReadAll(canonical)
-	if err != nil {
-		return nil, err
-	}
-	if IsAsciicast(data) {
-		return DecodeAsciicast(data), nil
-	}
-	return data, nil
 }

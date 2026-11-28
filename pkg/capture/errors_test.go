@@ -22,20 +22,7 @@ import (
 	"testing"
 )
 
-// TestCompressSegment_OpenRawFails covers the open-raw error branch: a
-// nonexistent rawPath returns an error and no compressed path.
-func TestCompressSegment_OpenRawFails(t *testing.T) {
-	raw := filepath.Join(t.TempDir(), "capture.000000")
-	gzPath, err := CompressSegment(raw)
-	if err == nil {
-		t.Fatal("expected error compressing a nonexistent segment")
-	}
-	if gzPath != "" {
-		t.Fatalf("expected empty path on open failure, got %q", gzPath)
-	}
-}
-
-// TestReadAll_CorruptGzSegmentErrors covers readSegment's gzip-open error
+// TestReadAll_CorruptGzSegmentErrors covers Open's gzip-open error
 // branch: a ".gz" segment whose contents are not valid gzip surfaces an error
 // rather than silently yielding garbage.
 func TestReadAll_CorruptGzSegmentErrors(t *testing.T) {
@@ -49,8 +36,7 @@ func TestReadAll_CorruptGzSegmentErrors(t *testing.T) {
 	}
 }
 
-// TestDump_CorruptGzSegmentErrors mirrors the ReadAll case for dumpOne's
-// gzip-open error branch.
+// TestDump_CorruptGzSegmentErrors mirrors the ReadAll case for Dump.
 func TestDump_CorruptGzSegmentErrors(t *testing.T) {
 	dir := t.TempDir()
 	canonical := filepath.Join(dir, "capture")

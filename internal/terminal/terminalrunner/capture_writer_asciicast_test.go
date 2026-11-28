@@ -24,13 +24,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/eminwux/sbsh/internal/capture"
 	"github.com/eminwux/sbsh/pkg/api"
+	pcapture "github.com/eminwux/sbsh/pkg/capture"
 )
 
 // castLine is one parsed asciicast line: a header or an event.
 type castLine struct {
-	header *capture.Header
+	header *pcapture.Header
 	time   float64
 	code   string
 	data   string
@@ -47,8 +47,8 @@ func parseCastLines(t *testing.T, data []byte) []castLine {
 	for i, line := range bytes.Split(bytes.TrimSuffix(data, []byte("\n")), []byte("\n")) {
 		switch {
 		case len(line) > 0 && line[0] == '{':
-			var h capture.Header
-			if err := json.Unmarshal(line, &h); err != nil || h.Version != capture.AsciicastVersion {
+			var h pcapture.Header
+			if err := json.Unmarshal(line, &h); err != nil || h.Version != pcapture.AsciicastVersion {
 				t.Fatalf("line %d: not a header: %q (%v)", i, line, err)
 			}
 			out = append(out, castLine{header: &h})
@@ -137,7 +137,7 @@ func TestCaptureWriter_AsciicastResizeEvent(t *testing.T) {
 	if len(lines) != 4 || lines[2].code != "r" {
 		t.Fatalf("unexpected line order: %+v", lines)
 	}
-	if got := capture.DecodeAsciicast(readFile(t, canonical)); string(got) != "beforeafter" {
+	if got := pcapture.DecodeAsciicast(readFile(t, canonical)); string(got) != "beforeafter" {
 		t.Fatalf("decoded = %q, want %q", got, "beforeafter")
 	}
 }
@@ -186,7 +186,7 @@ func TestCaptureWriter_AsciicastHeaderAfterResizeSurvivesPrune(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	segs, err := capture.ClosedSegments(canonical)
+	segs, err := pcapture.ClosedSegments(canonical)
 	if err != nil {
 		t.Fatalf("ClosedSegments: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestCaptureWriter_AsciicastHeaderAfterResizeSurvivesPrune(t *testing.T) {
 	if rmErr := os.Remove(segs[0].Path); rmErr != nil {
 		t.Fatalf("prune: %v", rmErr)
 	}
-	data, err := capture.ReadAll(canonical)
+	data, err := pcapture.ReadAll(canonical)
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
 	}
@@ -208,7 +208,7 @@ func TestCaptureWriter_AsciicastHeaderAfterResizeSurvivesPrune(t *testing.T) {
 	if lines[0].header == nil || lines[0].header.Width != 132 || lines[0].header.Height != 50 {
 		t.Fatalf("oldest surviving header = %+v, want 132x50", lines[0].header)
 	}
-	if got := capture.DecodeAsciicast(data); string(got) != "X" {
+	if got := pcapture.DecodeAsciicast(data); string(got) != "X" {
 		t.Fatalf("decoded = %q, want %q", got, "X")
 	}
 }
@@ -241,7 +241,7 @@ func TestCaptureWriter_AsciicastReopenWritesRunHeader(t *testing.T) {
 		t.Fatalf("run header timestamp = %d, want %d", lines[3].header.Timestamp, w2.start.Unix())
 	}
 	assertRunsMonotonic(t, lines)
-	if got := capture.DecodeAsciicast(readFile(t, canonical)); string(got) != "ABC" {
+	if got := pcapture.DecodeAsciicast(readFile(t, canonical)); string(got) != "ABC" {
 		t.Fatalf("decoded = %q, want %q", got, "ABC")
 	}
 }
@@ -287,7 +287,7 @@ func TestCaptureWriter_AsciicastTornTailRunHeader(t *testing.T) {
 		t.Fatalf("new run does not start with a header: %q", parts[3])
 	}
 	assertRunsMonotonic(t, lines)
-	if got := capture.DecodeAsciicast(data); string(got) != "AB" {
+	if got := pcapture.DecodeAsciicast(data); string(got) != "AB" {
 		t.Fatalf("decoded = %q, want %q", got, "AB")
 	}
 }
@@ -307,7 +307,7 @@ func TestCaptureWriter_AsciicastUTF8Split(t *testing.T) {
 			t.Fatalf("close: %v", err)
 		}
 		data := readFile(t, canonical)
-		got := capture.DecodeAsciicast(data)
+		got := pcapture.DecodeAsciicast(data)
 		if want := []byte("a─b"); !bytes.Equal(got, want) {
 			t.Fatalf("split %d: decoded = %q, want %q", split, got, want)
 		}
@@ -412,14 +412,14 @@ func TestCaptureWriter_AsciicastRunsResizesRotation(t *testing.T) {
 		t.Fatalf("close 2: %v", err)
 	}
 
-	segs, err := capture.ClosedSegments(canonical)
+	segs, err := pcapture.ClosedSegments(canonical)
 	if err != nil {
 		t.Fatalf("ClosedSegments: %v", err)
 	}
 	if len(segs) == 0 {
 		t.Fatalf("expected rotation")
 	}
-	data, err := capture.ReadAll(canonical)
+	data, err := pcapture.ReadAll(canonical)
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
 	}
@@ -428,7 +428,7 @@ func TestCaptureWriter_AsciicastRunsResizesRotation(t *testing.T) {
 	if n := len(events(lines, "r")); n != 2 {
 		t.Fatalf("resize events = %d, want 2", n)
 	}
-	got, err := capture.Replay(canonical)
+	got, err := pcapture.Replay(canonical)
 	if err != nil {
 		t.Fatalf("Replay: %v", err)
 	}
@@ -455,7 +455,7 @@ func TestExecResizeRecordsAsciicastEvent(t *testing.T) {
 		t.Fatalf("Close: %v", err)
 	}
 
-	data, err := capture.ReadAll(spec.CaptureFile)
+	data, err := pcapture.ReadAll(spec.CaptureFile)
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
 	}

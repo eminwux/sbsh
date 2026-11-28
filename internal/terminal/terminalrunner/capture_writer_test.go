@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/eminwux/sbsh/internal/capture"
+	pcapture "github.com/eminwux/sbsh/pkg/capture"
 )
 
 // newTestCaptureWriter builds a captureWriter with explicit, small thresholds
@@ -93,7 +94,7 @@ func TestCaptureWriter_NoRotation(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	segs, err := capture.ClosedSegments(canonical)
+	segs, err := pcapture.ClosedSegments(canonical)
 	if err != nil {
 		t.Fatalf("ClosedSegments: %v", err)
 	}
@@ -122,7 +123,7 @@ func TestCaptureWriter_SingleRotation(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	segs, err := capture.ClosedSegments(canonical)
+	segs, err := pcapture.ClosedSegments(canonical)
 	if err != nil {
 		t.Fatalf("ClosedSegments: %v", err)
 	}
@@ -133,12 +134,12 @@ func TestCaptureWriter_SingleRotation(t *testing.T) {
 	if !segs[0].Compressed {
 		t.Fatalf("closed segment should be compressed: %+v", segs[0])
 	}
-	if filepath.Ext(segs[0].Path) != capture.GzSuffix {
-		t.Fatalf("closed segment path = %q, want a %q suffix", segs[0].Path, capture.GzSuffix)
+	if filepath.Ext(segs[0].Path) != pcapture.GzSuffix {
+		t.Fatalf("closed segment path = %q, want a %q suffix", segs[0].Path, pcapture.GzSuffix)
 	}
 	// Reassembly transparently decompresses the closed segment, then the live
 	// tail: the full transcript reads back as everything written.
-	full, err := capture.ReadAll(canonical)
+	full, err := pcapture.ReadAll(canonical)
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
 	}
@@ -177,7 +178,7 @@ func TestCaptureWriter_MultipleRotationsAndPrune(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	segs, err := capture.ClosedSegments(canonical)
+	segs, err := pcapture.ClosedSegments(canonical)
 	if err != nil {
 		t.Fatalf("ClosedSegments: %v", err)
 	}
@@ -190,7 +191,7 @@ func TestCaptureWriter_MultipleRotationsAndPrune(t *testing.T) {
 	if !segs[0].Compressed || !segs[1].Compressed {
 		t.Fatalf("surviving closed segments should be compressed: %+v", segs)
 	}
-	got, err := capture.ReadAll(canonical)
+	got, err := pcapture.ReadAll(canonical)
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
 	}
@@ -217,7 +218,7 @@ func TestCaptureWriter_BytePrune(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	segs, err := capture.ClosedSegments(canonical)
+	segs, err := pcapture.ClosedSegments(canonical)
 	if err != nil {
 		t.Fatalf("ClosedSegments: %v", err)
 	}
@@ -256,7 +257,7 @@ func TestCaptureWriter_ReaderSpansBoundary(t *testing.T) {
 	}
 
 	// Multiple rotations must have occurred.
-	segs, err := capture.ClosedSegments(canonical)
+	segs, err := pcapture.ClosedSegments(canonical)
 	if err != nil {
 		t.Fatalf("ClosedSegments: %v", err)
 	}
@@ -264,7 +265,7 @@ func TestCaptureWriter_ReaderSpansBoundary(t *testing.T) {
 		t.Fatalf("expected multiple rotations, got %d closed segments", len(segs))
 	}
 
-	got, err := capture.ReadAll(canonical)
+	got, err := pcapture.ReadAll(canonical)
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
 	}
@@ -294,7 +295,7 @@ func TestCaptureWriter_SeqResumesAcrossRestart(t *testing.T) {
 		t.Fatalf("close w2: %v", err)
 	}
 
-	got, err := capture.ReadAll(canonical)
+	got, err := pcapture.ReadAll(canonical)
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
 	}
@@ -346,14 +347,14 @@ func TestCaptureWriter_AsciicastLiveFileValid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read canonical: %v", err)
 	}
-	if !capture.IsAsciicast(data) {
+	if !pcapture.IsAsciicast(data) {
 		t.Fatalf("live file not valid asciicast v2: %q", data)
 	}
 	// One header line + one record per write = 3 lines.
 	if got := bytes.Count(data, []byte("\n")); got != 3 {
 		t.Fatalf("line count = %d, want 3 (header + 2 records)", got)
 	}
-	if got, want := capture.DecodeAsciicast(data), []byte("hello world\r\n"); !bytes.Equal(got, want) {
+	if got, want := pcapture.DecodeAsciicast(data), []byte("hello world\r\n"); !bytes.Equal(got, want) {
 		t.Fatalf("decoded live file = %q, want %q", got, want)
 	}
 }
@@ -374,7 +375,7 @@ func TestCaptureWriter_AsciicastRotationHeaderPerSegment(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	segs, err := capture.ClosedSegments(canonical)
+	segs, err := pcapture.ClosedSegments(canonical)
 	if err != nil {
 		t.Fatalf("ClosedSegments: %v", err)
 	}
@@ -383,7 +384,7 @@ func TestCaptureWriter_AsciicastRotationHeaderPerSegment(t *testing.T) {
 	}
 
 	// Full reassembly decodes to all payloads in order across rotations.
-	full, err := capture.Replay(canonical)
+	full, err := pcapture.Replay(canonical)
 	if err != nil {
 		t.Fatalf("Replay: %v", err)
 	}
@@ -396,14 +397,14 @@ func TestCaptureWriter_AsciicastRotationHeaderPerSegment(t *testing.T) {
 	if rmErr := os.Remove(segs[0].Path); rmErr != nil {
 		t.Fatalf("prune segment 0: %v", rmErr)
 	}
-	reassembled, err := capture.ReadAll(canonical)
+	reassembled, err := pcapture.ReadAll(canonical)
 	if err != nil {
 		t.Fatalf("ReadAll after prune: %v", err)
 	}
-	if !capture.IsAsciicast(reassembled) {
+	if !pcapture.IsAsciicast(reassembled) {
 		t.Fatalf("stream not asciicast after pruning segment 0: %q", reassembled)
 	}
-	decoded := capture.DecodeAsciicast(reassembled)
+	decoded := pcapture.DecodeAsciicast(reassembled)
 	// The first payload ("AAA") was in segment 0 and is gone; the remainder
 	// survives and still decodes.
 	if !bytes.Contains(decoded, []byte("CCC")) {

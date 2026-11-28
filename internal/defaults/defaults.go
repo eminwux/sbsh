@@ -24,7 +24,7 @@ const (
 // Capture rotation + retention knobs. Hard-coded for now, configurable later
 // (same "hard-code now, configurable later" precedent #71 set for the read
 // path). Rotation bounds per-segment size; retention bounds total on-disk use,
-// since rotation alone only caps each file. See internal/capture and the
+// since rotation alone only caps each file. See pkg/capture and the
 // rotating writer in internal/terminal/terminalrunner.
 const (
 	// CaptureSegmentMaxBytes is the per-segment rotation threshold: once the

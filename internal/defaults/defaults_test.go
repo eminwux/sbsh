@@ -21,7 +21,7 @@ import "testing"
 // The defaults package declares only constants and has no executable
 // statements, so `go test -cover` reports "no statements" for it (exempt
 // from the ≥80% bar per the issue). These assertions guard the on-disk and
-// rotation/retention contract that internal/capture and the terminalrunner
+// rotation/retention contract that pkg/capture and the terminalrunner
 // depend on, so an accidental edit to the values is caught here.
 
 func TestRunPathConstants(t *testing.T) {
