@@ -25,9 +25,13 @@ import (
 
 // Escape sequences used only by the overlay paints.
 const (
-	escSyncBegin      = "\x1b[?2026h" // synchronized output: hold rendering
-	escSyncEnd        = "\x1b[?2026l" // synchronized output: render now
-	escLeaveAltScreen = "\x1b[?1049l" // back to the normal screen buffer
+	escSyncBegin = "\x1b[?2026h" // synchronized output: hold rendering
+	escSyncEnd   = "\x1b[?2026l" // synchronized output: render now
+	// Buffer switches for the restore. ?1047 switches buffers only; ?1049
+	// would also save (h) or restore (l) the cursor like DECSC/DECRC, which
+	// overwrites or reads the workload's saved-cursor slot.
+	escUseAltBuffer    = "\x1b[?1047h"
+	escUseNormalBuffer = "\x1b[?1047l"
 )
 
 // restorePaint returns the bytes that bring a client terminal whose screen
@@ -40,8 +44,9 @@ const (
 //
 // clientAlt is whether the client terminal is currently on the alternate
 // screen (tracked by the client's escState); the buffer is switched only
-// when it disagrees with the model.
-func (m *screenModel) restorePaint(clientAlt bool) []byte {
+// when it disagrees with the model. alt reports whether the model (and so
+// the painted buffer) is the alternate screen.
+func (m *screenModel) restorePaint(clientAlt bool) ([]byte, bool) {
 	m.vt.Lock()
 	defer m.vt.Unlock()
 
@@ -52,9 +57,9 @@ func (m *screenModel) restorePaint(clientAlt bool) []byte {
 	b.WriteString(escSyncBegin)
 	switch {
 	case altScreen && !clientAlt:
-		b.WriteString(escEnterAltScreen)
+		b.WriteString(escUseAltBuffer)
 	case !altScreen && clientAlt:
-		b.WriteString(escLeaveAltScreen)
+		b.WriteString(escUseNormalBuffer)
 	}
 	b.WriteString(sgrReset)
 	b.WriteString(escClearScreen)
@@ -68,7 +73,7 @@ func (m *screenModel) restorePaint(clientAlt bool) []byte {
 	}
 	m.writeCursorStateLocked(&b, cols)
 	b.WriteString(escSyncEnd)
-	return []byte(b.String())
+	return []byte(b.String()), altScreen
 }
 
 // writeSpanLocked paints cells [x0,x1) of row y exactly as the model holds

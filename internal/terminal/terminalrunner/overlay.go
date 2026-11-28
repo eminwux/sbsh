@@ -180,6 +180,11 @@ type clientOverlay struct {
 	skipToGround bool
 	// restorePending asks for a full restore at the next boundary at ground.
 	restorePending bool
+	// normalStale is set when the last full restore painted the alternate
+	// screen only: the client's normal buffer may still hold takeover frames
+	// (or miss what the workload drew there while the client was held), so
+	// the client is repainted once the workload leaves the alternate screen.
+	normalStale bool
 
 	toast   *Toast
 	toastID ToastID
@@ -221,9 +226,11 @@ func (o *clientOverlay) onLive(s *subscriberWriter, p []byte) {
 		s.enqueueLocked(o.boxErase)
 		o.boxErase = nil
 	}
+	wasAlt := o.liveEsc.altScreen
 	if o.skipToGround {
 		i := o.liveEsc.feedUntilGround(p)
 		if i < 0 {
+			// Still mid-sequence, so no alt-screen switch completed.
 			return
 		}
 		o.skipToGround = false
@@ -231,6 +238,12 @@ func (o *clientOverlay) onLive(s *subscriberWriter, p []byte) {
 	}
 	o.liveEsc.feed(p)
 	s.enqueueLocked(p)
+	if o.normalStale && wasAlt && !o.liveEsc.altScreen {
+		// The workload left the alternate screen and the client is now
+		// showing a normal buffer the model never painted.
+		o.normalStale = false
+		o.restorePending = true
+	}
 	o.reconcile(s, false)
 }
 
@@ -301,7 +314,7 @@ func (o *clientOverlay) reconcileEnd(s *subscriberWriter, forced bool) bool {
 		o.restorePending = true
 	}
 	o.stopTimer()
-	s.enqueueLocked(o.screen.restorePaint(o.clientEsc.altScreen))
+	o.restoreLocked(s)
 	o.phase = phaseLive
 	closeOnce(o.liveCh)
 	return !o.skipToGround
@@ -331,11 +344,20 @@ func (o *clientOverlay) reconcileLive(s *subscriberWriter, forced bool) {
 	}
 	o.stopTimer()
 	if o.restorePending {
-		s.enqueueLocked(o.screen.restorePaint(o.clientEsc.altScreen))
+		o.restoreLocked(s)
 		o.restorePending = false
 		o.boxErase = nil
 	}
 	o.drawToastLocked(s)
+}
+
+// restoreLocked enqueues a full restore of the client's screen from the
+// model. A restore paints only the buffer the model is on, so when that is
+// the alternate screen the client's normal buffer is flagged stale.
+func (o *clientOverlay) restoreLocked(s *subscriberWriter) {
+	paint, alt := o.screen.restorePaint(o.clientEsc.altScreen)
+	s.enqueueLocked(paint)
+	o.normalStale = alt
 }
 
 // drawToastLocked (re)draws the active toast, taking down a previous box

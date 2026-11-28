@@ -442,13 +442,17 @@ func TestTakeoverHoldNeverSlowsWorkload(t *testing.T) {
 
 // AC: after End, the held client's screen equals a fresh attach redraw of
 // the current model, styles included — whatever the frames did, and
-// whatever the workload drew during the hold.
+// whatever the workload drew during the hold. attachedOut is sent live after
+// the client attached and before the takeover; afterOut chunks are sent one
+// by one after the resume and the client must track the model after each.
 func TestTakeoverEndRestoresScreen(t *testing.T) {
 	cases := []struct {
-		name      string
-		before    string
-		frames    string
-		duringOut string
+		name        string
+		before      string
+		attachedOut string
+		frames      string
+		duringOut   string
+		afterOut    []string
 	}{
 		{
 			name:      "normal screen",
@@ -467,6 +471,21 @@ func TestTakeoverEndRestoresScreen(t *testing.T) {
 			before:    styledScreen,
 			frames:    "\x1b[2Jframe",
 			duringOut: "\x1b[?1049h\x1b[H\x1b[7mtui\x1b[0m\x1b[5;10H",
+			// The workload quits the TUI: the client's normal buffer still
+			// holds the frames and must be repainted from the model.
+			afterOut: []string{"\x1b[?1049l", "back"},
+		},
+		{
+			// The restore must not overwrite the workload's DECSC slot: the
+			// workload saves the cursor on the normal screen, switches to
+			// the alt screen without saving (?1047) during the hold, then
+			// leaves it and restores the cursor after the resume.
+			name:        "restore keeps the saved-cursor slot",
+			before:      styledScreen,
+			attachedOut: "\x1b[2;4H\x1b7\x1b[6;1H",
+			frames:      "\x1b[2Jframe\x1b[10;10H",
+			duringOut:   "\x1b[?1047h\x1b[Htui",
+			afterOut:    []string{"\x1b[?1047l", "\x1b8", "x"},
 		},
 		{
 			name:      "pending wrap",
@@ -480,6 +499,10 @@ func TestTakeoverEndRestoresScreen(t *testing.T) {
 			r := newOverlayRig(t)
 			r.out(t, tc.before)
 			c := r.attach(t, "c", false)
+			if tc.attachedOut != "" {
+				r.out(t, tc.attachedOut)
+				c.drain()
+			}
 
 			tk := mustBegin(t, r, Target{All: true}, TakeoverOptions{})
 			mustFrame(t, tk, tc.frames)
@@ -489,6 +512,12 @@ func TestTakeoverEndRestoresScreen(t *testing.T) {
 
 			expectScreen(t, "held client vs fresh redraw", c.term, r.freshRedraw(), nil, false)
 			expectScreen(t, "held client vs model", c.term, r.screen, nil, true)
+
+			for i, chunk := range tc.afterOut {
+				r.out(t, chunk)
+				c.drain()
+				expectScreen(t, fmt.Sprintf("after resume, chunk %d %q", i, chunk), c.term, r.screen, nil, true)
+			}
 
 			// Live output resumes and keeps both in step, pending wrap and
 			// pen included.
