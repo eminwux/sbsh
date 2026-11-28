@@ -267,7 +267,9 @@ _ = tk.End() // redraw from the screen model and resume live output
   after `BeginTakeover` are not part of that takeover.
 - Toast lines are plain text. Control characters are stripped and each
   rune takes one column. A client shows one toast at a time: a new
-  toast replaces the previous one.
+  toast replaces the previous one. A toast replaced on every client
+  that showed it is forgotten, so `DismissToast` of its ID returns
+  `server.ErrToastNotFound`.
 - `BeginTakeover` returns once every target is held, after at most
   about 100 ms. It fails with `server.ErrClientBusy` if a target is
   already in another takeover.

@@ -72,7 +72,7 @@ func (m *screenModel) restorePaint(clientAlt bool) ([]byte, bool) {
 			m.writeSpanLocked(&b, y, 0, last+1)
 		}
 	}
-	m.writeCursorStateLocked(&b, cols)
+	m.writeCursorStateLocked(&b, cols, nil)
 	b.WriteString(escSyncEnd)
 	return []byte(b.String()), altScreen
 }
@@ -123,10 +123,17 @@ func (m *screenModel) writeSpanLocked(b *strings.Builder, y, x0, x1 int) {
 // wrap (cursor parked past the last column after writing it) cannot be
 // expressed with a cursor move — CUP clears it — so it is recreated by
 // re-writing the last cell of the row, which leaves the terminal in exactly
-// that state. The caller holds the vt lock.
-func (m *screenModel) writeCursorStateLocked(b *strings.Builder, cols int) {
+// that state.
+//
+// keep, when non-nil, is a toast box just drawn on the client: if the cell
+// the wrap recreation would rewrite lies inside it, the wrap is not
+// recreated (that would replace the box's border with the model's cell) and
+// the cursor is only moved there. The client's pending wrap is lost until the
+// box erase, which always runs before the next live byte reaches the client
+// and recreates it. The caller holds the vt lock.
+func (m *screenModel) writeCursorStateLocked(b *strings.Builder, cols int, keep *toastBox) {
 	cur := m.vt.Cursor()
-	if cur.State&vtCursorWrapNext != 0 && cols > 0 {
+	if cur.State&vtCursorWrapNext != 0 && cols > 0 && !keep.contains(cols-1, cur.Y) {
 		m.writeSpanLocked(b, cur.Y, cols-1, cols)
 	} else {
 		fmt.Fprintf(b, escCursorTo, cur.Y+1, cur.X+1)
@@ -149,6 +156,12 @@ func (m *screenModel) size() (int, int) {
 // toastBox is the on-screen rectangle of a laid-out toast (0-based cells).
 type toastBox struct {
 	left, top, width, height int
+}
+
+// contains reports whether cell (x, y) lies inside the box. A nil box
+// contains nothing.
+func (bx *toastBox) contains(x, y int) bool {
+	return bx != nil && x >= bx.left && x < bx.left+bx.width && y >= bx.top && y < bx.top+bx.height
 }
 
 // Toast box geometry: one border cell on each side plus one padding column
@@ -216,7 +229,9 @@ func toastSGR(s ToastStyle) string {
 // bytes that draw it over the client's screen and the bytes that erase it
 // again by repainting the covered cells from the model as it is right now.
 // Both end by restoring the model's cursor, pen and visibility and are
-// wrapped in synchronized output. ok is false when the toast does not fit.
+// wrapped in synchronized output; a pending wrap whose cell the box covers
+// is restored by the erase only (see writeCursorStateLocked). ok is false
+// when the toast does not fit.
 func (m *screenModel) toastFrame(t *Toast) ([]byte, []byte, bool) {
 	m.vt.Lock()
 	defer m.vt.Unlock()
@@ -243,7 +258,7 @@ func (m *screenModel) toastFrame(t *Toast) ([]byte, []byte, bool) {
 		}
 	}
 	draw.WriteString(sgrReset)
-	m.writeCursorStateLocked(&draw, cols)
+	m.writeCursorStateLocked(&draw, cols, &box)
 	draw.WriteString(escSyncEnd)
 
 	var erase strings.Builder
@@ -251,7 +266,7 @@ func (m *screenModel) toastFrame(t *Toast) ([]byte, []byte, bool) {
 	for r := range box.height {
 		m.writeSpanLocked(&erase, box.top+r, box.left, box.left+box.width)
 	}
-	m.writeCursorStateLocked(&erase, cols)
+	m.writeCursorStateLocked(&erase, cols, nil)
 	erase.WriteString(escSyncEnd)
 
 	return []byte(draw.String()), []byte(erase.String()), true

@@ -69,8 +69,9 @@ var (
 	// ErrOverlaysNotRunning is returned when the terminal has no live PTY
 	// fan-out yet (or any more).
 	ErrOverlaysNotRunning = errors.New("overlays: terminal not running")
-	// ErrToastNotFound is returned by DismissToast for an unknown or
-	// already-dismissed toast.
+	// ErrToastNotFound is returned by DismissToast for an unknown toast,
+	// one already dismissed or expired, or one replaced by a newer toast on
+	// every client that showed it.
 	ErrToastNotFound = errors.New("overlays: toast not found")
 	// ErrTakeoverEnded is returned by Takeover.Write after End.
 	ErrTakeoverEnded = errors.New("overlays: takeover ended")
@@ -560,7 +561,9 @@ func sanitizeToastLines(lines []string) []string {
 }
 
 // ShowToast draws toast on the targeted clients and returns its ID. A
-// client already showing a toast has it replaced. ctx is checked once; the
+// client already showing a toast has it replaced; a toast replaced on every
+// client that showed it is forgotten, as if dismissed, so a later
+// DismissToast of its ID returns ErrToastNotFound. ctx is checked once; the
 // call never blocks on a client.
 func (sr *Exec) ShowToast(ctx context.Context, t Target, toast Toast) (ToastID, error) {
 	if err := ctx.Err(); err != nil {
@@ -586,30 +589,71 @@ func (sr *Exec) ShowToast(ctx context.Context, t Target, toast Toast) (ToastID, 
 	sr.overlays.toasts[id] = entry
 	sr.overlays.mu.Unlock()
 
-	mw.Quiesce(func() {
-		for _, oc := range clients {
-			w := oc.w
-			w.mu.Lock()
-			o := w.overlay
-			o.toast = &toast
-			o.toastID = id
-			if o.phase == phaseLive && !o.skipToGround && !o.restorePending && o.clientEsc.AtGround() {
-				o.drawToastLocked(w)
-			} else {
-				o.reconcile(w, false)
-			}
-			w.mu.Unlock()
-		}
-	})
+	var replaced map[ToastID][]*subscriberWriter
+	mw.Quiesce(func() { replaced = showToastOn(clients, &toast, id) })
 
+	sr.overlays.mu.Lock()
+	for old, ws := range replaced {
+		sr.overlays.pruneLocked(old, ws)
+	}
 	if toast.TTL > 0 {
-		sr.overlays.mu.Lock()
 		if e, ok := sr.overlays.toasts[id]; ok {
 			e.timer = time.AfterFunc(toast.TTL, func() { _ = sr.DismissToast(id) })
 		}
-		sr.overlays.mu.Unlock()
 	}
+	sr.overlays.mu.Unlock()
 	return id, nil
+}
+
+// showToastOn makes toast (as id) the active toast of every client and draws
+// it where the stream allows. It returns, for each toast it replaced, the
+// clients it was replaced on, so the caller can prune their registry
+// entries. Called quiesced.
+func showToastOn(clients []overlayClient, toast *Toast, id ToastID) map[ToastID][]*subscriberWriter {
+	var replaced map[ToastID][]*subscriberWriter
+	for _, oc := range clients {
+		w := oc.w
+		w.mu.Lock()
+		o := w.overlay
+		if o.toast != nil && o.toastID != id {
+			if replaced == nil {
+				replaced = make(map[ToastID][]*subscriberWriter)
+			}
+			replaced[o.toastID] = append(replaced[o.toastID], w)
+		}
+		o.toast = toast
+		o.toastID = id
+		if o.phase == phaseLive && !o.skipToGround && !o.restorePending && o.clientEsc.AtGround() {
+			o.drawToastLocked(w)
+		} else {
+			o.reconcile(w, false)
+		}
+		w.mu.Unlock()
+	}
+	return replaced
+}
+
+// pruneLocked drops the clients in ws from toast id's entry once a newer
+// toast replaced it there, and removes the entry (stopping its TTL timer)
+// when no client shows the toast any more. Without it, a sticky toast
+// (TTL <= 0) replaced on every client would stay in the registry, holding
+// its clients' writers, until the embedder dismissed its now-invisible ID.
+// The caller holds r.mu.
+func (r *overlayRegistry) pruneLocked(id ToastID, ws []*subscriberWriter) {
+	entry, ok := r.toasts[id]
+	if !ok {
+		return
+	}
+	entry.clients = slices.DeleteFunc(entry.clients, func(oc overlayClient) bool {
+		return slices.Contains(ws, oc.w)
+	})
+	if len(entry.clients) > 0 {
+		return
+	}
+	delete(r.toasts, id)
+	if entry.timer != nil {
+		entry.timer.Stop()
+	}
 }
 
 // DismissToast removes a toast from every client still showing it,
