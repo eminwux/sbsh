@@ -17,7 +17,7 @@
 package terminalrunner
 
 import (
-	"github.com/eminwux/sbsh/internal/capture"
+	"github.com/eminwux/sbsh/pkg/capture"
 )
 
 // readCaptureFile reassembles the full transcript for a --full-capture attach:

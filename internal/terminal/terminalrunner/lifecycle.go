@@ -455,9 +455,22 @@ func (sr *Exec) Close(reason error) error {
 }
 
 func (sr *Exec) Resize(args api.ResizeArgs) {
+	cols, rows := winsizeDim(args.Cols), winsizeDim(args.Rows)
+	// Record the resize in the capture before applying it to the PTY: the
+	// child redraws on SIGWINCH, and that redraw must land after the "r"
+	// event so it plays back at the new size. Snapshot capture under
+	// runtimeMu: it is nil until startPty publishes it. See #396.
+	sr.runtimeMu.Lock()
+	capWriter := sr.capture
+	sr.runtimeMu.Unlock()
+	if capWriter != nil {
+		if err := capWriter.Resize(int(cols), int(rows)); err != nil {
+			sr.logger.Warn("could not record resize in capture", "id", sr.id, "err", err)
+		}
+	}
 	_ = pty.Setsize(sr.ptmx, &pty.Winsize{
-		Cols: winsizeDim(args.Cols),
-		Rows: winsizeDim(args.Rows),
+		Cols: cols,
+		Rows: rows,
 	})
 	// Keep the screen model's grid in step with the PTY winsize so a
 	// Screenshot reflects the dimensions the child program is drawing for.

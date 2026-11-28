@@ -18,10 +18,45 @@ package capture
 
 import (
 	"bytes"
+	"compress/gzip"
+	"errors"
+	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+// readSegment reads one closed segment through Open, as ReadAll does.
+func readSegment(path string) ([]byte, error) {
+	r, err := Open(Segment{Path: path})
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = r.Close() }()
+	return io.ReadAll(r)
+}
+
+// compressSegment stands in for the writer's segment compression (which lives
+// in internal/capture): gzip rawPath to rawPath+GzSuffix and remove rawPath.
+func compressSegment(rawPath string) error {
+	data, err := os.ReadFile(rawPath)
+	if err != nil {
+		return err
+	}
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, werr := gz.Write(data); werr != nil {
+		return werr
+	}
+	if cerr := gz.Close(); cerr != nil {
+		return cerr
+	}
+	if werr := os.WriteFile(rawPath+GzSuffix, buf.Bytes(), 0o600); werr != nil {
+		return werr
+	}
+	return os.Remove(rawPath)
+}
 
 func writeFile(t *testing.T, path string, data []byte) {
 	t.Helper()
@@ -137,43 +172,50 @@ func TestNextSeq(t *testing.T) {
 	}
 }
 
-func TestOrderedPaths_LiveLast(t *testing.T) {
+func TestSegments_LiveLast(t *testing.T) {
 	dir := t.TempDir()
 	canonical := filepath.Join(dir, "capture")
 	writeFile(t, SegmentPath(canonical, 0), []byte("a"))
 	writeFile(t, SegmentPath(canonical, 1), []byte("b"))
-	writeFile(t, canonical, []byte("c"))
+	writeFile(t, canonical, []byte("live"))
 
-	paths, err := OrderedPaths(canonical)
+	segs, err := Segments(canonical)
 	if err != nil {
-		t.Fatalf("OrderedPaths: %v", err)
+		t.Fatalf("Segments: %v", err)
 	}
-	want := []string{
-		SegmentPath(canonical, 0),
-		SegmentPath(canonical, 1),
-		canonical,
+	want := []Segment{
+		{Path: SegmentPath(canonical, 0), Seq: 0, Size: 1},
+		{Path: SegmentPath(canonical, 1), Seq: 1, Size: 1},
+		{Path: canonical, Seq: 2, Size: 4, Live: true},
 	}
-	if len(paths) != len(want) {
-		t.Fatalf("got %v, want %v", paths, want)
+	if len(segs) != len(want) {
+		t.Fatalf("got %+v, want %+v", segs, want)
 	}
 	for i := range want {
-		if paths[i] != want[i] {
-			t.Fatalf("path %d = %q, want %q", i, paths[i], want[i])
+		if segs[i] != want[i] {
+			t.Fatalf("segment %d = %+v, want %+v", i, segs[i], want[i])
 		}
 	}
 }
 
-func TestOrderedPaths_NoLive(t *testing.T) {
+func TestSegments_NoLive(t *testing.T) {
 	dir := t.TempDir()
 	canonical := filepath.Join(dir, "capture")
 	writeFile(t, SegmentPath(canonical, 0), []byte("a"))
 
-	paths, err := OrderedPaths(canonical)
+	segs, err := Segments(canonical)
 	if err != nil {
-		t.Fatalf("OrderedPaths: %v", err)
+		t.Fatalf("Segments: %v", err)
 	}
-	if len(paths) != 1 || paths[0] != SegmentPath(canonical, 0) {
-		t.Fatalf("got %v, want only the closed segment", paths)
+	if len(segs) != 1 || segs[0].Path != SegmentPath(canonical, 0) || segs[0].Live {
+		t.Fatalf("got %+v, want only the closed segment", segs)
+	}
+}
+
+func TestSegments_NeverWritten(t *testing.T) {
+	segs, err := Segments(filepath.Join(t.TempDir(), "capture"))
+	if err != nil || len(segs) != 0 {
+		t.Fatalf("Segments = %+v, %v; want empty, nil", segs, err)
 	}
 }
 
@@ -229,48 +271,6 @@ func TestDump_NeverWritten(t *testing.T) {
 	}
 }
 
-func TestCompressSegment_RoundTrip(t *testing.T) {
-	dir := t.TempDir()
-	canonical := filepath.Join(dir, "capture")
-	raw := SegmentPath(canonical, 0)
-	// Repetitive payload so gzip actually shrinks it — also exercises a
-	// payload larger than one gzip block.
-	original := bytes.Repeat([]byte("the quick brown fox jumped over\n"), 4096)
-	writeFile(t, raw, original)
-
-	gzPath, err := CompressSegment(raw)
-	if err != nil {
-		t.Fatalf("CompressSegment: %v", err)
-	}
-	if want := raw + GzSuffix; gzPath != want {
-		t.Fatalf("gzPath = %q, want %q", gzPath, want)
-	}
-	// Raw is removed; only the compressed copy remains.
-	if _, serr := os.Stat(raw); !os.IsNotExist(serr) {
-		t.Fatalf("raw segment still present after compress: %v", serr)
-	}
-	info, err := os.Stat(gzPath)
-	if err != nil {
-		t.Fatalf("stat %q: %v", gzPath, err)
-	}
-	if info.Size() >= int64(len(original)) {
-		t.Fatalf("compressed size %d not smaller than original %d", info.Size(), len(original))
-	}
-	// No in-flight temp file is left behind.
-	if _, serr := os.Stat(gzPath + ".tmp"); !os.IsNotExist(serr) {
-		t.Fatalf("temp file lingered: %v", serr)
-	}
-
-	// Round-trip: the compressed segment reads back as the original bytes.
-	got, err := ReadAll(canonical)
-	if err != nil {
-		t.Fatalf("ReadAll: %v", err)
-	}
-	if !bytes.Equal(got, original) {
-		t.Fatalf("round-trip mismatch: got %d bytes, want %d", len(got), len(original))
-	}
-}
-
 // TestReadSegment_ResolvesGzSiblingOnRawENOENT is the regression for issue
 // #316: a segment listed by OrderedPaths as raw can be swapped to ".gz" by a
 // concurrent CompressSegment in the window before the reader opens it. The old
@@ -283,11 +283,11 @@ func TestReadSegment_ResolvesGzSiblingOnRawENOENT(t *testing.T) {
 	raw := SegmentPath(canonical, 0)
 	original := bytes.Repeat([]byte("retained-history\n"), 512)
 	writeFile(t, raw, original)
-	if _, err := CompressSegment(raw); err != nil {
+	if err := compressSegment(raw); err != nil {
 		t.Fatalf("CompressSegment: %v", err)
 	}
 	// Raw is gone; only raw+".gz" remains — exactly the post-race on-disk state
-	// for the stale raw path OrderedPaths handed out.
+	// for the stale raw path a listing handed out.
 	if _, serr := os.Stat(raw); !os.IsNotExist(serr) {
 		t.Fatalf("raw segment unexpectedly present: %v", serr)
 	}
@@ -301,25 +301,65 @@ func TestReadSegment_ResolvesGzSiblingOnRawENOENT(t *testing.T) {
 	}
 }
 
-// TestDumpOne_ResolvesGzSiblingOnRawENOENT is the Dump-path twin of the above:
-// dumpOne must also re-resolve the ".gz" sibling rather than skipping a
-// retained segment that was compressed out from under it.
-func TestDumpOne_ResolvesGzSiblingOnRawENOENT(t *testing.T) {
+// TestOpenStored_ReportsFormActuallyOpened: a segment listed raw but
+// compressed before the open is served as stored (gzip bytes), and OpenStored
+// reports the form it actually opened rather than the listed one.
+func TestOpenStored_ReportsFormActuallyOpened(t *testing.T) {
 	dir := t.TempDir()
 	canonical := filepath.Join(dir, "capture")
 	raw := SegmentPath(canonical, 0)
-	original := bytes.Repeat([]byte("retained-history\n"), 512)
-	writeFile(t, raw, original)
-	if _, err := CompressSegment(raw); err != nil {
-		t.Fatalf("CompressSegment: %v", err)
+	writeFile(t, raw, []byte("retained-history\n"))
+	if err := compressSegment(raw); err != nil {
+		t.Fatalf("compressSegment: %v", err)
 	}
 
-	var buf bytes.Buffer
-	if err := dumpOne(raw, &buf); err != nil {
-		t.Fatalf("dumpOne on raced raw path: %v", err)
+	f, compressed, err := OpenStored(Segment{Path: raw, Seq: 0})
+	if err != nil {
+		t.Fatalf("OpenStored on raced raw path: %v", err)
 	}
-	if !bytes.Equal(buf.Bytes(), original) {
-		t.Fatalf("dumped %d bytes, want %d", buf.Len(), len(original))
+	defer func() { _ = f.Close() }()
+	if !compressed {
+		t.Fatalf("compressed = false, want true (the .gz form was opened)")
+	}
+	if f.Name() != raw+GzSuffix {
+		t.Fatalf("opened %q, want %q", f.Name(), raw+GzSuffix)
+	}
+}
+
+// TestOpenStored_LiveRotatedAway: a live segment rotated away between listing
+// and open is found under its closed name, SegmentPath(canonical, Seq).
+func TestOpenStored_LiveRotatedAway(t *testing.T) {
+	dir := t.TempDir()
+	canonical := filepath.Join(dir, "capture")
+	writeFile(t, canonical, []byte("live-bytes"))
+	segs, err := Segments(canonical)
+	if err != nil || len(segs) != 1 || !segs[0].Live {
+		t.Fatalf("Segments = %+v, %v", segs, err)
+	}
+	// Rotate: rename to the closed name the listing promised, then compress.
+	if rerr := os.Rename(canonical, SegmentPath(canonical, segs[0].Seq)); rerr != nil {
+		t.Fatalf("rename: %v", rerr)
+	}
+	if cerr := compressSegment(SegmentPath(canonical, segs[0].Seq)); cerr != nil {
+		t.Fatalf("compress: %v", cerr)
+	}
+
+	r, err := Open(segs[0])
+	if err != nil {
+		t.Fatalf("Open rotated live segment: %v", err)
+	}
+	defer func() { _ = r.Close() }()
+	got, err := io.ReadAll(r)
+	if err != nil || string(got) != "live-bytes" {
+		t.Fatalf("read = %q, %v; want %q", got, err, "live-bytes")
+	}
+
+	// Pruned entirely: fs.ErrNotExist.
+	if rerr := os.Remove(SegmentPath(canonical, segs[0].Seq) + GzSuffix); rerr != nil {
+		t.Fatalf("remove: %v", rerr)
+	}
+	if _, _, oerr := OpenStored(segs[0]); !errors.Is(oerr, fs.ErrNotExist) {
+		t.Fatalf("OpenStored pruned live: err = %v, want fs.ErrNotExist", oerr)
 	}
 }
 
@@ -363,11 +403,11 @@ func TestReadAll_SpansGzClosedAndRawLive(t *testing.T) {
 	// Two closed segments compressed to ".gz", then a raw live segment —
 	// the steady state after rotations have compressed older segments.
 	writeFile(t, SegmentPath(canonical, 0), []byte("AAAA"))
-	if _, err := CompressSegment(SegmentPath(canonical, 0)); err != nil {
+	if err := compressSegment(SegmentPath(canonical, 0)); err != nil {
 		t.Fatalf("compress seq 0: %v", err)
 	}
 	writeFile(t, SegmentPath(canonical, 1), []byte("BBBB"))
-	if _, err := CompressSegment(SegmentPath(canonical, 1)); err != nil {
+	if err := compressSegment(SegmentPath(canonical, 1)); err != nil {
 		t.Fatalf("compress seq 1: %v", err)
 	}
 	writeFile(t, canonical, []byte("CCCC"))

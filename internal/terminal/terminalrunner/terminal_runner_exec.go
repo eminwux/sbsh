@@ -114,7 +114,7 @@ type Exec struct {
 	// first in multiOutW. It owns the live-segment fd from startPty onward;
 	// Close closes it via closeCapture so repeated New→Start→Close cycles
 	// in-process do not leak fds. See #229. Rotation/retention layout lives
-	// in internal/capture; see capture_writer.go.
+	// in pkg/capture; see capture_writer.go.
 	capture      *captureWriter
 	closeCapture *sync.Once
 

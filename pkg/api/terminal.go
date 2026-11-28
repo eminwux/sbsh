@@ -91,7 +91,7 @@ type TerminalSpec struct {
 	// segment: capture rotates into deterministic siblings to bound size, so
 	// a raw read of this path shows the live tail only. Full transcript
 	// reassembly (closed segments oldest-first, then live) is done by
-	// `sb read` and attach --full-capture; see internal/capture.
+	// `sb read` and attach --full-capture; see pkg/capture.
 	CaptureFile string `json:"captureFile"`
 	LogFile     string `json:"logFile"`
 	LogLevel    string `json:"logLevel"`
