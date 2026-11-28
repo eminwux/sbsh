@@ -413,10 +413,14 @@ type SubscribeRequest struct {
 // that preserves the client's prior terminal content; it mirrors the CLI's
 // --clear-on-attach flag via ClientSpec.ClearOnAttach and has no effect on the
 // full-capture replay, which is raw history.
+// NoOverlays opts the client out of server-drawn client overlays (toasts and
+// takeovers started by an embedder through pkg/terminal/server): the client
+// never receives overlay bytes. It mirrors ClientSpec.NoOverlays.
 type AttachRequest struct {
 	ClientID      ID
 	FullCapture   bool
 	ClearOnAttach bool
+	NoOverlays    bool
 }
 
 // ResponseWithFD carries a normal JSON result plus OOB file descriptors.

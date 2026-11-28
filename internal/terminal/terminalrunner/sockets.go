@@ -250,6 +250,11 @@ func (sr *Exec) OpenSocketCtrl() error {
 }
 
 func (sr *Exec) CreateNewClient(clientID *api.ID, fullCapture, clearScreen bool) (int, error) {
+	return sr.createClient(clientID, attachOptions{fullCapture: fullCapture, clearScreen: clearScreen})
+}
+
+// createClient is CreateNewClient with the full set of attach options.
+func (sr *Exec) createClient(clientID *api.ID, opts attachOptions) (int, error) {
 	sr.logger.Debug("CreateNewClient: creating socketpair", "id", clientID)
 	sv, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|sockCloexec, 0)
 	if err != nil {
@@ -269,7 +274,14 @@ func (sr *Exec) CreateNewClient(clientID *api.ID, fullCapture, clearScreen bool)
 	}
 	_ = f.Close() // release the duplicate, keep using ioConn
 
-	cl := &ioClient{id: clientID, conn: ioConn, fullCapture: fullCapture, clearScreen: clearScreen}
+	cl := &ioClient{
+		id:          clientID,
+		conn:        ioConn,
+		fullCapture: opts.fullCapture,
+		clearScreen: opts.clearScreen,
+		noOverlays:  opts.noOverlays,
+		attachedAt:  time.Now(),
+	}
 
 	sr.addClient(cl)
 	sr.logger.Info("CreateNewClient: client added", "id", clientID)

@@ -282,7 +282,12 @@ func renderGrid(v vt10x.View, cols, rows int) (string, string) {
 }
 
 // renderLine renders a single grid row, returning its plain text and its
-// SGR-colored form. Trailing blank columns are dropped.
+// SGR-styled form. Trailing blank columns are dropped.
+//
+// Colors-only rows keep the historical "\x1b[fg;bgm" transitions byte for
+// byte. Cells carrying a text style (bold, underline, reverse, italic,
+// blink — see cellPen) are emitted with a full "\x1b[0;...;fg;bgm" pen so a
+// redraw reproduces the style, not just the colors.
 func renderLine(v vt10x.View, cols, y int) (string, string) {
 	last := -1
 	for x := range cols {
@@ -293,7 +298,8 @@ func renderLine(v vt10x.View, cols, y int) (string, string) {
 
 	var text, ansi strings.Builder
 	curFG, curBG := vt10x.DefaultFG, vt10x.DefaultBG
-	colored := false
+	var curMode int16
+	styled := false
 	for x := 0; x <= last; x++ {
 		g := v.Cell(x, y)
 		ch := g.Char
@@ -302,19 +308,82 @@ func renderLine(v vt10x.View, cols, y int) (string, string) {
 		}
 		text.WriteRune(ch)
 
-		if g.FG != curFG || g.BG != curBG {
-			fmt.Fprintf(&ansi, "\x1b[%s;%sm", ansiFG(g.FG), ansiBG(g.BG))
-			curFG, curBG = g.FG, g.BG
-			if g.FG != vt10x.DefaultFG || g.BG != vt10x.DefaultBG {
-				colored = true
+		fg, bg, mode := cellPen(g)
+		if fg != curFG || bg != curBG || mode != curMode {
+			if mode == 0 && curMode == 0 {
+				fmt.Fprintf(&ansi, "\x1b[%s;%sm", ansiFG(fg), ansiBG(bg))
+			} else {
+				ansi.WriteString(sgrPen(mode, fg, bg))
+			}
+			curFG, curBG, curMode = fg, bg, mode
+			if fg != vt10x.DefaultFG || bg != vt10x.DefaultBG || mode != 0 {
+				styled = true
 			}
 		}
 		ansi.WriteRune(ch)
 	}
-	if colored {
+	if styled {
 		ansi.WriteString(sgrReset)
 	}
 	return text.String(), ansi.String()
+}
+
+// vt10x keeps its glyph attribute bits unexported (attrReverse,
+// attrUnderline, attrBold, attrGfx, attrItalic, attrBlink in state.go, in
+// that iota order) and its cursor-state bits likewise (cursorWrapNext). They
+// are mirrored here so a redraw can re-emit text styles and the pending-wrap
+// state; TestVT10xAttrBitsPinned fails if a vt10x upgrade renumbers them.
+const (
+	vtAttrReverse   int16 = 1 << 0
+	vtAttrUnderline int16 = 1 << 1
+	vtAttrBold      int16 = 1 << 2
+	vtAttrItalic    int16 = 1 << 4
+	vtAttrBlink     int16 = 1 << 5
+
+	// vtStyleMask selects the SGR-expressible style bits (gfx charset and
+	// the wrap marker are not text styles).
+	vtStyleMask = vtAttrReverse | vtAttrUnderline | vtAttrBold | vtAttrItalic | vtAttrBlink
+
+	vtCursorWrapNext uint8 = 1 << 1
+)
+
+// cellPen returns the pen (colors + style bits) that, set on a VT terminal
+// before writing g's rune, reproduces g. vt10x stores a reverse-video glyph
+// with FG and BG already swapped, so the stored colors are swapped back:
+// re-emitting SGR 7 over the swapped colors would double-swap. Bold's
+// bright-FG boost is stored as the bright color and round-trips as is.
+func cellPen(g vt10x.Glyph) (vt10x.Color, vt10x.Color, int16) {
+	mode := g.Mode & vtStyleMask
+	if mode&vtAttrReverse != 0 {
+		return g.BG, g.FG, mode
+	}
+	return g.FG, g.BG, mode
+}
+
+// sgrPen renders a complete pen: reset, the style bits, then both colors.
+func sgrPen(mode int16, fg, bg vt10x.Color) string {
+	var b strings.Builder
+	b.WriteString("\x1b[0")
+	for _, s := range [...]struct {
+		bit   int16
+		param string
+	}{
+		{vtAttrBold, ";1"},
+		{vtAttrItalic, ";3"},
+		{vtAttrUnderline, ";4"},
+		{vtAttrBlink, ";5"},
+		{vtAttrReverse, ";7"},
+	} {
+		if mode&s.bit != 0 {
+			b.WriteString(s.param)
+		}
+	}
+	b.WriteString(";")
+	b.WriteString(ansiFG(fg))
+	b.WriteString(";")
+	b.WriteString(ansiBG(bg))
+	b.WriteString("m")
+	return b.String()
 }
 
 // ansiFG maps a vt10x foreground color to its SGR parameter.

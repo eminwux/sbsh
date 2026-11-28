@@ -95,6 +95,9 @@ type Exec struct {
 	subsMu      sync.Mutex
 	subscribers map[*subscriberWriter]struct{}
 
+	// overlays tracks shown toasts and active takeovers (overlay.go).
+	overlays overlayRegistry
+
 	closeReqCh chan error
 	closedCh   chan struct{}
 
@@ -173,6 +176,24 @@ type ioClient struct {
 	// Set by the --clear-on-attach flag; ignored on the fullCapture path,
 	// whose replay is raw history.
 	clearScreen bool
+	// noOverlays opts this client out of client overlays (toasts and
+	// takeovers): it never receives overlay bytes. Set from
+	// AttachRequest.NoOverlays.
+	noOverlays bool
+	// attachedAt is when the client was registered, reported by Clients.
+	attachedAt time.Time
+	// gate sits between this client's socket reader and the workload input
+	// so a takeover can drop its keystrokes. Published with outWriter under
+	// clientsMu.
+	gate *inputGate
+}
+
+// attachOptions are the per-client attach settings carried by an
+// AttachRequest.
+type attachOptions struct {
+	fullCapture bool
+	clearScreen bool
+	noOverlays  bool
 }
 
 func NewTerminalRunnerExec(ctx context.Context, logger *slog.Logger, spec *api.TerminalSpec) TerminalRunner {

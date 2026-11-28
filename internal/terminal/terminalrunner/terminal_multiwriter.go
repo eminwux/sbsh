@@ -33,6 +33,13 @@ type DynamicMultiWriter struct {
 	mu      sync.RWMutex
 	writers []io.Writer
 	logger  *slog.Logger
+
+	// writeMu is held for the whole fan-out of one chunk. Quiesce takes it
+	// so client-overlay state changes run between chunks, when every sink
+	// (notably the screen model and each attacher's ring) has seen exactly
+	// the same prefix of the stream. Distinct from mu so Add/Remove never
+	// wait behind a paced (backpressured) Write.
+	writeMu sync.Mutex
 }
 
 func NewDynamicMultiWriter(logger *slog.Logger, writers ...io.Writer) *DynamicMultiWriter {
@@ -47,6 +54,9 @@ func NewDynamicMultiWriter(logger *slog.Logger, writers ...io.Writer) *DynamicMu
 // client must not be able to tear down the producer. Write returns
 // ErrAllWritersFailed only when no writer accepted the payload.
 func (dmw *DynamicMultiWriter) Write(p []byte) (int, error) {
+	dmw.writeMu.Lock()
+	defer dmw.writeMu.Unlock()
+
 	dmw.logger.Debug("acquiring read lock for writers")
 	dmw.mu.RLock()
 	ws := append([]io.Writer(nil), dmw.writers...)
@@ -85,6 +95,14 @@ func (dmw *DynamicMultiWriter) Write(p []byte) (int, error) {
 		"bytes", len(p),
 	)
 	return len(p), nil
+}
+
+// Quiesce runs fn while no chunk is being fanned out: fn observes the screen
+// model and every sink at the same chunk boundary. fn must not call Write.
+func (dmw *DynamicMultiWriter) Quiesce(fn func()) {
+	dmw.writeMu.Lock()
+	defer dmw.writeMu.Unlock()
+	fn()
 }
 
 func (dmw *DynamicMultiWriter) Add(w io.Writer) {

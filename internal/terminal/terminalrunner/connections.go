@@ -150,6 +150,20 @@ func (sr *Exec) handleClient(client *ioClient) {
 	aw := newSubscriberWriter(client.conn, defaultSubscriberBufferBytes, detach, sr.logger)
 	aw.enableBackpressure()
 	aw.seedReplay(initial)
+	// Client overlays (overlay.go): unless this client opted out, attach the
+	// per-client overlay state before the writer joins the fan-out. Without
+	// an overlay call it only tracks escape-sequence state; the bytes the
+	// client receives are unchanged.
+	sr.ptyPipesMu.RLock()
+	screen := sr.ptyPipes.screen
+	sr.ptyPipesMu.RUnlock()
+	if !client.noOverlays && screen != nil {
+		aw.overlay = newClientOverlay(screen, multiOutW.Quiesce)
+		aw.overlay.seed(initial)
+	}
+	// The input gate lets a takeover drop this client's keystrokes; it passes
+	// them through untouched otherwise.
+	gate := &inputGate{w: pipeInW}
 	// outWriter is read by the Detach RPC, cleanupClient, and Close on
 	// other goroutines, so publish it under clientsMu — the same lock those
 	// readers take — rather than racing the unsynchronized field write a
@@ -157,6 +171,7 @@ func (sr *Exec) handleClient(client *ioClient) {
 	// Detach (issue #355).
 	sr.clientsMu.Lock()
 	client.outWriter = aw
+	client.gate = gate
 	sr.clientsMu.Unlock()
 	multiOutW.Add(aw)
 	go aw.Run()
@@ -166,7 +181,7 @@ func (sr *Exec) handleClient(client *ioClient) {
 	// for the next PTY byte to discover the broken conn.
 	dc := dualcopier.NewCopier(sr.ctx, sr.logger)
 	readyReader := make(chan struct{})
-	go dc.RunCopier(client.conn, pipeInW, readyReader, func() {
+	go dc.RunCopier(client.conn, gate, readyReader, func() {
 		sr.logger.Debug("closing UnixConn read side", "client", client.id)
 		_ = uc.CloseRead()
 		detach()

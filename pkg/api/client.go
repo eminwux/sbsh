@@ -55,6 +55,13 @@ type ClientSpec struct {
 	// is unaffected by it.
 	ClearOnAttach bool `json:"clearOnAttach,omitempty"`
 
+	// NoOverlays, when true, opts this client out of client overlays —
+	// toasts and takeovers an embedder draws through pkg/terminal/server.
+	// The server never sends it overlay bytes. Forwarded to the terminal
+	// server via the Attach RPC. A client that draws its own notices (for
+	// example a web UI rendering HTML toasts) opts out.
+	NoOverlays bool `json:"noOverlays,omitempty"`
+
 	// ClearOnDetach, when true, makes the client erase the whole
 	// screen (\x1b[2J\x1b[H) after the parent-terminal restore sequence on
 	// the user-detach path (^]^] keystroke or `sb detach`). The default
