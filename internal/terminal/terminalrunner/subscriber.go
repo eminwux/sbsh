@@ -96,6 +96,12 @@ type subscriberWriter struct {
 	conn         net.Conn
 	onDetach     func()
 	logger       *slog.Logger
+
+	// overlay is the client-overlay state of an interactive attacher that
+	// accepts overlays (see overlay.go). nil for passive subscribers and for
+	// attachers that opted out, in which case Write is the plain enqueue.
+	// Set before the writer joins the fan-out; guarded by mu afterwards.
+	overlay *clientOverlay
 }
 
 func newSubscriberWriter(conn net.Conn, maxBytes int, onDetach func(), logger *slog.Logger) *subscriberWriter {
@@ -143,6 +149,25 @@ func (s *subscriberWriter) Write(p []byte) (int, error) {
 	if s.closed {
 		return len(p), nil
 	}
+	if s.overlay != nil {
+		s.overlay.onLive(s, p)
+		return len(p), nil
+	}
+	s.enqueueLocked(p)
+	return len(p), nil
+}
+
+// enqueueLocked appends p to the ring under the policy documented on Write
+// (pace in backpressure mode, drop-on-lag otherwise). Every byte destined for
+// the conn — live output and overlay bytes alike — goes through here, so the
+// drain goroutine stays the single writer of conn. The caller holds s.mu.
+func (s *subscriberWriter) enqueueLocked(p []byte) {
+	if s.closed || len(p) == 0 {
+		return
+	}
+	if s.overlay != nil {
+		s.overlay.clientEsc.feed(p)
+	}
 	if s.buf.Len()+len(p) > s.maxBytes {
 		// Backpressure mode: pace the producer to the live attacher's drain
 		// rate. waitForRoom returns true once the drain has freed enough
@@ -151,19 +176,28 @@ func (s *subscriberWriter) Write(p []byte) (int, error) {
 		if s.backpressure && s.waitForRoom(len(p)) {
 			_, _ = s.buf.Write(p)
 			s.cond.Broadcast()
-			return len(p), nil
+			return
 		}
 		if s.closed {
-			return len(p), nil
+			return
 		}
 		s.lagged = true
-		s.closed = true
-		s.cond.Broadcast()
-		return len(p), nil
+		s.setClosedLocked()
+		return
 	}
 	_, _ = s.buf.Write(p)
 	s.cond.Broadcast()
-	return len(p), nil
+}
+
+// setClosedLocked marks the writer closed, wakes the drain and any paced
+// producer, and releases anyone waiting on an overlay transition of this
+// client. The caller holds s.mu.
+func (s *subscriberWriter) setClosedLocked() {
+	s.closed = true
+	s.cond.Broadcast()
+	if s.overlay != nil {
+		s.overlay.abort()
+	}
 }
 
 // waitForRoom blocks (with s.mu held) until the ring has space for need bytes
@@ -224,8 +258,7 @@ func (s *subscriberWriter) seedReplay(b []byte) {
 func (s *subscriberWriter) Close() error {
 	s.mu.Lock()
 	if !s.closed {
-		s.closed = true
-		s.cond.Broadcast()
+		s.setClosedLocked()
 	}
 	s.mu.Unlock()
 	return nil
@@ -272,11 +305,10 @@ func (s *subscriberWriter) Run() {
 		if _, err := s.conn.Write(chunk); err != nil {
 			s.logger.Debug("subscriber conn write failed; closing", "err", err)
 			s.mu.Lock()
-			s.closed = true
-			// Broadcast so a backpressure producer parked on this now-dead
-			// peer unblocks immediately instead of waiting out its stall
-			// budget; it will take the drop-on-lag path on wake.
-			s.cond.Broadcast()
+			// setClosedLocked broadcasts so a backpressure producer parked on
+			// this now-dead peer unblocks immediately instead of waiting out
+			// its stall budget; it will take the drop-on-lag path on wake.
+			s.setClosedLocked()
 			s.mu.Unlock()
 			return
 		}

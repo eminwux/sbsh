@@ -479,6 +479,7 @@ func (sr *Exec) Resize(args api.ResizeArgs) {
 	sr.ptyPipesMu.RUnlock()
 	if screen != nil {
 		screen.resize(args.Cols, args.Rows)
+		sr.overlayResized()
 	}
 }
 
@@ -523,7 +524,11 @@ func (sr *Exec) Attach(req *api.AttachRequest, response *api.ResponseWithFD) err
 		return errors.New("Attach: terminal not running")
 	}
 
-	cliFD, err := sr.CreateNewClient(&req.ClientID, req.FullCapture, req.ClearOnAttach)
+	cliFD, err := sr.createClient(&req.ClientID, attachOptions{
+		fullCapture: req.FullCapture,
+		clearScreen: req.ClearOnAttach,
+		noOverlays:  req.NoOverlays,
+	})
 	if err != nil {
 		return err
 	}
@@ -539,6 +544,7 @@ func (sr *Exec) Attach(req *api.AttachRequest, response *api.ResponseWithFD) err
 		"id", req.ClientID,
 		"fullCapture", req.FullCapture,
 		"clearOnAttach", req.ClearOnAttach,
+		"noOverlays", req.NoOverlays,
 		"ok", payload.OK,
 		"fds", fds,
 	)

@@ -229,6 +229,55 @@ the deferred `Close` becomes a safety net — expect a non-zero
 exit status to surface here because the child exited in response
 to the Stop signal.
 
+## Client overlays
+
+`pkg/terminal/server.Server`, the facade that serves the terminal RPC
+protocol from an embedding process, can draw overlays on attached
+interactive clients. The concepts and guarantees are in
+[Concepts: client](../concepts/client.md#client-overlays). The calls
+work once `Serve` has started the terminal; before that they return
+`server.ErrNotStarted`.
+
+```go
+// Who is attached, and which clients opted out.
+for _, c := range srv.Clients() {
+	fmt.Println(c.ID, c.AttachedAt, c.NoOverlays)
+}
+
+// A toast for every client except the one that just attached.
+id, err := srv.ShowToast(ctx,
+	server.Target{All: true, Except: []api.ID{newClient}},
+	server.Toast{
+		Lines:    []string{"another client attached"},
+		Position: server.ToastTopRight,
+		Style:    server.ToastInfo,
+		TTL:      3 * time.Second, // <= 0 keeps it until DismissToast
+	})
+
+// A full-screen notice.
+tk, err := srv.BeginTakeover(ctx, server.Target{All: true},
+	server.TakeoverOptions{Input: server.InputDrop}) // or server.InputPass
+cols, rows := tk.Size() // redraw on <-tk.Resized()
+_ = tk.Write([]byte("\x1b[2J\x1b[H cell is stopping "))
+_ = tk.End() // redraw from the screen model and resume live output
+```
+
+- `Target` selects `All` clients or the IDs in `Only`, minus `Except`.
+  Clients that opted out are never selected, and clients that attach
+  after `BeginTakeover` are not part of that takeover.
+- Toast lines are plain text. Control characters are stripped and each
+  rune takes one column. A client shows one toast at a time: a new
+  toast replaces the previous one.
+- `BeginTakeover` returns once every target is held, after at most
+  about 100 ms. It fails with `server.ErrClientBusy` if a target is
+  already in another takeover.
+- `End` restores the screen contents, text styles, cursor position and
+  visibility, and the normal or alternate screen. Frames should leave
+  other terminal modes (scroll regions, character sets, mouse or
+  keypad modes) as they found them.
+- To trigger overlays remotely, register your own RPC with
+  `WithHandlers`.
+
 ## See also
 
 - [Architecture: process model](../architecture/process-model.md) — how

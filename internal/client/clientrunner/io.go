@@ -159,10 +159,16 @@ func (sr *Exec) attach() error {
 	sr.metadataMu.RLock()
 	fullCapture := sr.metadata.Spec.FullCapture
 	clearOnAttach := sr.metadata.Spec.ClearOnAttach
+	noOverlays := sr.metadata.Spec.NoOverlays
 	sr.metadataMu.RUnlock()
 	conn, err := sr.terminalClient.Attach(
 		sr.ctx,
-		&api.AttachRequest{ClientID: sr.id, FullCapture: fullCapture, ClearOnAttach: clearOnAttach},
+		&api.AttachRequest{
+			ClientID:      sr.id,
+			FullCapture:   fullCapture,
+			ClearOnAttach: clearOnAttach,
+			NoOverlays:    noOverlays,
+		},
 		&response,
 	)
 	if err != nil {

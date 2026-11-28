@@ -88,6 +88,11 @@ type Options struct {
 	// full-capture replay is raw history and is unaffected by it.
 	ClearOnAttach bool
 
+	// DisableOverlays opts this client out of client overlays (toasts and
+	// takeovers an embedder draws through pkg/terminal/server): the server
+	// never sends it overlay bytes. It flows through ClientSpec.NoOverlays.
+	DisableOverlays bool
+
 	// ClearOnDetach, when true, erases the whole screen after the
 	// parent-terminal restore on the user-detach path (^]^] or `sb
 	// detach`). The default leaves screen content untouched. It flows
@@ -171,6 +176,7 @@ func Run(ctx context.Context, opts Options) error {
 			DetachKeystroke: !opts.DisableDetachKeystroke,
 			FullCapture:     opts.FullCapture,
 			ClearOnAttach:   opts.ClearOnAttach,
+			NoOverlays:      opts.DisableOverlays,
 			ClearOnDetach:   opts.ClearOnDetach,
 			TerminalSpec: &api.TerminalSpec{
 				SocketFile: opts.SocketPath,

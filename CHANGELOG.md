@@ -44,6 +44,19 @@ loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `WithPrompt(string)` stamps `Spec.Prompt`.
   - `WithEnvInherit(bool)` stamps `Spec.EnvInherit` (set-sentinel
     discipline; `false` is a valid distinct value from "unset").
+- `pkg/terminal/server` gained client overlays: `ShowToast` /
+  `DismissToast` draw a non-modal corner box over live output, and
+  `BeginTakeover` returns a `*Takeover` that holds live output for
+  chosen clients so the embedder can `Write` full-screen frames, then
+  `End` redraws them from the screen model and resumes. `Clients`
+  lists attached clients. Overlay bytes reach client connections only,
+  never the capture, `Screenshot` or the workload's input; a held
+  client's live output is discarded, not buffered, so the workload is
+  never slowed. Clients opt out with `api.AttachRequest.NoOverlays` /
+  `api.ClientSpec.NoOverlays` / `pkg/attach.Options.DisableOverlays`.
+- Attach redraws and `Screenshot.ANSI` now reproduce bold, italic,
+  underline, blink and reverse video, not only colors. Colors-only
+  output is unchanged.
 - `pkg/builder.BuildTerminalSpecFromProfile` preserves the legacy
   profile-driven build path (empty `WithProfile` resolves to
   `"default"`, `pkg/discovery` lookup, hardcoded-default fallback for
